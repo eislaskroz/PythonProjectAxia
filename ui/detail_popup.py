@@ -16,7 +16,7 @@ def mostrar_detalle_registro(parent, titulo, registro):
     ctk.CTkLabel(
         contenedor,
         text=titulo,
-        font=("Montserrat", 20, "bold"),
+        font=("Montserrat", 18, "bold"),
         anchor="w",
     ).pack(fill="x", pady=(0, 12))
 

@@ -20,14 +20,15 @@ import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
+from core.app_paths import logs_dir
+
 
 # =====================================================
 # CONFIGURACIÓN GENERAL
 # =====================================================
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-LOG_DIR = BASE_DIR / "logs"
-LOG_DIR.mkdir(exist_ok=True)
+LOG_DIR = logs_dir()
 
 LOG_FILE = LOG_DIR / "axia.log"
 ERROR_LOG_FILE = LOG_DIR / "axia_errors.log"

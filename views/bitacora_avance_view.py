@@ -58,7 +58,7 @@ def mostrar_bitacora_avance(parent, app, aco=None):
             fila, col = 1 + i // 3, i % 3
             item = ctk.CTkFrame(panel, fg_color="transparent")
             item.grid(row=fila, column=col, sticky="ew", padx=18, pady=(2, 5))
-            ctk.CTkLabel(item, text=f"{etiqueta}: ", font=("Montserrat", 11, "bold"), text_color=TEXT_PRIMARY).pack(side="left")
+            ctk.CTkLabel(item, text=f"{etiqueta}: ", font=("Montserrat", 12, "bold"), text_color=TEXT_PRIMARY).pack(side="left")
             ctk.CTkLabel(item, text=valor or "No registrado", font=("Montserrat", 11), text_color=TEXT_SECONDARY, wraplength=330).pack(side="left", fill="x", expand=True)
         for col in range(3):
             panel.grid_columnconfigure(col, weight=1, uniform="aco_panel")

@@ -90,7 +90,7 @@ def abrir_selector_fecha(parent, variable):
     encabezado.grid(row=0, column=0, columnspan=7, sticky="ew", pady=(0, 8))
     encabezado.grid_columnconfigure(1, weight=1)
 
-    titulo = ctk.CTkLabel(encabezado, text="", font=("Montserrat", 15, "bold"))
+    titulo = ctk.CTkLabel(encabezado, text="", font=("Montserrat", 14, "bold"))
     titulo.grid(row=0, column=1, sticky="ew")
 
     cuerpo = ctk.CTkFrame(marco, fg_color="transparent")
@@ -109,7 +109,7 @@ def abrir_selector_fecha(parent, variable):
         titulo.configure(text=f"{meses[estado['month']-1]} {estado['year']}")
 
         for col, dia in enumerate(["Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do"]):
-            ctk.CTkLabel(cuerpo, text=dia, font=("Montserrat", 11, "bold")).grid(row=0, column=col, padx=2, pady=2)
+            ctk.CTkLabel(cuerpo, text=dia, font=("Montserrat", 12, "bold")).grid(row=0, column=col, padx=2, pady=2)
 
         semanas = calendar.monthcalendar(estado["year"], estado["month"])
         for r, semana in enumerate(semanas, start=1):

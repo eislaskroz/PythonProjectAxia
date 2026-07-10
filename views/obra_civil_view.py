@@ -280,7 +280,7 @@ def mostrar_obra_civil(parent, app, aco=None):
     for col, peso in enumerate((2, 2, 1, 2, 2, 3)):
         panel_equipos.grid_columnconfigure(col, weight=peso)
     for col, encabezado in enumerate(("Familia", "Subfamilia", "Cantidad", "Marca", "Modelo", "Características técnicas")):
-        ctk.CTkLabel(panel_equipos, text=encabezado, font=("Montserrat", 11, "bold")).grid(row=0, column=col, sticky="w", padx=6)
+        ctk.CTkLabel(panel_equipos, text=encabezado, font=("Montserrat", 12, "bold")).grid(row=0, column=col, sticky="w", padx=6)
 
     def agregar_equipo_obra():
         fila_eq = 1 + len(equipos_catalogo_items)
@@ -312,11 +312,11 @@ def mostrar_obra_civil(parent, app, aco=None):
     panel_misc.grid_columnconfigure(2, weight=1)
     panel_misc.grid_columnconfigure(3, weight=1)
     panel_misc.grid_columnconfigure(4, weight=3)
-    ctk.CTkLabel(panel_misc, text="Material", font=("Montserrat", 11, "bold")).grid(row=0, column=0, sticky="w", padx=6)
-    ctk.CTkLabel(panel_misc, text="¿Se requiere?", font=("Montserrat", 11, "bold")).grid(row=0, column=1, sticky="w", padx=6)
-    ctk.CTkLabel(panel_misc, text="Cantidad", font=("Montserrat", 11, "bold")).grid(row=0, column=2, sticky="w", padx=6)
-    ctk.CTkLabel(panel_misc, text="Unidad", font=("Montserrat", 11, "bold")).grid(row=0, column=3, sticky="w", padx=6)
-    ctk.CTkLabel(panel_misc, text="Especificación / medida", font=("Montserrat", 11, "bold")).grid(row=0, column=4, sticky="w", padx=6)
+    ctk.CTkLabel(panel_misc, text="Material", font=("Montserrat", 12, "bold")).grid(row=0, column=0, sticky="w", padx=6)
+    ctk.CTkLabel(panel_misc, text="¿Se requiere?", font=("Montserrat", 12, "bold")).grid(row=0, column=1, sticky="w", padx=6)
+    ctk.CTkLabel(panel_misc, text="Cantidad", font=("Montserrat", 12, "bold")).grid(row=0, column=2, sticky="w", padx=6)
+    ctk.CTkLabel(panel_misc, text="Unidad", font=("Montserrat", 12, "bold")).grid(row=0, column=3, sticky="w", padx=6)
+    ctk.CTkLabel(panel_misc, text="Especificación / medida", font=("Montserrat", 12, "bold")).grid(row=0, column=4, sticky="w", padx=6)
 
     def agregar_material_misc_obra(material_catalogo=None):
         material_catalogo = material_catalogo or {}

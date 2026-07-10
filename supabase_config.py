@@ -1,5 +1,7 @@
 import os
 from dotenv import load_dotenv
+
+from core.app_paths import candidate_env_files
 from supabase import create_client
 
 from core.logger import configurar_logger
@@ -10,7 +12,16 @@ logger = configurar_logger(__name__)
 # CARGAR VARIABLES DE ENTORNO
 # =================================================
 
-load_dotenv()
+ENV_CARGADO = None
+for _env_path in candidate_env_files():
+    if _env_path.is_file():
+        load_dotenv(dotenv_path=_env_path, override=False)
+        ENV_CARGADO = _env_path
+        break
+
+# Conserva compatibilidad con variables definidas por el sistema operativo.
+if ENV_CARGADO is None:
+    load_dotenv(override=False)
 
 # =================================================
 # VARIABLES SUPABASE
@@ -38,7 +49,7 @@ try:
         SUPABASE_URL,
         SUPABASE_KEY
     )
-    logger.info("Cliente Supabase inicializado correctamente.")
+    logger.info("Cliente Supabase inicializado correctamente. Configuración: %s", ENV_CARGADO or "variables del sistema")
 except Exception:
     logger.exception("No fue posible inicializar el cliente Supabase.")
     raise

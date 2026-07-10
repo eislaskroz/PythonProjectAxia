@@ -236,14 +236,14 @@ def mostrar_clientes_admin(parent, app):
     ctk.CTkLabel(
         panel_operativo,
         text="Sucursales operativas",
-        font=("Montserrat", 15, "bold"),
+        font=("Montserrat", 14, "bold"),
         text_color=TEXT_PRIMARY,
     ).grid(row=0, column=0, sticky="w", padx=14, pady=(12, 4))
 
     ctk.CTkLabel(
         panel_operativo,
         text="Contactos por sucursal",
-        font=("Montserrat", 15, "bold"),
+        font=("Montserrat", 14, "bold"),
         text_color=TEXT_PRIMARY,
     ).grid(row=0, column=1, sticky="w", padx=14, pady=(12, 4))
 

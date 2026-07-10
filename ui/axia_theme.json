@@ -63,8 +63,8 @@
     "corner_radius": 6,
     "border_width": 2,
     "fg_color": [
-      "#FFFFFF",
-      "#FFFFFF"
+      "#F8FAFC",
+      "#F8FAFC"
     ],
     "border_color": [
       "#CBD5E1",
@@ -234,8 +234,8 @@
     "corner_radius": 6,
     "border_width": 2,
     "fg_color": [
-      "#FFFFFF",
-      "#FFFFFF"
+      "#F8FAFC",
+      "#F8FAFC"
     ],
     "border_color": [
       "#CBD5E1",
@@ -309,14 +309,14 @@
   },
   "CTkTextbox": {
     "corner_radius": 6,
-    "border_width": 0,
+    "border_width": 2,
     "fg_color": [
-      "#FFFFFF",
-      "#FFFFFF"
+      "#EEF2F6",
+      "#EEF2F6"
     ],
     "border_color": [
-      "#CBD5E1",
-      "#CBD5E1"
+      "#B8C4D1",
+      "#B8C4D1"
     ],
     "text_color": [
       "#111827",
@@ -361,18 +361,18 @@
   },
   "CTkFont": {
     "macOS": {
-      "family": "SF Display",
-      "size": 13,
+      "family": "Montserrat",
+      "size": 12,
       "weight": "normal"
     },
     "Windows": {
-      "family": "Roboto",
-      "size": 13,
+      "family": "Montserrat",
+      "size": 12,
       "weight": "normal"
     },
     "Linux": {
-      "family": "Roboto",
-      "size": 13,
+      "family": "Montserrat",
+      "size": 12,
       "weight": "normal"
     }
   }

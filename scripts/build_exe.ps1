@@ -1,24 +1,30 @@
-# AXIA - Generación de ejecutable en modo carpeta
-# Ejecutar desde la raíz del proyecto:
+# AXIA - Compilación reproducible en modo carpeta
+# Ejecutar desde la raíz:
 # powershell -ExecutionPolicy Bypass -File .\scripts\build_exe.ps1
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "Limpiando build/dist anteriores..." -ForegroundColor Cyan
-Remove-Item -Recurse -Force build, dist -ErrorAction SilentlyContinue
+if (-not (Test-Path ".\main.py")) {
+    throw "Ejecuta este script desde la raíz del proyecto AXIA."
+}
 
-Write-Host "Instalando dependencias de desarrollo..." -ForegroundColor Cyan
-python -m pip install -r requirements-dev.txt
+Write-Host "[1/5] Validando sintaxis y estructura..." -ForegroundColor Cyan
+python .\tools\auditar_proyecto.py
 
-Write-Host "Generando AXIA.exe..." -ForegroundColor Cyan
-pyinstaller --noconfirm --clean --onedir --windowed --name AXIA `
-  --collect-all reportlab `
-  --collect-all PIL `
-  --collect-all qrcode `
-  --add-data "assets;assets" `
-  --add-data "ui\axia_theme.json;ui" `
-  --icon "assets\SoloAxia.ico" `
-  main.py
+Write-Host "[2/5] Limpiando build/dist anteriores..." -ForegroundColor Cyan
+python .\scripts\limpiar_proyecto.py
 
-Write-Host "Listo. Revisa dist\AXIA\AXIA.exe" -ForegroundColor Green
-Write-Host "IMPORTANTE: copia tu archivo .env dentro de dist\AXIA\ antes de probar en otra PC." -ForegroundColor Yellow
+Write-Host "[3/5] Instalando dependencias..." -ForegroundColor Cyan
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt -r requirements-dev.txt
+
+Write-Host "[4/5] Generando AXIA.exe desde AXIA.spec..." -ForegroundColor Cyan
+pyinstaller --noconfirm --clean AXIA.spec
+
+Write-Host "[5/5] Preparando configuración de despliegue..." -ForegroundColor Cyan
+Copy-Item ".env.example" ".\dist\AXIA\.env.example" -Force
+
+Write-Host "" 
+Write-Host "Compilación terminada: dist\AXIA\AXIA.exe" -ForegroundColor Green
+Write-Host "No se incluyó .env por seguridad." -ForegroundColor Yellow
+Write-Host "Copia manualmente .env junto a AXIA.exe en cada equipo de pruebas." -ForegroundColor Yellow

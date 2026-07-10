@@ -777,7 +777,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             ctk.CTkLabel(
                 item,
                 text=f"{etiqueta}: ",
-                font=("Montserrat", 11, "bold"),
+                font=("Montserrat", 12, "bold"),
                 text_color=TEXT_PRIMARY,
                 anchor="w"
             ).pack(side="left", anchor="w")
@@ -1023,7 +1023,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         ctk.CTkLabel(
             badge_tipo,
             text=f"📌 Tipo seleccionado: {tipo_levantamiento}",
-            font=("Montserrat", 13, "bold"),
+            font=("Montserrat", 12, "bold"),
             text_color=PRIMARY
         ).pack(anchor="w", padx=16, pady=8)
         desplazamiento_filas = 1
@@ -1454,8 +1454,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             seccion_existente,
             height=72,
             corner_radius=9,
-            fg_color="#1F2933",
-            text_color="white"
+            fg_color="#EEF2F6",
+            border_width=2,
+            border_color="#B8C4D1",
+            text_color="#111827"
         )
         txt_infra_observaciones.grid(row=4, column=0, columnspan=5, sticky="ew", padx=12, pady=(0, 8))
         ctk.CTkLabel(
@@ -2140,7 +2142,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
     ).grid(row=1, column=0, columnspan=6, sticky="w", padx=14, pady=(0, 8))
 
     for col, encabezado in enumerate(("Familia", "Subfamilia", "Cantidad", "Marca", "Modelo", "Características técnicas")):
-        ctk.CTkLabel(seccion_equipos, text=encabezado, font=("Montserrat", 11, "bold"), text_color=TEXT_PRIMARY).grid(
+        ctk.CTkLabel(seccion_equipos, text=encabezado, font=("Montserrat", 12, "bold"), text_color=TEXT_PRIMARY).grid(
             row=2, column=col, sticky="w", padx=8, pady=(0, 4)
         )
 
@@ -2241,7 +2243,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
     ).grid(row=1, column=0, columnspan=5, sticky="w", padx=14, pady=(0, 8))
 
     for col, encabezado in enumerate(("Material", "¿Se requiere?", "Cantidad", "Unidad", "Especificación / medida")):
-        ctk.CTkLabel(seccion_misc, text=encabezado, font=("Montserrat", 11, "bold"), text_color=TEXT_PRIMARY).grid(
+        ctk.CTkLabel(seccion_misc, text=encabezado, font=("Montserrat", 12, "bold"), text_color=TEXT_PRIMARY).grid(
             row=2, column=col, sticky="w", padx=10, pady=(0, 4)
         )
 
