@@ -24,6 +24,7 @@ TIPOS_LEVANTAMIENTO = [
     {"nombre": "Redes Voz y Datos", "habilitado": True, "icono": "🌐"},
     {"nombre": "Control de Accesos", "habilitado": True, "icono": "🚪"},
     {"nombre": "Enlaces Inalámbricos", "habilitado": True, "icono": "📡"},
+    {"nombre": "Tecnología, Equipos y Periféricos", "habilitado": True, "icono": "💻"},
     {"nombre": "Electricidad", "habilitado": True, "icono": "🔌"},
     {"nombre": "Paneles Solares", "habilitado": True, "icono": "☀️"},
     {"nombre": "Plantas de Energía", "habilitado": True, "icono": "⚡"},

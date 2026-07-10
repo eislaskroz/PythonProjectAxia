@@ -11,6 +11,11 @@ from services.acos_service import buscar_aco_por_numero
 from services.clientes_service import buscar_clientes, construir_direccion_cliente
 from services.folios_service import generar_siguiente_folio
 from services.movimientos_service import registrar_movimiento
+from services.materiales_catalogo_service import obtener_materiales_por_especialidad, UNIDADES_MATERIAL
+from services.equipos_catalogo_service import (
+    MARCAS_COMUNES, obtener_nombres_familias, obtener_subfamilias,
+    obtener_sugerencia_caracteristicas
+)
 from services.obras_civiles_service import crear_obra_civil, buscar_obra_civil_por_folio
 from ui.colors import SECONDARY, WHITE, TEXT_PRIMARY, TEXT_SECONDARY, BUTTON_HOVER
 from ui.date_picker import abrir_selector_fecha
@@ -37,6 +42,7 @@ def mostrar_obra_civil(parent, app, aco=None):
     campos_validables = []
     evidencias = []
     materiales_miscelaneos_items = []
+    equipos_catalogo_items = []
     btn_preview = None
 
     var_folio = ctk.StringVar(value=generar_siguiente_folio("OBC"))
@@ -269,8 +275,38 @@ def mostrar_obra_civil(parent, app, aco=None):
     option("Etapa de acabados", var_etapa_acabados, ESTADOS, 16, 2)
     option("Obra blanca", var_obra_blanca, ESTADOS, 16, 3)
 
-    seccion("Materiales misceláneos y consumibles", 17)
-    panel_misc = celda(18, 0, 4)
+    seccion("Equipos principales requeridos", 17)
+    panel_equipos = celda(18, 0, 4)
+    for col, peso in enumerate((2, 2, 1, 2, 2, 3)):
+        panel_equipos.grid_columnconfigure(col, weight=peso)
+    for col, encabezado in enumerate(("Familia", "Subfamilia", "Cantidad", "Marca", "Modelo", "Características técnicas")):
+        ctk.CTkLabel(panel_equipos, text=encabezado, font=("Montserrat", 11, "bold")).grid(row=0, column=col, sticky="w", padx=6)
+
+    def agregar_equipo_obra():
+        fila_eq = 1 + len(equipos_catalogo_items)
+        familias = obtener_nombres_familias("Obra Civil")
+        familia_inicial = familias[0]
+        subs = obtener_subfamilias("Obra Civil", familia_inicial)
+        vf=ctk.StringVar(value=familia_inicial); vs=ctk.StringVar(value=subs[0]); vc=ctk.StringVar(value="1")
+        vm=ctk.StringVar(value="Por definir"); vmo=ctk.StringVar(); vcar=ctk.StringVar()
+        of=ctk.CTkOptionMenu(panel_equipos, variable=vf, values=familias, height=30); of.grid(row=fila_eq,column=0,sticky="ew",padx=6,pady=3)
+        osub=ctk.CTkOptionMenu(panel_equipos, variable=vs, values=subs, height=30); osub.grid(row=fila_eq,column=1,sticky="ew",padx=6,pady=3)
+        ctk.CTkEntry(panel_equipos,textvariable=vc,width=80,height=30).grid(row=fila_eq,column=2,sticky="w",padx=6,pady=3)
+        ctk.CTkOptionMenu(panel_equipos,variable=vm,values=MARCAS_COMUNES,height=30).grid(row=fila_eq,column=3,sticky="ew",padx=6,pady=3)
+        ctk.CTkEntry(panel_equipos,textvariable=vmo,height=30,placeholder_text="Modelo vigente o por definir").grid(row=fila_eq,column=4,sticky="ew",padx=6,pady=3)
+        ecar=ctk.CTkEntry(panel_equipos,textvariable=vcar,height=30,placeholder_text=obtener_sugerencia_caracteristicas("Obra Civil",familia_inicial)); ecar.grid(row=fila_eq,column=5,sticky="ew",padx=6,pady=3)
+        def cambio(valor):
+            nuevas=obtener_subfamilias("Obra Civil",valor); osub.configure(values=nuevas); vs.set(nuevas[0]); ecar.configure(placeholder_text=obtener_sugerencia_caracteristicas("Obra Civil",valor))
+        of.configure(command=cambio)
+        equipos_catalogo_items.append({"familia":vf,"subfamilia":vs,"cantidad":vc,"marca":vm,"modelo":vmo,"caracteristicas":vcar})
+
+    ctk.CTkButton(panel_equipos,text="+ Agregar equipo",width=170,height=30,fg_color=SECONDARY,hover_color=BUTTON_HOVER,command=agregar_equipo_obra).grid(row=99,column=0,columnspan=2,sticky="w",padx=6,pady=(7,4))
+
+    def obtener_equipos_obra():
+        return [{"familia":i["familia"].get().strip(),"subfamilia":i["subfamilia"].get().strip(),"cantidad":i["cantidad"].get().strip() or "1","marca":i["marca"].get().strip(),"modelo":i["modelo"].get().strip(),"caracteristicas":i["caracteristicas"].get().strip()} for i in equipos_catalogo_items if i["familia"].get().strip()]
+
+    seccion("Materiales misceláneos y consumibles", 19)
+    panel_misc = celda(20, 0, 4)
     panel_misc.grid_columnconfigure(0, weight=2)
     panel_misc.grid_columnconfigure(1, weight=1)
     panel_misc.grid_columnconfigure(2, weight=1)
@@ -282,12 +318,21 @@ def mostrar_obra_civil(parent, app, aco=None):
     ctk.CTkLabel(panel_misc, text="Unidad", font=("Montserrat", 11, "bold")).grid(row=0, column=3, sticky="w", padx=6)
     ctk.CTkLabel(panel_misc, text="Especificación / medida", font=("Montserrat", 11, "bold")).grid(row=0, column=4, sticky="w", padx=6)
 
-    def agregar_material_misc_obra(nombre=""):
+    def agregar_material_misc_obra(material_catalogo=None):
+        material_catalogo = material_catalogo or {}
+        if isinstance(material_catalogo, str):
+            material_catalogo = {"nombre": material_catalogo}
+        nombre = material_catalogo.get("nombre", "")
+        categoria = material_catalogo.get("categoria", "Otro")
+        unidad_default = material_catalogo.get("unidad", "Pieza(s)")
+        especificacion_sugerida = material_catalogo.get("especificacion_sugerida", "")
+
         fila_misc = 1 + len(materiales_miscelaneos_items)
         vm = ctk.StringVar(value=nombre)
+        vcat = ctk.StringVar(value=categoria)
         vr = ctk.StringVar(value="No")
         vc = ctk.StringVar()
-        vu = ctk.StringVar(value="Pieza(s)")
+        vu = ctk.StringVar(value=unidad_default if unidad_default in UNIDADES_MATERIAL else "Pieza(s)")
         ve = ctk.StringVar()
         em = ctk.CTkEntry(panel_misc, textvariable=vm, height=30)
         em.grid(row=fila_misc, column=0, sticky="ew", padx=6, pady=3)
@@ -295,9 +340,13 @@ def mostrar_obra_civil(parent, app, aco=None):
             em.configure(state="readonly")
         ec = ctk.CTkEntry(panel_misc, textvariable=vc, width=90, height=30, placeholder_text="Ej. 20", state="disabled")
         ec.grid(row=fila_misc, column=2, sticky="w", padx=6, pady=3)
-        ou = ctk.CTkOptionMenu(panel_misc, variable=vu, values=["Pieza(s)", "Paquete(s)", "Caja(s)", "Metro(s)", "Rollo(s)", "Juego(s)", "Litro(s)"], width=120, height=30, state="disabled")
+        ou = ctk.CTkOptionMenu(panel_misc, variable=vu, values=UNIDADES_MATERIAL, width=120, height=30, state="disabled")
         ou.grid(row=fila_misc, column=3, sticky="w", padx=6, pady=3)
-        ee = ctk.CTkEntry(panel_misc, textvariable=ve, height=30, placeholder_text="Medida, material o presentación", state="disabled")
+        ee = ctk.CTkEntry(
+            panel_misc, textvariable=ve, height=30,
+            placeholder_text=especificacion_sugerida or "Medida, material, color o presentación",
+            state="disabled"
+        )
         ee.grid(row=fila_misc, column=4, sticky="ew", padx=6, pady=3)
         def toggle(_=None):
             estado = "normal" if vr.get() == "Sí" else "disabled"
@@ -307,20 +356,26 @@ def mostrar_obra_civil(parent, app, aco=None):
             validar_preview()
         om = ctk.CTkOptionMenu(panel_misc, variable=vr, values=["No", "Sí"], width=100, height=30, command=toggle)
         om.grid(row=fila_misc, column=1, sticky="w", padx=6, pady=3)
-        materiales_miscelaneos_items.append({"material": vm, "requerido": vr, "cantidad": vc, "unidad": vu, "especificacion": ve})
+        materiales_miscelaneos_items.append({
+            "material": vm, "categoria": vcat, "requerido": vr,
+            "cantidad": vc, "unidad": vu, "especificacion": ve
+        })
 
-    for nombre_misc in ("Pijas", "Tornillos", "Taquetes", "Clavos", "Alambre recocido", "Abrazaderas", "Cinchos plásticos", "Silicón / sellador", "Cinta de enmascarar", "Discos de corte"):
-        agregar_material_misc_obra(nombre_misc)
-    ctk.CTkButton(panel_misc, text="+ Agregar otro material", width=180, height=30, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=lambda: agregar_material_misc_obra("")).grid(row=99, column=0, columnspan=2, sticky="w", padx=6, pady=(7, 4))
+    for material_catalogo in obtener_materiales_por_especialidad("Obra Civil"):
+        agregar_material_misc_obra(material_catalogo)
+
+    ctk.CTkButton(panel_misc, text="+ Agregar otro material", width=180, height=30, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=lambda: agregar_material_misc_obra(None)).grid(row=99, column=0, columnspan=2, sticky="w", padx=6, pady=(7, 4))
 
     def obtener_materiales_misc_obra():
         return [{
-            "material": i["material"].get().strip(), "cantidad": i["cantidad"].get().strip(),
+            "material": i["material"].get().strip(),
+            "categoria": i.get("categoria").get().strip() if i.get("categoria") else "Otro",
+            "cantidad": i["cantidad"].get().strip(),
             "unidad": i["unidad"].get().strip(), "especificacion": i["especificacion"].get().strip()
         } for i in materiales_miscelaneos_items if i["requerido"].get() == "Sí" and i["material"].get().strip()]
 
-    seccion("Evidencias", 19)
-    panel_evidencias = celda(20, 0, 4)
+    seccion("Evidencias", 21)
+    panel_evidencias = celda(22, 0, 4)
     lbl_evidencias = ctk.CTkLabel(panel_evidencias, text="Sin evidencias agregadas", font=SMALL_FONT, text_color=TEXT_SECONDARY)
     lbl_evidencias.pack(anchor="w", pady=(0, 5))
 
@@ -334,9 +389,9 @@ def mostrar_obra_civil(parent, app, aco=None):
 
     ctk.CTkButton(panel_evidencias, text="+ Agregar evidencia", width=170, height=30, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=agregar_evidencia).pack(anchor="w")
 
-    seccion("Pre-entrega", 21)
-    option("Resultado de pre-entrega", var_preentrega, ["Aprobadas", "Reprobadas", "Pendiente"], 22, 0)
-    txt_preentrega = textbox("Recorrido de validación / correcciones pendientes", 23, 0, 4)
+    seccion("Pre-entrega", 23)
+    option("Resultado de pre-entrega", var_preentrega, ["Aprobadas", "Reprobadas", "Pendiente"], 24, 0)
+    txt_preentrega = textbox("Recorrido de validación / correcciones pendientes", 25, 0, 4)
 
     seccion("Entrega formal", 24)
     option("Entrega formal", var_entrega_formal, SI_NO, 25, 0)
@@ -413,6 +468,7 @@ def mostrar_obra_civil(parent, app, aco=None):
             "obc_requiere_maquinaria": var_maquinaria.get(), "obc_permisos": var_permisos.get(), "obc_observaciones_iniciales": obtener_textbox(txt_observaciones_iniciales),
             "obc_ejecucion_json": json.dumps({
                 **{k: v.get() for k, v in ejecucion_vars.items()},
+                "_equipos_principales": obtener_equipos_obra(),
                 "_materiales_miscelaneos": obtener_materiales_misc_obra(),
             }, ensure_ascii=False),
             "obc_pruebas_resultado": var_pruebas.get(), "obc_pruebas_observaciones": obtener_textbox(txt_observaciones_pruebas),

@@ -33,6 +33,11 @@ from ui.fonts import (
 
 from app_context import obtener_usuario_actual
 from services.movimientos_service import registrar_movimiento
+from services.materiales_catalogo_service import obtener_materiales_por_especialidad, UNIDADES_MATERIAL
+from services.equipos_catalogo_service import (
+    MARCAS_COMUNES, obtener_nombres_familias, obtener_subfamilias,
+    obtener_sugerencia_caracteristicas
+)
 
 from services.aco_context_service import normalizar_datos_aco
 from services.acos_service import buscar_aco_por_numero
@@ -47,25 +52,69 @@ from views.formato_helpers import generar_pdf_preview, generar_pdf_archivo, enfo
 from security.permissions import puede_generar_levantamiento
 
 
-# Materiales misceláneos sugeridos por especialidad.
-# Cada material se activa únicamente cuando el técnico selecciona "Sí".
-MATERIALES_MISCELANEOS_POR_TIPO = {
-    "Seguridad y Monitoreo": ["Pijas", "Tornillos", "Taquetes", "Abrazaderas", "Cinchos plásticos", "Conectores RJ45", "Cinta aislante", "Cinta doble cara", "Silicón / sellador", "Etiquetas"],
-    "Redes Voz y Datos": ["Pijas", "Tornillos", "Taquetes", "Abrazaderas", "Cinchos plásticos", "Conectores RJ45", "Jacks / keystone", "Etiquetas", "Cinta aislante", "Velcro para cableado"],
-    "Aires Acondicionados": ["Pijas", "Tornillos", "Taquetes", "Abrazaderas", "Cinchos plásticos", "Cinta aislante", "Cinta teflón", "Silicón / sellador", "Espuma expansiva", "Soportes / ménsulas"],
-    "Plantas de Energía": ["Pijas", "Tornillos", "Taquetes", "Abrazaderas", "Terminales eléctricas", "Cinchos plásticos", "Cinta aislante", "Conduit flexible", "Sellador", "Etiquetas"],
-    "Electricidad": ["Pijas", "Tornillos", "Taquetes", "Abrazaderas", "Conectores eléctricos", "Terminales", "Cinta aislante", "Cinchos plásticos", "Capuchones", "Etiquetas"],
-    "Control de Accesos": ["Pijas", "Tornillos", "Taquetes", "Abrazaderas", "Cinchos plásticos", "Conectores", "Cinta aislante", "Silicón / sellador", "Canaleta corta", "Etiquetas"],
-    "Enlaces Inalámbricos": ["Pijas", "Tornillos", "Taquetes", "Abrazaderas metálicas", "Cinchos UV", "Conectores RJ45 blindados", "Cinta vulcanizada", "Sellador", "Grapas para exterior", "Etiquetas"],
-    "Paneles Solares": ["Pijas", "Tornillos", "Taquetes", "Abrazaderas", "Cinchos UV", "Conectores MC4", "Terminales eléctricas", "Cinta aislante", "Sellador impermeable", "Etiquetas"],
-    "Obra Civil": ["Pijas", "Tornillos", "Taquetes", "Clavos", "Alambre recocido", "Abrazaderas", "Cinchos plásticos", "Silicón / sellador", "Cinta de enmascarar", "Discos de corte"],
-}
+# El catálogo maestro de materiales se carga desde services.materiales_catalogo_service.
 
 
 # Formularios especializados adicionales.
 # Se declaran como estructura de datos para mantener el código ordenado y evitar
 # duplicar lógica visual, de guardado y PDF por cada nueva disciplina.
 FORMULARIOS_DETALLADOS_EXTRA = {
+    "Tecnología, Equipos y Periféricos": {
+        "titulo": "Levantamiento Tecnología, Equipos y Periféricos",
+        "tipo_sistema": "Tecnología",
+        "secciones": [
+            ("🧭 1. Tipo de solicitud y alcance", [
+                ("accion_ti", "option", "¿Qué deseas realizar?", ["Revisión", "Mantenimiento", "Reparación", "Suministro", "Suministro e instalación"], "Suministro"),
+                ("categoria_equipo", "option", "Categoría del equipo o producto", ["Computadora", "Laptop", "Servidor", "Impresora", "Monitor", "Router", "Switch", "Access Point", "Telefonía", "Periférico", "Almacenamiento", "Energía/UPS", "Software/Licencia", "Otro"], "Computadora"),
+                ("cantidad_equipos", "entry", "Cantidad de equipos o productos", "Ej. 2", ""),
+                ("ubicacion_servicio", "entry", "Ubicación donde se requiere", "Ej. oficina administrativa", ""),
+                ("prioridad_solicitud", "option", "Prioridad requerida", ["Normal", "Alta", "Urgente", "Por validar"], "Normal"),
+            ]),
+            ("🖥️ 2. Identificación y características generales", [
+                ("marca_actual", "entry", "Marca actual o preferida", "Ej. HP / Cisco / Logitech", ""),
+                ("modelo_actual", "entry", "Modelo actual o sugerido", "Modelo vigente o por definir", ""),
+                ("numero_serie", "entry", "Número de serie / activo", "Si aplica", ""),
+                ("uso_requerido", "entry", "Uso principal del equipo", "Ej. diseño, oficina, impresión", ""),
+                ("compatibilidad", "entry", "Compatibilidad requerida", "Sistema, red, accesorios, software", ""),
+            ]),
+            ("🔎 3. Revisión y diagnóstico", [
+                ("enciende_equipo", "option", "¿El equipo enciende?", ["Sí", "No", "Intermitente", "No aplica"], "No aplica"),
+                ("estado_fisico", "option", "Estado físico general", ["Bueno", "Regular", "Dañado", "No aplica"], "No aplica"),
+                ("falla_reportada", "entry", "Falla o síntoma reportado", "Describe el comportamiento", ""),
+                ("mensaje_error", "entry", "Mensaje o código de error", "Si existe", ""),
+                ("garantia_vigente", "option", "¿Cuenta con garantía vigente?", ["Sí", "No", "Por validar", "No aplica"], "Por validar"),
+                ("respaldo_requerido", "option", "¿Requiere respaldo de información?", ["Sí", "No", "Por validar", "No aplica"], "Por validar"),
+                ("diagnostico_preliminar", "entry", "Diagnóstico preliminar", "Hallazgos del técnico", ""),
+            ]),
+            ("🛠️ 4. Mantenimiento o reparación", [
+                ("tipo_intervencion", "option", "Tipo de intervención", ["Preventivo", "Correctivo", "Reparación de hardware", "Reparación de software", "Mixto", "No aplica"], "No aplica"),
+                ("limpieza_interna", "option", "Limpieza interna requerida", ["Sí", "No", "No aplica"], "No aplica"),
+                ("actualizacion_software", "option", "Actualización de sistema/software", ["Sí", "No", "Por validar", "No aplica"], "No aplica"),
+                ("repuesto_requerido", "entry", "Refacción o componente requerido", "RAM, disco, fuente, rodillo, etc.", ""),
+                ("migracion_datos", "option", "Migración o recuperación de datos", ["Sí", "No", "Por validar", "No aplica"], "No aplica"),
+                ("tiempo_fuera_servicio", "entry", "Tiempo máximo fuera de servicio", "Ej. 4 horas", ""),
+            ]),
+            ("📦 5. Requerimientos para suministro", [
+                ("especificaciones_minimas", "entry", "Especificaciones mínimas requeridas", "Procesador, RAM, capacidad, puertos, etc.", ""),
+                ("marca_abierta", "option", "¿Se acepta cualquier marca equivalente?", ["Sí", "No", "Por validar"], "Sí"),
+                ("presupuesto_referencia", "entry", "Presupuesto de referencia", "Opcional", ""),
+                ("incluye_accesorios", "entry", "Accesorios requeridos", "Cables, adaptadores, consumibles, etc.", ""),
+                ("licenciamiento", "entry", "Licenciamiento o software requerido", "Sistema operativo, antivirus, suite, etc.", ""),
+                ("fecha_requerida", "entry", "Fecha requerida de entrega", "DD/MM/AAAA", ""),
+            ]),
+            ("✅ 6. Instalación, configuración, pruebas y entrega", [
+                ("instalacion_fisica", "option", "¿Requiere instalación física?", ["Sí", "No", "No aplica"], "No"),
+                ("configuracion_inicial", "option", "¿Requiere configuración inicial?", ["Sí", "No", "No aplica"], "Sí"),
+                ("integracion_red", "option", "¿Requiere integración a red/dominio?", ["Sí", "No", "Por validar", "No aplica"], "Por validar"),
+                ("transferencia_informacion", "option", "¿Requiere transferencia de información?", ["Sí", "No", "Por validar", "No aplica"], "No"),
+                ("prueba_funcional", "option", "Prueba funcional y de conectividad", ["Sí", "No", "No aplica"], "Sí"),
+                ("capacitacion_usuario", "option", "Capacitación o entrega al usuario", ["Sí", "No", "No aplica"], "Sí"),
+                ("dias_trabajo", "entry", "Días de trabajo proyectados", "Ej. 1", ""),
+                ("personas_trabajo", "entry", "Personas consideradas", "Ej. 1", ""),
+                ("observaciones_ti", "entry", "Observaciones técnicas finales", "Condiciones, restricciones o recomendaciones", ""),
+            ]),
+        ],
+    },
     "Control de Accesos": {
         "titulo": "Levantamiento Control de Accesos",
         "tipo_sistema": "Seguridad",
@@ -204,6 +253,7 @@ TIPOS_LEVANTAMIENTO_ESPECIALIZADOS = (
     "Electricidad",
     "Control de Accesos",
     "Enlaces Inalámbricos",
+    "Tecnología, Equipos y Periféricos",
     "Paneles Solares",
 )
 
@@ -287,6 +337,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
     var_fecha_realizacion = ctk.StringVar()
 
     materiales_miscelaneos_items = []
+    equipos_catalogo_items = []
 
     # Campos dedicados del formulario Seguridad y Monitoreo.
     # Se guardan dentro de los campos descriptivos existentes para evitar
@@ -534,7 +585,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
     var_altura_trabajo = ctk.StringVar()
     var_riesgo_instalacion = ctk.StringVar(value="Bajo")
 
-    var_tipo = ctk.StringVar(value="Seguridad" if tipo_levantamiento == "Seguridad y Monitoreo" else ("Infraestructura" if tipo_levantamiento in ("Aires Acondicionados", "Redes Voz y Datos") else "Técnico"))
+    var_tipo = ctk.StringVar(value="Seguridad" if tipo_levantamiento == "Seguridad y Monitoreo" else ("Infraestructura" if tipo_levantamiento in ("Aires Acondicionados", "Redes Voz y Datos", "Tecnología, Equipos y Periféricos") else "Técnico"))
     var_estatus = ctk.StringVar(value="Pendiente")
     var_prioridad = ctk.StringVar(value="Media")
 
@@ -2052,8 +2103,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             option.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=12, pady=(0, 6))
             return option
 
+        secciones_extra_frames = []
         for indice_seccion, (titulo_sec, campos_sec) in enumerate(FORMULARIOS_DETALLADOS_EXTRA[tipo_levantamiento]["secciones"]):
             seccion_extra = crear_seccion_extra(titulo_sec, fila_textos + indice_seccion)
+            secciones_extra_frames.append(seccion_extra)
             for indice_campo, (clave, tipo_campo, etiqueta, opciones_placeholder, _default) in enumerate(campos_sec):
                 fila_campo = indice_campo // 5
                 columna_campo = indice_campo % 5
@@ -2066,6 +2119,103 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                     entry_extra(seccion_extra, etiqueta, variable, opciones_placeholder, fila_campo, columna_campo, ancho_corto=es_corto)
 
         fila_textos = fila_textos + len(FORMULARIOS_DETALLADOS_EXTRA[tipo_levantamiento]["secciones"])
+
+    # =============================================================
+    # EQUIPOS PRINCIPALES REQUERIDOS (CATÁLOGO ESCALABLE)
+    # =============================================================
+    # Familia/subfamilia se mantienen estables; marca y modelo son dinámicos.
+    seccion_equipos = ctk.CTkFrame(form_body, fg_color="#F8FAFC", corner_radius=14)
+    seccion_equipos.grid(row=fila_textos, column=0, columnspan=5, sticky="ew", pady=(4, 10))
+    for col, peso in enumerate((2, 2, 1, 2, 2, 3)):
+        seccion_equipos.grid_columnconfigure(col, weight=peso)
+
+    ctk.CTkLabel(
+        seccion_equipos, text="📦 Equipos principales requeridos",
+        font=("Montserrat", 14, "bold"), text_color=TEXT_PRIMARY
+    ).grid(row=0, column=0, columnspan=6, sticky="w", padx=14, pady=(10, 2))
+    ctk.CTkLabel(
+        seccion_equipos,
+        text="Selecciona familia y subfamilia; captura marca y modelo vigente. Así el catálogo no queda obsoleto.",
+        font=TEXT_SM, text_color=TEXT_SECONDARY, anchor="w", justify="left"
+    ).grid(row=1, column=0, columnspan=6, sticky="w", padx=14, pady=(0, 8))
+
+    for col, encabezado in enumerate(("Familia", "Subfamilia", "Cantidad", "Marca", "Modelo", "Características técnicas")):
+        ctk.CTkLabel(seccion_equipos, text=encabezado, font=("Montserrat", 11, "bold"), text_color=TEXT_PRIMARY).grid(
+            row=2, column=col, sticky="w", padx=8, pady=(0, 4)
+        )
+
+    def agregar_equipo_catalogo():
+        fila_eq = 3 + len(equipos_catalogo_items)
+        familias = obtener_nombres_familias(tipo_levantamiento)
+        familia_inicial = familias[0] if familias else "Otro"
+        subfamilias = obtener_subfamilias(tipo_levantamiento, familia_inicial)
+        var_familia_eq = ctk.StringVar(value=familia_inicial)
+        var_subfamilia_eq = ctk.StringVar(value=subfamilias[0] if subfamilias else "Otro")
+        var_cantidad_eq = ctk.StringVar(value="1")
+        var_marca_eq = ctk.StringVar(value="Por definir")
+        var_modelo_eq = ctk.StringVar()
+        var_caracteristicas_eq = ctk.StringVar()
+
+        om_familia = ctk.CTkOptionMenu(seccion_equipos, variable=var_familia_eq, values=familias, height=31)
+        om_familia.grid(row=fila_eq, column=0, sticky="ew", padx=8, pady=3)
+        om_subfamilia = ctk.CTkOptionMenu(seccion_equipos, variable=var_subfamilia_eq, values=subfamilias, height=31)
+        om_subfamilia.grid(row=fila_eq, column=1, sticky="ew", padx=8, pady=3)
+        ctk.CTkEntry(seccion_equipos, textvariable=var_cantidad_eq, width=80, height=31, placeholder_text="Ej. 2").grid(row=fila_eq, column=2, sticky="w", padx=8, pady=3)
+        ctk.CTkOptionMenu(seccion_equipos, variable=var_marca_eq, values=MARCAS_COMUNES, height=31).grid(row=fila_eq, column=3, sticky="ew", padx=8, pady=3)
+        ctk.CTkEntry(seccion_equipos, textvariable=var_modelo_eq, height=31, placeholder_text="Modelo vigente o por definir").grid(row=fila_eq, column=4, sticky="ew", padx=8, pady=3)
+        entry_car = ctk.CTkEntry(
+            seccion_equipos, textvariable=var_caracteristicas_eq, height=31,
+            placeholder_text=obtener_sugerencia_caracteristicas(tipo_levantamiento, familia_inicial)
+        )
+        entry_car.grid(row=fila_eq, column=5, sticky="ew", padx=8, pady=3)
+
+        def cambiar_familia(valor):
+            nuevas = obtener_subfamilias(tipo_levantamiento, valor)
+            om_subfamilia.configure(values=nuevas)
+            var_subfamilia_eq.set(nuevas[0] if nuevas else "Otro")
+            entry_car.configure(placeholder_text=obtener_sugerencia_caracteristicas(tipo_levantamiento, valor))
+
+        om_familia.configure(command=cambiar_familia)
+        equipos_catalogo_items.append({
+            "familia": var_familia_eq, "subfamilia": var_subfamilia_eq,
+            "cantidad": var_cantidad_eq, "marca": var_marca_eq,
+            "modelo": var_modelo_eq, "caracteristicas": var_caracteristicas_eq,
+        })
+
+    ctk.CTkButton(
+        seccion_equipos, text="➕ Agregar equipo", height=32, fg_color=PRIMARY,
+        command=agregar_equipo_catalogo
+    ).grid(row=1000, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 10))
+
+    def obtener_equipos_catalogo_json():
+        equipos = []
+        for item in equipos_catalogo_items:
+            familia = item["familia"].get().strip()
+            if not familia:
+                continue
+            equipos.append({
+                "familia": familia,
+                "subfamilia": item["subfamilia"].get().strip(),
+                "cantidad": item["cantidad"].get().strip() or "1",
+                "marca": item["marca"].get().strip(),
+                "modelo": item["modelo"].get().strip(),
+                "caracteristicas": item["caracteristicas"].get().strip(),
+            })
+        return equipos
+
+    def construir_resumen_equipos_catalogo():
+        equipos = obtener_equipos_catalogo_json()
+        if not equipos:
+            return ""
+        lineas = ["EQUIPOS PRINCIPALES REQUERIDOS:"]
+        for eq in equipos:
+            linea = f"- {eq['cantidad']} x {eq['familia']} / {eq['subfamilia']} | {eq['marca']} {eq['modelo']}".strip()
+            if eq["caracteristicas"]:
+                linea += f" | {eq['caracteristicas']}"
+            lineas.append(linea)
+        return "\n".join(lineas)
+
+    fila_textos += 1
 
     # =============================================================
     # MATERIALES MISCELÁNEOS (COMÚN A TODOS LOS LEVANTAMIENTOS)
@@ -2095,12 +2245,22 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             row=2, column=col, sticky="w", padx=10, pady=(0, 4)
         )
 
-    def agregar_material_miscelaneo(nombre_material=""):
+    def agregar_material_miscelaneo(material_catalogo=None):
+        material_catalogo = material_catalogo or {}
+        if isinstance(material_catalogo, str):
+            material_catalogo = {"nombre": material_catalogo}
+
+        nombre_material = material_catalogo.get("nombre", "")
+        categoria_material = material_catalogo.get("categoria", "Otro")
+        unidad_default = material_catalogo.get("unidad", "Pieza(s)")
+        especificacion_sugerida = material_catalogo.get("especificacion_sugerida", "")
+
         fila = 3 + len(materiales_miscelaneos_items)
         var_material = ctk.StringVar(value=nombre_material)
+        var_categoria = ctk.StringVar(value=categoria_material)
         var_requerido = ctk.StringVar(value="No")
         var_cantidad = ctk.StringVar()
-        var_unidad = ctk.StringVar(value="Pieza(s)")
+        var_unidad = ctk.StringVar(value=unidad_default if unidad_default in UNIDADES_MATERIAL else "Pieza(s)")
         var_especificacion = ctk.StringVar()
 
         entrada_material = ctk.CTkEntry(seccion_misc, textvariable=var_material, height=31, corner_radius=8)
@@ -2108,16 +2268,20 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         if nombre_material:
             entrada_material.configure(state="readonly")
 
-        entrada_cantidad = ctk.CTkEntry(seccion_misc, textvariable=var_cantidad, width=95, height=31, corner_radius=8, placeholder_text="Ej. 20", state="disabled")
+        entrada_cantidad = ctk.CTkEntry(
+            seccion_misc, textvariable=var_cantidad, width=95, height=31, corner_radius=8,
+            placeholder_text="Ej. 20", state="disabled"
+        )
         entrada_cantidad.grid(row=fila, column=2, sticky="w", padx=10, pady=3)
         opcion_unidad = ctk.CTkOptionMenu(
-            seccion_misc, variable=var_unidad, values=["Pieza(s)", "Paquete(s)", "Caja(s)", "Metro(s)", "Rollo(s)", "Juego(s)", "Litro(s)"],
+            seccion_misc, variable=var_unidad, values=UNIDADES_MATERIAL,
             width=125, height=31, state="disabled"
         )
         opcion_unidad.grid(row=fila, column=3, sticky="w", padx=10, pady=3)
         entrada_especificacion = ctk.CTkEntry(
             seccion_misc, textvariable=var_especificacion, height=31, corner_radius=8,
-            placeholder_text="Ej. 1/4 pulg, acero, color negro", state="disabled"
+            placeholder_text=especificacion_sugerida or "Medida, material, color o presentación",
+            state="disabled"
         )
         entrada_especificacion.grid(row=fila, column=4, sticky="ew", padx=10, pady=3)
 
@@ -2131,22 +2295,65 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 var_especificacion.set("")
 
         opcion_requerido = ctk.CTkOptionMenu(
-            seccion_misc, variable=var_requerido, values=["No", "Sí"], width=105, height=31, command=actualizar_material
+            seccion_misc, variable=var_requerido, values=["No", "Sí"],
+            width=105, height=31, command=actualizar_material
         )
         opcion_requerido.grid(row=fila, column=1, sticky="w", padx=10, pady=3)
 
         materiales_miscelaneos_items.append({
-            "material": var_material, "requerido": var_requerido, "cantidad": var_cantidad,
-            "unidad": var_unidad, "especificacion": var_especificacion
+            "material": var_material,
+            "categoria": var_categoria,
+            "requerido": var_requerido,
+            "cantidad": var_cantidad,
+            "unidad": var_unidad,
+            "especificacion": var_especificacion,
         })
 
-    for nombre_material in MATERIALES_MISCELANEOS_POR_TIPO.get(tipo_levantamiento, MATERIALES_MISCELANEOS_POR_TIPO["Obra Civil"]):
-        agregar_material_miscelaneo(nombre_material)
+    for material_catalogo in obtener_materiales_por_especialidad(tipo_levantamiento):
+        agregar_material_miscelaneo(material_catalogo)
 
     ctk.CTkButton(
         seccion_misc, text="➕ Agregar otro material", height=32, fg_color=PRIMARY,
-        command=lambda: agregar_material_miscelaneo("")
+        command=lambda: agregar_material_miscelaneo(None)
     ).grid(row=1000, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 10))
+
+    # Flujo dinámico exclusivo para Tecnología, Equipos y Periféricos.
+    # - Suministro: solo información del producto/equipo; sin materiales ni mano de obra.
+    # - Suministro e instalación: producto + instalación, materiales, días y personal.
+    if tipo_levantamiento == "Tecnología, Equipos y Periféricos":
+        def actualizar_secciones_ti(*_args):
+            accion = vars_extra["accion_ti"].get().strip()
+
+            if accion == "Suministro":
+                visibles = {0, 1, 4}
+                seccion_misc.grid_remove()
+                # Evita guardar materiales previamente seleccionados si el usuario
+                # cambia de "Suministro e instalación" a "Suministro".
+                for item in materiales_miscelaneos_items:
+                    item["requerido"].set("No")
+                    item["cantidad"].set("")
+                    item["especificacion"].set("")
+            elif accion == "Suministro e instalación":
+                visibles = {0, 1, 4, 5}
+                seccion_misc.grid()
+            elif accion == "Revisión":
+                visibles = {0, 1, 2, 5}
+                seccion_misc.grid()
+            elif accion in ("Mantenimiento", "Reparación"):
+                visibles = {0, 1, 2, 3, 5}
+                seccion_misc.grid()
+            else:
+                visibles = {0, 1}
+                seccion_misc.grid_remove()
+
+            for idx, frame_sec in enumerate(secciones_extra_frames):
+                if idx in visibles:
+                    frame_sec.grid()
+                else:
+                    frame_sec.grid_remove()
+
+        vars_extra["accion_ti"].trace_add("write", actualizar_secciones_ti)
+        actualizar_secciones_ti()
 
     fila_textos += 1
 
@@ -2172,6 +2379,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 continue
             materiales.append({
                 "material": material,
+                "categoria": item.get("categoria").get().strip() if item.get("categoria") else "Otro",
                 "requerido": "Sí",
                 "cantidad": item["cantidad"].get().strip(),
                 "unidad": item["unidad"].get().strip(),
@@ -2861,6 +3069,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             "Electricidad": "Levantamiento Electricidad",
             "Control de Accesos": "Levantamiento Control de Accesos",
             "Enlaces Inalámbricos": "Levantamiento Enlaces Inalámbricos",
+            "Tecnología, Equipos y Periféricos": "Levantamiento Tecnología, Equipos y Periféricos",
             "Paneles Solares": "Levantamiento Paneles Solares",
         }
         return titulos.get(tipo_levantamiento, "Levantamiento")
@@ -2959,6 +3168,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             "Electricidad": "Levantamiento Electricidad",
             "Control de Accesos": "Levantamiento Control de Accesos",
             "Enlaces Inalámbricos": "Levantamiento Enlaces Inalámbricos",
+            "Tecnología, Equipos y Periféricos": "Levantamiento Tecnología, Equipos y Periféricos",
             "Paneles Solares": "Levantamiento Paneles Solares",
         }
         return titulos.get(tipo_levantamiento, "Levantamiento")
@@ -3029,6 +3239,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         resumen_extra = construir_resumen_formulario_detallado()
         requerimientos = ""
         resumen_misc = construir_resumen_materiales_miscelaneos()
+        resumen_equipos = construir_resumen_equipos_catalogo()
         observaciones = txt_observaciones.get("1.0", "end").strip()
 
         if resumen_cctv:
@@ -3037,6 +3248,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         elif resumen_aa:
             requerimientos = f"{requerimientos}\n{resumen_aa}".strip()
             observaciones = f"Tipo específico de levantamiento: Aires Acondicionados / Instalación\n{observaciones}".strip()
+
+        if resumen_equipos:
+            requerimientos = f"{requerimientos}\n\n{resumen_equipos}".strip()
 
         if resumen_misc:
             requerimientos = f"{requerimientos}\n\n{resumen_misc}".strip()
@@ -3069,6 +3283,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS:
             modalidad_operativa = (var_modalidad_levantamiento.get().strip() or "Instalación") if tipo_levantamiento == "Seguridad y Monitoreo" else "Instalación"
             detalle_tecnico = obtener_detalle_tecnico_json()
+            detalle_tecnico["equipos_principales"] = obtener_equipos_catalogo_json()
             detalle_tecnico["materiales_miscelaneos"] = obtener_materiales_miscelaneos_json()
             equipos_danados = obtener_equipos_danados_json() if tipo_levantamiento == "Seguridad y Monitoreo" and modalidad_operativa == "Reparación" else []
             descripcion_fallas = (

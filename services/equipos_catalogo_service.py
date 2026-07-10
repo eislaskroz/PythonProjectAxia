@@ -10,7 +10,7 @@ MARCAS_COMUNES = [
     "Ubiquiti", "MikroTik", "Cisco", "Aruba", "TP-Link", "Panduit", "Tripp Lite",
     "APC", "Schneider Electric", "Siemens", "ABB", "Eaton", "Generac", "Cummins",
     "Carrier", "York", "Daikin", "Midea", "LG", "Samsung", "Sungrow", "Huawei",
-    "Canadian Solar", "Jinko Solar", "Otra"
+    "Canadian Solar", "Jinko Solar", "HP", "Dell", "Lenovo", "Acer", "Asus", "Epson", "Brother", "Canon", "Logitech", "Kingston", "Western Digital", "Seagate", "Synology", "QNAP", "Otra"
 ]
 
 CATALOGO_EQUIPOS = {
@@ -58,6 +58,19 @@ CATALOGO_EQUIPOS = {
         {"familia": "Antena", "subfamilias": ["Parabólica", "Panel", "Sectorial", "Omnidireccional"], "caracteristicas": "Ganancia, frecuencia, apertura, polarización"},
         {"familia": "Protección", "subfamilias": ["Supresor Ethernet", "Pararrayos", "Tierra física"], "caracteristicas": "Categoría, descarga, conectores, puesta a tierra"},
         {"familia": "Estructura", "subfamilias": ["Mástil", "Torre", "Herraje", "Gabinete exterior"], "caracteristicas": "Altura, carga al viento, material, anclaje"},
+    ],
+    "Tecnología, Equipos y Periféricos": [
+        {"familia": "Computadora", "subfamilias": ["Escritorio", "All-in-One", "Workstation", "Mini PC", "Thin client"], "caracteristicas": "Procesador, RAM, almacenamiento, gráficos, sistema operativo, garantía"},
+        {"familia": "Laptop", "subfamilias": ["Oficina", "Ejecutiva", "Workstation móvil", "Rugged", "Gaming"], "caracteristicas": "Procesador, RAM, SSD, pantalla, batería, puertos, garantía"},
+        {"familia": "Servidor", "subfamilias": ["Torre", "Rack", "Blade", "NAS"], "caracteristicas": "CPU, RAM ECC, almacenamiento, RAID, fuentes, red, licenciamiento"},
+        {"familia": "Impresora", "subfamilias": ["Láser", "Inyección de tinta", "Multifuncional", "Térmica", "Etiquetas", "Gran formato"], "caracteristicas": "Color/mono, ppm, dúplex, red, consumible, volumen mensual"},
+        {"familia": "Monitor", "subfamilias": ["Oficina", "Profesional", "Curvo", "Touch", "Videoconferencia"], "caracteristicas": "Pulgadas, resolución, panel, frecuencia, entradas, montaje VESA"},
+        {"familia": "Red", "subfamilias": ["Router", "Switch", "Access Point", "Firewall", "Módem", "Adaptador"], "caracteristicas": "Puertos, velocidad, Wi-Fi, PoE, administración, VPN, throughput"},
+        {"familia": "Periférico", "subfamilias": ["Teclado", "Mouse", "Webcam", "Diadema", "Bocinas", "Docking", "Lector", "Escáner"], "caracteristicas": "Conectividad, compatibilidad, alimentación, resolución o funciones"},
+        {"familia": "Almacenamiento", "subfamilias": ["HDD", "SSD SATA", "SSD NVMe", "Externo", "Memoria USB", "Tarjeta SD", "NAS"], "caracteristicas": "Capacidad, interfaz, velocidad, formato, uso y garantía"},
+        {"familia": "Memoria", "subfamilias": ["RAM DDR4", "RAM DDR5", "ECC", "SO-DIMM"], "caracteristicas": "Capacidad, velocidad, latencia, voltaje, compatibilidad"},
+        {"familia": "Energía", "subfamilias": ["UPS", "Regulador", "No-break", "Multicontacto", "Cargador", "Fuente de poder"], "caracteristicas": "VA/W, voltaje, autonomía, conectores, protecciones"},
+        {"familia": "Software/Licencia", "subfamilias": ["Sistema operativo", "Ofimática", "Antivirus", "Respaldo", "Diseño", "Licencia CAL"], "caracteristicas": "Edición, vigencia, usuarios/dispositivos, modalidad, compatibilidad"},
     ],
     "Paneles Solares": [
         {"familia": "Panel fotovoltaico", "subfamilias": ["Monocristalino", "Bifacial", "Flexible"], "caracteristicas": "Wp, eficiencia, Voc, Isc, dimensiones"},
