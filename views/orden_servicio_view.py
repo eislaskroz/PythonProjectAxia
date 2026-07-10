@@ -200,9 +200,10 @@ def mostrar_orden_servicio(parent, app, aco=None):
 
     def agregar_equipo():
         row_vars = {"Equipo": ctk.StringVar(), "Número de Serie": ctk.StringVar(), "Movimiento": ctk.StringVar(value="Instalación"), "Diagnóstico de la Falla": ctk.StringVar()}
-        equipos.append(row_vars)
         fila = ctk.CTkFrame(equipos_frame, fg_color="transparent")
         fila.pack(fill="x", pady=2)
+        row_vars["_frame"] = fila
+        equipos.append(row_vars)
         for j, h in enumerate(headers):
             sub = ctk.CTkFrame(fila, fg_color="transparent")
             sub.grid(row=0, column=j, sticky="ew", padx=3)
@@ -211,8 +212,18 @@ def mostrar_orden_servicio(parent, app, aco=None):
             if h == "Movimiento":
                 ctk.CTkOptionMenu(sub, variable=row_vars[h], values=MOVIMIENTOS_EQUIPO, height=OPTION_H, font=SMALL_FONT, command=lambda _v=None: validar_preview()).pack(fill="x")
             else:
-                ctk.CTkEntry(sub, textvariable=row_vars[h], height=ENTRY_H, corner_radius=8, font=SMALL_FONT).pack(fill="x")
+                ctk.CTkEntry(sub, textvariable=row_vars[h], height=ENTRY_H, corner_radius=9, font=SMALL_FONT).pack(fill="x")
                 row_vars[h].trace_add("write", lambda *_: validar_preview())
+        def eliminar_equipo():
+            if len(equipos) <= 1:
+                for h in headers:
+                    if h == "Movimiento": row_vars[h].set("Instalación")
+                    else: row_vars[h].set("")
+                return
+            fila.destroy()
+            equipos[:] = [x for x in equipos if x is not row_vars]
+            validar_preview()
+        ctk.CTkButton(fila,text="Eliminar",width=82,height=30,fg_color="#DC2626",hover_color="#B91C1C",command=eliminar_equipo).grid(row=0,column=len(headers),sticky="s",padx=3)
         validar_preview()
 
     ctk.CTkButton(acciones_equipos, text="+ Nuevo equipo", width=150, height=30, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=agregar_equipo).pack(anchor="w")

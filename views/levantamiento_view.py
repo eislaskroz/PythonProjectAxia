@@ -2128,20 +2128,20 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
     # Familia/subfamilia se mantienen estables; marca y modelo son dinámicos.
     seccion_equipos = ctk.CTkFrame(form_body, fg_color="#F8FAFC", corner_radius=14)
     seccion_equipos.grid(row=fila_textos, column=0, columnspan=5, sticky="ew", pady=(4, 10))
-    for col, peso in enumerate((2, 2, 1, 2, 2, 3)):
+    for col, peso in enumerate((2, 2, 1, 2, 2, 3, 1)):
         seccion_equipos.grid_columnconfigure(col, weight=peso)
 
     ctk.CTkLabel(
         seccion_equipos, text="📦 Equipos principales requeridos",
         font=("Montserrat", 14, "bold"), text_color=TEXT_PRIMARY
-    ).grid(row=0, column=0, columnspan=6, sticky="w", padx=14, pady=(10, 2))
+    ).grid(row=0, column=0, columnspan=7, sticky="w", padx=14, pady=(10, 2))
     ctk.CTkLabel(
         seccion_equipos,
         text="Selecciona familia y subfamilia; captura marca y modelo vigente. Así el catálogo no queda obsoleto.",
         font=TEXT_SM, text_color=TEXT_SECONDARY, anchor="w", justify="left"
-    ).grid(row=1, column=0, columnspan=6, sticky="w", padx=14, pady=(0, 8))
+    ).grid(row=1, column=0, columnspan=7, sticky="w", padx=14, pady=(0, 8))
 
-    for col, encabezado in enumerate(("Familia", "Subfamilia", "Cantidad", "Marca", "Modelo", "Características técnicas")):
+    for col, encabezado in enumerate(("Familia", "Subfamilia", "Cantidad", "Marca", "Modelo", "Características técnicas", "Acción")):
         ctk.CTkLabel(seccion_equipos, text=encabezado, font=("Montserrat", 12, "bold"), text_color=TEXT_PRIMARY).grid(
             row=2, column=col, sticky="w", padx=8, pady=(0, 4)
         )
@@ -2178,11 +2178,32 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             entry_car.configure(placeholder_text=obtener_sugerencia_caracteristicas(tipo_levantamiento, valor))
 
         om_familia.configure(command=cambiar_familia)
-        equipos_catalogo_items.append({
+        item_equipo = {
             "familia": var_familia_eq, "subfamilia": var_subfamilia_eq,
             "cantidad": var_cantidad_eq, "marca": var_marca_eq,
             "modelo": var_modelo_eq, "caracteristicas": var_caracteristicas_eq,
-        })
+            "widgets": [om_familia, om_subfamilia],
+        }
+
+        def eliminar_equipo():
+            for widget in item_equipo.get("widgets", []):
+                try:
+                    widget.destroy()
+                except Exception:
+                    pass
+            equipos_catalogo_items[:] = [x for x in equipos_catalogo_items if x is not item_equipo]
+
+        btn_eliminar = ctk.CTkButton(
+            seccion_equipos, text="Eliminar", width=82, height=31,
+            fg_color="#DC2626", hover_color="#B91C1C", command=eliminar_equipo
+        )
+        btn_eliminar.grid(row=fila_eq, column=6, sticky="ew", padx=8, pady=3)
+        item_equipo["widgets"].extend([
+            btn_eliminar,
+            # localizar widgets creados en esa fila para borrarlos juntos
+            *[w for w in seccion_equipos.grid_slaves(row=fila_eq) if w not in (btn_eliminar, om_familia, om_subfamilia)]
+        ])
+        equipos_catalogo_items.append(item_equipo)
 
     ctk.CTkButton(
         seccion_equipos, text="➕ Agregar equipo", height=32, fg_color=PRIMARY,
@@ -2231,18 +2252,19 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
     seccion_misc.grid_columnconfigure(2, weight=1)
     seccion_misc.grid_columnconfigure(3, weight=1)
     seccion_misc.grid_columnconfigure(4, weight=3)
+    seccion_misc.grid_columnconfigure(5, weight=1)
 
     ctk.CTkLabel(
         seccion_misc, text="🧰 Materiales misceláneos y consumibles",
         font=("Montserrat", 14, "bold"), text_color=TEXT_PRIMARY
-    ).grid(row=0, column=0, columnspan=5, sticky="w", padx=14, pady=(10, 2))
+    ).grid(row=0, column=0, columnspan=6, sticky="w", padx=14, pady=(10, 2))
     ctk.CTkLabel(
         seccion_misc,
         text="Activa únicamente los materiales necesarios e indica cantidad, unidad y especificación para cotización.",
         font=TEXT_SM, text_color=TEXT_SECONDARY, anchor="w", justify="left"
-    ).grid(row=1, column=0, columnspan=5, sticky="w", padx=14, pady=(0, 8))
+    ).grid(row=1, column=0, columnspan=6, sticky="w", padx=14, pady=(0, 8))
 
-    for col, encabezado in enumerate(("Material", "¿Se requiere?", "Cantidad", "Unidad", "Especificación / medida")):
+    for col, encabezado in enumerate(("Material", "¿Se requiere?", "Cantidad", "Unidad", "Especificación / medida", "Acción")):
         ctk.CTkLabel(seccion_misc, text=encabezado, font=("Montserrat", 12, "bold"), text_color=TEXT_PRIMARY).grid(
             row=2, column=col, sticky="w", padx=10, pady=(0, 4)
         )
@@ -2302,17 +2324,34 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         )
         opcion_requerido.grid(row=fila, column=1, sticky="w", padx=10, pady=3)
 
-        materiales_miscelaneos_items.append({
+        item_material = {
             "material": var_material,
             "categoria": var_categoria,
             "requerido": var_requerido,
             "cantidad": var_cantidad,
             "unidad": var_unidad,
             "especificacion": var_especificacion,
-        })
+            "widgets": [entrada_material, entrada_cantidad, opcion_unidad, entrada_especificacion, opcion_requerido],
+        }
 
-    for material_catalogo in obtener_materiales_por_especialidad(tipo_levantamiento):
-        agregar_material_miscelaneo(material_catalogo)
+        def eliminar_material():
+            for widget in item_material.get("widgets", []):
+                try:
+                    widget.destroy()
+                except Exception:
+                    pass
+            materiales_miscelaneos_items[:] = [x for x in materiales_miscelaneos_items if x is not item_material]
+
+        btn_eliminar = ctk.CTkButton(
+            seccion_misc, text="Eliminar", width=82, height=31,
+            fg_color="#DC2626", hover_color="#B91C1C", command=eliminar_material
+        )
+        btn_eliminar.grid(row=fila, column=5, sticky="ew", padx=10, pady=3)
+        item_material["widgets"].append(btn_eliminar)
+        materiales_miscelaneos_items.append(item_material)
+
+    # Se muestra una sola fila vacía. El usuario agrega o elimina las necesarias.
+    agregar_material_miscelaneo(None)
 
     ctk.CTkButton(
         seccion_misc, text="➕ Agregar otro material", height=32, fg_color=PRIMARY,

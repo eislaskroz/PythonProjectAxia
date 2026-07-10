@@ -277,9 +277,9 @@ def mostrar_obra_civil(parent, app, aco=None):
 
     seccion("Equipos principales requeridos", 17)
     panel_equipos = celda(18, 0, 4)
-    for col, peso in enumerate((2, 2, 1, 2, 2, 3)):
+    for col, peso in enumerate((2, 2, 1, 2, 2, 3, 1)):
         panel_equipos.grid_columnconfigure(col, weight=peso)
-    for col, encabezado in enumerate(("Familia", "Subfamilia", "Cantidad", "Marca", "Modelo", "Características técnicas")):
+    for col, encabezado in enumerate(("Familia", "Subfamilia", "Cantidad", "Marca", "Modelo", "Características técnicas", "Acción")):
         ctk.CTkLabel(panel_equipos, text=encabezado, font=("Montserrat", 12, "bold")).grid(row=0, column=col, sticky="w", padx=6)
 
     def agregar_equipo_obra():
@@ -298,7 +298,16 @@ def mostrar_obra_civil(parent, app, aco=None):
         def cambio(valor):
             nuevas=obtener_subfamilias("Obra Civil",valor); osub.configure(values=nuevas); vs.set(nuevas[0]); ecar.configure(placeholder_text=obtener_sugerencia_caracteristicas("Obra Civil",valor))
         of.configure(command=cambio)
-        equipos_catalogo_items.append({"familia":vf,"subfamilia":vs,"cantidad":vc,"marca":vm,"modelo":vmo,"caracteristicas":vcar})
+        item_equipo={"familia":vf,"subfamilia":vs,"cantidad":vc,"marca":vm,"modelo":vmo,"caracteristicas":vcar,"widgets":[of,osub]}
+        def eliminar_equipo():
+            for widget in item_equipo.get("widgets", []):
+                try: widget.destroy()
+                except Exception: pass
+            equipos_catalogo_items[:] = [x for x in equipos_catalogo_items if x is not item_equipo]
+        btn=ctk.CTkButton(panel_equipos,text="Eliminar",width=82,height=30,fg_color="#DC2626",hover_color="#B91C1C",command=eliminar_equipo)
+        btn.grid(row=fila_eq,column=6,sticky="ew",padx=6,pady=3)
+        item_equipo["widgets"].extend([btn,*[w for w in panel_equipos.grid_slaves(row=fila_eq) if w not in (btn,of,osub)]])
+        equipos_catalogo_items.append(item_equipo)
 
     ctk.CTkButton(panel_equipos,text="+ Agregar equipo",width=170,height=30,fg_color=SECONDARY,hover_color=BUTTON_HOVER,command=agregar_equipo_obra).grid(row=99,column=0,columnspan=2,sticky="w",padx=6,pady=(7,4))
 
@@ -312,11 +321,13 @@ def mostrar_obra_civil(parent, app, aco=None):
     panel_misc.grid_columnconfigure(2, weight=1)
     panel_misc.grid_columnconfigure(3, weight=1)
     panel_misc.grid_columnconfigure(4, weight=3)
+    panel_misc.grid_columnconfigure(5, weight=1)
     ctk.CTkLabel(panel_misc, text="Material", font=("Montserrat", 12, "bold")).grid(row=0, column=0, sticky="w", padx=6)
     ctk.CTkLabel(panel_misc, text="¿Se requiere?", font=("Montserrat", 12, "bold")).grid(row=0, column=1, sticky="w", padx=6)
     ctk.CTkLabel(panel_misc, text="Cantidad", font=("Montserrat", 12, "bold")).grid(row=0, column=2, sticky="w", padx=6)
     ctk.CTkLabel(panel_misc, text="Unidad", font=("Montserrat", 12, "bold")).grid(row=0, column=3, sticky="w", padx=6)
     ctk.CTkLabel(panel_misc, text="Especificación / medida", font=("Montserrat", 12, "bold")).grid(row=0, column=4, sticky="w", padx=6)
+    ctk.CTkLabel(panel_misc, text="Acción", font=("Montserrat", 12, "bold")).grid(row=0, column=5, sticky="w", padx=6)
 
     def agregar_material_misc_obra(material_catalogo=None):
         material_catalogo = material_catalogo or {}
@@ -356,13 +367,23 @@ def mostrar_obra_civil(parent, app, aco=None):
             validar_preview()
         om = ctk.CTkOptionMenu(panel_misc, variable=vr, values=["No", "Sí"], width=100, height=30, command=toggle)
         om.grid(row=fila_misc, column=1, sticky="w", padx=6, pady=3)
-        materiales_miscelaneos_items.append({
+        item_material={
             "material": vm, "categoria": vcat, "requerido": vr,
-            "cantidad": vc, "unidad": vu, "especificacion": ve
-        })
+            "cantidad": vc, "unidad": vu, "especificacion": ve,
+            "widgets":[em,ec,ou,ee,om]
+        }
+        def eliminar_material():
+            for widget in item_material.get("widgets", []):
+                try: widget.destroy()
+                except Exception: pass
+            materiales_miscelaneos_items[:] = [x for x in materiales_miscelaneos_items if x is not item_material]
+        btn=ctk.CTkButton(panel_misc,text="Eliminar",width=82,height=30,fg_color="#DC2626",hover_color="#B91C1C",command=eliminar_material)
+        btn.grid(row=fila_misc,column=5,sticky="ew",padx=6,pady=3)
+        item_material["widgets"].append(btn)
+        materiales_miscelaneos_items.append(item_material)
 
-    for material_catalogo in obtener_materiales_por_especialidad("Obra Civil"):
-        agregar_material_misc_obra(material_catalogo)
+    # Una sola fila inicial; el usuario agrega o elimina las necesarias.
+    agregar_material_misc_obra(None)
 
     ctk.CTkButton(panel_misc, text="+ Agregar otro material", width=180, height=30, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=lambda: agregar_material_misc_obra(None)).grid(row=99, column=0, columnspan=2, sticky="w", padx=6, pady=(7, 4))
 
@@ -387,7 +408,15 @@ def mostrar_obra_civil(parent, app, aco=None):
         lbl_evidencias.configure(text=f"{len(evidencias)} evidencia(s) agregada(s)" if evidencias else "Sin evidencias agregadas")
         validar_preview()
 
-    ctk.CTkButton(panel_evidencias, text="+ Agregar evidencia", width=170, height=30, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=agregar_evidencia).pack(anchor="w")
+    acciones_evidencias = ctk.CTkFrame(panel_evidencias, fg_color="transparent")
+    acciones_evidencias.pack(anchor="w")
+    ctk.CTkButton(acciones_evidencias, text="+ Agregar evidencia", width=170, height=30, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=agregar_evidencia).pack(side="left", padx=(0, 8))
+    def eliminar_ultima_evidencia():
+        if evidencias:
+            evidencias.pop()
+        lbl_evidencias.configure(text=f"{len(evidencias)} evidencia(s) agregada(s)" if evidencias else "Sin evidencias agregadas")
+        validar_preview()
+    ctk.CTkButton(acciones_evidencias, text="Eliminar última", width=135, height=30, fg_color="#DC2626", hover_color="#B91C1C", command=eliminar_ultima_evidencia).pack(side="left")
 
     seccion("Pre-entrega", 23)
     option("Resultado de pre-entrega", var_preentrega, ["Aprobadas", "Reprobadas", "Pendiente"], 24, 0)
