@@ -1,0 +1,196 @@
+"""Catálogo maestro inicial de materiales AXIA.
+
+El catálogo está pensado como una base operativa para levantamientos, cotizaciones y
+órdenes de trabajo. No contiene precios: estos podrán incorporarse posteriormente
+sin modificar los formularios.
+"""
+
+UNIDADES_MATERIAL = [
+    "Pieza(s)", "Paquete(s)", "Caja(s)", "Metro(s)", "Rollo(s)",
+    "Juego(s)", "Litro(s)", "Kilogramo(s)", "Saco(s)", "Cubeta(s)",
+    "Bote(s)", "Tramo(s)", "Par(es)", "Servicio(s)"
+]
+
+
+def _m(nombre, categoria, unidad="Pieza(s)", especificacion=""):
+    return {
+        "nombre": nombre,
+        "categoria": categoria,
+        "unidad": unidad,
+        "especificacion_sugerida": especificacion,
+    }
+
+
+CATALOGO_MATERIALES_POR_ESPECIALIDAD = {
+    "Seguridad y Monitoreo": [
+        _m("Pijas autorroscantes", "Fijación", "Caja(s)", "Calibre y longitud según superficie"),
+        _m("Tornillos", "Fijación", "Caja(s)", "Tipo, diámetro y longitud"),
+        _m("Taquetes plásticos", "Fijación", "Caja(s)", "1/4, 5/16 o 3/8 pulg"),
+        _m("Abrazaderas para tubería", "Fijación", "Pieza(s)", "Diámetro y material"),
+        _m("Cinchos plásticos", "Sujeción", "Paquete(s)", "Interior, longitud y color"),
+        _m("Cinchos UV", "Sujeción", "Paquete(s)", "Uso exterior y longitud"),
+        _m("Grapas para cable", "Sujeción", "Caja(s)", "Diámetro del cable"),
+        _m("Conectores RJ45", "Conectividad", "Caja(s)", "Cat5e/Cat6; normal o blindado"),
+        _m("Capuchones RJ45", "Conectividad", "Paquete(s)", "Color y categoría"),
+        _m("Balunes de video", "Conectividad", "Par(es)", "Pasivo/activo y resolución soportada"),
+        _m("Cinta aislante", "Aislamiento", "Rollo(s)", "Color y grado eléctrico"),
+        _m("Cinta vulcanizada", "Aislamiento", "Rollo(s)", "Uso exterior"),
+        _m("Silicón / sellador", "Sellado", "Bote(s)", "Interior/exterior; transparente o color"),
+        _m("Canaleta PVC", "Canalización", "Tramo(s)", "Medida y color"),
+        _m("Tubería conduit", "Canalización", "Tramo(s)", "PVC/EMT y diámetro"),
+        _m("Cajas de paso", "Canalización", "Pieza(s)", "Medida y protección IP"),
+        _m("Etiquetas para cableado", "Identificación", "Paquete(s)", "Tipo autolaminable"),
+    ],
+    "Redes Voz y Datos": [
+        _m("Pijas autorroscantes", "Fijación", "Caja(s)", "Calibre y longitud"),
+        _m("Tornillos", "Fijación", "Caja(s)", "Tipo y medida"),
+        _m("Taquetes plásticos", "Fijación", "Caja(s)", "Medida según superficie"),
+        _m("Abrazaderas", "Sujeción", "Pieza(s)", "Diámetro y material"),
+        _m("Cinchos plásticos", "Sujeción", "Paquete(s)", "Longitud y color"),
+        _m("Velcro para cableado", "Sujeción", "Rollo(s)", "Ancho y longitud"),
+        _m("Conectores RJ45", "Conectividad", "Caja(s)", "Cat5e/Cat6/Cat6A"),
+        _m("Jacks / keystone", "Conectividad", "Pieza(s)", "Categoría, color y blindaje"),
+        _m("Faceplates", "Conectividad", "Pieza(s)", "1, 2 o 4 puertos"),
+        _m("Cajas de superficie", "Conectividad", "Pieza(s)", "Cantidad de puertos"),
+        _m("Patch cords", "Conectividad", "Pieza(s)", "Categoría, longitud y color"),
+        _m("Organizadores horizontales", "Rack", "Pieza(s)", "1U/2U y tipo"),
+        _m("Tornillería para rack", "Rack", "Juego(s)", "Tuerca jaula y tornillo"),
+        _m("Canaleta PVC", "Canalización", "Tramo(s)", "Medida y color"),
+        _m("Tubería EMT/PVC", "Canalización", "Tramo(s)", "Diámetro"),
+        _m("Cajas de paso", "Canalización", "Pieza(s)", "Medida"),
+        _m("Etiquetas para nodos", "Identificación", "Paquete(s)", "Tipo y color"),
+    ],
+    "Aires Acondicionados": [
+        _m("Pijas", "Fijación", "Caja(s)", "Calibre y longitud"),
+        _m("Tornillos", "Fijación", "Caja(s)", "Tipo y medida"),
+        _m("Taquetes expansivos", "Fijación", "Caja(s)", "Diámetro y longitud"),
+        _m("Ménsulas / soportes", "Montaje", "Juego(s)", "Capacidad y acabado"),
+        _m("Bases antivibración", "Montaje", "Juego(s)", "Capacidad del equipo"),
+        _m("Abrazaderas", "Sujeción", "Pieza(s)", "Diámetro"),
+        _m("Cinchos plásticos", "Sujeción", "Paquete(s)", "Longitud"),
+        _m("Cinta aislante", "Aislamiento", "Rollo(s)", "Grado eléctrico"),
+        _m("Cinta teflón", "Sellado", "Rollo(s)", "Ancho"),
+        _m("Cinta para aislamiento térmico", "Aislamiento", "Rollo(s)", "Ancho y espesor"),
+        _m("Aislante para tubería", "Aislamiento", "Metro(s)", "Diámetro y espesor"),
+        _m("Tubería PVC para drenaje", "Drenaje", "Tramo(s)", "Diámetro"),
+        _m("Conexiones PVC", "Drenaje", "Pieza(s)", "Codo, unión, tee y diámetro"),
+        _m("Adhesivo para PVC", "Drenaje", "Bote(s)", "Presentación"),
+        _m("Silicón / sellador", "Sellado", "Bote(s)", "Exterior/interior"),
+        _m("Espuma expansiva", "Sellado", "Bote(s)", "Presentación"),
+        _m("Canaleta para tubería", "Acabado", "Tramo(s)", "Medida y color"),
+    ],
+    "Plantas de Energía": [
+        _m("Taquetes expansivos", "Fijación", "Caja(s)", "Diámetro y longitud"),
+        _m("Tornillería grado estructural", "Fijación", "Juego(s)", "Diámetro y longitud"),
+        _m("Anclas mecánicas", "Fijación", "Pieza(s)", "Capacidad y medida"),
+        _m("Abrazaderas", "Sujeción", "Pieza(s)", "Diámetro y material"),
+        _m("Terminales eléctricas", "Conexión eléctrica", "Pieza(s)", "Calibre y tipo"),
+        _m("Zapatas mecánicas", "Conexión eléctrica", "Pieza(s)", "Calibre y material"),
+        _m("Conectores para conduit", "Canalización", "Pieza(s)", "Tipo y diámetro"),
+        _m("Conduit flexible", "Canalización", "Metro(s)", "Diámetro y tipo"),
+        _m("Tubería EMT", "Canalización", "Tramo(s)", "Diámetro"),
+        _m("Cinta aislante", "Aislamiento", "Rollo(s)", "Grado eléctrico"),
+        _m("Termocontráctil", "Aislamiento", "Metro(s)", "Diámetro"),
+        _m("Cinchos plásticos", "Sujeción", "Paquete(s)", "Longitud"),
+        _m("Sellador", "Sellado", "Bote(s)", "Uso exterior"),
+        _m("Etiquetas de riesgo", "Identificación", "Paquete(s)", "Voltaje y advertencia"),
+        _m("Etiquetas para conductores", "Identificación", "Paquete(s)", "Calibre y circuito"),
+    ],
+    "Electricidad": [
+        _m("Pijas", "Fijación", "Caja(s)", "Calibre y longitud"),
+        _m("Tornillos", "Fijación", "Caja(s)", "Tipo y medida"),
+        _m("Taquetes", "Fijación", "Caja(s)", "Medida según superficie"),
+        _m("Abrazaderas para conduit", "Canalización", "Pieza(s)", "Diámetro"),
+        _m("Conectores EMT/PVC", "Canalización", "Pieza(s)", "Tipo y diámetro"),
+        _m("Coples", "Canalización", "Pieza(s)", "Tipo y diámetro"),
+        _m("Curvas", "Canalización", "Pieza(s)", "Ángulo y diámetro"),
+        _m("Cajas chalupa / registro", "Canalización", "Pieza(s)", "Tipo y medida"),
+        _m("Conectores eléctricos", "Conexión eléctrica", "Pieza(s)", "Tipo y calibre"),
+        _m("Terminales", "Conexión eléctrica", "Pieza(s)", "Tipo y calibre"),
+        _m("Capuchones", "Conexión eléctrica", "Paquete(s)", "Rango de calibres"),
+        _m("Cinta aislante", "Aislamiento", "Rollo(s)", "Color por fase"),
+        _m("Termocontráctil", "Aislamiento", "Metro(s)", "Diámetro"),
+        _m("Cinchos plásticos", "Sujeción", "Paquete(s)", "Longitud"),
+        _m("Etiquetas para circuitos", "Identificación", "Paquete(s)", "Tipo autoadherible"),
+        _m("Tornillería para tablero", "Tablero", "Juego(s)", "Tipo y medida"),
+    ],
+    "Control de Accesos": [
+        _m("Pijas", "Fijación", "Caja(s)", "Calibre y longitud"),
+        _m("Tornillos", "Fijación", "Caja(s)", "Tipo y medida"),
+        _m("Taquetes", "Fijación", "Caja(s)", "Medida"),
+        _m("Soportes para electroimán", "Montaje", "Juego(s)", "L/Z/U según puerta"),
+        _m("Abrazaderas", "Sujeción", "Pieza(s)", "Medida"),
+        _m("Cinchos plásticos", "Sujeción", "Paquete(s)", "Longitud"),
+        _m("Conectores", "Conectividad", "Pieza(s)", "Tipo"),
+        _m("Terminales eléctricas", "Conexión eléctrica", "Pieza(s)", "Calibre"),
+        _m("Cinta aislante", "Aislamiento", "Rollo(s)", "Grado eléctrico"),
+        _m("Silicón / sellador", "Sellado", "Bote(s)", "Color y uso"),
+        _m("Canaleta PVC", "Canalización", "Tramo(s)", "Medida y color"),
+        _m("Tubería conduit", "Canalización", "Tramo(s)", "Tipo y diámetro"),
+        _m("Cajas de paso", "Canalización", "Pieza(s)", "Medida"),
+        _m("Etiquetas", "Identificación", "Paquete(s)", "Acceso y cableado"),
+    ],
+    "Enlaces Inalámbricos": [
+        _m("Abrazaderas metálicas", "Montaje", "Pieza(s)", "Diámetro y acero inoxidable"),
+        _m("Herrajes de montaje", "Montaje", "Juego(s)", "Mástil/torre/pared"),
+        _m("Taquetes expansivos", "Fijación", "Caja(s)", "Medida"),
+        _m("Tornillería galvanizada", "Fijación", "Juego(s)", "Diámetro y longitud"),
+        _m("Cinchos UV", "Sujeción", "Paquete(s)", "Exterior y longitud"),
+        _m("Grapas para exterior", "Sujeción", "Caja(s)", "Diámetro"),
+        _m("Conectores RJ45 blindados", "Conectividad", "Caja(s)", "Cat6 exterior"),
+        _m("Capuchones RJ45", "Conectividad", "Paquete(s)", "Exterior"),
+        _m("Cinta vulcanizada", "Aislamiento", "Rollo(s)", "Uso exterior"),
+        _m("Cinta aislante", "Aislamiento", "Rollo(s)", "Uso exterior"),
+        _m("Sellador impermeable", "Sellado", "Bote(s)", "Exterior"),
+        _m("Tubería conduit exterior", "Canalización", "Tramo(s)", "Tipo y diámetro"),
+        _m("Prensaestopas", "Sellado", "Pieza(s)", "Diámetro e IP"),
+        _m("Etiquetas para exterior", "Identificación", "Paquete(s)", "Resistentes a UV"),
+    ],
+    "Paneles Solares": [
+        _m("Tornillería inoxidable", "Fijación", "Juego(s)", "Diámetro y longitud"),
+        _m("Anclas / taquetes expansivos", "Fijación", "Pieza(s)", "Medida"),
+        _m("Abrazaderas finales", "Montaje", "Pieza(s)", "Espesor de módulo"),
+        _m("Abrazaderas intermedias", "Montaje", "Pieza(s)", "Espesor de módulo"),
+        _m("Cinchos UV", "Sujeción", "Paquete(s)", "Uso exterior"),
+        _m("Clips para cable fotovoltaico", "Sujeción", "Paquete(s)", "Tipo y diámetro"),
+        _m("Conectores MC4", "Conectividad", "Par(es)", "Original/compatible y calibre"),
+        _m("Terminales eléctricas", "Conexión eléctrica", "Pieza(s)", "Calibre"),
+        _m("Prensaestopas", "Sellado", "Pieza(s)", "Diámetro e IP"),
+        _m("Cinta aislante", "Aislamiento", "Rollo(s)", "Grado eléctrico"),
+        _m("Termocontráctil", "Aislamiento", "Metro(s)", "Diámetro"),
+        _m("Sellador impermeable", "Sellado", "Bote(s)", "Techo/exterior"),
+        _m("Tubería conduit exterior", "Canalización", "Tramo(s)", "Tipo y diámetro"),
+        _m("Etiquetas fotovoltaicas", "Identificación", "Paquete(s)", "Riesgo DC/AC"),
+        _m("Puesta a tierra de estructura", "Tierra física", "Juego(s)", "Conector y conductor"),
+    ],
+    "Obra Civil": [
+        _m("Pijas", "Fijación", "Caja(s)", "Calibre y longitud"),
+        _m("Tornillos", "Fijación", "Caja(s)", "Tipo y medida"),
+        _m("Taquetes", "Fijación", "Caja(s)", "Tipo y medida"),
+        _m("Clavos", "Fijación", "Kilogramo(s)", "Tipo y longitud"),
+        _m("Alambre recocido", "Acero", "Kilogramo(s)", "Calibre"),
+        _m("Varilla corrugada", "Acero", "Tramo(s)", "Diámetro y longitud"),
+        _m("Malla electrosoldada", "Acero", "Pieza(s)", "Calibre y cuadro"),
+        _m("Cemento", "Mezclas", "Saco(s)", "Presentación"),
+        _m("Arena", "Mezclas", "Metro(s)", "Tipo y volumen"),
+        _m("Grava", "Mezclas", "Metro(s)", "Tamaño y volumen"),
+        _m("Mortero", "Mezclas", "Saco(s)", "Presentación"),
+        _m("Silicón / sellador", "Sellado", "Bote(s)", "Tipo y color"),
+        _m("Espuma expansiva", "Sellado", "Bote(s)", "Presentación"),
+        _m("Cinta de enmascarar", "Acabados", "Rollo(s)", "Ancho"),
+        _m("Plástico protector", "Acabados", "Rollo(s)", "Calibre y ancho"),
+        _m("Discos de corte", "Herramienta consumible", "Pieza(s)", "Diámetro y material"),
+        _m("Discos de desbaste", "Herramienta consumible", "Pieza(s)", "Diámetro"),
+        _m("Brocas", "Herramienta consumible", "Pieza(s)", "Tipo y diámetro"),
+    ],
+}
+
+
+def obtener_materiales_por_especialidad(especialidad):
+    """Devuelve una copia del catálogo correspondiente a la especialidad."""
+    clave = especialidad if especialidad in CATALOGO_MATERIALES_POR_ESPECIALIDAD else "Obra Civil"
+    return [dict(material) for material in CATALOGO_MATERIALES_POR_ESPECIALIDAD[clave]]
+
+
+def obtener_especialidades_catalogo():
+    return list(CATALOGO_MATERIALES_POR_ESPECIALIDAD.keys())

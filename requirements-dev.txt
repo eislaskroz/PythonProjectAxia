@@ -1,0 +1,3 @@
+# Dependencias para generar ejecutables y hacer pruebas locales
+-r requirements.txt
+pyinstaller

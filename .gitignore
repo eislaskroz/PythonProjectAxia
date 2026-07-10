@@ -1,0 +1,27 @@
+# AXIA - archivos que no deben versionarse
+.env
+.venv/
+venv/
+env/
+
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+build/
+dist/
+*.spec.bak
+
+logs/
+*.log
+
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# PDFs/documentos generados localmente
+documentos/
+Documents/
+AXIA_Output/

@@ -1,0 +1,26 @@
+MODULO: Levantamiento Redes Voz y Datos - V1
+
+Cambios aplicados:
+1. Se habilito el tipo de levantamiento "Redes Voz y Datos" en el selector inicial.
+2. Se agrego formulario especializado con flujo operativo:
+   - Necesidad inicial y alcance.
+   - Condiciones del sitio y ruta.
+   - Cableado, canalizacion y consumibles.
+   - Rack, gabinete, equipo activo y energia.
+   - Instalacion, pruebas y entrega.
+3. Se cuido el uso de campos cortos para cantidades, metros, dias y personas.
+4. Se agrego resumen tecnico automatico para Preview PDF y PDF generado al guardar.
+5. Se agrego guardado estructurado en lev_detalle_tecnico_json.
+6. Se mantiene el funcionamiento existente de Seguridad y Monitoreo y Aires Acondicionados.
+
+Validaciones principales para Preview/Guardar:
+- Cliente.
+- Observaciones.
+- Cantidad de nodos de datos.
+- Area o zona de instalacion.
+- Ubicacion de rack/gabinete.
+- Dias de trabajo proyectados.
+- Personas consideradas.
+
+Nota:
+No se agregaron columnas nuevas a Supabase. El detalle tecnico se almacena en lev_detalle_tecnico_json, igual que el modulo de Aires Acondicionados.

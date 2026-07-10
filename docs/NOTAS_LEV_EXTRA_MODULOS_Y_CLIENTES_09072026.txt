@@ -1,0 +1,31 @@
+CAMBIOS APLICADOS - LEVANTAMIENTOS ESPECIALIZADOS
+
+1. Encabezado superior global
+- Se eliminó visualmente el encabezado superior de la ventana principal para recuperar espacio útil.
+- NavigationController conserva labels internos no visibles para no romper llamadas existentes.
+
+2. Clientes en formularios especializados
+- Se homologó la carga de clientes desde db_clientes para todos los formularios especializados:
+  * Seguridad y Monitoreo
+  * Aires Acondicionados
+  * Redes Voz y Datos
+  * Plantas de Energía
+  * Electricidad
+  * Control de Accesos
+  * Enlaces Inalámbricos
+  * Paneles Solares
+- Cliente, contacto, teléfono, correo y dirección se autollenan desde el selector de cliente.
+
+3. Nuevos formularios habilitados
+- Control de Accesos
+- Enlaces Inalámbricos
+- Paneles Solares
+
+4. Guardado y PDF
+- Los nuevos formularios guardan su detalle estructurado en lev_detalle_tecnico_json.
+- Se genera resumen técnico automático para PDF.
+- Se conserva el flujo de guardado automático de PDF al guardar levantamiento.
+
+5. Layout
+- Los nuevos formularios usan secciones compactas con 5 columnas.
+- Campos cortos como cantidades, días, metros, personas, distancias y capacidades no ocupan ancho excesivo.

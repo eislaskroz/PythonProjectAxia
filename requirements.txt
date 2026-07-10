@@ -1,0 +1,10 @@
+customtkinter
+supabase
+python-dotenv
+requests
+Pillow
+bcrypt
+cryptography
+openpyxl
+reportlab
+qrcode
