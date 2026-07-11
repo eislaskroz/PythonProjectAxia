@@ -96,7 +96,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     panel_superior = ctk.CTkFrame(
         parent,
         width=620,
-        height=135,
+        height=112,
         fg_color="transparent"
     )
     panel_superior.place(
@@ -112,7 +112,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
         font=TITLE_MD,
         text_color=TEXT_PRIMARY
     ).pack(
-        pady=(2, 2)
+        pady=(0, 1)
     )
 
     ctk.CTkLabel(
@@ -122,7 +122,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
         text_color=TEXT_SECONDARY,
         justify="center"
     ).pack(
-        pady=(0, 5)
+        pady=(0, 4)
     )
 
     frame_botones = ctk.CTkFrame(
@@ -144,7 +144,9 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
         fill="both",
         expand=True,
         padx=18,
-        pady=(80, 12)
+        # Reserva completa para el encabezado y sus botones; evita que el
+        # panel principal los cubra en resoluciones o escalas distintas.
+        pady=(122, 12)
     )
 
     # =================================================
@@ -790,8 +792,8 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
         frame_botones,
         text="Sí, tengo ACO",
         width=220,
-        height=46,
-        corner_radius=14,
+        height=40,
+        corner_radius=12,
         fg_color=SECONDARY,
         hover_color=BUTTON_HOVER,
         font=BUTTON_FONT,
@@ -806,8 +808,8 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
         frame_botones,
         text="No tengo ACO",
         width=220,
-        height=46,
-        corner_radius=14,
+        height=40,
+        corner_radius=12,
         fg_color=PRIMARY,
         hover_color=BUTTON_HOVER,
         font=BUTTON_FONT,

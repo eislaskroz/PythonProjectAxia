@@ -692,8 +692,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             card,
             textvariable=variable,
             width=830,
-            height=38,
-            corner_radius=10,
+            height=34,
+            corner_radius=9,
             placeholder_text=placeholder,
             state=state
         ).pack(
@@ -844,11 +844,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         card,
         fg_color="transparent"
     )
+    # Bloque de datos generales compacto: no debe consumir más altura que
+    # las demás secciones del levantamiento.
     form_body.pack(
         fill="x",
-        expand=True,
-        padx=21,
-        pady=(14, 6)
+        expand=False,
+        padx=12,
+        pady=(7, 3)
     )
 
     # Cuadrícula principal en 4 columnas para aprovechar mejor el ancho.
@@ -890,7 +892,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             text_color=TEXT_PRIMARY
         ).pack(
             anchor="w",
-            pady=(0, 2)
+            pady=(0, 1)
         )
 
     def _crear_contenedor_campo(fila, columna, colspan=1):
@@ -906,7 +908,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             columnspan=colspan,
             sticky="ew",
             padx=(izquierda, derecha),
-            pady=(0, 6)
+            pady=(0, 3)
         )
         contenedor_campo.grid_columnconfigure(0, weight=1)
         return contenedor_campo
@@ -926,8 +928,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         entry = ctk.CTkEntry(
             contenedor_campo,
             textvariable=variable,
-            height=38,
-            corner_radius=10,
+            height=34,
+            corner_radius=9,
             placeholder_text=placeholder,
             state=state
         )
@@ -972,7 +974,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             contenedor_campo,
             variable=variable,
             values=values,
-            height=38
+            height=34
         ).pack(
             fill="x"
         )
@@ -989,7 +991,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             contenedor_campo,
             variable=variable,
             values=values or ["Sin clientes registrados"],
-            height=38,
+            height=34,
             command=cargar_cliente_desde_selector
         )
         option.pack(fill="x")
@@ -1019,13 +1021,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
 
     if tipo_levantamiento:
         badge_tipo = ctk.CTkFrame(form_body, fg_color="#EFF6FF", corner_radius=12)
-        badge_tipo.grid(row=0, column=0, columnspan=5, sticky="ew", padx=0, pady=(0, 7))
+        badge_tipo.grid(row=0, column=0, columnspan=5, sticky="ew", padx=0, pady=(0, 4))
         ctk.CTkLabel(
             badge_tipo,
             text=f"📌 Tipo seleccionado: {tipo_levantamiento}",
             font=("Montserrat", 12, "bold"),
             text_color=PRIMARY
-        ).pack(anchor="w", padx=8, pady=4)
+        ).pack(anchor="w", padx=8, pady=3)
         desplazamiento_filas = 1
     else:
         desplazamiento_filas = 0
