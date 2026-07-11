@@ -46,7 +46,7 @@ def _crear_card_resultado(parent, registro, configuracion):
         border_width=1,
         border_color="#e2e8f0"
     )
-    card.pack(fill="x", padx=18, pady=8)
+    card.pack(fill="x", padx=9, pady=4)
 
     folio = _valor(registro, [configuracion["campo_folio"]])
     aco = _valor(registro, configuracion["campos_aco"])
@@ -61,7 +61,7 @@ def _crear_card_resultado(parent, registro, configuracion):
         font=("Montserrat", 14, "bold"),
         text_color=TEXT_PRIMARY,
         anchor="w"
-    ).pack(fill="x", padx=16, pady=(12, 4))
+    ).pack(fill="x", padx=8, pady=(6, 2))
 
     info = (
         f"ACO: {aco}\n"
@@ -78,10 +78,10 @@ def _crear_card_resultado(parent, registro, configuracion):
         anchor="w",
         justify="left",
         wraplength=980
-    ).pack(fill="x", padx=16, pady=(0, 8))
+    ).pack(fill="x", padx=8, pady=(0, 4))
 
     acciones = ctk.CTkFrame(card, fg_color="transparent")
-    acciones.pack(fill="x", padx=16, pady=(0, 12))
+    acciones.pack(fill="x", padx=8, pady=(0, 6))
 
     ctk.CTkButton(
         acciones,
@@ -92,7 +92,7 @@ def _crear_card_resultado(parent, registro, configuracion):
         hover_color="#475569",
         font=TEXT_SM,
         command=lambda r=registro: mostrar_detalle_registro(parent, f"Vista rápida - {folio}", r)
-    ).pack(side="left", padx=(0, 8))
+    ).pack(side="left", padx=(0, 4))
 
     ctk.CTkButton(
         acciones,
@@ -117,7 +117,7 @@ def mostrar_admin_procesos(parent, app, configuracion):
     """
 
     contenedor = ctk.CTkFrame(parent, fg_color="transparent")
-    contenedor.pack(fill="both", expand=True, padx=30, pady=(5, 24))
+    contenedor.pack(fill="both", expand=True, padx=15, pady=(2, 12))
     contenedor.grid_columnconfigure(0, weight=1)
     contenedor.grid_rowconfigure(1, weight=1)
 
@@ -126,7 +126,7 @@ def mostrar_admin_procesos(parent, app, configuracion):
         fg_color=WHITE,
         corner_radius=18
     )
-    barra_busqueda.grid(row=0, column=0, sticky="ew", pady=(0, 16))
+    barra_busqueda.grid(row=0, column=0, sticky="ew", pady=(0, 8))
     barra_busqueda.grid_columnconfigure(0, weight=1)
 
     ctk.CTkLabel(
@@ -135,7 +135,7 @@ def mostrar_admin_procesos(parent, app, configuracion):
         font=TITLE_MD,
         text_color=TEXT_PRIMARY,
         anchor="w"
-    ).grid(row=0, column=0, columnspan=3, sticky="ew", padx=22, pady=(18, 4))
+    ).grid(row=0, column=0, columnspan=3, sticky="ew", padx=11, pady=(9, 2))
 
     ctk.CTkLabel(
         barra_busqueda,
@@ -143,7 +143,7 @@ def mostrar_admin_procesos(parent, app, configuracion):
         font=TEXT_MD,
         text_color=TEXT_SECONDARY,
         anchor="w"
-    ).grid(row=1, column=0, columnspan=3, sticky="ew", padx=22, pady=(0, 14))
+    ).grid(row=1, column=0, columnspan=3, sticky="ew", padx=11, pady=(0, 7))
 
     var_folio = ctk.StringVar()
 
@@ -154,7 +154,7 @@ def mostrar_admin_procesos(parent, app, configuracion):
         corner_radius=12,
         placeholder_text=f"Ejemplo: {configuracion['prefijo']}-0001"
     )
-    entrada.grid(row=2, column=0, sticky="ew", padx=(22, 10), pady=(0, 18))
+    entrada.grid(row=2, column=0, sticky="ew", padx=(11, 5), pady=(0, 9))
 
     resultados = ctk.CTkScrollableFrame(
         contenedor,
@@ -176,7 +176,7 @@ def mostrar_admin_procesos(parent, app, configuracion):
                 text="No se encontraron registros.",
                 font=TEXT_MD,
                 text_color=TEXT_SECONDARY
-            ).pack(pady=80)
+            ).pack(pady=40)
             return
 
         ctk.CTkLabel(
@@ -185,7 +185,7 @@ def mostrar_admin_procesos(parent, app, configuracion):
             font=TITLE_MD,
             text_color=TEXT_PRIMARY,
             anchor="w"
-        ).pack(fill="x", padx=18, pady=(18, 8))
+        ).pack(fill="x", padx=9, pady=(9, 4))
 
         for registro in registros:
             _crear_card_resultado(resultados, registro, configuracion)
@@ -197,7 +197,7 @@ def mostrar_admin_procesos(parent, app, configuracion):
             text=mensaje,
             font=TEXT_MD,
             text_color=TEXT_SECONDARY
-        ).pack(pady=80)
+        ).pack(pady=40)
 
     def buscar_por_folio():
         folio = var_folio.get().strip()
@@ -238,7 +238,7 @@ def mostrar_admin_procesos(parent, app, configuracion):
         hover_color=BUTTON_HOVER,
         font=BUTTON_FONT,
         command=buscar_por_folio
-    ).grid(row=2, column=1, padx=(0, 10), pady=(0, 18))
+    ).grid(row=2, column=1, padx=(0, 5), pady=(0, 9))
 
     def limpiar_busqueda():
         var_folio.set("")
@@ -248,7 +248,7 @@ def mostrar_admin_procesos(parent, app, configuracion):
             text="Ingresa un folio para consultar registros.",
             font=TEXT_MD,
             text_color=TEXT_SECONDARY
-        ).pack(pady=80)
+        ).pack(pady=40)
 
     ctk.CTkButton(
         barra_busqueda,
@@ -260,7 +260,7 @@ def mostrar_admin_procesos(parent, app, configuracion):
         hover_color=BUTTON_HOVER,
         font=BUTTON_FONT,
         command=limpiar_busqueda
-    ).grid(row=2, column=2, padx=(0, 22), pady=(0, 18))
+    ).grid(row=2, column=2, padx=(0, 11), pady=(0, 9))
 
     entrada.bind("<Return>", lambda _event: buscar_por_folio())
     limpiar_busqueda()

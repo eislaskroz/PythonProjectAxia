@@ -241,8 +241,8 @@ class AxiaApp(ctk.CTk):
         )
         self.label_titulo.pack(
             anchor="center",
-            padx=35,
-            pady=(18, 2)
+            padx=18,
+            pady=(9, 1)
         )
 
         self.label_subtitulo = ctk.CTkLabel(
@@ -253,7 +253,7 @@ class AxiaApp(ctk.CTk):
         )
         self.label_subtitulo.pack(
             anchor="center",
-            padx=35
+            padx=18
         )
 
     # =====================================================

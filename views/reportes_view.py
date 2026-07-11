@@ -100,7 +100,7 @@ def mostrar_reportes(parent, app):
         widget.destroy()
 
     contenedor = ctk.CTkFrame(parent, fg_color="transparent")
-    contenedor.pack(fill="both", expand=True, padx=28, pady=8)
+    contenedor.pack(fill="both", expand=True, padx=14, pady=4)
 
     scroll = ctk.CTkScrollableFrame(
         contenedor,
@@ -127,10 +127,10 @@ def crear_bloque_reporte(parent, reporte):
         fg_color=WHITE,
         corner_radius=18
     )
-    card.pack(fill="x", pady=(0, 16), padx=4)
+    card.pack(fill="x", pady=(0, 8), padx=2)
 
     header = ctk.CTkFrame(card, fg_color="transparent")
-    header.pack(fill="x", padx=22, pady=(16, 8))
+    header.pack(fill="x", padx=11, pady=(8, 4))
     header.grid_columnconfigure(0, weight=1)
 
     ctk.CTkLabel(
@@ -150,7 +150,7 @@ def crear_bloque_reporte(parent, reporte):
     total_label.grid(row=0, column=1, sticky="e")
 
     barra = ctk.CTkFrame(card, fg_color="transparent")
-    barra.pack(fill="x", padx=22, pady=(0, 10))
+    barra.pack(fill="x", padx=11, pady=(0, 5))
     barra.grid_columnconfigure(0, weight=1)
 
     var_busqueda = ctk.StringVar()
@@ -160,7 +160,7 @@ def crear_bloque_reporte(parent, reporte):
         placeholder_text=reporte["placeholder"],
         height=36,
     )
-    entry_busqueda.grid(row=0, column=0, sticky="ew", padx=(0, 8))
+    entry_busqueda.grid(row=0, column=0, sticky="ew", padx=(0, 4))
 
     ctk.CTkButton(
         barra,
@@ -171,7 +171,7 @@ def crear_bloque_reporte(parent, reporte):
         hover_color=BUTTON_HOVER,
         font=BUTTON_FONT,
         command=lambda: buscar(),
-    ).grid(row=0, column=1, padx=(0, 8))
+    ).grid(row=0, column=1, padx=(0, 4))
 
     ctk.CTkButton(
         barra,
@@ -185,7 +185,7 @@ def crear_bloque_reporte(parent, reporte):
     ).grid(row=0, column=2)
 
     panel_tabla = ctk.CTkFrame(card, fg_color="transparent")
-    panel_tabla.pack(fill="x", padx=0, pady=(0, 8))
+    panel_tabla.pack(fill="x", padx=0, pady=(0, 4))
 
     def pintar(registros):
         for widget in panel_tabla.winfo_children():
@@ -200,11 +200,11 @@ def crear_bloque_reporte(parent, reporte):
                 font=TEXT_SM,
                 text_color=TEXT_SECONDARY,
                 anchor="w",
-            ).pack(anchor="w", padx=24, pady=(0, 14))
+            ).pack(anchor="w", padx=12, pady=(0, 7))
             return
 
         fila_header = ctk.CTkFrame(panel_tabla, fg_color="#F4F7FB", corner_radius=10)
-        fila_header.pack(fill="x", padx=22, pady=(4, 4))
+        fila_header.pack(fill="x", padx=11, pady=(2, 2))
 
         for columna, campo in enumerate(reporte["campos"]):
             fila_header.grid_columnconfigure(columna, weight=1, uniform="cols")
@@ -214,11 +214,11 @@ def crear_bloque_reporte(parent, reporte):
                 font=TEXT_SM,
                 text_color=TEXT_PRIMARY,
                 anchor="w"
-            ).grid(row=0, column=columna, sticky="ew", padx=8, pady=8)
+            ).grid(row=0, column=columna, sticky="ew", padx=4, pady=4)
 
         for registro in registros[:10]:
             fila = ctk.CTkFrame(panel_tabla, fg_color="transparent")
-            fila.pack(fill="x", padx=22, pady=2)
+            fila.pack(fill="x", padx=11, pady=1)
 
             for columna, campo in enumerate(reporte["campos"]):
                 fila.grid_columnconfigure(columna, weight=1, uniform="cols")
@@ -231,10 +231,10 @@ def crear_bloque_reporte(parent, reporte):
                     anchor="w",
                     justify="left",
                     wraplength=180
-                ).grid(row=0, column=columna, sticky="ew", padx=8, pady=5)
+                ).grid(row=0, column=columna, sticky="ew", padx=4, pady=2)
 
             acciones_fila = ctk.CTkFrame(fila, fg_color="transparent")
-            acciones_fila.grid(row=0, column=len(reporte["campos"]), sticky="e", padx=8, pady=3)
+            acciones_fila.grid(row=0, column=len(reporte["campos"]), sticky="e", padx=4, pady=2)
             ctk.CTkButton(
                 acciones_fila,
                 text="👁",
@@ -243,7 +243,7 @@ def crear_bloque_reporte(parent, reporte):
                 fg_color="#64748B",
                 hover_color="#475569",
                 command=lambda r=registro: mostrar_detalle_registro(parent, "Vista rápida", r)
-            ).pack(side="left", padx=(0, 4))
+            ).pack(side="left", padx=(0, 2))
             ctk.CTkButton(
                 acciones_fila,
                 text="⬇",
@@ -260,7 +260,7 @@ def crear_bloque_reporte(parent, reporte):
                 text=f"Mostrando 10 de {len(registros)} registros.",
                 font=TEXT_SM,
                 text_color=TEXT_SECONDARY
-            ).pack(anchor="e", padx=24, pady=(4, 10))
+            ).pack(anchor="e", padx=12, pady=(2, 5))
 
     def cargar_todos():
         try:

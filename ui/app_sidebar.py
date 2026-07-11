@@ -68,7 +68,7 @@ def crear_boton_sidebar(parent, texto, comando=None, habilitado=True):
         corner_radius=10,
         fg_color="transparent" if habilitado else "#1e293b",
     )
-    fila.pack(pady=4, padx=18, fill="x")
+    fila.pack(pady=2, padx=9, fill="x")
     fila.pack_propagate(False)
     fila.grid_propagate(False)
     fila.grid_columnconfigure(0, minsize=34, weight=0)
@@ -85,7 +85,7 @@ def crear_boton_sidebar(parent, texto, comando=None, habilitado=True):
         text_color=color_texto,
         anchor="center",
     )
-    lbl_icono.grid(row=0, column=0, sticky="nsew", padx=(4, 2), pady=0)
+    lbl_icono.grid(row=0, column=0, sticky="nsew", padx=(2, 1), pady=0)
 
     lbl_texto = ctk.CTkLabel(
         fila,
@@ -95,7 +95,7 @@ def crear_boton_sidebar(parent, texto, comando=None, habilitado=True):
         text_color=color_texto,
         anchor="w",
     )
-    lbl_texto.grid(row=0, column=1, sticky="nsew", padx=(6, 8), pady=0)
+    lbl_texto.grid(row=0, column=1, sticky="nsew", padx=(3, 4), pady=0)
 
     if habilitado and comando:
         def ejecutar(_event=None):
@@ -166,7 +166,7 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
         text=""
     )
     label_logo.image = logo_axia
-    label_logo.pack(pady=(18, 18))
+    label_logo.pack(pady=(9, 9))
 
     # =================================================
     # INFORMACIÓN DEL USUARIO
@@ -273,8 +273,8 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
         fg_color="transparent"
     )
     acciones_sesion.pack(
-        pady=(4, 25),
-        padx=20,
+        pady=(2, 12),
+        padx=10,
         fill="x"
     )
     acciones_sesion.grid_columnconfigure(0, weight=1)
@@ -295,7 +295,7 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
         row=0,
         column=0,
         sticky="ew",
-        padx=(0, 4)
+        padx=(0, 2)
     )
 
     ctk.CTkButton(
@@ -313,7 +313,7 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
         row=0,
         column=1,
         sticky="ew",
-        padx=(4, 0)
+        padx=(2, 0)
     )
 
     return sidebar

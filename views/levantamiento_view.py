@@ -301,8 +301,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
     contenedor.pack(
         fill="both",
         expand=True,
-        padx=18,
-        pady=12
+        padx=9,
+        pady=6
     )
 
     # El encabezado de la pantalla se muestra únicamente en app.py.
@@ -683,8 +683,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             text_color=TEXT_PRIMARY
         ).pack(
             anchor="w",
-            padx=55,
-            pady=(10, 3)
+            padx=28,
+            pady=(5, 2)
         )
 
     def crear_entry(variable, placeholder, state="normal"):
@@ -697,8 +697,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             placeholder_text=placeholder,
             state=state
         ).pack(
-            padx=55,
-            pady=(0, 4)
+            padx=28,
+            pady=(0, 2)
         )
 
 
@@ -723,7 +723,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         panel_aco.pack(
             fill="x",
             padx=0,
-            pady=(0, 8)
+            pady=(0, 4)
         )
 
         header_aco = ctk.CTkFrame(
@@ -735,8 +735,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             column=0,
             columnspan=3,
             sticky="ew",
-            padx=18,
-            pady=(8, 4)
+            padx=9,
+            pady=(4, 2)
         )
 
         ctk.CTkLabel(
@@ -770,8 +770,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 row=fila,
                 column=columna,
                 sticky="ew",
-                padx=18,
-                pady=(2, 5)
+                padx=9,
+                pady=(1, 2)
             )
 
             ctk.CTkLabel(
@@ -832,7 +832,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         side="top",
         fill="both",
         expand=True,
-        pady=(0, 8)
+        pady=(0, 4)
     )
 
 
@@ -847,8 +847,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
     form_body.pack(
         fill="x",
         expand=True,
-        padx=42,
-        pady=(28, 12)
+        padx=21,
+        pady=(14, 6)
     )
 
     # Cuadrícula principal en 4 columnas para aprovechar mejor el ancho.
@@ -890,7 +890,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             text_color=TEXT_PRIMARY
         ).pack(
             anchor="w",
-            pady=(0, 4)
+            pady=(0, 2)
         )
 
     def _crear_contenedor_campo(fila, columna, colspan=1):
@@ -906,7 +906,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             columnspan=colspan,
             sticky="ew",
             padx=(izquierda, derecha),
-            pady=(0, 12)
+            pady=(0, 6)
         )
         contenedor_campo.grid_columnconfigure(0, weight=1)
         return contenedor_campo
@@ -1019,13 +1019,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
 
     if tipo_levantamiento:
         badge_tipo = ctk.CTkFrame(form_body, fg_color="#EFF6FF", corner_radius=12)
-        badge_tipo.grid(row=0, column=0, columnspan=5, sticky="ew", padx=0, pady=(0, 14))
+        badge_tipo.grid(row=0, column=0, columnspan=5, sticky="ew", padx=0, pady=(0, 7))
         ctk.CTkLabel(
             badge_tipo,
             text=f"📌 Tipo seleccionado: {tipo_levantamiento}",
             font=("Montserrat", 12, "bold"),
             text_color=PRIMARY
-        ).pack(anchor="w", padx=16, pady=8)
+        ).pack(anchor="w", padx=8, pady=4)
         desplazamiento_filas = 1
     else:
         desplazamiento_filas = 0
@@ -1178,7 +1178,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             aprovechando mejor la pantalla maximizada.
             """
             frame = ctk.CTkFrame(form_body, fg_color="#F8FAFC", corner_radius=14)
-            frame.grid(row=fila, column=0, columnspan=5, sticky="ew", pady=(4, 10))
+            frame.grid(row=fila, column=0, columnspan=5, sticky="ew", pady=(2, 5))
             for col in range(5):
                 frame.grid_columnconfigure(col, weight=1, uniform="sec_cols")
 
@@ -1187,7 +1187,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 text=titulo,
                 font=("Montserrat", 14, "bold"),
                 text_color=TEXT_PRIMARY
-            ).grid(row=0, column=0, columnspan=5, sticky="w", padx=14, pady=(10, 6))
+            ).grid(row=0, column=0, columnspan=5, sticky="w", padx=7, pady=(5, 3))
 
             return frame
 
@@ -1200,7 +1200,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 anchor="w",
                 justify="left",
                 wraplength=260
-            ).grid(row=fila, column=columna, sticky="w", padx=12, pady=(4, 1))
+            ).grid(row=fila, column=columna, sticky="w", padx=6, pady=(2, 1))
 
         def entry_en(parent_frame, texto, variable, placeholder, fila, columna):
             label_en(parent_frame, texto, fila * 2 + 1, columna)
@@ -1211,7 +1211,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 corner_radius=9,
                 placeholder_text=placeholder
             )
-            entry.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=12, pady=(0, 6))
+            entry.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=6, pady=(0, 3))
             return entry
 
         def option_en(parent_frame, texto, variable, values, fila, columna, command=None):
@@ -1223,7 +1223,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 height=32,
                 command=command
             )
-            option.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=12, pady=(0, 6))
+            option.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=6, pady=(0, 3))
             return option
 
         def registrar_seccion(nombre, frame):
@@ -1243,12 +1243,12 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             var_metros = ctk.StringVar()
 
             fila = ctk.CTkFrame(frame, fg_color="transparent")
-            fila.grid(row=fila_base, column=0, columnspan=2, sticky="ew", padx=10, pady=(2, 4))
+            fila.grid(row=fila_base, column=0, columnspan=2, sticky="ew", padx=5, pady=(1, 2))
             fila.grid_columnconfigure(0, weight=2)
             fila.grid_columnconfigure(1, weight=1)
 
-            ctk.CTkOptionMenu(fila, variable=var_tipo, values=TIPOS_CANALIZACION, height=32).grid(row=0, column=0, sticky="ew", padx=(0, 6))
-            ctk.CTkEntry(fila, textvariable=var_metros, height=32, corner_radius=9, placeholder_text="Metros").grid(row=0, column=1, sticky="ew", padx=(0, 6))
+            ctk.CTkOptionMenu(fila, variable=var_tipo, values=TIPOS_CANALIZACION, height=32).grid(row=0, column=0, sticky="ew", padx=(0, 3))
+            ctk.CTkEntry(fila, textvariable=var_metros, height=32, corner_radius=9, placeholder_text="Metros").grid(row=0, column=1, sticky="ew", padx=(0, 3))
 
             def eliminar_fila():
                 if len(coleccion) <= 1:
@@ -1268,12 +1268,12 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             var_metros = ctk.StringVar()
 
             fila = ctk.CTkFrame(frame, fg_color="transparent")
-            fila.grid(row=fila_base, column=2, columnspan=3, sticky="ew", padx=10, pady=(2, 4))
+            fila.grid(row=fila_base, column=2, columnspan=3, sticky="ew", padx=5, pady=(1, 2))
             fila.grid_columnconfigure(0, weight=2)
             fila.grid_columnconfigure(1, weight=1)
 
-            ctk.CTkOptionMenu(fila, variable=var_tipo, values=TIPOS_CABLE, height=32).grid(row=0, column=0, sticky="ew", padx=(0, 6))
-            ctk.CTkEntry(fila, textvariable=var_metros, height=32, corner_radius=9, placeholder_text="Metros").grid(row=0, column=1, sticky="ew", padx=(0, 6))
+            ctk.CTkOptionMenu(fila, variable=var_tipo, values=TIPOS_CABLE, height=32).grid(row=0, column=0, sticky="ew", padx=(0, 3))
+            ctk.CTkEntry(fila, textvariable=var_metros, height=32, corner_radius=9, placeholder_text="Metros").grid(row=0, column=1, sticky="ew", padx=(0, 3))
 
             def eliminar_fila():
                 if len(coleccion) <= 1:
@@ -1427,7 +1427,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             text_color=TEXT_SECONDARY,
             anchor="w",
             justify="left"
-        ).grid(row=3, column=0, columnspan=5, sticky="w", padx=12, pady=(0, 8))
+        ).grid(row=3, column=0, columnspan=5, sticky="w", padx=6, pady=(0, 4))
 
         # Infraestructura del sitio / existente reutilizable en una sola sección.
         seccion_existente = crear_seccion("🏗️ Infraestructura del sitio / existente reutilizable", fila_textos + 1)
@@ -1449,7 +1449,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             font=("Montserrat", 12),
             text_color=TEXT_PRIMARY,
             anchor="w"
-        ).grid(row=3, column=0, columnspan=5, sticky="w", padx=12, pady=(6, 1))
+        ).grid(row=3, column=0, columnspan=5, sticky="w", padx=6, pady=(3, 1))
         txt_infra_observaciones = ctk.CTkTextbox(
             seccion_existente,
             height=72,
@@ -1459,7 +1459,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             border_color="#B8C4D1",
             text_color="#111827"
         )
-        txt_infra_observaciones.grid(row=4, column=0, columnspan=5, sticky="ew", padx=12, pady=(0, 8))
+        txt_infra_observaciones.grid(row=4, column=0, columnspan=5, sticky="ew", padx=6, pady=(0, 4))
         ctk.CTkLabel(
             seccion_existente,
             text="Selecciona 'No' cuando se deba considerar canalización, cableado y materiales desde cero.",
@@ -1467,7 +1467,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             text_color=TEXT_SECONDARY,
             anchor="w",
             justify="left"
-        ).grid(row=5, column=0, columnspan=5, sticky="w", padx=12, pady=(0, 4))
+        ).grid(row=5, column=0, columnspan=5, sticky="w", padx=6, pady=(0, 2))
 
         # Infraestructura requerida: canalización y cable por separado.
         seccion_infra_req = crear_seccion("🧱 Infraestructura requerida", fila_textos + 2)
@@ -1479,10 +1479,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             text_color=TEXT_SECONDARY,
             anchor="w",
             justify="left"
-        ).grid(row=1, column=0, columnspan=5, sticky="w", padx=14, pady=(0, 4))
+        ).grid(row=1, column=0, columnspan=5, sticky="w", padx=7, pady=(0, 2))
 
-        ctk.CTkLabel(seccion_infra_req, text="Canalización", font=("Montserrat", 12, "bold"), text_color=TEXT_PRIMARY).grid(row=2, column=0, columnspan=2, sticky="w", padx=12, pady=(4, 2))
-        ctk.CTkLabel(seccion_infra_req, text="Cable", font=("Montserrat", 12, "bold"), text_color=TEXT_PRIMARY).grid(row=2, column=2, columnspan=3, sticky="w", padx=12, pady=(4, 2))
+        ctk.CTkLabel(seccion_infra_req, text="Canalización", font=("Montserrat", 12, "bold"), text_color=TEXT_PRIMARY).grid(row=2, column=0, columnspan=2, sticky="w", padx=6, pady=(2, 1))
+        ctk.CTkLabel(seccion_infra_req, text="Cable", font=("Montserrat", 12, "bold"), text_color=TEXT_PRIMARY).grid(row=2, column=2, columnspan=3, sticky="w", padx=6, pady=(2, 1))
 
         agregar_fila_canalizacion(seccion_infra_req, canalizacion_items)
         agregar_fila_cable(seccion_infra_req, cable_items)
@@ -1492,14 +1492,14 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             height=34,
             fg_color=PRIMARY,
             command=lambda: agregar_fila_canalizacion(seccion_infra_req, canalizacion_items)
-        ).grid(row=99, column=0, columnspan=2, sticky="w", padx=12, pady=(4, 10))
+        ).grid(row=99, column=0, columnspan=2, sticky="w", padx=6, pady=(2, 5))
         ctk.CTkButton(
             seccion_infra_req,
             text="➕ Agregar cable",
             height=34,
             fg_color=PRIMARY,
             command=lambda: agregar_fila_cable(seccion_infra_req, cable_items)
-        ).grid(row=99, column=2, columnspan=3, sticky="w", padx=12, pady=(4, 10))
+        ).grid(row=99, column=2, columnspan=3, sticky="w", padx=6, pady=(2, 5))
 
         # Consumibles de Conectividad
         seccion_conectividad = crear_seccion("🔌 Consumibles de Conectividad", fila_textos + 3)
@@ -1575,14 +1575,14 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             var_equipo_serie = ctk.StringVar()
 
             fila = ctk.CTkFrame(frame, fg_color="transparent")
-            fila.grid(row=fila_base, column=0, columnspan=5, sticky="ew", padx=10, pady=(2, 4))
+            fila.grid(row=fila_base, column=0, columnspan=5, sticky="ew", padx=5, pady=(1, 2))
             for col in range(5):
                 fila.grid_columnconfigure(col, weight=1)
 
-            ctk.CTkOptionMenu(fila, variable=var_equipo_tipo, values=["Cámara", "DVR", "NVR", "Disco duro", "Fuente", "Monitor", "Switch", "BalUn", "Otro"], height=32).grid(row=0, column=0, sticky="ew", padx=(0, 6))
-            ctk.CTkEntry(fila, textvariable=var_equipo_marca, height=32, corner_radius=9, placeholder_text="Marca").grid(row=0, column=1, sticky="ew", padx=(0, 6))
-            ctk.CTkEntry(fila, textvariable=var_equipo_modelo, height=32, corner_radius=9, placeholder_text="Modelo").grid(row=0, column=2, sticky="ew", padx=(0, 6))
-            ctk.CTkEntry(fila, textvariable=var_equipo_serie, height=32, corner_radius=9, placeholder_text="Número de serie").grid(row=0, column=3, sticky="ew", padx=(0, 6))
+            ctk.CTkOptionMenu(fila, variable=var_equipo_tipo, values=["Cámara", "DVR", "NVR", "Disco duro", "Fuente", "Monitor", "Switch", "BalUn", "Otro"], height=32).grid(row=0, column=0, sticky="ew", padx=(0, 3))
+            ctk.CTkEntry(fila, textvariable=var_equipo_marca, height=32, corner_radius=9, placeholder_text="Marca").grid(row=0, column=1, sticky="ew", padx=(0, 3))
+            ctk.CTkEntry(fila, textvariable=var_equipo_modelo, height=32, corner_radius=9, placeholder_text="Modelo").grid(row=0, column=2, sticky="ew", padx=(0, 3))
+            ctk.CTkEntry(fila, textvariable=var_equipo_serie, height=32, corner_radius=9, placeholder_text="Número de serie").grid(row=0, column=3, sticky="ew", padx=(0, 3))
 
             def eliminar_fila():
                 if len(coleccion) <= 1:
@@ -1631,7 +1631,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
 
         seccion_rep_equipos = crear_seccion("📦 Reparación: Información de Equipos Dañados", fila_textos + 11)
         registrar_seccion("rep_equipos", seccion_rep_equipos)
-        ctk.CTkLabel(seccion_rep_equipos, text="Tipo de equipo, marca, modelo y número de serie", font=("Montserrat", 11), text_color=TEXT_SECONDARY).grid(row=1, column=0, columnspan=5, sticky="w", padx=12, pady=(0, 4))
+        ctk.CTkLabel(seccion_rep_equipos, text="Tipo de equipo, marca, modelo y número de serie", font=("Montserrat", 11), text_color=TEXT_SECONDARY).grid(row=1, column=0, columnspan=5, sticky="w", padx=6, pady=(0, 2))
         agregar_equipo_danado(seccion_rep_equipos, equipos_danados_items)
         ctk.CTkButton(
             seccion_rep_equipos,
@@ -1639,12 +1639,12 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             height=34,
             fg_color=PRIMARY,
             command=lambda: agregar_equipo_danado(seccion_rep_equipos, equipos_danados_items)
-        ).grid(row=99, column=0, columnspan=2, sticky="w", padx=12, pady=(4, 10))
+        ).grid(row=99, column=0, columnspan=2, sticky="w", padx=6, pady=(2, 5))
 
         seccion_rep_descripcion = crear_seccion("📝 Reparación: Descripción general de la/las fallas", fila_textos + 12)
         registrar_seccion("rep_descripcion", seccion_rep_descripcion)
         txt_rep_descripcion_fallas = ctk.CTkTextbox(seccion_rep_descripcion, height=110, corner_radius=9)
-        txt_rep_descripcion_fallas.grid(row=1, column=0, columnspan=5, sticky="ew", padx=12, pady=(0, 10))
+        txt_rep_descripcion_fallas.grid(row=1, column=0, columnspan=5, sticky="ew", padx=6, pady=(0, 5))
 
         seccion_mantenimiento = crear_seccion("🧰 Mantenimiento: formulario pendiente", fila_textos + 13)
         registrar_seccion("mantenimiento", seccion_mantenimiento)
@@ -1655,7 +1655,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             text_color=TEXT_SECONDARY,
             anchor="w",
             justify="left"
-        ).grid(row=1, column=0, columnspan=5, sticky="w", padx=12, pady=(0, 10))
+        ).grid(row=1, column=0, columnspan=5, sticky="w", padx=6, pady=(0, 5))
 
         actualizar_campos_infra_existente()
         actualizar_secciones_infraestructura()
@@ -1673,7 +1673,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
 
         def crear_seccion_aa(titulo, fila):
             frame = ctk.CTkFrame(form_body, fg_color="#F8FAFC", corner_radius=14)
-            frame.grid(row=fila, column=0, columnspan=5, sticky="ew", pady=(4, 10))
+            frame.grid(row=fila, column=0, columnspan=5, sticky="ew", pady=(2, 5))
             for col in range(5):
                 frame.grid_columnconfigure(col, weight=1, uniform="aa_cols")
 
@@ -1682,7 +1682,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 text=titulo,
                 font=("Montserrat", 14, "bold"),
                 text_color=TEXT_PRIMARY
-            ).grid(row=0, column=0, columnspan=5, sticky="w", padx=14, pady=(10, 6))
+            ).grid(row=0, column=0, columnspan=5, sticky="w", padx=7, pady=(5, 3))
             return frame
 
         def label_aa(parent_frame, texto, fila, columna):
@@ -1694,7 +1694,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 anchor="w",
                 justify="left",
                 wraplength=250
-            ).grid(row=fila, column=columna, sticky="w", padx=12, pady=(4, 1))
+            ).grid(row=fila, column=columna, sticky="w", padx=6, pady=(2, 1))
 
         def entry_aa(parent_frame, texto, variable, placeholder, fila, columna, ancho_corto=False):
             label_aa(parent_frame, texto, fila * 2 + 1, columna)
@@ -1707,9 +1707,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             )
             if ancho_corto:
                 entry.configure(width=140)
-                entry.grid(row=fila * 2 + 2, column=columna, sticky="w", padx=12, pady=(0, 6))
+                entry.grid(row=fila * 2 + 2, column=columna, sticky="w", padx=6, pady=(0, 3))
             else:
-                entry.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=12, pady=(0, 6))
+                entry.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=6, pady=(0, 3))
             return entry
 
         def option_aa(parent_frame, texto, variable, values, fila, columna, command=None):
@@ -1721,7 +1721,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 height=32,
                 command=command
             )
-            option.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=12, pady=(0, 6))
+            option.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=6, pady=(0, 3))
             return option
 
         def registrar_seccion_aa(nombre, frame):
@@ -1804,7 +1804,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
 
         def crear_seccion_rvd(titulo, fila):
             frame = ctk.CTkFrame(form_body, fg_color="#F8FAFC", corner_radius=14)
-            frame.grid(row=fila, column=0, columnspan=5, sticky="ew", pady=(4, 10))
+            frame.grid(row=fila, column=0, columnspan=5, sticky="ew", pady=(2, 5))
             for col in range(5):
                 frame.grid_columnconfigure(col, weight=1, uniform="rvd_cols")
 
@@ -1813,7 +1813,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 text=titulo,
                 font=("Montserrat", 14, "bold"),
                 text_color=TEXT_PRIMARY
-            ).grid(row=0, column=0, columnspan=5, sticky="w", padx=14, pady=(10, 6))
+            ).grid(row=0, column=0, columnspan=5, sticky="w", padx=7, pady=(5, 3))
             return frame
 
         def label_rvd(parent_frame, texto, fila, columna):
@@ -1825,7 +1825,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 anchor="w",
                 justify="left",
                 wraplength=260
-            ).grid(row=fila, column=columna, sticky="w", padx=12, pady=(4, 1))
+            ).grid(row=fila, column=columna, sticky="w", padx=6, pady=(2, 1))
 
         def entry_rvd(parent_frame, texto, variable, placeholder, fila, columna, ancho_corto=False):
             label_rvd(parent_frame, texto, fila * 2 + 1, columna)
@@ -1838,9 +1838,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             )
             if ancho_corto:
                 entry.configure(width=135)
-                entry.grid(row=fila * 2 + 2, column=columna, sticky="w", padx=12, pady=(0, 6))
+                entry.grid(row=fila * 2 + 2, column=columna, sticky="w", padx=6, pady=(0, 3))
             else:
-                entry.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=12, pady=(0, 6))
+                entry.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=6, pady=(0, 3))
             return entry
 
         def option_rvd(parent_frame, texto, variable, values, fila, columna, command=None):
@@ -1852,7 +1852,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 height=32,
                 command=command
             )
-            option.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=12, pady=(0, 6))
+            option.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=6, pady=(0, 3))
             return option
 
         seccion_rvd_necesidad = crear_seccion_rvd("🌐 1. Necesidad inicial y alcance", fila_textos)
@@ -1909,29 +1909,29 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
 
         def crear_seccion_pe(titulo, fila):
             frame = ctk.CTkFrame(form_body, fg_color="#F8FAFC", corner_radius=14)
-            frame.grid(row=fila, column=0, columnspan=5, sticky="ew", pady=(4, 10))
+            frame.grid(row=fila, column=0, columnspan=5, sticky="ew", pady=(2, 5))
             for col in range(5):
                 frame.grid_columnconfigure(col, weight=1, uniform="pe_cols")
-            ctk.CTkLabel(frame, text=titulo, font=("Montserrat", 14, "bold"), text_color=TEXT_PRIMARY).grid(row=0, column=0, columnspan=5, sticky="w", padx=14, pady=(10, 6))
+            ctk.CTkLabel(frame, text=titulo, font=("Montserrat", 14, "bold"), text_color=TEXT_PRIMARY).grid(row=0, column=0, columnspan=5, sticky="w", padx=7, pady=(5, 3))
             return frame
 
         def label_pe(parent_frame, texto, fila, columna):
-            ctk.CTkLabel(parent_frame, text=texto, font=TEXT_SM, text_color=TEXT_PRIMARY, anchor="w", justify="left", wraplength=255).grid(row=fila, column=columna, sticky="w", padx=12, pady=(4, 1))
+            ctk.CTkLabel(parent_frame, text=texto, font=TEXT_SM, text_color=TEXT_PRIMARY, anchor="w", justify="left", wraplength=255).grid(row=fila, column=columna, sticky="w", padx=6, pady=(2, 1))
 
         def entry_pe(parent_frame, texto, variable, placeholder, fila, columna, ancho_corto=False):
             label_pe(parent_frame, texto, fila * 2 + 1, columna)
             entry = ctk.CTkEntry(parent_frame, textvariable=variable, height=32, corner_radius=9, placeholder_text=placeholder)
             if ancho_corto:
                 entry.configure(width=135)
-                entry.grid(row=fila * 2 + 2, column=columna, sticky="w", padx=12, pady=(0, 6))
+                entry.grid(row=fila * 2 + 2, column=columna, sticky="w", padx=6, pady=(0, 3))
             else:
-                entry.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=12, pady=(0, 6))
+                entry.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=6, pady=(0, 3))
             return entry
 
         def option_pe(parent_frame, texto, variable, values, fila, columna, command=None):
             label_pe(parent_frame, texto, fila * 2 + 1, columna)
             option = ctk.CTkOptionMenu(parent_frame, variable=variable, values=values, height=32, command=command)
-            option.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=12, pady=(0, 6))
+            option.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=6, pady=(0, 3))
             return option
 
         seccion_pe_necesidad = crear_seccion_pe("⚡ 1. Necesidad inicial del respaldo eléctrico", fila_textos)
@@ -1983,29 +1983,29 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
 
         def crear_seccion_ele(titulo, fila):
             frame = ctk.CTkFrame(form_body, fg_color="#F8FAFC", corner_radius=14)
-            frame.grid(row=fila, column=0, columnspan=5, sticky="ew", pady=(4, 10))
+            frame.grid(row=fila, column=0, columnspan=5, sticky="ew", pady=(2, 5))
             for col in range(5):
                 frame.grid_columnconfigure(col, weight=1, uniform="ele_cols")
-            ctk.CTkLabel(frame, text=titulo, font=("Montserrat", 14, "bold"), text_color=TEXT_PRIMARY).grid(row=0, column=0, columnspan=5, sticky="w", padx=14, pady=(10, 6))
+            ctk.CTkLabel(frame, text=titulo, font=("Montserrat", 14, "bold"), text_color=TEXT_PRIMARY).grid(row=0, column=0, columnspan=5, sticky="w", padx=7, pady=(5, 3))
             return frame
 
         def label_ele(parent_frame, texto, fila, columna):
-            ctk.CTkLabel(parent_frame, text=texto, font=TEXT_SM, text_color=TEXT_PRIMARY, anchor="w", justify="left", wraplength=255).grid(row=fila, column=columna, sticky="w", padx=12, pady=(4, 1))
+            ctk.CTkLabel(parent_frame, text=texto, font=TEXT_SM, text_color=TEXT_PRIMARY, anchor="w", justify="left", wraplength=255).grid(row=fila, column=columna, sticky="w", padx=6, pady=(2, 1))
 
         def entry_ele(parent_frame, texto, variable, placeholder, fila, columna, ancho_corto=False):
             label_ele(parent_frame, texto, fila * 2 + 1, columna)
             entry = ctk.CTkEntry(parent_frame, textvariable=variable, height=32, corner_radius=9, placeholder_text=placeholder)
             if ancho_corto:
                 entry.configure(width=135)
-                entry.grid(row=fila * 2 + 2, column=columna, sticky="w", padx=12, pady=(0, 6))
+                entry.grid(row=fila * 2 + 2, column=columna, sticky="w", padx=6, pady=(0, 3))
             else:
-                entry.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=12, pady=(0, 6))
+                entry.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=6, pady=(0, 3))
             return entry
 
         def option_ele(parent_frame, texto, variable, values, fila, columna, command=None):
             label_ele(parent_frame, texto, fila * 2 + 1, columna)
             option = ctk.CTkOptionMenu(parent_frame, variable=variable, values=values, height=32, command=command)
-            option.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=12, pady=(0, 6))
+            option.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=6, pady=(0, 3))
             return option
 
         seccion_ele_necesidad = crear_seccion_ele("🔌 1. Necesidad inicial y alcance eléctrico", fila_textos)
@@ -2061,7 +2061,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         # consistente con los formularios ya liberados.
         def crear_seccion_extra(titulo, fila):
             frame = ctk.CTkFrame(form_body, fg_color="#F8FAFC", corner_radius=14)
-            frame.grid(row=fila, column=0, columnspan=5, sticky="ew", pady=(4, 10))
+            frame.grid(row=fila, column=0, columnspan=5, sticky="ew", pady=(2, 5))
             for col in range(5):
                 frame.grid_columnconfigure(col, weight=1, uniform="extra_cols")
             ctk.CTkLabel(
@@ -2069,7 +2069,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 text=titulo,
                 font=("Montserrat", 14, "bold"),
                 text_color=TEXT_PRIMARY
-            ).grid(row=0, column=0, columnspan=5, sticky="w", padx=14, pady=(10, 6))
+            ).grid(row=0, column=0, columnspan=5, sticky="w", padx=7, pady=(5, 3))
             return frame
 
         def label_extra(parent_frame, texto, fila, columna):
@@ -2081,7 +2081,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 anchor="w",
                 justify="left",
                 wraplength=255
-            ).grid(row=fila, column=columna, sticky="w", padx=12, pady=(4, 1))
+            ).grid(row=fila, column=columna, sticky="w", padx=6, pady=(2, 1))
 
         def entry_extra(parent_frame, texto, variable, placeholder, fila, columna, ancho_corto=False):
             label_extra(parent_frame, texto, fila * 2 + 1, columna)
@@ -2094,15 +2094,15 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             )
             if ancho_corto:
                 entry.configure(width=145)
-                entry.grid(row=fila * 2 + 2, column=columna, sticky="w", padx=12, pady=(0, 6))
+                entry.grid(row=fila * 2 + 2, column=columna, sticky="w", padx=6, pady=(0, 3))
             else:
-                entry.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=12, pady=(0, 6))
+                entry.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=6, pady=(0, 3))
             return entry
 
         def option_extra(parent_frame, texto, variable, values, fila, columna):
             label_extra(parent_frame, texto, fila * 2 + 1, columna)
             option = ctk.CTkOptionMenu(parent_frame, variable=variable, values=values, height=32)
-            option.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=12, pady=(0, 6))
+            option.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=6, pady=(0, 3))
             return option
 
         secciones_extra_frames = []
@@ -2127,23 +2127,23 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
     # =============================================================
     # Familia/subfamilia se mantienen estables; marca y modelo son dinámicos.
     seccion_equipos = ctk.CTkFrame(form_body, fg_color="#F8FAFC", corner_radius=14)
-    seccion_equipos.grid(row=fila_textos, column=0, columnspan=5, sticky="ew", pady=(4, 10))
+    seccion_equipos.grid(row=fila_textos, column=0, columnspan=5, sticky="ew", pady=(2, 5))
     for col, peso in enumerate((2, 2, 1, 2, 2, 3, 1)):
         seccion_equipos.grid_columnconfigure(col, weight=peso)
 
     ctk.CTkLabel(
         seccion_equipos, text="📦 Equipos principales requeridos",
         font=("Montserrat", 14, "bold"), text_color=TEXT_PRIMARY
-    ).grid(row=0, column=0, columnspan=7, sticky="w", padx=14, pady=(10, 2))
+    ).grid(row=0, column=0, columnspan=7, sticky="w", padx=7, pady=(5, 1))
     ctk.CTkLabel(
         seccion_equipos,
         text="Selecciona familia y subfamilia; captura marca y modelo vigente. Así el catálogo no queda obsoleto.",
         font=TEXT_SM, text_color=TEXT_SECONDARY, anchor="w", justify="left"
-    ).grid(row=1, column=0, columnspan=7, sticky="w", padx=14, pady=(0, 8))
+    ).grid(row=1, column=0, columnspan=7, sticky="w", padx=7, pady=(0, 4))
 
     for col, encabezado in enumerate(("Familia", "Subfamilia", "Cantidad", "Marca", "Modelo", "Características técnicas", "Acción")):
         ctk.CTkLabel(seccion_equipos, text=encabezado, font=("Montserrat", 12, "bold"), text_color=TEXT_PRIMARY).grid(
-            row=2, column=col, sticky="w", padx=8, pady=(0, 4)
+            row=2, column=col, sticky="w", padx=4, pady=(0, 2)
         )
 
     def agregar_equipo_catalogo():
@@ -2159,17 +2159,17 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         var_caracteristicas_eq = ctk.StringVar()
 
         om_familia = ctk.CTkOptionMenu(seccion_equipos, variable=var_familia_eq, values=familias, height=31)
-        om_familia.grid(row=fila_eq, column=0, sticky="ew", padx=8, pady=3)
+        om_familia.grid(row=fila_eq, column=0, sticky="ew", padx=4, pady=2)
         om_subfamilia = ctk.CTkOptionMenu(seccion_equipos, variable=var_subfamilia_eq, values=subfamilias, height=31)
-        om_subfamilia.grid(row=fila_eq, column=1, sticky="ew", padx=8, pady=3)
-        ctk.CTkEntry(seccion_equipos, textvariable=var_cantidad_eq, width=80, height=31, placeholder_text="Ej. 2").grid(row=fila_eq, column=2, sticky="w", padx=8, pady=3)
-        ctk.CTkOptionMenu(seccion_equipos, variable=var_marca_eq, values=MARCAS_COMUNES, height=31).grid(row=fila_eq, column=3, sticky="ew", padx=8, pady=3)
-        ctk.CTkEntry(seccion_equipos, textvariable=var_modelo_eq, height=31, placeholder_text="Modelo vigente o por definir").grid(row=fila_eq, column=4, sticky="ew", padx=8, pady=3)
+        om_subfamilia.grid(row=fila_eq, column=1, sticky="ew", padx=4, pady=2)
+        ctk.CTkEntry(seccion_equipos, textvariable=var_cantidad_eq, width=80, height=31, placeholder_text="Ej. 2").grid(row=fila_eq, column=2, sticky="w", padx=4, pady=2)
+        ctk.CTkOptionMenu(seccion_equipos, variable=var_marca_eq, values=MARCAS_COMUNES, height=31).grid(row=fila_eq, column=3, sticky="ew", padx=4, pady=2)
+        ctk.CTkEntry(seccion_equipos, textvariable=var_modelo_eq, height=31, placeholder_text="Modelo vigente o por definir").grid(row=fila_eq, column=4, sticky="ew", padx=4, pady=2)
         entry_car = ctk.CTkEntry(
             seccion_equipos, textvariable=var_caracteristicas_eq, height=31,
             placeholder_text=obtener_sugerencia_caracteristicas(tipo_levantamiento, familia_inicial)
         )
-        entry_car.grid(row=fila_eq, column=5, sticky="ew", padx=8, pady=3)
+        entry_car.grid(row=fila_eq, column=5, sticky="ew", padx=4, pady=2)
 
         def cambiar_familia(valor):
             nuevas = obtener_subfamilias(tipo_levantamiento, valor)
@@ -2197,7 +2197,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             seccion_equipos, text="Eliminar", width=82, height=31,
             fg_color="#DC2626", hover_color="#B91C1C", command=eliminar_equipo
         )
-        btn_eliminar.grid(row=fila_eq, column=6, sticky="ew", padx=8, pady=3)
+        btn_eliminar.grid(row=fila_eq, column=6, sticky="ew", padx=4, pady=2)
         item_equipo["widgets"].extend([
             btn_eliminar,
             # localizar widgets creados en esa fila para borrarlos juntos
@@ -2208,7 +2208,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
     ctk.CTkButton(
         seccion_equipos, text="➕ Agregar equipo", height=32, fg_color=PRIMARY,
         command=agregar_equipo_catalogo
-    ).grid(row=1000, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 10))
+    ).grid(row=1000, column=0, columnspan=2, sticky="w", padx=5, pady=(4, 5))
 
     def obtener_equipos_catalogo_json():
         equipos = []
@@ -2246,7 +2246,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
     # La cantidad, unidad y especificación permanecen deshabilitadas hasta
     # seleccionar "Sí" en la columna "¿Se requiere?".
     seccion_misc = ctk.CTkFrame(form_body, fg_color="#F8FAFC", corner_radius=14)
-    seccion_misc.grid(row=fila_textos, column=0, columnspan=5, sticky="ew", pady=(4, 10))
+    seccion_misc.grid(row=fila_textos, column=0, columnspan=5, sticky="ew", pady=(2, 5))
     seccion_misc.grid_columnconfigure(0, weight=2)
     seccion_misc.grid_columnconfigure(1, weight=1)
     seccion_misc.grid_columnconfigure(2, weight=1)
@@ -2257,16 +2257,16 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
     ctk.CTkLabel(
         seccion_misc, text="🧰 Materiales misceláneos y consumibles",
         font=("Montserrat", 14, "bold"), text_color=TEXT_PRIMARY
-    ).grid(row=0, column=0, columnspan=6, sticky="w", padx=14, pady=(10, 2))
+    ).grid(row=0, column=0, columnspan=6, sticky="w", padx=7, pady=(5, 1))
     ctk.CTkLabel(
         seccion_misc,
         text="Activa únicamente los materiales necesarios e indica cantidad, unidad y especificación para cotización.",
         font=TEXT_SM, text_color=TEXT_SECONDARY, anchor="w", justify="left"
-    ).grid(row=1, column=0, columnspan=6, sticky="w", padx=14, pady=(0, 8))
+    ).grid(row=1, column=0, columnspan=6, sticky="w", padx=7, pady=(0, 4))
 
     for col, encabezado in enumerate(("Material", "¿Se requiere?", "Cantidad", "Unidad", "Especificación / medida", "Acción")):
         ctk.CTkLabel(seccion_misc, text=encabezado, font=("Montserrat", 12, "bold"), text_color=TEXT_PRIMARY).grid(
-            row=2, column=col, sticky="w", padx=10, pady=(0, 4)
+            row=2, column=col, sticky="w", padx=5, pady=(0, 2)
         )
 
     def agregar_material_miscelaneo(material_catalogo=None):
@@ -2288,7 +2288,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         var_especificacion = ctk.StringVar()
 
         entrada_material = ctk.CTkEntry(seccion_misc, textvariable=var_material, height=31, corner_radius=8)
-        entrada_material.grid(row=fila, column=0, sticky="ew", padx=10, pady=3)
+        entrada_material.grid(row=fila, column=0, sticky="ew", padx=5, pady=2)
         if nombre_material:
             entrada_material.configure(state="readonly")
 
@@ -2296,18 +2296,18 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             seccion_misc, textvariable=var_cantidad, width=95, height=31, corner_radius=8,
             placeholder_text="Ej. 20", state="disabled"
         )
-        entrada_cantidad.grid(row=fila, column=2, sticky="w", padx=10, pady=3)
+        entrada_cantidad.grid(row=fila, column=2, sticky="w", padx=5, pady=2)
         opcion_unidad = ctk.CTkOptionMenu(
             seccion_misc, variable=var_unidad, values=UNIDADES_MATERIAL,
             width=125, height=31, state="disabled"
         )
-        opcion_unidad.grid(row=fila, column=3, sticky="w", padx=10, pady=3)
+        opcion_unidad.grid(row=fila, column=3, sticky="w", padx=5, pady=2)
         entrada_especificacion = ctk.CTkEntry(
             seccion_misc, textvariable=var_especificacion, height=31, corner_radius=8,
             placeholder_text=especificacion_sugerida or "Medida, material, color o presentación",
             state="disabled"
         )
-        entrada_especificacion.grid(row=fila, column=4, sticky="ew", padx=10, pady=3)
+        entrada_especificacion.grid(row=fila, column=4, sticky="ew", padx=5, pady=2)
 
         def actualizar_material(_valor=None):
             estado = "normal" if var_requerido.get() == "Sí" else "disabled"
@@ -2322,7 +2322,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             seccion_misc, variable=var_requerido, values=["No", "Sí"],
             width=105, height=31, command=actualizar_material
         )
-        opcion_requerido.grid(row=fila, column=1, sticky="w", padx=10, pady=3)
+        opcion_requerido.grid(row=fila, column=1, sticky="w", padx=5, pady=2)
 
         item_material = {
             "material": var_material,
@@ -2346,7 +2346,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             seccion_misc, text="Eliminar", width=82, height=31,
             fg_color="#DC2626", hover_color="#B91C1C", command=eliminar_material
         )
-        btn_eliminar.grid(row=fila, column=5, sticky="ew", padx=10, pady=3)
+        btn_eliminar.grid(row=fila, column=5, sticky="ew", padx=5, pady=2)
         item_material["widgets"].append(btn_eliminar)
         materiales_miscelaneos_items.append(item_material)
 
@@ -2356,7 +2356,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
     ctk.CTkButton(
         seccion_misc, text="➕ Agregar otro material", height=32, fg_color=PRIMARY,
         command=lambda: agregar_material_miscelaneo(None)
-    ).grid(row=1000, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 10))
+    ).grid(row=1000, column=0, columnspan=2, sticky="w", padx=5, pady=(4, 5))
 
     # Flujo dinámico exclusivo para Tecnología, Equipos y Periféricos.
     # - Suministro: solo información del producto/equipo; sin materiales ni mano de obra.
@@ -3389,11 +3389,11 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         side="top",
         fill="both",
         expand=True,
-        pady=(0, 8)
+        pady=(0, 4)
     )
 
     barra_botones = ctk.CTkFrame(frame_botones, fg_color="transparent")
-    barra_botones.pack(anchor="center", pady=8)
+    barra_botones.pack(anchor="center", pady=4)
 
     ctk.CTkButton(
         barra_botones,
@@ -3405,7 +3405,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         hover_color="#475569",
         font=BUTTON_FONT,
         command=app.volver_atras
-    ).grid(row=0, column=0, padx=8)
+    ).grid(row=0, column=0, padx=4)
 
     ctk.CTkButton(
         barra_botones,
@@ -3417,7 +3417,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         hover_color=BUTTON_HOVER,
         font=BUTTON_FONT,
         command=guardar_levantamiento
-    ).grid(row=0, column=1, padx=8)
+    ).grid(row=0, column=1, padx=4)
 
     btn_preview_levantamiento = ctk.CTkButton(
         barra_botones,
@@ -3431,7 +3431,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         state="disabled",
         command=preview_pdf_levantamiento
     )
-    btn_preview_levantamiento.grid(row=0, column=2, padx=8)
+    btn_preview_levantamiento.grid(row=0, column=2, padx=4)
 
     def actualizar_estado_preview():
         completo = formulario_preview_completo()
@@ -3487,6 +3487,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         fg_color="gray",
         font=BUTTON_FONT,
         command=app.mostrar_vista_inicio_aco
-    ).grid(row=0, column=3, padx=8)
+    ).grid(row=0, column=3, padx=4)
 
     enfocar_inicio_formulario(card)

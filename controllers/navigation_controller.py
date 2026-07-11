@@ -668,7 +668,7 @@ class NavigationController:
             fg_color=WHITE,
             corner_radius=18
         )
-        card.pack(pady=50)
+        card.pack(pady=25)
         card.pack_propagate(False)
 
         ctk.CTkLabel(
@@ -676,7 +676,7 @@ class NavigationController:
             text="Módulo en construcción",
             font=("Montserrat", 22, "bold"),
             text_color="#0F172A"
-        ).pack(pady=(120, 10))
+        ).pack(pady=(60, 5))
 
         ctk.CTkLabel(
             card,

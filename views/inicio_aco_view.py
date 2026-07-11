@@ -112,7 +112,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
         font=TITLE_MD,
         text_color=TEXT_PRIMARY
     ).pack(
-        pady=(5, 4)
+        pady=(2, 2)
     )
 
     ctk.CTkLabel(
@@ -122,7 +122,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
         text_color=TEXT_SECONDARY,
         justify="center"
     ).pack(
-        pady=(0, 10)
+        pady=(0, 5)
     )
 
     frame_botones = ctk.CTkFrame(
@@ -143,8 +143,8 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     panel_dinamico.pack(
         fill="both",
         expand=True,
-        padx=35,
-        pady=(160, 25)
+        padx=18,
+        pady=(80, 12)
     )
 
     # =================================================
@@ -164,7 +164,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             font=TEXT_MD,
             text_color=TEXT_SECONDARY
         ).pack(
-            pady=220
+            pady=110
         )
 
     # =================================================
@@ -184,7 +184,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             font=TITLE_MD,
             text_color=TEXT_PRIMARY
         ).pack(
-            pady=(35, 8)
+            pady=(18, 4)
         )
 
         var_aco = ctk.StringVar()
@@ -208,7 +208,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             placeholder_text="Ejemplo: ACO-0001"
         )
         entry_aco.pack(
-            pady=(5, 15)
+            pady=(2, 8)
         )
 
         def validar_aco():
@@ -264,7 +264,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             font=BUTTON_FONT,
             command=validar_aco
         ).pack(
-            pady=8
+            pady=4
         )
 
     # =================================================
@@ -311,7 +311,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             font=TITLE_MD,
             text_color=PRIMARY
         ).pack(
-            pady=(45, 5)
+            pady=(22, 2)
         )
 
         ctk.CTkLabel(
@@ -320,7 +320,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             font=TEXT_MD,
             text_color=TEXT_SECONDARY
         ).pack(
-            pady=(0, 8)
+            pady=(0, 4)
         )
 
         ctk.CTkLabel(
@@ -329,7 +329,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             font=TEXT_MD,
             text_color=TEXT_PRIMARY
         ).pack(
-            pady=(0, 25)
+            pady=(0, 12)
         )
 
         # =================================================
@@ -393,7 +393,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
                 font=BUTTON_FONT,
                 command=comando
             ).pack(
-                pady=8
+                pady=4
             )
 
     # =================================================
@@ -417,7 +417,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             corner_radius=16
         )
         form.pack(
-            pady=25
+            pady=12
         )
 
         var_aco = ctk.StringVar()
@@ -452,8 +452,8 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
                 text_color=TEXT_PRIMARY
             ).pack(
                 anchor="w",
-                padx=35,
-                pady=(10, 3)
+                padx=18,
+                pady=(5, 2)
             )
 
         def crear_entry(variable, placeholder, state="normal", date=False):
@@ -467,8 +467,8 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
                 state=state
             )
             entry.pack(
-                padx=35,
-                pady=(0, 4)
+                padx=18,
+                pady=(0, 2)
             )
             if date and state != "disabled":
                 entry.bind("<Button-1>", lambda _event: abrir_selector_fecha(form, variable))
@@ -496,8 +496,8 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
                 command=lambda _nombre: cargar_datos_cliente()
             )
             selector.pack(
-                padx=35,
-                pady=(0, 4)
+                padx=18,
+                pady=(0, 2)
             )
             return clientes_por_nombre
 
@@ -567,7 +567,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
                 form, variable=variable, values=["Sin sucursales registradas"],
                 width=620, height=38, command=lambda _nombre: cargar_datos_sucursal()
             )
-            selector.pack(padx=35, pady=(0, 4))
+            selector.pack(padx=18, pady=(0, 2))
             seleccion_operativa["selector_sucursal"] = selector
             return selector
 
@@ -576,7 +576,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
                 form, variable=variable, values=["Sin contactos registrados"],
                 width=620, height=38, command=lambda _nombre: cargar_datos_contacto()
             )
-            selector.pack(padx=35, pady=(0, 4))
+            selector.pack(padx=18, pady=(0, 2))
             seleccion_operativa["selector_contacto"] = selector
             return selector
 
@@ -630,8 +630,8 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             corner_radius=10
         )
         txt_descripcion.pack(
-            padx=35,
-            pady=(0, 4)
+            padx=18,
+            pady=(0, 2)
         )
 
         crear_label("Observaciones")
@@ -642,8 +642,8 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             corner_radius=10
         )
         txt_observaciones.pack(
-            padx=35,
-            pady=(0, 15)
+            padx=18,
+            pady=(0, 8)
         )
 
         def guardar_aco():
@@ -727,7 +727,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             font=BUTTON_FONT,
             command=guardar_aco
         ).pack(
-            pady=(0, 15)
+            pady=(0, 8)
         )
 
     # =================================================
@@ -750,7 +750,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             font=TITLE_MD,
             text_color=TEXT_PRIMARY
         ).pack(
-            pady=(55, 10)
+            pady=(28, 5)
         )
 
         ctk.CTkLabel(
@@ -764,7 +764,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             text_color=TEXT_SECONDARY,
             justify="center"
         ).pack(
-            pady=(0, 25)
+            pady=(0, 12)
         )
 
         ctk.CTkButton(
@@ -799,7 +799,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     ).grid(
         row=0,
         column=0,
-        padx=10
+        padx=5
     )
 
     ctk.CTkButton(
@@ -817,7 +817,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     ).grid(
         row=0,
         column=1,
-        padx=10
+        padx=5
     )
 
     if aco_validado:

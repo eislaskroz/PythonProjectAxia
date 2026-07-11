@@ -105,7 +105,7 @@ def abrir_registro_usuario(app):
         image=logo_axia,
         text=""
     ).pack(
-        pady=(70, 20)
+        pady=(35, 10)
     )
 
     panel_izquierdo.logo_axia = logo_axia
@@ -116,7 +116,7 @@ def abrir_registro_usuario(app):
         font=TEXT_MD,
         text_color=WHITE
     ).pack(
-        pady=(0, 30)
+        pady=(0, 15)
     )
 
     ctk.CTkLabel(
@@ -130,8 +130,8 @@ def abrir_registro_usuario(app):
         text_color=WHITE,
         justify="center"
     ).pack(
-        pady=20,
-        padx=25
+        pady=10,
+        padx=12
     )
 
     ctk.CTkLabel(
@@ -141,7 +141,7 @@ def abrir_registro_usuario(app):
         text_color=WHITE
     ).pack(
         side="bottom",
-        pady=35
+        pady=18
     )
 
     # =================================================
@@ -165,9 +165,9 @@ def abrir_registro_usuario(app):
         font=TITLE_LG,
         text_color=TEXT_PRIMARY
     ).pack(
-        pady=(25, 5),
+        pady=(12, 2),
         anchor="w",
-        padx=35
+        padx=18
     )
 
     ctk.CTkLabel(
@@ -177,8 +177,8 @@ def abrir_registro_usuario(app):
         text_color=TEXT_SECONDARY
     ).pack(
         anchor="w",
-        padx=35,
-        pady=(0, 15)
+        padx=18,
+        pady=(0, 8)
     )
 
     # =================================================
@@ -193,8 +193,8 @@ def abrir_registro_usuario(app):
         corner_radius=22
     )
     card_formulario.pack(
-        padx=35,
-        pady=(10, 8),
+        padx=18,
+        pady=(5, 4),
         fill="both",
         expand=False
     )
@@ -216,9 +216,9 @@ def abrir_registro_usuario(app):
             font=TITLE_MD,
             text_color=PRIMARY
         ).pack(
-            pady=(22, 8),
+            pady=(11, 4),
             anchor="w",
-            padx=25
+            padx=12
         )
 
     def crear_campo(clave, texto, ocultar=False):
@@ -233,8 +233,8 @@ def abrir_registro_usuario(app):
             text_color=TEXT_SECONDARY
         ).pack(
             anchor="w",
-            padx=30,
-            pady=(8, 2)
+            padx=15,
+            pady=(4, 1)
         )
 
         entrada = ctk.CTkEntry(
@@ -247,8 +247,8 @@ def abrir_registro_usuario(app):
             show="*" if ocultar else ""
         )
         entrada.pack(
-            padx=30,
-            pady=(0, 4)
+            padx=15,
+            pady=(0, 2)
         )
 
         entradas[clave] = entrada
@@ -371,7 +371,7 @@ def abrir_registro_usuario(app):
         fg_color="transparent"
     )
     frame_botones.pack(
-        pady=(5, 18)
+        pady=(2, 9)
     )
 
     ctk.CTkButton(
@@ -387,7 +387,7 @@ def abrir_registro_usuario(app):
     ).grid(
         row=0,
         column=0,
-        padx=10
+        padx=5
     )
 
     ctk.CTkButton(
@@ -402,7 +402,7 @@ def abrir_registro_usuario(app):
     ).grid(
         row=0,
         column=1,
-        padx=10
+        padx=5
     )
 
     ventana.bind(

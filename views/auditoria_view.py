@@ -50,14 +50,14 @@ def mostrar_auditoria(parent, app):
     }
 
     contenedor = ctk.CTkFrame(parent, fg_color="transparent")
-    contenedor.pack(fill="both", expand=True, padx=28, pady=8)
+    contenedor.pack(fill="both", expand=True, padx=14, pady=4)
 
     barra = ctk.CTkFrame(contenedor, fg_color="transparent")
-    barra.pack(fill="x", pady=(0, 10))
+    barra.pack(fill="x", pady=(0, 5))
     barra.grid_columnconfigure(0, weight=1)
 
     resumen = ctk.CTkFrame(barra, fg_color=WHITE, corner_radius=16)
-    resumen.grid(row=0, column=0, sticky="ew", padx=(0, 10))
+    resumen.grid(row=0, column=0, sticky="ew", padx=(0, 5))
     resumen.grid_columnconfigure((0, 1, 2), weight=1)
 
     metricas = [
@@ -73,7 +73,7 @@ def mostrar_auditoria(parent, app):
             font=TEXT_SM,
             text_color=TEXT_SECONDARY,
             anchor="w",
-        ).grid(row=0, column=columna, sticky="w", padx=18, pady=(12, 0))
+        ).grid(row=0, column=columna, sticky="w", padx=9, pady=(6, 0))
 
         ctk.CTkLabel(
             resumen,
@@ -81,10 +81,10 @@ def mostrar_auditoria(parent, app):
             font=TEXT_MD,
             text_color=PRIMARY,
             anchor="w",
-        ).grid(row=1, column=columna, sticky="w", padx=18, pady=(0, 12))
+        ).grid(row=1, column=columna, sticky="w", padx=9, pady=(0, 6))
 
     filtros = ctk.CTkFrame(contenedor, fg_color=WHITE, corner_radius=16)
-    filtros.pack(fill="x", pady=(0, 10))
+    filtros.pack(fill="x", pady=(0, 5))
     filtros.grid_columnconfigure((0, 1, 2, 3, 4), weight=1, uniform="filtros")
 
     variables = {
@@ -105,7 +105,7 @@ def mostrar_auditoria(parent, app):
 
     for columna, (clave, etiqueta) in enumerate(campos_filtro):
         wrapper = ctk.CTkFrame(filtros, fg_color="transparent")
-        wrapper.grid(row=0, column=columna, sticky="ew", padx=10, pady=(10, 8))
+        wrapper.grid(row=0, column=columna, sticky="ew", padx=5, pady=(5, 4))
         wrapper.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
@@ -121,11 +121,11 @@ def mostrar_auditoria(parent, app):
             textvariable=variables[clave],
             height=34,
         )
-        entry.grid(row=1, column=0, sticky="ew", pady=(3, 0))
+        entry.grid(row=1, column=0, sticky="ew", pady=(2, 0))
         entry.bind("<Return>", lambda _event: aplicar_filtros())
 
     acciones = ctk.CTkFrame(contenedor, fg_color="transparent")
-    acciones.pack(fill="x", pady=(0, 10))
+    acciones.pack(fill="x", pady=(0, 5))
 
     ctk.CTkButton(
         acciones,
@@ -136,7 +136,7 @@ def mostrar_auditoria(parent, app):
         hover_color=BUTTON_HOVER,
         font=BUTTON_FONT,
         command=lambda: aplicar_filtros(),
-    ).pack(side="left", padx=(0, 8))
+    ).pack(side="left", padx=(0, 4))
 
     ctk.CTkButton(
         acciones,
@@ -147,7 +147,7 @@ def mostrar_auditoria(parent, app):
         hover_color="#475569",
         font=BUTTON_FONT,
         command=lambda: limpiar_filtros(),
-    ).pack(side="left", padx=(0, 8))
+    ).pack(side="left", padx=(0, 4))
 
     ctk.CTkButton(
         acciones,
@@ -190,7 +190,7 @@ def mostrar_auditoria(parent, app):
             font=("Montserrat", 16, "bold"),
             text_color=TEXT_PRIMARY,
             anchor="w",
-        ).pack(anchor="w", padx=18, pady=(16, 8))
+        ).pack(anchor="w", padx=9, pady=(8, 4))
 
         if not registros:
             ctk.CTkLabel(
@@ -199,11 +199,11 @@ def mostrar_auditoria(parent, app):
                 font=TEXT_SM,
                 text_color=TEXT_SECONDARY,
                 anchor="w",
-            ).pack(anchor="w", padx=18, pady=8)
+            ).pack(anchor="w", padx=9, pady=4)
             return
 
         header = ctk.CTkFrame(panel, fg_color="#F4F7FB", corner_radius=10)
-        header.pack(fill="x", padx=18, pady=(0, 4))
+        header.pack(fill="x", padx=9, pady=(0, 2))
 
         for columna, (_campo, etiqueta) in enumerate(CAMPOS_AUDITORIA):
             peso = 2 if _campo == "descripcion" else 1
@@ -215,11 +215,11 @@ def mostrar_auditoria(parent, app):
                 text_color=TEXT_PRIMARY,
                 anchor="w",
                 justify="left",
-            ).grid(row=0, column=columna, sticky="ew", padx=8, pady=8)
+            ).grid(row=0, column=columna, sticky="ew", padx=4, pady=4)
 
         for movimiento in registros[:100]:
             fila = ctk.CTkFrame(panel, fg_color="transparent")
-            fila.pack(fill="x", padx=18, pady=2)
+            fila.pack(fill="x", padx=9, pady=1)
 
             for columna, (campo, _etiqueta) in enumerate(CAMPOS_AUDITORIA):
                 peso = 2 if campo == "descripcion" else 1
@@ -233,11 +233,11 @@ def mostrar_auditoria(parent, app):
                     anchor="w",
                     justify="left",
                     wraplength=260 if campo == "descripcion" else 150,
-                ).grid(row=0, column=columna, sticky="ew", padx=8, pady=5)
+                ).grid(row=0, column=columna, sticky="ew", padx=4, pady=2)
 
             acciones_fila = ctk.CTkFrame(fila, fg_color="transparent")
-            acciones_fila.grid(row=0, column=len(CAMPOS_AUDITORIA), sticky="e", padx=8, pady=3)
-            ctk.CTkButton(acciones_fila, text="👁", width=34, height=28, fg_color="#64748B", hover_color="#475569", command=lambda r=movimiento: mostrar_detalle_registro(parent, "Movimiento de auditoría", r)).pack(side="left", padx=(0, 4))
+            acciones_fila.grid(row=0, column=len(CAMPOS_AUDITORIA), sticky="e", padx=4, pady=2)
+            ctk.CTkButton(acciones_fila, text="👁", width=34, height=28, fg_color="#64748B", hover_color="#475569", command=lambda r=movimiento: mostrar_detalle_registro(parent, "Movimiento de auditoría", r)).pack(side="left", padx=(0, 2))
             ctk.CTkButton(acciones_fila, text="⬇", width=34, height=28, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=lambda r=movimiento: exportar_registros_dialogo(r, "AXIA_movimiento_auditoria")).pack(side="left")
 
         if len(registros) > 100:
@@ -247,7 +247,7 @@ def mostrar_auditoria(parent, app):
                 font=TEXT_SM,
                 text_color=TEXT_SECONDARY,
                 anchor="e",
-            ).pack(anchor="e", padx=18, pady=(8, 16))
+            ).pack(anchor="e", padx=9, pady=(4, 8))
 
     def aplicar_filtros():
         termino = " ".join(

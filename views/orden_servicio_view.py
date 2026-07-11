@@ -35,7 +35,7 @@ def mostrar_orden_servicio(parent, app, aco=None):
         widget.destroy()
 
     contenedor = ctk.CTkFrame(parent, fg_color="transparent")
-    contenedor.pack(fill="both", expand=True, padx=14, pady=10)
+    contenedor.pack(fill="both", expand=True, padx=7, pady=5)
 
     datos_aco = normalizar_datos_aco(aco)
     entradas_bloqueadas = []
@@ -75,21 +75,21 @@ def mostrar_orden_servicio(parent, app, aco=None):
     contenedor.grid_columnconfigure(0, weight=1)
 
     card = ctk.CTkScrollableFrame(contenedor, width=1280, fg_color=WHITE, corner_radius=18)
-    card.grid(row=0, column=0, sticky="nsew", pady=(0, 8))
+    card.grid(row=0, column=0, sticky="nsew", pady=(0, 4))
     form = ctk.CTkFrame(card, fg_color="transparent")
-    form.pack(fill="x", expand=True, padx=24, pady=(18, 8))
+    form.pack(fill="x", expand=True, padx=12, pady=(9, 4))
     for col in range(4):
         form.grid_columnconfigure(col, weight=1, uniform="cols")
 
     def seccion(texto, fila):
-        ctk.CTkLabel(form, text=texto, font=SECTION_FONT, text_color=TEXT_PRIMARY).grid(row=fila, column=0, columnspan=4, sticky="w", pady=(12, 6))
+        ctk.CTkLabel(form, text=texto, font=SECTION_FONT, text_color=TEXT_PRIMARY).grid(row=fila, column=0, columnspan=4, sticky="w", pady=(6, 3))
 
     def label(parent_, texto):
-        ctk.CTkLabel(parent_, text=texto, font=LABEL_FONT, text_color=TEXT_PRIMARY).pack(anchor="w", pady=(0, 2))
+        ctk.CTkLabel(parent_, text=texto, font=LABEL_FONT, text_color=TEXT_PRIMARY).pack(anchor="w", pady=(0, 1))
 
     def celda(fila, col, colspan=1):
         frame = ctk.CTkFrame(form, fg_color="transparent")
-        frame.grid(row=fila, column=col, columnspan=colspan, sticky="ew", padx=5, pady=(0, 6))
+        frame.grid(row=fila, column=col, columnspan=colspan, sticky="ew", padx=2, pady=(0, 3))
         frame.grid_columnconfigure(0, weight=1)
         return frame
 
@@ -183,7 +183,7 @@ def mostrar_orden_servicio(parent, app, aco=None):
     grid.pack(fill="x")
     for i, tipo in enumerate(TIPOS_SERVICIO):
         cb = ctk.CTkCheckBox(grid, text=tipo, variable=tipos_vars[tipo], font=SMALL_FONT, text_color=TEXT_PRIMARY, height=24, command=lambda: validar_preview())
-        cb.grid(row=i // 5, column=i % 5, sticky="w", padx=8, pady=2)
+        cb.grid(row=i // 5, column=i % 5, sticky="w", padx=4, pady=1)
     entry("Supervisor", var_supervisor, "Nombre", 6, 0)
     entry("Encargado", var_encargado_servicio, "Autollenado", 6, 1, lock=True)
     entry("Técnicos", var_tecnicos, "Técnicos asignados", 6, 2)
@@ -201,12 +201,12 @@ def mostrar_orden_servicio(parent, app, aco=None):
     def agregar_equipo():
         row_vars = {"Equipo": ctk.StringVar(), "Número de Serie": ctk.StringVar(), "Movimiento": ctk.StringVar(value="Instalación"), "Diagnóstico de la Falla": ctk.StringVar()}
         fila = ctk.CTkFrame(equipos_frame, fg_color="transparent")
-        fila.pack(fill="x", pady=2)
+        fila.pack(fill="x", pady=1)
         row_vars["_frame"] = fila
         equipos.append(row_vars)
         for j, h in enumerate(headers):
             sub = ctk.CTkFrame(fila, fg_color="transparent")
-            sub.grid(row=0, column=j, sticky="ew", padx=3)
+            sub.grid(row=0, column=j, sticky="ew", padx=2)
             fila.grid_columnconfigure(j, weight=1)
             ctk.CTkLabel(sub, text=h, font=LABEL_FONT, text_color=TEXT_PRIMARY).pack(anchor="w")
             if h == "Movimiento":
@@ -223,7 +223,7 @@ def mostrar_orden_servicio(parent, app, aco=None):
             fila.destroy()
             equipos[:] = [x for x in equipos if x is not row_vars]
             validar_preview()
-        ctk.CTkButton(fila,text="Eliminar",width=82,height=30,fg_color="#DC2626",hover_color="#B91C1C",command=eliminar_equipo).grid(row=0,column=len(headers),sticky="s",padx=3)
+        ctk.CTkButton(fila,text="Eliminar",width=82,height=30,fg_color="#DC2626",hover_color="#B91C1C",command=eliminar_equipo).grid(row=0,column=len(headers),sticky="s",padx=2)
         validar_preview()
 
     ctk.CTkButton(acciones_equipos, text="+ Nuevo equipo", width=150, height=30, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=agregar_equipo).pack(anchor="w")
@@ -237,7 +237,7 @@ def mostrar_orden_servicio(parent, app, aco=None):
 
     seccion("Firma del Cliente", 15)
     c_firma = celda(16, 0, 4)
-    ctk.CTkLabel(c_firma, textvariable=var_estado_firma, font=SMALL_FONT, text_color=TEXT_SECONDARY).pack(side="left", padx=(0, 10))
+    ctk.CTkLabel(c_firma, textvariable=var_estado_firma, font=SMALL_FONT, text_color=TEXT_SECONDARY).pack(side="left", padx=(0, 5))
     ctk.CTkButton(c_firma, text="✍ Capturar firma", width=160, height=32, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=lambda: firmar_en_popup(parent, var_firma_cliente, actualizar_firma)).pack(side="left")
 
     def actualizar_firma():
@@ -324,13 +324,13 @@ def mostrar_orden_servicio(parent, app, aco=None):
     botones.grid(row=1, column=0, sticky="ew", pady=(0, 0))
     botones.grid_columnconfigure(0, weight=1)
     barra_botones = ctk.CTkFrame(botones, fg_color="transparent")
-    barra_botones.pack(anchor="center", pady=8)
+    barra_botones.pack(anchor="center", pady=4)
     btn_guardar = ctk.CTkButton(barra_botones, text="💾 Guardar Orden", width=185, height=38, corner_radius=10, fg_color=SECONDARY, hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=guardar_orden)
     btn_preview = ctk.CTkButton(barra_botones, text="👁 Preview PDF", width=165, height=38, corner_radius=10, fg_color="#1F4E79", hover_color="#173B5C", font=BUTTON_FONT, command=preview_pdf, state="disabled")
-    ctk.CTkButton(barra_botones, text="⬅ Atrás", width=120, height=38, corner_radius=10, fg_color="#64748B", hover_color="#475569", font=BUTTON_FONT, command=volver_a_selector_aco).grid(row=0, column=0, padx=8)
-    btn_guardar.grid(row=0, column=1, padx=8)
-    btn_preview.grid(row=0, column=2, padx=8)
-    ctk.CTkButton(barra_botones, text="↩ Cancelar", width=130, height=38, corner_radius=10, fg_color="gray", font=BUTTON_FONT, command=app.mostrar_vista_inicio_aco).grid(row=0, column=3, padx=8)
+    ctk.CTkButton(barra_botones, text="⬅ Atrás", width=120, height=38, corner_radius=10, fg_color="#64748B", hover_color="#475569", font=BUTTON_FONT, command=volver_a_selector_aco).grid(row=0, column=0, padx=4)
+    btn_guardar.grid(row=0, column=1, padx=4)
+    btn_preview.grid(row=0, column=2, padx=4)
+    ctk.CTkButton(barra_botones, text="↩ Cancelar", width=130, height=38, corner_radius=10, fg_color="gray", font=BUTTON_FONT, command=app.mostrar_vista_inicio_aco).grid(row=0, column=3, padx=4)
 
     enfocar_inicio_formulario(card)
     validar_preview()

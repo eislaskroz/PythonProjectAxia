@@ -83,11 +83,11 @@ def abrir_selector_fecha(parent, variable):
     ventana.focus_force()
 
     marco = ctk.CTkFrame(ventana, fg_color="transparent")
-    marco.pack(fill="both", expand=True, padx=12, pady=12)
+    marco.pack(fill="both", expand=True, padx=6, pady=6)
     marco.grid_columnconfigure(tuple(range(7)), weight=1)
 
     encabezado = ctk.CTkFrame(marco, fg_color="transparent")
-    encabezado.grid(row=0, column=0, columnspan=7, sticky="ew", pady=(0, 8))
+    encabezado.grid(row=0, column=0, columnspan=7, sticky="ew", pady=(0, 4))
     encabezado.grid_columnconfigure(1, weight=1)
 
     titulo = ctk.CTkLabel(encabezado, text="", font=("Montserrat", 14, "bold"))
@@ -109,13 +109,13 @@ def abrir_selector_fecha(parent, variable):
         titulo.configure(text=f"{meses[estado['month']-1]} {estado['year']}")
 
         for col, dia in enumerate(["Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do"]):
-            ctk.CTkLabel(cuerpo, text=dia, font=("Montserrat", 12, "bold")).grid(row=0, column=col, padx=2, pady=2)
+            ctk.CTkLabel(cuerpo, text=dia, font=("Montserrat", 12, "bold")).grid(row=0, column=col, padx=1, pady=1)
 
         semanas = calendar.monthcalendar(estado["year"], estado["month"])
         for r, semana in enumerate(semanas, start=1):
             for c, dia in enumerate(semana):
                 if dia == 0:
-                    ctk.CTkLabel(cuerpo, text="").grid(row=r, column=c, padx=2, pady=2)
+                    ctk.CTkLabel(cuerpo, text="").grid(row=r, column=c, padx=1, pady=1)
                     continue
 
                 def elegir(d=dia):
@@ -129,7 +129,7 @@ def abrir_selector_fecha(parent, variable):
                     height=28,
                     corner_radius=8,
                     command=elegir,
-                ).grid(row=r, column=c, padx=2, pady=2)
+                ).grid(row=r, column=c, padx=1, pady=1)
 
     def anterior():
         estado["month"] -= 1

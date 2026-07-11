@@ -104,15 +104,15 @@ def mostrar_obra_civil(parent, app, aco=None):
             var_cliente_selector.set(primer_cliente)
 
     contenedor = ctk.CTkFrame(parent, fg_color="transparent")
-    contenedor.pack(fill="both", expand=True, padx=14, pady=10)
+    contenedor.pack(fill="both", expand=True, padx=7, pady=5)
     contenedor.grid_rowconfigure(0, weight=1)
     contenedor.grid_rowconfigure(1, weight=0)
     contenedor.grid_columnconfigure(0, weight=1)
 
     card = ctk.CTkScrollableFrame(contenedor, width=1280, height=520, fg_color=WHITE, corner_radius=18)
-    card.grid(row=0, column=0, sticky="nsew", pady=(0, 8))
+    card.grid(row=0, column=0, sticky="nsew", pady=(0, 4))
     form = ctk.CTkFrame(card, fg_color="transparent")
-    form.pack(fill="x", expand=True, padx=24, pady=(18, 8))
+    form.pack(fill="x", expand=True, padx=12, pady=(9, 4))
     for col in range(4):
         form.grid_columnconfigure(col, weight=1, uniform="cols")
 
@@ -124,16 +124,16 @@ def mostrar_obra_civil(parent, app, aco=None):
             pass
 
     def seccion(texto, fila):
-        ctk.CTkLabel(form, text=texto, font=SECTION_FONT, text_color=TEXT_PRIMARY).grid(row=fila, column=0, columnspan=4, sticky="w", pady=(12, 6))
+        ctk.CTkLabel(form, text=texto, font=SECTION_FONT, text_color=TEXT_PRIMARY).grid(row=fila, column=0, columnspan=4, sticky="w", pady=(6, 3))
 
     def celda(fila, col, colspan=1):
         frame = ctk.CTkFrame(form, fg_color="transparent")
-        frame.grid(row=fila, column=col, columnspan=colspan, sticky="ew", padx=5, pady=(0, 6))
+        frame.grid(row=fila, column=col, columnspan=colspan, sticky="ew", padx=2, pady=(0, 3))
         frame.grid_columnconfigure(0, weight=1)
         return frame
 
     def label(parent_, texto):
-        ctk.CTkLabel(parent_, text=texto, font=LABEL_FONT, text_color=TEXT_PRIMARY).pack(anchor="w", pady=(0, 2))
+        ctk.CTkLabel(parent_, text=texto, font=LABEL_FONT, text_color=TEXT_PRIMARY).pack(anchor="w", pady=(0, 1))
 
     def entry(texto, var, fila, col, placeholder="", state="normal", lock=False, date=False, required=True, colspan=1):
         c = celda(fila, col, colspan)
@@ -280,7 +280,7 @@ def mostrar_obra_civil(parent, app, aco=None):
     for col, peso in enumerate((2, 2, 1, 2, 2, 3, 1)):
         panel_equipos.grid_columnconfigure(col, weight=peso)
     for col, encabezado in enumerate(("Familia", "Subfamilia", "Cantidad", "Marca", "Modelo", "Características técnicas", "Acción")):
-        ctk.CTkLabel(panel_equipos, text=encabezado, font=("Montserrat", 12, "bold")).grid(row=0, column=col, sticky="w", padx=6)
+        ctk.CTkLabel(panel_equipos, text=encabezado, font=("Montserrat", 12, "bold")).grid(row=0, column=col, sticky="w", padx=3)
 
     def agregar_equipo_obra():
         fila_eq = 1 + len(equipos_catalogo_items)
@@ -289,12 +289,12 @@ def mostrar_obra_civil(parent, app, aco=None):
         subs = obtener_subfamilias("Obra Civil", familia_inicial)
         vf=ctk.StringVar(value=familia_inicial); vs=ctk.StringVar(value=subs[0]); vc=ctk.StringVar(value="1")
         vm=ctk.StringVar(value="Por definir"); vmo=ctk.StringVar(); vcar=ctk.StringVar()
-        of=ctk.CTkOptionMenu(panel_equipos, variable=vf, values=familias, height=30); of.grid(row=fila_eq,column=0,sticky="ew",padx=6,pady=3)
-        osub=ctk.CTkOptionMenu(panel_equipos, variable=vs, values=subs, height=30); osub.grid(row=fila_eq,column=1,sticky="ew",padx=6,pady=3)
-        ctk.CTkEntry(panel_equipos,textvariable=vc,width=80,height=30).grid(row=fila_eq,column=2,sticky="w",padx=6,pady=3)
-        ctk.CTkOptionMenu(panel_equipos,variable=vm,values=MARCAS_COMUNES,height=30).grid(row=fila_eq,column=3,sticky="ew",padx=6,pady=3)
-        ctk.CTkEntry(panel_equipos,textvariable=vmo,height=30,placeholder_text="Modelo vigente o por definir").grid(row=fila_eq,column=4,sticky="ew",padx=6,pady=3)
-        ecar=ctk.CTkEntry(panel_equipos,textvariable=vcar,height=30,placeholder_text=obtener_sugerencia_caracteristicas("Obra Civil",familia_inicial)); ecar.grid(row=fila_eq,column=5,sticky="ew",padx=6,pady=3)
+        of=ctk.CTkOptionMenu(panel_equipos, variable=vf, values=familias, height=30); of.grid(row=fila_eq,column=0,sticky="ew",padx=3,pady=2)
+        osub=ctk.CTkOptionMenu(panel_equipos, variable=vs, values=subs, height=30); osub.grid(row=fila_eq,column=1,sticky="ew",padx=3,pady=2)
+        ctk.CTkEntry(panel_equipos,textvariable=vc,width=80,height=30).grid(row=fila_eq,column=2,sticky="w",padx=3,pady=2)
+        ctk.CTkOptionMenu(panel_equipos,variable=vm,values=MARCAS_COMUNES,height=30).grid(row=fila_eq,column=3,sticky="ew",padx=3,pady=2)
+        ctk.CTkEntry(panel_equipos,textvariable=vmo,height=30,placeholder_text="Modelo vigente o por definir").grid(row=fila_eq,column=4,sticky="ew",padx=3,pady=2)
+        ecar=ctk.CTkEntry(panel_equipos,textvariable=vcar,height=30,placeholder_text=obtener_sugerencia_caracteristicas("Obra Civil",familia_inicial)); ecar.grid(row=fila_eq,column=5,sticky="ew",padx=3,pady=2)
         def cambio(valor):
             nuevas=obtener_subfamilias("Obra Civil",valor); osub.configure(values=nuevas); vs.set(nuevas[0]); ecar.configure(placeholder_text=obtener_sugerencia_caracteristicas("Obra Civil",valor))
         of.configure(command=cambio)
@@ -305,11 +305,11 @@ def mostrar_obra_civil(parent, app, aco=None):
                 except Exception: pass
             equipos_catalogo_items[:] = [x for x in equipos_catalogo_items if x is not item_equipo]
         btn=ctk.CTkButton(panel_equipos,text="Eliminar",width=82,height=30,fg_color="#DC2626",hover_color="#B91C1C",command=eliminar_equipo)
-        btn.grid(row=fila_eq,column=6,sticky="ew",padx=6,pady=3)
+        btn.grid(row=fila_eq,column=6,sticky="ew",padx=3,pady=2)
         item_equipo["widgets"].extend([btn,*[w for w in panel_equipos.grid_slaves(row=fila_eq) if w not in (btn,of,osub)]])
         equipos_catalogo_items.append(item_equipo)
 
-    ctk.CTkButton(panel_equipos,text="+ Agregar equipo",width=170,height=30,fg_color=SECONDARY,hover_color=BUTTON_HOVER,command=agregar_equipo_obra).grid(row=99,column=0,columnspan=2,sticky="w",padx=6,pady=(7,4))
+    ctk.CTkButton(panel_equipos,text="+ Agregar equipo",width=170,height=30,fg_color=SECONDARY,hover_color=BUTTON_HOVER,command=agregar_equipo_obra).grid(row=99,column=0,columnspan=2,sticky="w",padx=3,pady=(4, 2))
 
     def obtener_equipos_obra():
         return [{"familia":i["familia"].get().strip(),"subfamilia":i["subfamilia"].get().strip(),"cantidad":i["cantidad"].get().strip() or "1","marca":i["marca"].get().strip(),"modelo":i["modelo"].get().strip(),"caracteristicas":i["caracteristicas"].get().strip()} for i in equipos_catalogo_items if i["familia"].get().strip()]
@@ -322,12 +322,12 @@ def mostrar_obra_civil(parent, app, aco=None):
     panel_misc.grid_columnconfigure(3, weight=1)
     panel_misc.grid_columnconfigure(4, weight=3)
     panel_misc.grid_columnconfigure(5, weight=1)
-    ctk.CTkLabel(panel_misc, text="Material", font=("Montserrat", 12, "bold")).grid(row=0, column=0, sticky="w", padx=6)
-    ctk.CTkLabel(panel_misc, text="¿Se requiere?", font=("Montserrat", 12, "bold")).grid(row=0, column=1, sticky="w", padx=6)
-    ctk.CTkLabel(panel_misc, text="Cantidad", font=("Montserrat", 12, "bold")).grid(row=0, column=2, sticky="w", padx=6)
-    ctk.CTkLabel(panel_misc, text="Unidad", font=("Montserrat", 12, "bold")).grid(row=0, column=3, sticky="w", padx=6)
-    ctk.CTkLabel(panel_misc, text="Especificación / medida", font=("Montserrat", 12, "bold")).grid(row=0, column=4, sticky="w", padx=6)
-    ctk.CTkLabel(panel_misc, text="Acción", font=("Montserrat", 12, "bold")).grid(row=0, column=5, sticky="w", padx=6)
+    ctk.CTkLabel(panel_misc, text="Material", font=("Montserrat", 12, "bold")).grid(row=0, column=0, sticky="w", padx=3)
+    ctk.CTkLabel(panel_misc, text="¿Se requiere?", font=("Montserrat", 12, "bold")).grid(row=0, column=1, sticky="w", padx=3)
+    ctk.CTkLabel(panel_misc, text="Cantidad", font=("Montserrat", 12, "bold")).grid(row=0, column=2, sticky="w", padx=3)
+    ctk.CTkLabel(panel_misc, text="Unidad", font=("Montserrat", 12, "bold")).grid(row=0, column=3, sticky="w", padx=3)
+    ctk.CTkLabel(panel_misc, text="Especificación / medida", font=("Montserrat", 12, "bold")).grid(row=0, column=4, sticky="w", padx=3)
+    ctk.CTkLabel(panel_misc, text="Acción", font=("Montserrat", 12, "bold")).grid(row=0, column=5, sticky="w", padx=3)
 
     def agregar_material_misc_obra(material_catalogo=None):
         material_catalogo = material_catalogo or {}
@@ -346,19 +346,19 @@ def mostrar_obra_civil(parent, app, aco=None):
         vu = ctk.StringVar(value=unidad_default if unidad_default in UNIDADES_MATERIAL else "Pieza(s)")
         ve = ctk.StringVar()
         em = ctk.CTkEntry(panel_misc, textvariable=vm, height=30)
-        em.grid(row=fila_misc, column=0, sticky="ew", padx=6, pady=3)
+        em.grid(row=fila_misc, column=0, sticky="ew", padx=3, pady=2)
         if nombre:
             em.configure(state="readonly")
         ec = ctk.CTkEntry(panel_misc, textvariable=vc, width=90, height=30, placeholder_text="Ej. 20", state="disabled")
-        ec.grid(row=fila_misc, column=2, sticky="w", padx=6, pady=3)
+        ec.grid(row=fila_misc, column=2, sticky="w", padx=3, pady=2)
         ou = ctk.CTkOptionMenu(panel_misc, variable=vu, values=UNIDADES_MATERIAL, width=120, height=30, state="disabled")
-        ou.grid(row=fila_misc, column=3, sticky="w", padx=6, pady=3)
+        ou.grid(row=fila_misc, column=3, sticky="w", padx=3, pady=2)
         ee = ctk.CTkEntry(
             panel_misc, textvariable=ve, height=30,
             placeholder_text=especificacion_sugerida or "Medida, material, color o presentación",
             state="disabled"
         )
-        ee.grid(row=fila_misc, column=4, sticky="ew", padx=6, pady=3)
+        ee.grid(row=fila_misc, column=4, sticky="ew", padx=3, pady=2)
         def toggle(_=None):
             estado = "normal" if vr.get() == "Sí" else "disabled"
             ec.configure(state=estado); ou.configure(state=estado); ee.configure(state=estado)
@@ -366,7 +366,7 @@ def mostrar_obra_civil(parent, app, aco=None):
                 vc.set(""); ve.set("")
             validar_preview()
         om = ctk.CTkOptionMenu(panel_misc, variable=vr, values=["No", "Sí"], width=100, height=30, command=toggle)
-        om.grid(row=fila_misc, column=1, sticky="w", padx=6, pady=3)
+        om.grid(row=fila_misc, column=1, sticky="w", padx=3, pady=2)
         item_material={
             "material": vm, "categoria": vcat, "requerido": vr,
             "cantidad": vc, "unidad": vu, "especificacion": ve,
@@ -378,14 +378,14 @@ def mostrar_obra_civil(parent, app, aco=None):
                 except Exception: pass
             materiales_miscelaneos_items[:] = [x for x in materiales_miscelaneos_items if x is not item_material]
         btn=ctk.CTkButton(panel_misc,text="Eliminar",width=82,height=30,fg_color="#DC2626",hover_color="#B91C1C",command=eliminar_material)
-        btn.grid(row=fila_misc,column=5,sticky="ew",padx=6,pady=3)
+        btn.grid(row=fila_misc,column=5,sticky="ew",padx=3,pady=2)
         item_material["widgets"].append(btn)
         materiales_miscelaneos_items.append(item_material)
 
     # Una sola fila inicial; el usuario agrega o elimina las necesarias.
     agregar_material_misc_obra(None)
 
-    ctk.CTkButton(panel_misc, text="+ Agregar otro material", width=180, height=30, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=lambda: agregar_material_misc_obra(None)).grid(row=99, column=0, columnspan=2, sticky="w", padx=6, pady=(7, 4))
+    ctk.CTkButton(panel_misc, text="+ Agregar otro material", width=180, height=30, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=lambda: agregar_material_misc_obra(None)).grid(row=99, column=0, columnspan=2, sticky="w", padx=3, pady=(4, 2))
 
     def obtener_materiales_misc_obra():
         return [{
@@ -398,7 +398,7 @@ def mostrar_obra_civil(parent, app, aco=None):
     seccion("Evidencias", 21)
     panel_evidencias = celda(22, 0, 4)
     lbl_evidencias = ctk.CTkLabel(panel_evidencias, text="Sin evidencias agregadas", font=SMALL_FONT, text_color=TEXT_SECONDARY)
-    lbl_evidencias.pack(anchor="w", pady=(0, 5))
+    lbl_evidencias.pack(anchor="w", pady=(0, 2))
 
     def agregar_evidencia():
         rutas = filedialog.askopenfilenames(title="Agregar evidencias", filetypes=[("Archivos permitidos", "*.jpg *.jpeg *.png *.pdf *.docx"), ("Todos", "*.*")])
@@ -410,7 +410,7 @@ def mostrar_obra_civil(parent, app, aco=None):
 
     acciones_evidencias = ctk.CTkFrame(panel_evidencias, fg_color="transparent")
     acciones_evidencias.pack(anchor="w")
-    ctk.CTkButton(acciones_evidencias, text="+ Agregar evidencia", width=170, height=30, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=agregar_evidencia).pack(side="left", padx=(0, 8))
+    ctk.CTkButton(acciones_evidencias, text="+ Agregar evidencia", width=170, height=30, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=agregar_evidencia).pack(side="left", padx=(0, 4))
     def eliminar_ultima_evidencia():
         if evidencias:
             evidencias.pop()
@@ -430,11 +430,11 @@ def mostrar_obra_civil(parent, app, aco=None):
     seccion("Firmas", 27)
     firmas_frame = celda(28, 0, 4)
     lbl_firma_cliente = ctk.CTkLabel(firmas_frame, text="Cliente: Sin firma", font=SMALL_FONT, text_color=TEXT_SECONDARY)
-    lbl_firma_cliente.grid(row=0, column=0, padx=(0, 10), sticky="w")
+    lbl_firma_cliente.grid(row=0, column=0, padx=(0, 5), sticky="w")
     ctk.CTkButton(firmas_frame, text="✍ Capturar firma cliente", width=190, height=32, fg_color=SECONDARY, hover_color=BUTTON_HOVER,
-                  command=lambda: firmar_en_popup(parent, var_firma_cliente, lambda: (lbl_firma_cliente.configure(text="Cliente: Firma capturada" if var_firma_cliente.get() else "Cliente: Sin firma"), validar_preview()), "Firma del cliente")).grid(row=0, column=1, padx=(0, 18), sticky="w")
+                  command=lambda: firmar_en_popup(parent, var_firma_cliente, lambda: (lbl_firma_cliente.configure(text="Cliente: Firma capturada" if var_firma_cliente.get() else "Cliente: Sin firma"), validar_preview()), "Firma del cliente")).grid(row=0, column=1, padx=(0, 9), sticky="w")
     lbl_firma_tecnico = ctk.CTkLabel(firmas_frame, text="Técnico: Sin firma", font=SMALL_FONT, text_color=TEXT_SECONDARY)
-    lbl_firma_tecnico.grid(row=0, column=2, padx=(0, 10), sticky="w")
+    lbl_firma_tecnico.grid(row=0, column=2, padx=(0, 5), sticky="w")
     ctk.CTkButton(firmas_frame, text="✍ Capturar firma técnico", width=190, height=32, fg_color="#1F4E79", hover_color="#173B5C",
                   command=lambda: firmar_en_popup(parent, var_firma_tecnico, lambda: (lbl_firma_tecnico.configure(text="Técnico: Firma capturada" if var_firma_tecnico.get() else "Técnico: Sin firma"), validar_preview()), "Firma del técnico")).grid(row=0, column=3, sticky="w")
 
@@ -523,11 +523,11 @@ def mostrar_obra_civil(parent, app, aco=None):
     botones = ctk.CTkFrame(contenedor, fg_color="#F4F4F4", height=58, corner_radius=0)
     botones.grid(row=1, column=0, sticky="ew")
     barra_botones = ctk.CTkFrame(botones, fg_color="transparent")
-    barra_botones.pack(anchor="center", pady=8)
-    ctk.CTkButton(barra_botones, text="⬅ Atrás", width=120, height=38, corner_radius=10, fg_color="#64748B", hover_color="#475569", font=BUTTON_FONT, command=app.volver_atras).grid(row=0, column=0, padx=8)
-    ctk.CTkButton(barra_botones, text="💾 Guardar Obra Civil", width=190, height=38, corner_radius=10, fg_color=SECONDARY, hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=guardar_obra).grid(row=0, column=1, padx=8)
+    barra_botones.pack(anchor="center", pady=4)
+    ctk.CTkButton(barra_botones, text="⬅ Atrás", width=120, height=38, corner_radius=10, fg_color="#64748B", hover_color="#475569", font=BUTTON_FONT, command=app.volver_atras).grid(row=0, column=0, padx=4)
+    ctk.CTkButton(barra_botones, text="💾 Guardar Obra Civil", width=190, height=38, corner_radius=10, fg_color=SECONDARY, hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=guardar_obra).grid(row=0, column=1, padx=4)
     btn_preview = ctk.CTkButton(barra_botones, text="👁 Preview PDF", width=165, height=38, corner_radius=10, fg_color="#1F4E79", hover_color="#173B5C", font=BUTTON_FONT, command=preview_pdf, state="disabled")
-    btn_preview.grid(row=0, column=2, padx=8)
-    ctk.CTkButton(barra_botones, text="↩ Cancelar", width=130, height=38, corner_radius=10, fg_color="gray", font=BUTTON_FONT, command=app.mostrar_vista_inicio_aco).grid(row=0, column=3, padx=8)
+    btn_preview.grid(row=0, column=2, padx=4)
+    ctk.CTkButton(barra_botones, text="↩ Cancelar", width=130, height=38, corner_radius=10, fg_color="gray", font=BUTTON_FONT, command=app.mostrar_vista_inicio_aco).grid(row=0, column=3, padx=4)
     enfocar_inicio_formulario(card, foco_inicial)
     validar_preview()

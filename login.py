@@ -32,7 +32,7 @@ PASSWORD_HEIGHT = 650
 CARD_WIDTH = 440
 
 
-def _crear_logo(parent, size=(110, 110), pady=(20, 8)):
+def _crear_logo(parent, size=(110, 110), pady=(10, 4)):
     """Crea el logotipo corporativo y conserva su referencia visual."""
     logo = cargar_logo_axia(size=size)
     label = ctk.CTkLabel(parent, image=logo, text="")
@@ -73,24 +73,24 @@ def abrir_login():
         border_width=1,
         border_color="#D8E1EC",
     )
-    card.pack(expand=True, padx=38, pady=30)
+    card.pack(expand=True, padx=19, pady=15)
     card.pack_propagate(False)
 
-    _crear_logo(card, size=(105, 105), pady=(18, 4))
+    _crear_logo(card, size=(105, 105), pady=(9, 2))
 
     ctk.CTkLabel(
         card,
         text="Inicio de sesión",
         font=TITLE_LG,
         text_color=TEXT_PRIMARY,
-    ).pack(pady=(2, 4))
+    ).pack(pady=(1, 2))
 
     ctk.CTkLabel(
         card,
         text="Ingresa tus credenciales",
         font=TEXT_MD,
         text_color=TEXT_SECONDARY,
-    ).pack(pady=(0, 18))
+    ).pack(pady=(0, 9))
 
     entry_usuario = ctk.CTkEntry(
         card,
@@ -100,7 +100,7 @@ def abrir_login():
         corner_radius=12,
         font=TEXT_MD,
     )
-    entry_usuario.pack(pady=7)
+    entry_usuario.pack(pady=4)
     entry_usuario.focus()
 
     entry_password = ctk.CTkEntry(
@@ -112,7 +112,7 @@ def abrir_login():
         corner_radius=12,
         font=TEXT_MD,
     )
-    entry_password.pack(pady=7)
+    entry_password.pack(pady=4)
 
     def iniciar_sesion():
         nickname = entry_usuario.get().strip()
@@ -222,24 +222,24 @@ def abrir_login():
             border_width=1,
             border_color="#D8E1EC",
         )
-        password_card.pack(expand=True, padx=38, pady=28)
+        password_card.pack(expand=True, padx=19, pady=14)
         password_card.pack_propagate(False)
 
-        _crear_logo(password_card, size=(82, 82), pady=(15, 2))
+        _crear_logo(password_card, size=(82, 82), pady=(8, 1))
 
         ctk.CTkLabel(
             password_card,
             text="Cambiar contraseña",
             font=TITLE_MD,
             text_color=TEXT_PRIMARY,
-        ).pack(pady=(2, 4))
+        ).pack(pady=(1, 2))
 
         ctk.CTkLabel(
             password_card,
             text="Valida tu usuario y RFC",
             font=TEXT_MD,
             text_color=TEXT_SECONDARY,
-        ).pack(pady=(0, 14))
+        ).pack(pady=(0, 7))
 
         common_entry = {
             "width": 340,
@@ -253,11 +253,11 @@ def abrir_login():
             placeholder_text="Usuario / Nickname",
             **common_entry,
         )
-        entry_nickname.pack(pady=6)
+        entry_nickname.pack(pady=3)
         entry_nickname.focus()
 
         entry_rfc = ctk.CTkEntry(password_card, placeholder_text="RFC", **common_entry)
-        entry_rfc.pack(pady=6)
+        entry_rfc.pack(pady=3)
 
         entry_nueva_password = ctk.CTkEntry(
             password_card,
@@ -265,7 +265,7 @@ def abrir_login():
             show="*",
             **common_entry,
         )
-        entry_nueva_password.pack(pady=6)
+        entry_nueva_password.pack(pady=3)
 
         entry_confirmar_password = ctk.CTkEntry(
             password_card,
@@ -273,7 +273,7 @@ def abrir_login():
             show="*",
             **common_entry,
         )
-        entry_confirmar_password.pack(pady=6)
+        entry_confirmar_password.pack(pady=3)
 
         def guardar_nueva_password():
             nickname = entry_nickname.get().strip()
@@ -330,7 +330,7 @@ def abrir_login():
             hover_color=BUTTON_HOVER,
             font=BUTTON_FONT,
             command=guardar_nueva_password,
-        ).pack(pady=(18, 7))
+        ).pack(pady=(9, 4))
 
         ctk.CTkButton(
             password_card,
@@ -345,7 +345,7 @@ def abrir_login():
             hover_color="#E8F0FF",
             font=BUTTON_FONT,
             command=ventana.destroy,
-        ).pack(pady=5)
+        ).pack(pady=2)
 
         ventana.bind("<Return>", lambda _event: guardar_nueva_password())
         ventana.bind("<Escape>", lambda _event: ventana.destroy())
@@ -360,7 +360,7 @@ def abrir_login():
         hover_color=BUTTON_HOVER,
         font=BUTTON_FONT,
         command=iniciar_sesion,
-    ).pack(pady=(20, 8))
+    ).pack(pady=(10, 4))
 
     ctk.CTkButton(
         card,
@@ -375,14 +375,14 @@ def abrir_login():
         hover_color="#E8F0FF",
         font=BUTTON_FONT,
         command=abrir_cambio_password,
-    ).pack(pady=5)
+    ).pack(pady=2)
 
     ctk.CTkLabel(
         card,
         text="Sistema AXIA · v1.0",
         font=TEXT_SM,
         text_color=TEXT_SECONDARY,
-    ).pack(pady=(14, 4))
+    ).pack(pady=(7, 2))
 
     app.bind("<Return>", lambda _event: iniciar_sesion())
     app.mainloop()

@@ -67,10 +67,10 @@ def mostrar_usuarios_admin(parent, app):
     }
 
     contenedor = ctk.CTkFrame(parent, fg_color="transparent")
-    contenedor.pack(fill="both", expand=True, padx=28, pady=8)
+    contenedor.pack(fill="both", expand=True, padx=14, pady=4)
 
     barra = ctk.CTkFrame(contenedor, fg_color="transparent")
-    barra.pack(fill="x", pady=(0, 10))
+    barra.pack(fill="x", pady=(0, 5))
     barra.grid_columnconfigure(0, weight=1)
 
     var_busqueda = ctk.StringVar()
@@ -80,7 +80,7 @@ def mostrar_usuarios_admin(parent, app):
         placeholder_text="Buscar usuario por nickname, nombre o apellido...",
         height=38,
     )
-    entry_busqueda.grid(row=0, column=0, sticky="ew", padx=(0, 10))
+    entry_busqueda.grid(row=0, column=0, sticky="ew", padx=(0, 5))
 
     btn_buscar = ctk.CTkButton(
         barra,
@@ -101,7 +101,7 @@ def mostrar_usuarios_admin(parent, app):
     cuerpo.grid_rowconfigure(0, weight=1)
 
     panel_resultados = ctk.CTkScrollableFrame(cuerpo, fg_color=WHITE, corner_radius=16)
-    panel_resultados.grid(row=0, column=0, sticky="nsew", padx=(0, 12))
+    panel_resultados.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
 
     panel_formulario = ctk.CTkScrollableFrame(cuerpo, fg_color=WHITE, corner_radius=16)
     panel_formulario.grid(row=0, column=1, sticky="nsew")
@@ -111,10 +111,10 @@ def mostrar_usuarios_admin(parent, app):
         text="Datos del usuario",
         font=("Montserrat", 18, "bold"),
         text_color=TEXT_PRIMARY,
-    ).pack(anchor="w", padx=20, pady=(18, 6))
+    ).pack(anchor="w", padx=10, pady=(9, 3))
 
     form_grid = ctk.CTkFrame(panel_formulario, fg_color="transparent")
-    form_grid.pack(fill="x", padx=20, pady=(0, 12))
+    form_grid.pack(fill="x", padx=10, pady=(0, 6))
     form_grid.grid_columnconfigure(0, weight=1)
     form_grid.grid_columnconfigure(1, weight=1)
     form_grid.grid_columnconfigure(2, weight=1)
@@ -123,7 +123,7 @@ def mostrar_usuarios_admin(parent, app):
         fila = indice // 3
         columna = indice % 3
         wrapper = ctk.CTkFrame(form_grid, fg_color="transparent")
-        wrapper.grid(row=fila, column=columna, sticky="ew", padx=(0, 8) if columna == 0 else ((8, 8) if columna == 1 else (8, 0)), pady=5)
+        wrapper.grid(row=fila, column=columna, sticky="ew", padx=(0, 4) if columna == 0 else ((8, 8) if columna == 1 else (8, 0)), pady=2)
         wrapper.grid_columnconfigure(0, weight=1)
 
         texto = f"{etiqueta}{' *' if obligatorio else ''}"
@@ -138,14 +138,14 @@ def mostrar_usuarios_admin(parent, app):
             height=36,
             show="*" if campo == "usu_password" else None,
         )
-        entry.grid(row=1, column=0, sticky="ew", pady=(2, 0))
+        entry.grid(row=1, column=0, sticky="ew", pady=(1, 0))
         if "fecha" in campo.lower():
             entry.bind("<Button-1>", lambda _event, var=var: abrir_selector_fecha(wrapper, var))
         entry.configure(state="disabled")
         estado["entradas"][campo] = entry
 
     acciones = ctk.CTkFrame(panel_formulario, fg_color="transparent")
-    acciones.pack(fill="x", padx=20, pady=(5, 18))
+    acciones.pack(fill="x", padx=10, pady=(2, 9))
 
 
     btn_guardar = ctk.CTkButton(
@@ -158,7 +158,7 @@ def mostrar_usuarios_admin(parent, app):
         font=BUTTON_FONT,
         command=lambda: guardar_nuevo(),
     )
-    btn_guardar.pack(side="left", padx=8)
+    btn_guardar.pack(side="left", padx=4)
 
     btn_actualizar = ctk.CTkButton(
         acciones,
@@ -170,7 +170,7 @@ def mostrar_usuarios_admin(parent, app):
         font=BUTTON_FONT,
         command=lambda: actualizar_seleccionado(),
     )
-    btn_actualizar.pack(side="left", padx=8)
+    btn_actualizar.pack(side="left", padx=4)
 
     def bloquear_formulario():
         """Bloquea todos los campos para evitar ediciones accidentales."""
@@ -221,7 +221,7 @@ def mostrar_usuarios_admin(parent, app):
             fg_color="transparent",
             corner_radius=10,
         )
-        item.pack(fill="x", padx=12, pady=4)
+        item.pack(fill="x", padx=6, pady=2)
 
         label = ctk.CTkLabel(
             item,
@@ -232,7 +232,7 @@ def mostrar_usuarios_admin(parent, app):
             text_color=TEXT_PRIMARY,
             wraplength=320,
         )
-        label.pack(fill="x", padx=10, pady=8, anchor="w")
+        label.pack(fill="x", padx=5, pady=4, anchor="w")
 
         item.bind("<Button-1>", lambda _event, seleccionado=usuario: cargar_en_formulario(seleccionado))
         label.bind("<Button-1>", lambda _event, seleccionado=usuario: cargar_en_formulario(seleccionado))
@@ -246,7 +246,7 @@ def mostrar_usuarios_admin(parent, app):
             text=f"Resultados ({len(estado['resultados'])})",
             font=("Montserrat", 16, "bold"),
             text_color=TEXT_PRIMARY,
-        ).pack(anchor="w", padx=18, pady=(16, 8))
+        ).pack(anchor="w", padx=9, pady=(8, 4))
 
         if not estado["resultados"]:
             ctk.CTkLabel(
@@ -254,7 +254,7 @@ def mostrar_usuarios_admin(parent, app):
                 text="Ingresa un dato de búsqueda para consultar usuarios.",
                 font=TEXT_SM,
                 text_color=TEXT_SECONDARY,
-            ).pack(anchor="w", padx=18, pady=8)
+            ).pack(anchor="w", padx=9, pady=4)
             return
 
         for usuario in estado["resultados"]:

@@ -136,13 +136,13 @@ def mostrar_mi_usuario(parent, app):
     estado = {"movimientos": []}
 
     contenedor = ctk.CTkScrollableFrame(parent, fg_color="transparent", corner_radius=0)
-    contenedor.pack(fill="both", expand=True, padx=18, pady=6)
+    contenedor.pack(fill="both", expand=True, padx=9, pady=3)
 
     # =================================================
     # DATOS GENERALES
     # =================================================
     card_datos = ctk.CTkFrame(contenedor, fg_color=WHITE, corner_radius=14)
-    card_datos.pack(fill="x", pady=(0, 12))
+    card_datos.pack(fill="x", pady=(0, 6))
     columnas_datos = 4
     card_datos.grid_columnconfigure(tuple(range(columnas_datos)), weight=1, uniform="datos_usuario")
 
@@ -152,7 +152,7 @@ def mostrar_mi_usuario(parent, app):
         font=TITLE_MD,
         text_color=TEXT_PRIMARY,
         anchor="w"
-    ).grid(row=0, column=0, columnspan=columnas_datos, sticky="ew", padx=16, pady=(12, 2))
+    ).grid(row=0, column=0, columnspan=columnas_datos, sticky="ew", padx=8, pady=(6, 1))
 
     ctk.CTkLabel(
         card_datos,
@@ -160,7 +160,7 @@ def mostrar_mi_usuario(parent, app):
         font=TEXT_SM,
         text_color=TEXT_SECONDARY,
         anchor="w"
-    ).grid(row=1, column=0, columnspan=columnas_datos, sticky="ew", padx=16, pady=(0, 8))
+    ).grid(row=1, column=0, columnspan=columnas_datos, sticky="ew", padx=8, pady=(0, 4))
 
     fila = 2
     columna = 0
@@ -172,7 +172,7 @@ def mostrar_mi_usuario(parent, app):
             column=columna,
             sticky="ew",
             padx=(16 if columna == 0 else 6, 16 if columna == columnas_datos - 1 else 6),
-            pady=4,
+            pady=2,
         )
         bloque.grid_columnconfigure(0, weight=1)
 
@@ -182,7 +182,7 @@ def mostrar_mi_usuario(parent, app):
             font=(FONT_FAMILY, 11),
             text_color=TEXT_SECONDARY,
             anchor="w"
-        ).grid(row=0, column=0, sticky="ew", padx=10, pady=(6, 0))
+        ).grid(row=0, column=0, sticky="ew", padx=5, pady=(3, 0))
 
         ctk.CTkLabel(
             bloque,
@@ -191,7 +191,7 @@ def mostrar_mi_usuario(parent, app):
             text_color=TEXT_PRIMARY,
             anchor="w",
             wraplength=220
-        ).grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 6))
+        ).grid(row=1, column=0, sticky="ew", padx=5, pady=(0, 3))
 
         columna += 1
         if columna >= columnas_datos:
@@ -202,7 +202,7 @@ def mostrar_mi_usuario(parent, app):
     # CAMBIO DE CONTRASEÑA
     # =================================================
     card_password = ctk.CTkFrame(contenedor, fg_color=WHITE, corner_radius=14)
-    card_password.pack(fill="x", pady=(0, 16))
+    card_password.pack(fill="x", pady=(0, 8))
     card_password.grid_columnconfigure((0, 1, 2), weight=1, uniform="pwd")
 
     ctk.CTkLabel(
@@ -211,7 +211,7 @@ def mostrar_mi_usuario(parent, app):
         font=TITLE_MD,
         text_color=TEXT_PRIMARY,
         anchor="w"
-    ).grid(row=0, column=0, columnspan=3, sticky="ew", padx=16, pady=(12, 2))
+    ).grid(row=0, column=0, columnspan=3, sticky="ew", padx=8, pady=(6, 1))
 
     var_actual = ctk.StringVar()
     var_nueva = ctk.StringVar()
@@ -225,10 +225,10 @@ def mostrar_mi_usuario(parent, app):
 
     for columna, (etiqueta, variable) in enumerate(campos_password):
         wrapper = ctk.CTkFrame(card_password, fg_color="transparent")
-        wrapper.grid(row=1, column=columna, sticky="ew", padx=16 if columna == 0 else (0, 16), pady=(6, 10))
+        wrapper.grid(row=1, column=columna, sticky="ew", padx=8 if columna == 0 else (0, 16), pady=(3, 5))
         wrapper.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(wrapper, text=etiqueta, font=TEXT_SM, text_color=TEXT_PRIMARY, anchor="w").grid(row=0, column=0, sticky="w")
-        ctk.CTkEntry(wrapper, textvariable=variable, show="*", height=32).grid(row=1, column=0, sticky="ew", pady=(4, 0))
+        ctk.CTkEntry(wrapper, textvariable=variable, show="*", height=32).grid(row=1, column=0, sticky="ew", pady=(2, 0))
 
     def cambiar_password():
         ok, mensaje = cambiar_password_usuario_actual(
@@ -253,7 +253,7 @@ def mostrar_mi_usuario(parent, app):
         hover_color=BUTTON_HOVER,
         font=BUTTON_FONT,
         command=cambiar_password,
-    ).grid(row=2, column=0, columnspan=3, sticky="e", padx=16, pady=(0, 12))
+    ).grid(row=2, column=0, columnspan=3, sticky="e", padx=8, pady=(0, 6))
 
     # =================================================
     # MOVIMIENTOS PERSONALES BAJO BÚSQUEDA
@@ -268,7 +268,7 @@ def mostrar_mi_usuario(parent, app):
         font=TITLE_MD,
         text_color=TEXT_PRIMARY,
         anchor="w"
-    ).grid(row=0, column=0, sticky="ew", padx=16, pady=(12, 2))
+    ).grid(row=0, column=0, sticky="ew", padx=8, pady=(6, 1))
 
     ctk.CTkLabel(
         card_mov,
@@ -276,10 +276,10 @@ def mostrar_mi_usuario(parent, app):
         font=TEXT_SM,
         text_color=TEXT_SECONDARY,
         anchor="w"
-    ).grid(row=1, column=0, sticky="ew", padx=16, pady=(0, 8))
+    ).grid(row=1, column=0, sticky="ew", padx=8, pady=(0, 4))
 
     barra = ctk.CTkFrame(card_mov, fg_color="transparent")
-    barra.grid(row=2, column=0, sticky="ew", padx=16, pady=(0, 8))
+    barra.grid(row=2, column=0, sticky="ew", padx=8, pady=(0, 4))
     barra.grid_columnconfigure(0, weight=1)
 
     var_busqueda = ctk.StringVar()
@@ -289,15 +289,15 @@ def mostrar_mi_usuario(parent, app):
         placeholder_text="Buscar por fecha, módulo, acción, descripción, equipo o IP...",
         height=34,
     )
-    entry_busqueda.grid(row=0, column=0, sticky="ew", padx=(0, 10))
+    entry_busqueda.grid(row=0, column=0, sticky="ew", padx=(0, 5))
 
     panel = ctk.CTkFrame(card_mov, fg_color="transparent")
-    panel.grid(row=3, column=0, sticky="nsew", padx=0, pady=(0, 14))
+    panel.grid(row=3, column=0, sticky="nsew", padx=0, pady=(0, 7))
 
     def limpiar_panel(mensaje="Ingresa un criterio de búsqueda para consultar tus movimientos."):
         for widget in panel.winfo_children():
             widget.destroy()
-        ctk.CTkLabel(panel, text=mensaje, font=TEXT_SM, text_color=TEXT_SECONDARY).pack(anchor="w", padx=24, pady=18)
+        ctk.CTkLabel(panel, text=mensaje, font=TEXT_SM, text_color=TEXT_SECONDARY).pack(anchor="w", padx=12, pady=9)
 
     def pintar(registros):
         for widget in panel.winfo_children():
@@ -308,17 +308,17 @@ def mostrar_mi_usuario(parent, app):
             return
 
         encabezado = ctk.CTkFrame(panel, fg_color="#E2E8F0", corner_radius=10)
-        encabezado.pack(fill="x", padx=18, pady=(6, 4))
+        encabezado.pack(fill="x", padx=9, pady=(3, 2))
         for columna, (_campo, titulo) in enumerate(CAMPOS_MOVIMIENTOS):
             peso = 2 if titulo == "Descripción" else 1
             encabezado.grid_columnconfigure(columna, weight=peso, uniform="mi_usuario_mov")
-            ctk.CTkLabel(encabezado, text=titulo, font=TEXT_SM, text_color=TEXT_PRIMARY, anchor="w").grid(row=0, column=columna, sticky="ew", padx=8, pady=6)
+            ctk.CTkLabel(encabezado, text=titulo, font=TEXT_SM, text_color=TEXT_PRIMARY, anchor="w").grid(row=0, column=columna, sticky="ew", padx=4, pady=3)
         encabezado.grid_columnconfigure(len(CAMPOS_MOVIMIENTOS), weight=0)
-        ctk.CTkLabel(encabezado, text="Ver", font=TEXT_SM, text_color=TEXT_PRIMARY).grid(row=0, column=len(CAMPOS_MOVIMIENTOS), padx=8, pady=6)
+        ctk.CTkLabel(encabezado, text="Ver", font=TEXT_SM, text_color=TEXT_PRIMARY).grid(row=0, column=len(CAMPOS_MOVIMIENTOS), padx=4, pady=3)
 
         for movimiento in registros[:100]:
             fila = ctk.CTkFrame(panel, fg_color="transparent", corner_radius=8)
-            fila.pack(fill="x", padx=18, pady=2)
+            fila.pack(fill="x", padx=9, pady=1)
             for columna, (campo, _titulo) in enumerate(CAMPOS_MOVIMIENTOS):
                 peso = 2 if campo == "descripcion" else 1
                 fila.grid_columnconfigure(columna, weight=peso, uniform="mi_usuario_mov")
@@ -331,7 +331,7 @@ def mostrar_mi_usuario(parent, app):
                     anchor="w",
                     justify="left",
                     wraplength=260 if campo == "descripcion" else 140,
-                ).grid(row=0, column=columna, sticky="ew", padx=8, pady=5)
+                ).grid(row=0, column=columna, sticky="ew", padx=4, pady=2)
 
             ctk.CTkButton(
                 fila,
@@ -341,7 +341,7 @@ def mostrar_mi_usuario(parent, app):
                 fg_color="#64748B",
                 hover_color="#475569",
                 command=lambda r=movimiento: mostrar_detalle_registro(parent, "Movimiento personal", r),
-            ).grid(row=0, column=len(CAMPOS_MOVIMIENTOS), padx=8, pady=3)
+            ).grid(row=0, column=len(CAMPOS_MOVIMIENTOS), padx=4, pady=2)
 
     def buscar():
         termino = var_busqueda.get().strip()
@@ -358,8 +358,8 @@ def mostrar_mi_usuario(parent, app):
         estado["movimientos"] = []
         limpiar_panel()
 
-    ctk.CTkButton(barra, text="🔎 Buscar", width=120, height=34, fg_color=SECONDARY, hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=buscar).grid(row=0, column=1, padx=(0, 8))
-    ctk.CTkButton(barra, text="↻ Limpiar", width=120, height=34, fg_color="#64748B", hover_color="#475569", font=BUTTON_FONT, command=limpiar).grid(row=0, column=2, padx=(0, 8))
+    ctk.CTkButton(barra, text="🔎 Buscar", width=120, height=34, fg_color=SECONDARY, hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=buscar).grid(row=0, column=1, padx=(0, 4))
+    ctk.CTkButton(barra, text="↻ Limpiar", width=120, height=34, fg_color="#64748B", hover_color="#475569", font=BUTTON_FONT, command=limpiar).grid(row=0, column=2, padx=(0, 4))
     ctk.CTkButton(barra, text="⬇ Exportar", width=120, height=34, fg_color=SECONDARY, hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=lambda: exportar_registros_dialogo(estado.get("movimientos", []), "AXIA_mis_movimientos")).grid(row=0, column=3)
 
     entry_busqueda.bind("<Return>", lambda _event: buscar())

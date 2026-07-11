@@ -45,13 +45,13 @@ def firmar_en_popup(parent, variable_firma_base64, on_change=None, titulo="Firma
     win.grab_set()
 
     frame = ctk.CTkFrame(win, fg_color=WHITE)
-    frame.pack(fill="both", expand=True, padx=12, pady=12)
-    ctk.CTkLabel(frame, text=titulo, font=SECTION_FONT, text_color=TEXT_PRIMARY).pack(anchor="w", pady=(0, 8))
-    ctk.CTkLabel(frame, text="Dibuje la firma con el panel táctil, mouse o pantalla táctil.", font=SMALL_FONT, text_color=TEXT_SECONDARY).pack(anchor="w", pady=(0, 8))
+    frame.pack(fill="both", expand=True, padx=6, pady=6)
+    ctk.CTkLabel(frame, text=titulo, font=SECTION_FONT, text_color=TEXT_PRIMARY).pack(anchor="w", pady=(0, 4))
+    ctk.CTkLabel(frame, text="Dibuje la firma con el panel táctil, mouse o pantalla táctil.", font=SMALL_FONT, text_color=TEXT_SECONDARY).pack(anchor="w", pady=(0, 4))
 
     canvas_w, canvas_h = 560, 190
     canvas = Canvas(frame, width=canvas_w, height=canvas_h, bg="white", highlightthickness=1, highlightbackground="#B8C2CC")
-    canvas.pack(pady=(0, 10))
+    canvas.pack(pady=(0, 5))
 
     img = Image.new("RGB", (canvas_w, canvas_h), "white")
     draw = ImageDraw.Draw(img)
@@ -96,8 +96,8 @@ def firmar_en_popup(parent, variable_firma_base64, on_change=None, titulo="Firma
 
     botones = ctk.CTkFrame(frame, fg_color="transparent")
     botones.pack(fill="x")
-    ctk.CTkButton(botones, text="Limpiar", width=120, height=34, fg_color="gray", command=limpiar).pack(side="left", padx=6)
-    ctk.CTkButton(botones, text="Guardar firma", width=160, height=34, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=guardar).pack(side="right", padx=6)
+    ctk.CTkButton(botones, text="Limpiar", width=120, height=34, fg_color="gray", command=limpiar).pack(side="left", padx=3)
+    ctk.CTkButton(botones, text="Guardar firma", width=160, height=34, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=guardar).pack(side="right", padx=3)
 
 
 def _nombre_archivo_seguro(texto):

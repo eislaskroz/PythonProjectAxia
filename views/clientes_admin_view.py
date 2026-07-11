@@ -79,10 +79,10 @@ def mostrar_clientes_admin(parent, app):
     }
 
     contenedor = ctk.CTkFrame(parent, fg_color="transparent")
-    contenedor.pack(fill="both", expand=True, padx=28, pady=8)
+    contenedor.pack(fill="both", expand=True, padx=14, pady=4)
 
     barra = ctk.CTkFrame(contenedor, fg_color="transparent")
-    barra.pack(fill="x", pady=(0, 10))
+    barra.pack(fill="x", pady=(0, 5))
     barra.grid_columnconfigure(0, weight=1)
 
     var_busqueda = ctk.StringVar()
@@ -92,7 +92,7 @@ def mostrar_clientes_admin(parent, app):
         placeholder_text="Buscar cliente por razón social, RFC, contacto, teléfono, correo o municipio...",
         height=38,
     )
-    entry_busqueda.grid(row=0, column=0, sticky="ew", padx=(0, 10))
+    entry_busqueda.grid(row=0, column=0, sticky="ew", padx=(0, 5))
 
     ctk.CTkButton(
         barra,
@@ -112,7 +112,7 @@ def mostrar_clientes_admin(parent, app):
     cuerpo.grid_rowconfigure(0, weight=1)
 
     panel_resultados = ctk.CTkScrollableFrame(cuerpo, fg_color=WHITE, corner_radius=16)
-    panel_resultados.grid(row=0, column=0, sticky="nsew", padx=(0, 12))
+    panel_resultados.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
 
     panel_formulario = ctk.CTkScrollableFrame(cuerpo, fg_color=WHITE, corner_radius=16)
     panel_formulario.grid(row=0, column=1, sticky="nsew")
@@ -122,10 +122,10 @@ def mostrar_clientes_admin(parent, app):
         text="Datos del cliente",
         font=("Montserrat", 18, "bold"),
         text_color=TEXT_PRIMARY,
-    ).pack(anchor="w", padx=20, pady=(18, 6))
+    ).pack(anchor="w", padx=10, pady=(9, 3))
 
     form_grid = ctk.CTkFrame(panel_formulario, fg_color="transparent")
-    form_grid.pack(fill="x", padx=20, pady=(0, 12))
+    form_grid.pack(fill="x", padx=10, pady=(0, 6))
     form_grid.grid_columnconfigure(0, weight=1)
     form_grid.grid_columnconfigure(1, weight=1)
     form_grid.grid_columnconfigure(2, weight=1)
@@ -147,7 +147,7 @@ def mostrar_clientes_admin(parent, app):
             columnspan=3 if ancho_completo else 1,
             sticky="ew",
             padx=0 if ancho_completo else ((0, 8) if columna_actual == 0 else ((8, 8) if columna_actual == 1 else (8, 0))),
-            pady=5,
+            pady=2,
         )
         wrapper.grid_columnconfigure(0, weight=1)
 
@@ -168,7 +168,7 @@ def mostrar_clientes_admin(parent, app):
         else:
             entry = ctk.CTkEntry(wrapper, textvariable=var, height=36)
 
-        entry.grid(row=1, column=0, sticky="ew", pady=(2, 0))
+        entry.grid(row=1, column=0, sticky="ew", pady=(1, 0))
         if "fecha" in campo.lower():
             entry.bind("<Button-1>", lambda _event, var=var: abrir_selector_fecha(wrapper, var))
         entry.configure(state="disabled")
@@ -185,7 +185,7 @@ def mostrar_clientes_admin(parent, app):
                 fila_actual += 1
 
     acciones = ctk.CTkFrame(panel_formulario, fg_color="transparent")
-    acciones.pack(fill="x", padx=20, pady=(5, 18))
+    acciones.pack(fill="x", padx=10, pady=(2, 9))
 
 
     btn_guardar = ctk.CTkButton(
@@ -198,7 +198,7 @@ def mostrar_clientes_admin(parent, app):
         font=BUTTON_FONT,
         command=lambda: guardar_nuevo(),
     )
-    btn_guardar.pack(side="left", padx=8)
+    btn_guardar.pack(side="left", padx=4)
 
     btn_actualizar = ctk.CTkButton(
         acciones,
@@ -210,13 +210,13 @@ def mostrar_clientes_admin(parent, app):
         font=BUTTON_FONT,
         command=lambda: actualizar_seleccionado(),
     )
-    btn_actualizar.pack(side="left", padx=8)
+    btn_actualizar.pack(side="left", padx=4)
 
     # =========================================================
     # SUCURSALES Y CONTACTOS OPERATIVOS
     # =========================================================
     panel_operativo = ctk.CTkFrame(panel_formulario, fg_color="#F8FAFC", corner_radius=14)
-    panel_operativo.pack(fill="x", padx=20, pady=(2, 18))
+    panel_operativo.pack(fill="x", padx=10, pady=(1, 9))
     panel_operativo.grid_columnconfigure((0, 1), weight=1, uniform="operativo")
 
     sucursales_estado = {"lista": [], "por_nombre": {}}
@@ -238,27 +238,27 @@ def mostrar_clientes_admin(parent, app):
         text="Sucursales operativas",
         font=("Montserrat", 14, "bold"),
         text_color=TEXT_PRIMARY,
-    ).grid(row=0, column=0, sticky="w", padx=14, pady=(12, 4))
+    ).grid(row=0, column=0, sticky="w", padx=7, pady=(6, 2))
 
     ctk.CTkLabel(
         panel_operativo,
         text="Contactos por sucursal",
         font=("Montserrat", 14, "bold"),
         text_color=TEXT_PRIMARY,
-    ).grid(row=0, column=1, sticky="w", padx=14, pady=(12, 4))
+    ).grid(row=0, column=1, sticky="w", padx=7, pady=(6, 2))
 
     panel_suc = ctk.CTkFrame(panel_operativo, fg_color="transparent")
-    panel_suc.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0, 12))
+    panel_suc.grid(row=1, column=0, sticky="nsew", padx=6, pady=(0, 6))
     panel_suc.grid_columnconfigure(0, weight=1)
 
     panel_con = ctk.CTkFrame(panel_operativo, fg_color="transparent")
-    panel_con.grid(row=1, column=1, sticky="nsew", padx=12, pady=(0, 12))
+    panel_con.grid(row=1, column=1, sticky="nsew", padx=6, pady=(0, 6))
     panel_con.grid_columnconfigure(0, weight=1)
 
     def input_operativo(panel, texto, variable, fila, placeholder=""):
-        ctk.CTkLabel(panel, text=texto, font=TEXT_SM, text_color=TEXT_PRIMARY).grid(row=fila, column=0, sticky="w", pady=(4, 1))
+        ctk.CTkLabel(panel, text=texto, font=TEXT_SM, text_color=TEXT_PRIMARY).grid(row=fila, column=0, sticky="w", pady=(2, 1))
         entry = ctk.CTkEntry(panel, textvariable=variable, height=32, placeholder_text=placeholder)
-        entry.grid(row=fila + 1, column=0, sticky="ew", pady=(0, 3))
+        entry.grid(row=fila + 1, column=0, sticky="ew", pady=(0, 2))
         return entry
 
     input_operativo(panel_suc, "Nombre de sucursal *", var_suc_nombre, 0, "Ej. Sucursal Centro")
@@ -267,14 +267,14 @@ def mostrar_clientes_admin(parent, app):
     input_operativo(panel_suc, "Estado", var_suc_estado, 6)
     input_operativo(panel_suc, "Teléfono", var_suc_telefono, 8)
 
-    ctk.CTkLabel(panel_con, text="Sucursal *", font=TEXT_SM, text_color=TEXT_PRIMARY).grid(row=0, column=0, sticky="w", pady=(4, 1))
+    ctk.CTkLabel(panel_con, text="Sucursal *", font=TEXT_SM, text_color=TEXT_PRIMARY).grid(row=0, column=0, sticky="w", pady=(2, 1))
     selector_contacto_sucursal = ctk.CTkOptionMenu(
         panel_con,
         variable=var_contacto_sucursal,
         values=["Selecciona sucursal"],
         height=32,
     )
-    selector_contacto_sucursal.grid(row=1, column=0, sticky="ew", pady=(0, 3))
+    selector_contacto_sucursal.grid(row=1, column=0, sticky="ew", pady=(0, 2))
     input_operativo(panel_con, "Nombre contacto *", var_contacto_nombre, 2)
     input_operativo(panel_con, "Puesto", var_contacto_puesto, 4)
     input_operativo(panel_con, "Correo", var_contacto_correo, 6)
@@ -289,7 +289,7 @@ def mostrar_clientes_admin(parent, app):
         anchor="w",
         wraplength=360,
     )
-    lista_sucursales.grid(row=11, column=0, sticky="ew", pady=(6, 0))
+    lista_sucursales.grid(row=11, column=0, sticky="ew", pady=(3, 0))
 
     lista_contactos = ctk.CTkLabel(
         panel_con,
@@ -300,7 +300,7 @@ def mostrar_clientes_admin(parent, app):
         anchor="w",
         wraplength=360,
     )
-    lista_contactos.grid(row=11, column=0, sticky="ew", pady=(6, 0))
+    lista_contactos.grid(row=11, column=0, sticky="ew", pady=(3, 0))
 
     def limpiar_sucursal_form():
         for variable in (var_suc_nombre, var_suc_domicilio, var_suc_municipio, var_suc_estado, var_suc_telefono):
@@ -406,7 +406,7 @@ def mostrar_clientes_admin(parent, app):
         hover_color=BUTTON_HOVER,
         font=BUTTON_FONT,
         command=guardar_sucursal_operativa,
-    ).grid(row=10, column=0, sticky="ew", pady=(6, 4))
+    ).grid(row=10, column=0, sticky="ew", pady=(3, 2))
 
     ctk.CTkButton(
         panel_con,
@@ -416,7 +416,7 @@ def mostrar_clientes_admin(parent, app):
         hover_color=BUTTON_HOVER,
         font=BUTTON_FONT,
         command=guardar_contacto_operativo,
-    ).grid(row=10, column=0, sticky="ew", pady=(6, 4))
+    ).grid(row=10, column=0, sticky="ew", pady=(3, 2))
 
     def bloquear_formulario():
         """Bloquea todos los campos para evitar ediciones accidentales."""
@@ -473,7 +473,7 @@ def mostrar_clientes_admin(parent, app):
             fg_color="transparent",
             corner_radius=10,
         )
-        item.pack(fill="x", padx=12, pady=4)
+        item.pack(fill="x", padx=6, pady=2)
 
         label = ctk.CTkLabel(
             item,
@@ -484,7 +484,7 @@ def mostrar_clientes_admin(parent, app):
             text_color=TEXT_PRIMARY,
             wraplength=320,
         )
-        label.pack(fill="x", padx=10, pady=8, anchor="w")
+        label.pack(fill="x", padx=5, pady=4, anchor="w")
 
         item.bind("<Button-1>", lambda _event, seleccionado=cliente: cargar_en_formulario(seleccionado))
         label.bind("<Button-1>", lambda _event, seleccionado=cliente: cargar_en_formulario(seleccionado))
@@ -498,7 +498,7 @@ def mostrar_clientes_admin(parent, app):
             text=f"Resultados ({len(estado['resultados'])})",
             font=("Montserrat", 16, "bold"),
             text_color=TEXT_PRIMARY,
-        ).pack(anchor="w", padx=18, pady=(16, 8))
+        ).pack(anchor="w", padx=9, pady=(8, 4))
 
         if not estado["resultados"]:
             ctk.CTkLabel(
@@ -506,7 +506,7 @@ def mostrar_clientes_admin(parent, app):
                 text="Ingresa un dato de búsqueda para consultar clientes.",
                 font=TEXT_SM,
                 text_color=TEXT_SECONDARY,
-            ).pack(anchor="w", padx=18, pady=8)
+            ).pack(anchor="w", padx=9, pady=4)
             return
 
         for cliente in estado["resultados"]:

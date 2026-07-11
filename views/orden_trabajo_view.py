@@ -31,7 +31,7 @@ def mostrar_orden_trabajo(parent, app, aco=None):
         widget.destroy()
 
     contenedor = ctk.CTkFrame(parent, fg_color="transparent")
-    contenedor.pack(fill="both", expand=True, padx=14, pady=10)
+    contenedor.pack(fill="both", expand=True, padx=7, pady=5)
 
     datos_aco = normalizar_datos_aco(aco)
     entradas_bloqueadas = []
@@ -56,21 +56,21 @@ def mostrar_orden_trabajo(parent, app, aco=None):
     contenedor.grid_columnconfigure(0, weight=1)
 
     card = ctk.CTkScrollableFrame(contenedor, width=1280, fg_color=WHITE, corner_radius=18)
-    card.grid(row=0, column=0, sticky="nsew", pady=(0, 8))
+    card.grid(row=0, column=0, sticky="nsew", pady=(0, 4))
     form = ctk.CTkFrame(card, fg_color="transparent")
-    form.pack(fill="x", expand=True, padx=24, pady=(18, 8))
+    form.pack(fill="x", expand=True, padx=12, pady=(9, 4))
     for col in range(4):
         form.grid_columnconfigure(col, weight=1, uniform="cols")
 
     def seccion(texto, fila):
-        ctk.CTkLabel(form, text=texto, font=SECTION_FONT, text_color=TEXT_PRIMARY).grid(row=fila, column=0, columnspan=4, sticky="w", pady=(12, 6))
+        ctk.CTkLabel(form, text=texto, font=SECTION_FONT, text_color=TEXT_PRIMARY).grid(row=fila, column=0, columnspan=4, sticky="w", pady=(6, 3))
 
     def label(parent_, texto):
-        ctk.CTkLabel(parent_, text=texto, font=LABEL_FONT, text_color=TEXT_PRIMARY).pack(anchor="w", pady=(0, 2))
+        ctk.CTkLabel(parent_, text=texto, font=LABEL_FONT, text_color=TEXT_PRIMARY).pack(anchor="w", pady=(0, 1))
 
     def celda(fila, col, colspan=1):
         frame = ctk.CTkFrame(form, fg_color="transparent")
-        frame.grid(row=fila, column=col, columnspan=colspan, sticky="ew", padx=5, pady=(0, 6))
+        frame.grid(row=fila, column=col, columnspan=colspan, sticky="ew", padx=2, pady=(0, 3))
         frame.grid_columnconfigure(0, weight=1)
         return frame
 
@@ -144,10 +144,10 @@ def mostrar_orden_trabajo(parent, app, aco=None):
         row_vars = {h: ctk.StringVar() for h in headers}
         partidas.append(row_vars)
         fila = ctk.CTkFrame(partidas_frame, fg_color="transparent")
-        fila.pack(fill="x", pady=2)
+        fila.pack(fill="x", pady=1)
         for j, h in enumerate(headers):
             sub = ctk.CTkFrame(fila, fg_color="transparent")
-            sub.grid(row=0, column=j, sticky="ew", padx=2)
+            sub.grid(row=0, column=j, sticky="ew", padx=1)
             fila.grid_columnconfigure(j, weight=1)
             ctk.CTkLabel(sub, text=h, font=LABEL_FONT, text_color=TEXT_PRIMARY).pack(anchor="w")
             ctk.CTkEntry(sub, textvariable=row_vars[h], height=ENTRY_H, corner_radius=8, font=SMALL_FONT).pack(fill="x")
@@ -220,12 +220,12 @@ def mostrar_orden_trabajo(parent, app, aco=None):
     botones.grid(row=1, column=0, sticky="ew", pady=(0, 0))
     botones.grid_columnconfigure(0, weight=1)
     barra_botones = ctk.CTkFrame(botones, fg_color="transparent")
-    barra_botones.pack(anchor="center", pady=8)
-    ctk.CTkButton(barra_botones, text="⬅ Atrás", width=120, height=38, corner_radius=10, fg_color="#64748B", hover_color="#475569", font=BUTTON_FONT, command=volver_a_selector_aco).grid(row=0, column=0, padx=8)
-    ctk.CTkButton(barra_botones, text="💾 Guardar Orden", width=185, height=38, corner_radius=10, fg_color=SECONDARY, hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=guardar_orden).grid(row=0, column=1, padx=8)
+    barra_botones.pack(anchor="center", pady=4)
+    ctk.CTkButton(barra_botones, text="⬅ Atrás", width=120, height=38, corner_radius=10, fg_color="#64748B", hover_color="#475569", font=BUTTON_FONT, command=volver_a_selector_aco).grid(row=0, column=0, padx=4)
+    ctk.CTkButton(barra_botones, text="💾 Guardar Orden", width=185, height=38, corner_radius=10, fg_color=SECONDARY, hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=guardar_orden).grid(row=0, column=1, padx=4)
     btn_preview = ctk.CTkButton(barra_botones, text="👁 Preview PDF", width=165, height=38, corner_radius=10, fg_color="#1F4E79", hover_color="#173B5C", font=BUTTON_FONT, command=preview_pdf, state="disabled")
-    btn_preview.grid(row=0, column=2, padx=8)
-    ctk.CTkButton(barra_botones, text="↩ Cancelar", width=130, height=38, corner_radius=10, fg_color="gray", font=BUTTON_FONT, command=app.mostrar_vista_inicio_aco).grid(row=0, column=3, padx=8)
+    btn_preview.grid(row=0, column=2, padx=4)
+    ctk.CTkButton(barra_botones, text="↩ Cancelar", width=130, height=38, corner_radius=10, fg_color="gray", font=BUTTON_FONT, command=app.mostrar_vista_inicio_aco).grid(row=0, column=3, padx=4)
 
     enfocar_inicio_formulario(card)
     validar_preview()

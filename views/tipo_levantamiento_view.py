@@ -51,31 +51,31 @@ def mostrar_selector_tipo_levantamiento(parent, app, aco=None):
         widget.destroy()
 
     contenedor = ctk.CTkFrame(parent, fg_color="transparent")
-    contenedor.pack(fill="both", expand=True, padx=24, pady=10)
+    contenedor.pack(fill="both", expand=True, padx=12, pady=5)
 
     card = ctk.CTkFrame(
         contenedor,
         fg_color=WHITE,
         corner_radius=22
     )
-    card.pack(fill="both", expand=True, padx=8, pady=8)
+    card.pack(fill="both", expand=True, padx=4, pady=4)
 
     ctk.CTkLabel(
         card,
         text="¿Qué tipo de levantamiento deseas realizar?",
         font=TITLE_MD,
         text_color=TEXT_PRIMARY
-    ).pack(pady=(28, 6))
+    ).pack(pady=(14, 3))
 
     ctk.CTkLabel(
         card,
         text="Selecciona el proceso operativo que necesitas capturar.",
         font=TEXT_MD,
         text_color=TEXT_SECONDARY
-    ).pack(pady=(0, 22))
+    ).pack(pady=(0, 11))
 
     grid = ctk.CTkFrame(card, fg_color="transparent")
-    grid.pack(fill="both", expand=True, padx=36, pady=(0, 20))
+    grid.pack(fill="both", expand=True, padx=18, pady=(0, 10))
 
     for col in range(3):
         grid.grid_columnconfigure(col, weight=1, uniform="tipos_lev")
@@ -110,7 +110,7 @@ def mostrar_selector_tipo_levantamiento(parent, app, aco=None):
             border_width=1,
             border_color="#CBD5E1" if tipo["habilitado"] else "#E2E8F0"
         )
-        item.grid(row=fila, column=columna, sticky="nsew", padx=10, pady=10)
+        item.grid(row=fila, column=columna, sticky="nsew", padx=5, pady=5)
         item.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
@@ -118,7 +118,7 @@ def mostrar_selector_tipo_levantamiento(parent, app, aco=None):
             text=f"{tipo['icono']} {tipo['nombre']}",
             font=("Montserrat", 16, "bold"),
             text_color=PRIMARY if tipo["habilitado"] else "#64748B"
-        ).pack(anchor="w", padx=18, pady=(20, 16))
+        ).pack(anchor="w", padx=9, pady=(10, 8))
 
         ctk.CTkButton(
             item,
@@ -130,10 +130,10 @@ def mostrar_selector_tipo_levantamiento(parent, app, aco=None):
             font=BUTTON_FONT,
             state="normal" if tipo["habilitado"] else "disabled",
             command=lambda t=tipo: seleccionar_tipo(t)
-        ).pack(fill="x", padx=18, pady=(0, 20))
+        ).pack(fill="x", padx=9, pady=(0, 10))
 
     barra = ctk.CTkFrame(card, fg_color="transparent")
-    barra.pack(pady=(0, 24))
+    barra.pack(pady=(0, 12))
     ctk.CTkButton(
         barra,
         text="⬅ Atrás",
@@ -144,7 +144,7 @@ def mostrar_selector_tipo_levantamiento(parent, app, aco=None):
         hover_color="#475569",
         font=BUTTON_FONT,
         command=app.volver_atras
-    ).grid(row=0, column=0, padx=8)
+    ).grid(row=0, column=0, padx=4)
     ctk.CTkButton(
         barra,
         text="↩ Regresar a Inicio ACO",
@@ -154,4 +154,4 @@ def mostrar_selector_tipo_levantamiento(parent, app, aco=None):
         fg_color="gray",
         font=BUTTON_FONT,
         command=app.mostrar_vista_inicio_aco
-    ).grid(row=0, column=1, padx=8)
+    ).grid(row=0, column=1, padx=4)
