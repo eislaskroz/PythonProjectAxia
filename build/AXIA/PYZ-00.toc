@@ -985,6 +985,9 @@
   ('core',
    'C:\\Users\\Luis Mejia\\PycharmProjects\\PythonProject\\core\\__init__.py',
    'PYMODULE'),
+  ('core.app_paths',
+   'C:\\Users\\Luis Mejia\\PycharmProjects\\PythonProject\\core\\app_paths.py',
+   'PYMODULE'),
   ('core.background_tasks',
    'C:\\Users\\Luis '
    'Mejia\\PycharmProjects\\PythonProject\\core\\background_tasks.py',
@@ -7477,6 +7480,10 @@
    'C:\\Users\\Luis '
    'Mejia\\PycharmProjects\\PythonProject\\services\\clientes_service.py',
    'PYMODULE'),
+  ('services.equipos_catalogo_service',
+   'C:\\Users\\Luis '
+   'Mejia\\PycharmProjects\\PythonProject\\services\\equipos_catalogo_service.py',
+   'PYMODULE'),
   ('services.export_service',
    'C:\\Users\\Luis '
    'Mejia\\PycharmProjects\\PythonProject\\services\\export_service.py',
@@ -7488,6 +7495,10 @@
   ('services.levantamientos_service',
    'C:\\Users\\Luis '
    'Mejia\\PycharmProjects\\PythonProject\\services\\levantamientos_service.py',
+   'PYMODULE'),
+  ('services.materiales_catalogo_service',
+   'C:\\Users\\Luis '
+   'Mejia\\PycharmProjects\\PythonProject\\services\\materiales_catalogo_service.py',
    'PYMODULE'),
   ('services.movimientos_service',
    'C:\\Users\\Luis '
@@ -8684,7 +8695,9 @@
    'C:\\Users\\Luis '
    'Mejia\\PycharmProjects\\PythonProject\\.venv\\Lib\\site-packages\\typing_inspection\\typing_objects.py',
    'PYMODULE'),
-  ('ui', '-', 'PYMODULE'),
+  ('ui',
+   'C:\\Users\\Luis Mejia\\PycharmProjects\\PythonProject\\ui\\__init__.py',
+   'PYMODULE'),
   ('ui.app_sidebar',
    'C:\\Users\\Luis Mejia\\PycharmProjects\\PythonProject\\ui\\app_sidebar.py',
    'PYMODULE'),
@@ -8702,6 +8715,13 @@
    'PYMODULE'),
   ('ui.fonts',
    'C:\\Users\\Luis Mejia\\PycharmProjects\\PythonProject\\ui\\fonts.py',
+   'PYMODULE'),
+  ('ui.theme',
+   'C:\\Users\\Luis Mejia\\PycharmProjects\\PythonProject\\ui\\theme.py',
+   'PYMODULE'),
+  ('ui.theme_manager',
+   'C:\\Users\\Luis '
+   'Mejia\\PycharmProjects\\PythonProject\\ui\\theme_manager.py',
    'PYMODULE'),
   ('unittest',
    'C:\\Program '

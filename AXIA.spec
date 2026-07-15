@@ -1,38 +1,11 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""Especificación PyInstaller consolidada para AXIA.
-
-La configuración sensible (.env) NO se empaqueta. Debe copiarse junto a
-AXIA.exe o colocarse en la carpeta de datos local del usuario.
-"""
 from PyInstaller.utils.hooks import collect_all
 
-
-datas = [
-    ('assets', 'assets'),
-    ('ui/axia_theme.json', 'ui'),
-    ('.env.example', '.'),
-]
+datas = [('assets', 'assets'), ('controllers', 'controllers'), ('core', 'core'), ('logs', 'logs'), ('modules', 'modules'), ('security', 'security'), ('services', 'services'), ('tools', 'tools'), ('ui', 'ui'), ('views', 'views'), ('.env', '.')]
 binaries = []
-hiddenimports = []
-
-for package in ('reportlab', 'qrcode', 'PIL', 'customtkinter'):
-    package_datas, package_binaries, package_hidden = collect_all(package)
-    datas += package_datas
-    binaries += package_binaries
-    hiddenimports += package_hidden
-
-# Importaciones dinámicas usadas por ReportLab al generar códigos/QR.
-hiddenimports += [
-    'reportlab.graphics.barcode.code39',
-    'reportlab.graphics.barcode.code93',
-    'reportlab.graphics.barcode.code128',
-    'reportlab.graphics.barcode.usps',
-    'reportlab.graphics.barcode.qr',
-    'reportlab.graphics.barcode',
-    'reportlab.graphics',
-    'reportlab.platypus',
-    'reportlab.pdfgen',
-]
+hiddenimports = ['reportlab.graphics.barcode.code39', 'reportlab.graphics.barcode.code93', 'reportlab.graphics.barcode.code128', 'reportlab.graphics.barcode', 'reportlab.graphics', 'reportlab.platypus', 'reportlab.pdfgen', 'reportlab']
+tmp_ret = collect_all('reportlab')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 
 a = Analysis(
@@ -44,9 +17,9 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['tkinter.test', 'unittest.test'],
+    excludes=[],
     noarchive=False,
-    optimize=1,
+    optimize=0,
 )
 pyz = PYZ(a.pure)
 
@@ -66,9 +39,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='assets/SoloAxia.ico',
 )
-
 coll = COLLECT(
     exe,
     a.binaries,

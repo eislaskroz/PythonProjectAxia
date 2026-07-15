@@ -3877,6 +3877,10 @@
    'C:\\Users\\Luis '
    'Mejia\\PycharmProjects\\PythonProject\\core\\__pycache__\\__init__.cpython-313.pyc',
    'DATA'),
+  ('core\\__pycache__\\app_paths.cpython-313.pyc',
+   'C:\\Users\\Luis '
+   'Mejia\\PycharmProjects\\PythonProject\\core\\__pycache__\\app_paths.cpython-313.pyc',
+   'DATA'),
   ('core\\__pycache__\\background_tasks.cpython-313.pyc',
    'C:\\Users\\Luis '
    'Mejia\\PycharmProjects\\PythonProject\\core\\__pycache__\\background_tasks.cpython-313.pyc',
@@ -3893,6 +3897,9 @@
    'C:\\Users\\Luis '
    'Mejia\\PycharmProjects\\PythonProject\\core\\__pycache__\\logger.cpython-313.pyc',
    'DATA'),
+  ('core\\app_paths.py',
+   'C:\\Users\\Luis Mejia\\PycharmProjects\\PythonProject\\core\\app_paths.py',
+   'DATA'),
   ('core\\background_tasks.py',
    'C:\\Users\\Luis '
    'Mejia\\PycharmProjects\\PythonProject\\core\\background_tasks.py',
@@ -3903,8 +3910,14 @@
   ('core\\date_utils.py',
    'C:\\Users\\Luis Mejia\\PycharmProjects\\PythonProject\\core\\date_utils.py',
    'DATA'),
+  ('core\\json_utils.py',
+   'C:\\Users\\Luis Mejia\\PycharmProjects\\PythonProject\\core\\json_utils.py',
+   'DATA'),
   ('core\\logger.py',
    'C:\\Users\\Luis Mejia\\PycharmProjects\\PythonProject\\core\\logger.py',
+   'DATA'),
+  ('core\\version.py',
+   'C:\\Users\\Luis Mejia\\PycharmProjects\\PythonProject\\core\\version.py',
    'DATA'),
   ('cryptography-48.0.0.dist-info\\INSTALLER',
    'C:\\Users\\Luis '
@@ -5135,6 +5148,10 @@
    'C:\\Users\\Luis '
    'Mejia\\PycharmProjects\\PythonProject\\services\\__pycache__\\clientes_service.cpython-313.pyc',
    'DATA'),
+  ('services\\__pycache__\\equipos_catalogo_service.cpython-313.pyc',
+   'C:\\Users\\Luis '
+   'Mejia\\PycharmProjects\\PythonProject\\services\\__pycache__\\equipos_catalogo_service.cpython-313.pyc',
+   'DATA'),
   ('services\\__pycache__\\export_service.cpython-313.pyc',
    'C:\\Users\\Luis '
    'Mejia\\PycharmProjects\\PythonProject\\services\\__pycache__\\export_service.cpython-313.pyc',
@@ -5146,6 +5163,10 @@
   ('services\\__pycache__\\levantamientos_service.cpython-313.pyc',
    'C:\\Users\\Luis '
    'Mejia\\PycharmProjects\\PythonProject\\services\\__pycache__\\levantamientos_service.cpython-313.pyc',
+   'DATA'),
+  ('services\\__pycache__\\materiales_catalogo_service.cpython-313.pyc',
+   'C:\\Users\\Luis '
+   'Mejia\\PycharmProjects\\PythonProject\\services\\__pycache__\\materiales_catalogo_service.cpython-313.pyc',
    'DATA'),
   ('services\\__pycache__\\movimientos_service.cpython-313.pyc',
    'C:\\Users\\Luis '
@@ -5191,6 +5212,10 @@
    'C:\\Users\\Luis '
    'Mejia\\PycharmProjects\\PythonProject\\services\\clientes_service.py',
    'DATA'),
+  ('services\\equipos_catalogo_service.py',
+   'C:\\Users\\Luis '
+   'Mejia\\PycharmProjects\\PythonProject\\services\\equipos_catalogo_service.py',
+   'DATA'),
   ('services\\export_service.py',
    'C:\\Users\\Luis '
    'Mejia\\PycharmProjects\\PythonProject\\services\\export_service.py',
@@ -5202,6 +5227,10 @@
   ('services\\levantamientos_service.py',
    'C:\\Users\\Luis '
    'Mejia\\PycharmProjects\\PythonProject\\services\\levantamientos_service.py',
+   'DATA'),
+  ('services\\materiales_catalogo_service.py',
+   'C:\\Users\\Luis '
+   'Mejia\\PycharmProjects\\PythonProject\\services\\materiales_catalogo_service.py',
    'DATA'),
   ('services\\movimientos_service.py',
    'C:\\Users\\Luis '
@@ -5288,13 +5317,35 @@
    'C:\\Program '
    'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.1008.0_x64__qbz5n2kfra8p0\\DLLs\\tk86t.dll',
    'BINARY'),
+  ('tools\\__init__.py',
+   'C:\\Users\\Luis Mejia\\PycharmProjects\\PythonProject\\tools\\__init__.py',
+   'DATA'),
+  ('tools\\__pycache__\\__init__.cpython-313.pyc',
+   'C:\\Users\\Luis '
+   'Mejia\\PycharmProjects\\PythonProject\\tools\\__pycache__\\__init__.cpython-313.pyc',
+   'DATA'),
   ('tools\\__pycache__\\diagnostico_password.cpython-313.pyc',
    'C:\\Users\\Luis '
    'Mejia\\PycharmProjects\\PythonProject\\tools\\__pycache__\\diagnostico_password.cpython-313.pyc',
    'DATA'),
+  ('tools\\auditar_proyecto.py',
+   'C:\\Users\\Luis '
+   'Mejia\\PycharmProjects\\PythonProject\\tools\\auditar_proyecto.py',
+   'DATA'),
+  ('tools\\diagnostico_entorno.py',
+   'C:\\Users\\Luis '
+   'Mejia\\PycharmProjects\\PythonProject\\tools\\diagnostico_entorno.py',
+   'DATA'),
   ('tools\\diagnostico_password.py',
    'C:\\Users\\Luis '
    'Mejia\\PycharmProjects\\PythonProject\\tools\\diagnostico_password.py',
+   'DATA'),
+  ('ui\\__init__.py',
+   'C:\\Users\\Luis Mejia\\PycharmProjects\\PythonProject\\ui\\__init__.py',
+   'DATA'),
+  ('ui\\__pycache__\\__init__.cpython-313.pyc',
+   'C:\\Users\\Luis '
+   'Mejia\\PycharmProjects\\PythonProject\\ui\\__pycache__\\__init__.cpython-313.pyc',
    'DATA'),
   ('ui\\__pycache__\\app_sidebar.cpython-313.pyc',
    'C:\\Users\\Luis '
@@ -5320,11 +5371,22 @@
    'C:\\Users\\Luis '
    'Mejia\\PycharmProjects\\PythonProject\\ui\\__pycache__\\fonts.cpython-313.pyc',
    'DATA'),
+  ('ui\\__pycache__\\theme.cpython-313.pyc',
+   'C:\\Users\\Luis '
+   'Mejia\\PycharmProjects\\PythonProject\\ui\\__pycache__\\theme.cpython-313.pyc',
+   'DATA'),
+  ('ui\\__pycache__\\theme_manager.cpython-313.pyc',
+   'C:\\Users\\Luis '
+   'Mejia\\PycharmProjects\\PythonProject\\ui\\__pycache__\\theme_manager.cpython-313.pyc',
+   'DATA'),
   ('ui\\app_sidebar.py',
    'C:\\Users\\Luis Mejia\\PycharmProjects\\PythonProject\\ui\\app_sidebar.py',
    'DATA'),
   ('ui\\assets.py',
    'C:\\Users\\Luis Mejia\\PycharmProjects\\PythonProject\\ui\\assets.py',
+   'DATA'),
+  ('ui\\axia_theme.json',
+   'C:\\Users\\Luis Mejia\\PycharmProjects\\PythonProject\\ui\\axia_theme.json',
    'DATA'),
   ('ui\\colors.py',
    'C:\\Users\\Luis Mejia\\PycharmProjects\\PythonProject\\ui\\colors.py',
@@ -5337,6 +5399,17 @@
    'DATA'),
   ('ui\\fonts.py',
    'C:\\Users\\Luis Mejia\\PycharmProjects\\PythonProject\\ui\\fonts.py',
+   'DATA'),
+  ('ui\\layout_metrics.py',
+   'C:\\Users\\Luis '
+   'Mejia\\PycharmProjects\\PythonProject\\ui\\layout_metrics.py',
+   'DATA'),
+  ('ui\\theme.py',
+   'C:\\Users\\Luis Mejia\\PycharmProjects\\PythonProject\\ui\\theme.py',
+   'DATA'),
+  ('ui\\theme_manager.py',
+   'C:\\Users\\Luis '
+   'Mejia\\PycharmProjects\\PythonProject\\ui\\theme_manager.py',
    'DATA'),
   ('unicodedata.pyd',
    'C:\\Program '
