@@ -1,12 +1,31 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('assets', 'assets'), ('controllers', 'controllers'), ('core', 'core'), ('logs', 'logs'), ('modules', 'modules'), ('security', 'security'), ('services', 'services'), ('tools', 'tools'), ('ui', 'ui'), ('views', 'views'), ('.env', '.')]
+# Archivos estáticos. El .env y los logs NO se empaquetan.
+datas = [
+    ('assets', 'assets'),
+    ('ui/axia_theme.json', 'ui'),
+]
 binaries = []
-hiddenimports = ['reportlab.graphics.barcode.code39', 'reportlab.graphics.barcode.code93', 'reportlab.graphics.barcode.code128', 'reportlab.graphics.barcode', 'reportlab.graphics', 'reportlab.platypus', 'reportlab.pdfgen', 'reportlab']
-tmp_ret = collect_all('reportlab')
-datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+hiddenimports = []
 
+for package in ('reportlab', 'customtkinter', 'qrcode', 'PIL', 'supabase'):
+    try:
+        pkg_datas, pkg_binaries, pkg_hiddenimports = collect_all(package)
+        datas += pkg_datas
+        binaries += pkg_binaries
+        hiddenimports += pkg_hiddenimports
+    except Exception:
+        # PyInstaller reportará claramente la dependencia faltante durante el build.
+        pass
+
+hiddenimports += [
+    'reportlab.graphics.barcode.code39',
+    'reportlab.graphics.barcode.code93',
+    'reportlab.graphics.barcode.code128',
+    'reportlab.graphics.barcode.usps',
+    'reportlab.graphics.barcode.qr',
+]
 
 a = Analysis(
     ['main.py'],
@@ -35,11 +54,8 @@ exe = EXE(
     upx=True,
     console=False,
     disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
 )
+
 coll = COLLECT(
     exe,
     a.binaries,

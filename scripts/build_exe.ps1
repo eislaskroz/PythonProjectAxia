@@ -8,7 +8,8 @@ if (-not (Test-Path ".\main.py")) {
     throw "Ejecuta este script desde la raíz del proyecto AXIA."
 }
 
-Write-Host "[1/5] Validando sintaxis y estructura..." -ForegroundColor Cyan
+Write-Host "[1/5] Validando entorno, sintaxis y estructura..." -ForegroundColor Cyan
+python .\tools\diagnostico_entorno.py
 python .\tools\auditar_proyecto.py
 
 Write-Host "[2/5] Limpiando build/dist anteriores..." -ForegroundColor Cyan
