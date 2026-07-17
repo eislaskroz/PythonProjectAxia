@@ -48,6 +48,7 @@ from ui.app_sidebar import crear_app_sidebar
 # =====================================================
 
 from ui.assets import configurar_icono_ventana
+from ui.keyboard_navigation import install_keyboard_navigation
 
 from ui.colors import (
     CONTENT_BG,
@@ -65,6 +66,7 @@ from ui.fonts import (
 # =====================================================
 
 from core.logger import configurar_logger
+from core.performance import mark, measure
 
 logger = configurar_logger(__name__)
 
@@ -108,6 +110,7 @@ class AxiaApp(ctk.CTk):
         self.resizable(True, True)
         self.minsize(1180, 720)
         self.configure(fg_color=CONTENT_BG)
+        install_keyboard_navigation(self)
 
         # =================================================
         # USUARIO ACTIVO
@@ -138,7 +141,14 @@ class AxiaApp(ctk.CTk):
         # =================================================
         # VISTA INICIAL
         # =================================================
-        self.navigation.mostrar_inicio_aco()
+        # Se difiere hasta que Tk haya dibujado la ventana y el sidebar. Así
+        # el usuario percibe respuesta inmediata aunque la primera vista tarde.
+        mark("app: shell principal construido")
+        self.after_idle(self._cargar_vista_inicial)
+
+    def _cargar_vista_inicial(self):
+        with measure("app: vista inicial ACO"):
+            self.navigation.mostrar_inicio_aco()
 
     # =====================================================
     # MÉTODO: maximizar_ventana()

@@ -23,11 +23,21 @@ Responsabilidades:
 import platform
 import socket
 from datetime import datetime
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 import requests
 
 from supabase_config import supabase, TABLA_USUARIOS, TABLA_BITACORA_LOGIN
 from security.passwords import verificar_password, requiere_migracion_a_bcrypt, generar_hash_password
+
+
+def formatear_coordenada_7_decimales(valor):
+    """Devuelve una coordenada con exactamente siete cifras decimales."""
+    try:
+        numero = Decimal(str(valor).strip())
+        return format(numero.quantize(Decimal("0.0000001"), rounding=ROUND_HALF_UP), "f")
+    except (InvalidOperation, ValueError, TypeError, AttributeError):
+        return "No disponible"
 
 
 # =====================================================
@@ -51,8 +61,8 @@ def obtener_geolocalizacion():
             datos = respuesta.json()
 
             return {
-                "latitud": datos.get("latitude", "No disponible"),
-                "longitud": datos.get("longitude", "No disponible"),
+                "latitud": formatear_coordenada_7_decimales(datos.get("latitude")),
+                "longitud": formatear_coordenada_7_decimales(datos.get("longitude")),
                 "ciudad": datos.get("city", "No disponible"),
                 "region": datos.get("region", "No disponible"),
                 "pais": datos.get("country_name", "No disponible")
@@ -201,8 +211,8 @@ def registrar_bitacora_login(
             "descripcion": descripcion,
             "direccion_ip": direccion_ip,
             "nombre_equipo": nombre_equipo,
-            "latitud": latitud,
-            "longitud": longitud,
+            "latitud": formatear_coordenada_7_decimales(latitud),
+            "longitud": formatear_coordenada_7_decimales(longitud),
             "ciudad": ciudad,
             "region": region,
             "pais": pais

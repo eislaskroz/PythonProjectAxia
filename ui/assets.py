@@ -11,6 +11,10 @@ from PIL import Image
 # Framework visual utilizado en el sistema
 import customtkinter as ctk
 
+# Cache visual: evita abrir y decodificar el mismo PNG en cada ventana.
+_LOGO_CACHE = {}
+_BASE_LOGO_IMAGE = None
+
 # =========================================================
 # FUNCIÓN: cargar_logo_axia()
 # =========================================================
@@ -101,18 +105,24 @@ def cargar_logo_axia(size=(210, 210)):
     # CARGAR IMAGEN
     # =====================================================
 
-    # Apertura del archivo PNG utilizando Pillow
-    imagen = Image.open(ruta_logo)
+    global _BASE_LOGO_IMAGE
+    key = tuple(size)
+    cached = _LOGO_CACHE.get(key)
+    if cached is not None:
+        return cached
 
-    # =====================================================
-    # RETORNAR IMAGEN COMPATIBLE CON CTK
-    # =====================================================
+    # Se decodifica una sola vez y se conserva en memoria durante la sesión.
+    if _BASE_LOGO_IMAGE is None:
+        with Image.open(ruta_logo) as source:
+            _BASE_LOGO_IMAGE = source.convert("RGBA").copy()
 
-    return ctk.CTkImage(
-        light_image=imagen,
-        dark_image=imagen,
-        size=size
+    logo = ctk.CTkImage(
+        light_image=_BASE_LOGO_IMAGE,
+        dark_image=_BASE_LOGO_IMAGE,
+        size=key
     )
+    _LOGO_CACHE[key] = logo
+    return logo
 
 # =========================================================
 # FUNCIÓN: configurar_icono_ventana()

@@ -9,6 +9,7 @@ import customtkinter as ctk
 from ui.theme import aplicar_tema_global
 
 from core.logger import configurar_logger
+from core.performance import mark, measure
 
 logger = configurar_logger(__name__)
 
@@ -18,8 +19,7 @@ logger = configurar_logger(__name__)
 # =====================================================
 
 # Función que abre la ventana Login
-from login import abrir_login
-from app import abrir_app
+# Importaciones pesadas se realizan bajo demanda dentro de main().
 
 
 # =====================================================
@@ -89,10 +89,16 @@ def main():
     # =============================================
 
     logger.info("Iniciando sistema AXIA.")
+    mark("main: tema y bootstrap listos")
+
+    # El login se importa aquí para evitar cargar la aplicación principal antes de tiempo.
+    with measure("importar login"):
+        from login import abrir_login
 
     try:
         while True:
-            acceso_correcto = abrir_login()
+            with measure("sesión de login"):
+                acceso_correcto = abrir_login()
 
             # Si el usuario cerró el Login sin entrar, termina el programa.
             if not acceso_correcto:
@@ -100,7 +106,11 @@ def main():
 
             # abrir_app() devuelve True cuando el usuario pulsa
             # Cerrar sesión, y False cuando pulsa Salir/cierra AXIA.
-            volver_a_login = abrir_app()
+            # app.py y sus componentes se cargan únicamente después de autenticar.
+            with measure("importar aplicación principal"):
+                from app import abrir_app
+            with measure("sesión aplicación principal"):
+                volver_a_login = abrir_app()
 
             if not volver_a_login:
                 break

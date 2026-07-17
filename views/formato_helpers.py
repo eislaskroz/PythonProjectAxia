@@ -190,7 +190,7 @@ def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, 
     else:
         ruta = Path(tempfile.gettempdir()) / f"AXIA_preview_{titulo.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     try:
-        doc = SimpleDocTemplate(str(ruta), pagesize=letter, rightMargin=32, leftMargin=32, topMargin=28, bottomMargin=28)
+        doc = SimpleDocTemplate(str(ruta), pagesize=letter, rightMargin=32, leftMargin=32, topMargin=30, bottomMargin=42)
         estilos = getSampleStyleSheet()
         estilo_normal = ParagraphStyle("AxiaNormal", parent=estilos["Normal"], fontSize=7, leading=8.2)
         estilo_titulo = ParagraphStyle("AxiaTitle", parent=estilos["Title"], fontSize=13, leading=15, alignment=1)
@@ -482,11 +482,29 @@ def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, 
             canvas.setCreator("Sistema AXIA")
             return canvas
 
+        def _pie_pagina(canvas, documento):
+            """Pie único para todos los formatos operativos de AXIA."""
+            canvas.saveState()
+            ancho, _alto = letter
+            canvas.setStrokeColor(colors.HexColor("#B8C2CC"))
+            canvas.setLineWidth(0.35)
+            canvas.line(32, 27, ancho - 32, 27)
+            canvas.setFont("Helvetica", 6.5)
+            canvas.setFillColor(colors.HexColor("#44546A"))
+            canvas.drawString(32, 16, "AXIA Comunicaciones S.A. de C.V. | Documento generado por Sistema AXIA")
+            canvas.drawRightString(ancho - 32, 16, f"Página {documento.page}")
+            canvas.restoreState()
+
         doc.title = f"AXIA - {titulo}"
-        doc.author = "Sistema AXIA"
-        doc.subject = "Documento generado por Sistema AXIA"
+        doc.author = "AXIA Comunicaciones S.A. de C.V."
+        doc.subject = f"Formato operativo estandarizado: {titulo}"
         doc.creator = "Sistema AXIA"
-        doc.build(contenido, canvasmaker=_canvas_axia)
+        doc.build(
+            contenido,
+            canvasmaker=_canvas_axia,
+            onFirstPage=_pie_pagina,
+            onLaterPages=_pie_pagina,
+        )
         if abrir:
             os.startfile(str(ruta)) if os.name == "nt" else os.system(f'xdg-open "{ruta}" >/dev/null 2>&1 &')
         return str(ruta)

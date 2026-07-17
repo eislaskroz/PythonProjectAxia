@@ -4,14 +4,7 @@ from tkinter import messagebox
 from ui.theme import aplicar_estilo_ventana
 from ui.assets import cargar_logo_axia, configurar_icono_app
 from app_context import establecer_usuario_actual
-from services.movimientos_service import registrar_movimiento
 from core.background_tasks import run_async
-from services.auth_service import (
-    obtener_contexto_login,
-    validar_login,
-    registrar_bitacora_login,
-    cambiar_password_usuario,
-)
 from utils import centrar_ventana
 from ui.colors import (
     PRIMARY,
@@ -24,6 +17,30 @@ from ui.colors import (
 )
 from ui.fonts import TITLE_LG, TITLE_MD, TEXT_MD, TEXT_SM, BUTTON_FONT
 
+
+
+# Servicios de autenticación cargados bajo demanda. Esto permite mostrar el
+# Login antes de inicializar Supabase, Pydantic y el cliente HTTP.
+_AUTH_SERVICES = None
+
+def _cargar_servicios_auth():
+    global _AUTH_SERVICES
+    if _AUTH_SERVICES is None:
+        from services.auth_service import (
+            obtener_contexto_login,
+            validar_login,
+            registrar_bitacora_login,
+            cambiar_password_usuario,
+        )
+        from services.movimientos_service import registrar_movimiento
+        _AUTH_SERVICES = {
+            "obtener_contexto_login": obtener_contexto_login,
+            "validar_login": validar_login,
+            "registrar_bitacora_login": registrar_bitacora_login,
+            "cambiar_password_usuario": cambiar_password_usuario,
+            "registrar_movimiento": registrar_movimiento,
+        }
+    return _AUTH_SERVICES
 
 LOGIN_WIDTH = 520
 LOGIN_HEIGHT = 620
@@ -60,6 +77,11 @@ def abrir_login():
             app.quit()
 
     app.protocol("WM_DELETE_WINDOW", cerrar_login_sin_acceso)
+
+    # Precalienta dependencias de red después de mostrar la ventana.
+    # Si el usuario empieza a escribir, la carga ocurre en paralelo y el clic
+    # de INGRESAR no paga todo el costo de importación.
+    app.after(250, lambda: run_async(root=app, task=_cargar_servicios_auth))
 
     root = ctk.CTkFrame(app, fg_color=CONTENT_BG, corner_radius=0)
     root.pack(fill="both", expand=True)
@@ -123,14 +145,15 @@ def abrir_login():
             return
 
         def tarea_login():
-            contexto_login = obtener_contexto_login()
+            servicios = _cargar_servicios_auth()
+            contexto_login = servicios["obtener_contexto_login"]()
             direccion_ip = contexto_login["direccion_ip"]
             nombre_equipo = contexto_login["nombre_equipo"]
             ubicacion = contexto_login["ubicacion"]
 
-            usuario = validar_login(nickname, password)
+            usuario = servicios["validar_login"](nickname, password)
             if usuario:
-                registrar_bitacora_login(
+                servicios["registrar_bitacora_login"](
                     id_usuario=usuario.get("id_usuario"),
                     nickname=usuario.get("usu_nickname"),
                     estatus="CORRECTO",
@@ -145,7 +168,7 @@ def abrir_login():
                 )
                 return {"acceso": True, "usuario": usuario}
 
-            registrar_bitacora_login(
+            servicios["registrar_bitacora_login"](
                 id_usuario=None,
                 nickname=nickname,
                 estatus="FALLIDO",
@@ -173,7 +196,7 @@ def abrir_login():
                 apellido=usuario.get("usu_apellido"),
                 usu_tipo=usuario.get("usu_tipo", 3),
             )
-            registrar_movimiento(
+            _cargar_servicios_auth()["registrar_movimiento"](
                 modulo="Login",
                 accion="INICIAR_SESION",
                 descripcion="El usuario inició sesión correctamente",
@@ -295,7 +318,8 @@ def abrir_login():
                 return
 
             def tarea_cambio_password():
-                return cambiar_password_usuario(nickname, rfc, nueva_password)
+                servicios = _cargar_servicios_auth()
+                return servicios["cambiar_password_usuario"](nickname, rfc, nueva_password)
 
             def cambio_password_correcto(resultado):
                 actualizado, mensaje = resultado

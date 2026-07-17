@@ -100,9 +100,13 @@ def exportar_registros_dialogo(registros, nombre_sugerido="exportacion_axia"):
             from reportlab.lib import colors
             from reportlab.lib.styles import getSampleStyleSheet
 
-            doc = SimpleDocTemplate(str(ruta), pagesize=landscape(letter), rightMargin=24, leftMargin=24, topMargin=24, bottomMargin=24)
+            doc = SimpleDocTemplate(str(ruta), pagesize=landscape(letter), rightMargin=28, leftMargin=28, topMargin=30, bottomMargin=42)
+            doc.title = "AXIA - Exportación"
+            doc.author = "AXIA Comunicaciones S.A. de C.V."
+            doc.subject = "Reporte exportado por Sistema AXIA"
+            doc.creator = "Sistema AXIA"
             estilos = getSampleStyleSheet()
-            contenido = [Paragraph("Exportación AXIA", estilos["Title"]), Spacer(1, 12)]
+            contenido = [Paragraph("AXIA COMUNICACIONES", estilos["Title"]), Paragraph("Reporte de información", estilos["Heading2"]), Spacer(1, 10)]
             datos_tabla = [columnas]
             for registro in registros:
                 datos_tabla.append([str(registro.get(campo, "") or "")[:120] for campo in columnas])
@@ -116,7 +120,20 @@ def exportar_registros_dialogo(registros, nombre_sugerido="exportacion_axia"):
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ]))
             contenido.append(tabla)
-            doc.build(contenido)
+
+            def _pie_exportacion(canvas, documento):
+                canvas.saveState()
+                ancho, _alto = landscape(letter)
+                canvas.setStrokeColor(colors.HexColor("#B8C2CC"))
+                canvas.setLineWidth(0.35)
+                canvas.line(28, 27, ancho - 28, 27)
+                canvas.setFont("Helvetica", 6.5)
+                canvas.setFillColor(colors.HexColor("#44546A"))
+                canvas.drawString(28, 16, "AXIA Comunicaciones S.A. de C.V. | Documento generado por Sistema AXIA")
+                canvas.drawRightString(ancho - 28, 16, f"Página {documento.page}")
+                canvas.restoreState()
+
+            doc.build(contenido, onFirstPage=_pie_exportacion, onLaterPages=_pie_exportacion)
         elif ruta.suffix.lower() == ".json":
             ruta.write_text(json.dumps(registros, ensure_ascii=False, indent=2), encoding="utf-8")
         elif ruta.suffix.lower() == ".txt":
