@@ -49,12 +49,14 @@ Source: "..\dist\AXIA\*"; \
 
 [Icons]
 Name: "{autoprograms}\AXIA"; \
-    Filename: "{app}\{#MyAppExeName}"; \
+    Filename: "{app}\AXIA.exe"; \
     WorkingDir: "{app}"
+    IconFilename: "{app}\AXIA.exe"
 
 Name: "{autodesktop}\AXIA"; \
-    Filename: "{app}\{#MyAppExeName}"; \
+    Filename: "{app}\AXIA.exe"; \
     WorkingDir: "{app}"; \
+    IconFilename: "{app}\AXIA.exe"
     Tasks: desktopicon
 
 [Run]
