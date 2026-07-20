@@ -95,14 +95,15 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
 
     panel_superior = ctk.CTkFrame(
         parent,
-        width=620,
         height=112,
         fg_color="transparent"
     )
-    panel_superior.place(
-        relx=0.98,
-        y=10,
-        anchor="ne"
+    # Se integra al flujo normal del layout para que no desaparezca al usar
+    # otras resoluciones o escalas de Windows.
+    panel_superior.pack(
+        fill="x",
+        padx=18,
+        pady=(10, 0)
     )
     panel_superior.pack_propagate(False)
 
@@ -144,9 +145,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
         fill="both",
         expand=True,
         padx=18,
-        # Reserva completa para el encabezado y sus botones; evita que el
-        # panel principal los cubra en resoluciones o escalas distintas.
-        pady=(122, 12)
+        pady=(8, 12)
     )
 
     # =================================================
@@ -718,7 +717,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
                     "No se pudo registrar el ACO."
                 )
 
-        ctk.CTkButton(router
+        ctk.CTkButton(
             form,
             text="Guardar ACO",
             width=180,
@@ -825,4 +824,5 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     if aco_validado:
         mostrar_opciones_con_aco(aco_validado)
     else:
-        mostrar_mensaje_inicial()
+        # El buscador vuelve a mostrarse de forma inmediata al entrar a ACO.
+        mostrar_busqueda_aco()

@@ -1,3 +1,3 @@
 """Versión central del sistema AXIA."""
-APP_VERSION = "0.95.2-beta-ux"
-BUILD_NAME = "Teclado, PDF y geolocalización"
+APP_VERSION = "0.95.3-beta"
+BUILD_NAME = "Restauración Inicio ACO y estabilidad de navegación"
