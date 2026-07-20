@@ -31,6 +31,7 @@ from ui.detail_popup import mostrar_detalle_registro
 
 REPORTES = [
     {
+        "clave": "acos",
         "titulo": "ACOs registrados",
         "icono": "📁",
         "placeholder": "Buscar por número de ACO...",
@@ -39,6 +40,7 @@ REPORTES = [
         "campos": ["aco_numero", "aco_cliente", "aco_responsable", "aco_fecha_inicio", "aco_fecha_compromiso"],
     },
     {
+        "clave": "levantamientos",
         "titulo": "Levantamientos",
         "icono": "📋",
         "placeholder": "Buscar por folio LEV-0001...",
@@ -47,6 +49,7 @@ REPORTES = [
         "campos": ["lev_folio", "lev_aco_numero", "lev_cliente", "lev_tecnico", "lev_fecha_programada"],
     },
     {
+        "clave": "ordenes_servicio",
         "titulo": "Órdenes de servicio",
         "icono": "🧾",
         "placeholder": "Buscar por folio OS-0001...",
@@ -55,6 +58,7 @@ REPORTES = [
         "campos": ["os_folio", "os_aco_numero", "os_cliente", "os_tecnico", "os_fecha_programada"],
     },
     {
+        "clave": "ordenes_trabajo",
         "titulo": "Órdenes de trabajo",
         "icono": "🛠️",
         "placeholder": "Buscar por folio OT-0001...",
@@ -63,6 +67,7 @@ REPORTES = [
         "campos": ["ot_folio", "ot_aco_numero", "ot_cliente", "ot_tecnico", "ot_fecha_programada"],
     },
     {
+        "clave": "bitacoras",
         "titulo": "Bitácoras operativas",
         "icono": "📊",
         "placeholder": "Buscar por folio BIT-0001...",
@@ -71,6 +76,7 @@ REPORTES = [
         "campos": ["bit_folio", "bit_aco_numero", "bit_cliente", "bit_tecnico", "bit_avance"],
     },
     {
+        "clave": "obras_civiles",
         "titulo": "Obras civiles",
         "icono": "🏗️",
         "placeholder": "Buscar por folio OBC-0001...",
@@ -102,6 +108,20 @@ def mostrar_reportes(parent, app):
     contenedor = ctk.CTkFrame(parent, fg_color="transparent")
     contenedor.pack(fill="both", expand=True, padx=14, pady=4)
 
+    filtros = ctk.CTkFrame(contenedor, fg_color=WHITE, corner_radius=16)
+    filtros.pack(fill="x", pady=(0, 8))
+
+    ctk.CTkLabel(
+        filtros,
+        text="Buscar por categoría",
+        font=TEXT_MD,
+        text_color=TEXT_PRIMARY,
+        anchor="w",
+    ).pack(fill="x", padx=11, pady=(8, 5))
+
+    botones = ctk.CTkFrame(filtros, fg_color="transparent")
+    botones.pack(fill="x", padx=9, pady=(0, 9))
+
     scroll = ctk.CTkScrollableFrame(
         contenedor,
         fg_color="transparent",
@@ -109,8 +129,40 @@ def mostrar_reportes(parent, app):
     )
     scroll.pack(fill="both", expand=True)
 
-    for reporte in REPORTES:
-        crear_bloque_reporte(scroll, reporte)
+    botones_categoria = {}
+
+    def mostrar_categoria(clave=None):
+        for widget in scroll.winfo_children():
+            widget.destroy()
+
+        for boton_clave, boton in botones_categoria.items():
+            activo = boton_clave == clave or (clave is None and boton_clave == "todas")
+            boton.configure(
+                fg_color=SECONDARY if activo else "#64748B",
+                hover_color=BUTTON_HOVER if activo else "#475569",
+            )
+
+        seleccion = REPORTES if clave is None else [r for r in REPORTES if r["clave"] == clave]
+        for reporte in seleccion:
+            crear_bloque_reporte(scroll, reporte)
+
+    categorias = [("todas", "Todas")] + [(r["clave"], r["titulo"]) for r in REPORTES]
+    for indice, (clave, texto) in enumerate(categorias):
+        boton = ctk.CTkButton(
+            botones,
+            text=texto,
+            height=34,
+            width=145,
+            fg_color="#64748B",
+            hover_color="#475569",
+            font=TEXT_SM,
+            command=lambda c=None if clave == "todas" else clave: mostrar_categoria(c),
+        )
+        boton.grid(row=indice // 4, column=indice % 4, sticky="ew", padx=3, pady=3)
+        botones.grid_columnconfigure(indice % 4, weight=1)
+        botones_categoria[clave] = boton
+
+    mostrar_categoria(None)
 
 
 def crear_bloque_reporte(parent, reporte):

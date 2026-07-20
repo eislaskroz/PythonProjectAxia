@@ -16,7 +16,7 @@ from tkinter import messagebox
 
 from ui.colors import WHITE, TEXT_PRIMARY, TEXT_SECONDARY, SECONDARY, BUTTON_HOVER
 from ui.fonts import TITLE_MD, TEXT_MD, TEXT_SM, BUTTON_FONT
-from services.export_service import exportar_registros_dialogo
+from services.pdf_registro_service import previsualizar_pdf_registro, guardar_pdf_registro
 from ui.detail_popup import mostrar_detalle_registro
 from core.background_tasks import run_async
 
@@ -85,24 +85,24 @@ def _crear_card_resultado(parent, registro, configuracion):
 
     ctk.CTkButton(
         acciones,
-        text="👁 Vista rápida",
+        text="👁 Vista previa PDF",
         width=130,
         height=32,
         fg_color="#64748B",
         hover_color="#475569",
         font=TEXT_SM,
-        command=lambda r=registro: mostrar_detalle_registro(parent, f"Vista rápida - {folio}", r)
+        command=lambda r=registro, c=configuracion: previsualizar_pdf_registro(r, c)
     ).pack(side="left", padx=(0, 4))
 
     ctk.CTkButton(
         acciones,
-        text="⬇ Exportar seleccionado",
+        text="⬇ Guardar PDF",
         width=180,
         height=32,
         fg_color=SECONDARY,
         hover_color=BUTTON_HOVER,
         font=TEXT_SM,
-        command=lambda r=registro, f=folio: exportar_registros_dialogo(r, f"AXIA_{f}")
+        command=lambda r=registro, c=configuracion: guardar_pdf_registro(r, c)
     ).pack(side="left")
 
 
