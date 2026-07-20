@@ -1,8 +1,0 @@
-Cambios V1 Plantas de Energía y Electricidad
-
-- Se habilitaron Plantas de Energía y Electricidad en el selector de tipos de levantamiento.
-- Se aplicaron los mismos parámetros de datos del cliente para formularios especializados: cliente, contacto, teléfono, correo y dirección se cargan desde db_clientes cuando se selecciona cliente.
-- Se agregó formulario especializado de Plantas de Energía con flujo: necesidad, datos eléctricos/carga, sitio/maniobras, combustible/seguridad, instalación/pruebas/entrega.
-- Se agregó formulario especializado de Electricidad con flujo detallado: necesidad, carga, tablero/protecciones, canalización/materiales, seguridad, instalación/pruebas/entrega.
-- Se cuidaron campos compactos para cantidades, metros, días, personas y capacidades.
-- Ambos formularios guardan información estructurada en lev_detalle_tecnico_json.
