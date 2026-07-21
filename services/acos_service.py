@@ -106,6 +106,31 @@ def normalizar_fechas_aco(datos_aco):
 from supabase_config import supabase, TABLA_ACOS
 
 
+# Columnas explícitas de db_acos usadas por la aplicación.
+# Mantener esta lista sincronizada con migrations/validar_esquema_beta_095.sql.
+COLUMNAS_ACOS = ",".join([
+    "id_aco",
+    "aco_numero",
+    "aco_cliente",
+    "aco_descripcion",
+    "aco_observaciones",
+    "aco_responsable",
+    "aco_creado_por",
+    "aco_fecha_inicio",
+    "aco_fecha_compromiso",
+    "aco_estatus",
+    "id_cliente",
+    "id_sucursal",
+    "id_contacto",
+    "fecha_registro",
+])
+
+
+class AcoServiceError(RuntimeError):
+    """Error de comunicación o consulta del servicio de ACOs."""
+
+
+
 def enriquecer_aco_con_sucursal_contacto(aco):
     """Completa un ACO con datos operativos de sucursal/contacto si tiene IDs ligados."""
     if not aco:
@@ -179,8 +204,11 @@ def buscar_aco_por_numero(aco_numero):
         return None
 
     except Exception as error:
-        logger.exception("Error al buscar ACO.")
-        return None
+        logger.exception("Error al buscar ACO %s.", aco_numero)
+        raise AcoServiceError(
+            "No fue posible consultar el ACO en Supabase. "
+            "Revisa la conexión y la estructura de db_acos."
+        ) from error
 
 
 # =====================================================
