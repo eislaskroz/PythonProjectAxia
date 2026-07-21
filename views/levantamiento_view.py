@@ -1368,7 +1368,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             valor = var_infra_existe.get()
 
             secciones_instalacion = [
-                "existente", "infraestructura_requerida", "conectividad",
+                "existente", "infraestructura_requerida",
                 "rack_energia", "seguridad", "datos_cctv"
             ]
             secciones_reparacion = [
@@ -1392,17 +1392,14 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                     else:
                         frame.grid_remove()
 
+            # La sección provisional de mantenimiento ya no se muestra.
             frame_mantenimiento = secciones_dinamicas.get("mantenimiento")
             if frame_mantenimiento:
-                if es_mantenimiento:
-                    frame_mantenimiento.grid()
-                else:
-                    frame_mantenimiento.grid_remove()
+                frame_mantenimiento.grid_remove()
 
             if es_instalacion:
                 configurar_estado_seccion(secciones_dinamicas["existente"], True)
                 configurar_estado_seccion(secciones_dinamicas["infraestructura_requerida"], valor in ("No", "Parcial"))
-                configurar_estado_seccion(secciones_dinamicas["conectividad"], valor in ("No", "Parcial"))
                 configurar_estado_seccion(secciones_dinamicas["rack_energia"], valor in ("No", "Parcial"))
                 configurar_estado_seccion(secciones_dinamicas["seguridad"], valor in ("No", "Parcial"))
 
@@ -1506,6 +1503,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         # Consumibles de Conectividad
         seccion_conectividad = crear_seccion("🔌 Consumibles de Conectividad", fila_textos + 3)
         registrar_seccion("conectividad", seccion_conectividad)
+        seccion_conectividad.grid_remove()
         entry_en(seccion_conectividad, "Plugs RJ45", var_plugs_rj45, "Ej. 24", 0, 0)
         entry_en(seccion_conectividad, "Jacks RJ45", var_jacks_rj45, "Ej. 12", 0, 1)
         entry_en(seccion_conectividad, "Keystone", var_keystone, "Ej. 12", 0, 2)
@@ -1859,9 +1857,25 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
 
         seccion_rvd_necesidad = crear_seccion_rvd("🌐 1. Necesidad inicial y alcance", fila_textos)
         option_rvd(seccion_rvd_necesidad, "¿Qué se necesita realizar?", var_rvd_necesidad, ["Instalación nueva", "Ampliación", "Reubicación", "Remodelación", "Diagnóstico previo"], 0, 0)
-        option_rvd(seccion_rvd_necesidad, "Tipo de servicio", var_rvd_tipo_servicio, ["Datos", "Voz", "Voz y datos", "Fibra óptica", "Mixto"], 0, 1)
-        entry_rvd(seccion_rvd_necesidad, "¿Cuántos nodos de datos se requieren?", var_rvd_cantidad_nodos, "Ej. 12", 0, 2, ancho_corto=True)
-        entry_rvd(seccion_rvd_necesidad, "¿Cuántos puntos de voz se requieren?", var_rvd_cantidad_telefonia, "Ej. 4", 0, 3, ancho_corto=True)
+        widget_rvd_tipo_servicio = option_rvd(seccion_rvd_necesidad, "Tipo de servicio", var_rvd_tipo_servicio, ["Datos", "Voz", "Voz y datos", "Fibra óptica", "Mixto"], 0, 1)
+        widget_rvd_nodos = entry_rvd(seccion_rvd_necesidad, "¿Cuántos nodos de datos se requieren?", var_rvd_cantidad_nodos, "Ej. 12", 0, 2, ancho_corto=True)
+        widget_rvd_voz = entry_rvd(seccion_rvd_necesidad, "¿Cuántos puntos de voz se requieren?", var_rvd_cantidad_telefonia, "Ej. 4", 0, 3, ancho_corto=True)
+
+        def actualizar_campos_tipo_servicio_rvd(*_args):
+            instalacion_nueva = var_rvd_necesidad.get() == "Instalación nueva"
+            tipo_servicio = var_rvd_tipo_servicio.get()
+            habilitar_nodos = not (instalacion_nueva and tipo_servicio == "Voz")
+            habilitar_voz = not (instalacion_nueva and tipo_servicio == "Datos")
+            if not habilitar_nodos:
+                var_rvd_cantidad_nodos.set("")
+            if not habilitar_voz:
+                var_rvd_cantidad_telefonia.set("")
+            widget_rvd_nodos.configure(state="normal" if habilitar_nodos else "disabled")
+            widget_rvd_voz.configure(state="normal" if habilitar_voz else "disabled")
+
+        widget_rvd_tipo_servicio.configure(command=lambda _valor: actualizar_campos_tipo_servicio_rvd())
+        var_rvd_necesidad.trace_add("write", actualizar_campos_tipo_servicio_rvd)
+        actualizar_campos_tipo_servicio_rvd()
         entry_rvd(seccion_rvd_necesidad, "Área o zona de instalación", var_rvd_area_instalacion, "Ej. oficinas planta baja", 0, 4)
 
         seccion_rvd_sitio = crear_seccion_rvd("📍 2. Condiciones del sitio y ruta", fila_textos + 1)
@@ -1884,10 +1898,24 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
 
         seccion_rvd_rack = crear_seccion_rvd("🗄️ 4. Rack, gabinete, equipo activo y energía", fila_textos + 3)
         entry_rvd(seccion_rvd_rack, "¿Dónde se ubicará el rack/gabinete?", var_rvd_ubicacion_rack, "Ej. SITE / cuarto TI", 0, 0)
-        option_rvd(seccion_rvd_rack, "¿Se requiere rack?", var_rvd_requiere_rack, ["Sí", "No", "Por validar"], 0, 1)
-        entry_rvd(seccion_rvd_rack, "Tipo de rack/gabinete", var_rvd_tipo_rack, "Ej. 12U pared", 0, 2)
-        option_rvd(seccion_rvd_rack, "¿Se requiere switch?", var_rvd_requiere_switch, ["Sí", "No", "Por validar"], 0, 3)
-        entry_rvd(seccion_rvd_rack, "Puertos requeridos del switch", var_rvd_puertos_switch, "Ej. 24", 0, 4, ancho_corto=True)
+        widget_rvd_requiere_rack = option_rvd(seccion_rvd_rack, "¿Se requiere rack?", var_rvd_requiere_rack, ["Sí", "No", "Por validar"], 0, 1)
+        widget_rvd_tipo_rack = entry_rvd(seccion_rvd_rack, "Tipo de rack/gabinete", var_rvd_tipo_rack, "Ej. 12U pared", 0, 2)
+        widget_rvd_requiere_switch = option_rvd(seccion_rvd_rack, "¿Se requiere switch?", var_rvd_requiere_switch, ["Sí", "No", "Por validar"], 0, 3)
+        widget_rvd_puertos_switch = entry_rvd(seccion_rvd_rack, "Puertos requeridos del switch", var_rvd_puertos_switch, "Ej. 24", 0, 4, ancho_corto=True)
+
+        def actualizar_detalles_rack_rvd(*_args):
+            requiere_rack = var_rvd_requiere_rack.get() != "No"
+            requiere_switch = var_rvd_requiere_switch.get() != "No"
+            if not requiere_rack:
+                var_rvd_tipo_rack.set("")
+            if not requiere_switch:
+                var_rvd_puertos_switch.set("")
+            widget_rvd_tipo_rack.configure(state="normal" if requiere_rack else "disabled")
+            widget_rvd_puertos_switch.configure(state="normal" if requiere_switch else "disabled")
+
+        widget_rvd_requiere_rack.configure(command=lambda _valor: actualizar_detalles_rack_rvd())
+        widget_rvd_requiere_switch.configure(command=lambda _valor: actualizar_detalles_rack_rvd())
+        actualizar_detalles_rack_rvd()
         option_rvd(seccion_rvd_rack, "¿Se requiere UPS?", var_rvd_ups, ["Sí", "No", "Por validar"], 1, 0)
         option_rvd(seccion_rvd_rack, "¿Contacto regulado?", var_rvd_contacto_regulado, ["Sí", "No", "Por validar"], 1, 1)
         option_rvd(seccion_rvd_rack, "¿Tierra física disponible?", var_rvd_tierra_fisica, ["Sí", "No", "Por validar"], 1, 2)
@@ -2245,28 +2273,27 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
     # =============================================================
     # MATERIALES MISCELÁNEOS (COMÚN A TODOS LOS LEVANTAMIENTOS)
     # =============================================================
-    # La cantidad, unidad y especificación permanecen deshabilitadas hasta
-    # seleccionar "Sí" en la columna "¿Se requiere?".
+    # La captura inicia vacía. Si el técnico agrega una fila, el material
+    # se considera requerido por definición; no se solicita un Sí/No redundante.
     seccion_misc = ctk.CTkFrame(form_body, fg_color="#F8FAFC", corner_radius=14)
     seccion_misc.grid(row=fila_textos, column=0, columnspan=5, sticky="ew", pady=(2, 5))
     seccion_misc.grid_columnconfigure(0, weight=2)
     seccion_misc.grid_columnconfigure(1, weight=1)
     seccion_misc.grid_columnconfigure(2, weight=1)
-    seccion_misc.grid_columnconfigure(3, weight=1)
-    seccion_misc.grid_columnconfigure(4, weight=3)
-    seccion_misc.grid_columnconfigure(5, weight=1)
+    seccion_misc.grid_columnconfigure(3, weight=3)
+    seccion_misc.grid_columnconfigure(4, weight=1)
 
     ctk.CTkLabel(
         seccion_misc, text="🧰 Materiales misceláneos y consumibles",
         font=("Montserrat", 14, "bold"), text_color=TEXT_PRIMARY
-    ).grid(row=0, column=0, columnspan=6, sticky="w", padx=7, pady=(5, 1))
+    ).grid(row=0, column=0, columnspan=5, sticky="w", padx=7, pady=(5, 1))
     ctk.CTkLabel(
         seccion_misc,
-        text="Activa únicamente los materiales necesarios e indica cantidad, unidad y especificación para cotización.",
+        text="Agrega únicamente los materiales necesarios e indica cantidad, unidad y especificación para cotización.",
         font=TEXT_SM, text_color=TEXT_SECONDARY, anchor="w", justify="left"
-    ).grid(row=1, column=0, columnspan=6, sticky="w", padx=7, pady=(0, 4))
+    ).grid(row=1, column=0, columnspan=5, sticky="w", padx=7, pady=(0, 4))
 
-    for col, encabezado in enumerate(("Material", "¿Se requiere?", "Cantidad", "Unidad", "Especificación / medida", "Acción")):
+    for col, encabezado in enumerate(("Material", "Cantidad", "Unidad", "Especificación / medida", "Acción")):
         ctk.CTkLabel(seccion_misc, text=encabezado, font=("Montserrat", 12, "bold"), text_color=TEXT_PRIMARY).grid(
             row=2, column=col, sticky="w", padx=5, pady=(0, 2)
         )
@@ -2284,7 +2311,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         fila = 3 + len(materiales_miscelaneos_items)
         var_material = ctk.StringVar(value=nombre_material)
         var_categoria = ctk.StringVar(value=categoria_material)
-        var_requerido = ctk.StringVar(value="No")
         var_cantidad = ctk.StringVar()
         var_unidad = ctk.StringVar(value=unidad_default if unidad_default in UNIDADES_MATERIAL else "Pieza(s)")
         var_especificacion = ctk.StringVar()
@@ -2296,44 +2322,27 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
 
         entrada_cantidad = ctk.CTkEntry(
             seccion_misc, textvariable=var_cantidad, width=95, height=31, corner_radius=8,
-            placeholder_text="Ej. 20", state="disabled"
+            placeholder_text="Ej. 20"
         )
-        entrada_cantidad.grid(row=fila, column=2, sticky="w", padx=5, pady=2)
+        entrada_cantidad.grid(row=fila, column=1, sticky="w", padx=5, pady=2)
         opcion_unidad = ctk.CTkOptionMenu(
             seccion_misc, variable=var_unidad, values=UNIDADES_MATERIAL,
-            width=125, height=31, state="disabled"
+            width=125, height=31
         )
-        opcion_unidad.grid(row=fila, column=3, sticky="w", padx=5, pady=2)
+        opcion_unidad.grid(row=fila, column=2, sticky="w", padx=5, pady=2)
         entrada_especificacion = ctk.CTkEntry(
             seccion_misc, textvariable=var_especificacion, height=31, corner_radius=8,
-            placeholder_text=especificacion_sugerida or "Medida, material, color o presentación",
-            state="disabled"
+            placeholder_text=especificacion_sugerida or "Medida, material, color o presentación"
         )
-        entrada_especificacion.grid(row=fila, column=4, sticky="ew", padx=5, pady=2)
-
-        def actualizar_material(_valor=None):
-            estado = "normal" if var_requerido.get() == "Sí" else "disabled"
-            entrada_cantidad.configure(state=estado)
-            opcion_unidad.configure(state=estado)
-            entrada_especificacion.configure(state=estado)
-            if estado == "disabled":
-                var_cantidad.set("")
-                var_especificacion.set("")
-
-        opcion_requerido = ctk.CTkOptionMenu(
-            seccion_misc, variable=var_requerido, values=["No", "Sí"],
-            width=105, height=31, command=actualizar_material
-        )
-        opcion_requerido.grid(row=fila, column=1, sticky="w", padx=5, pady=2)
+        entrada_especificacion.grid(row=fila, column=3, sticky="ew", padx=5, pady=2)
 
         item_material = {
             "material": var_material,
             "categoria": var_categoria,
-            "requerido": var_requerido,
             "cantidad": var_cantidad,
             "unidad": var_unidad,
             "especificacion": var_especificacion,
-            "widgets": [entrada_material, entrada_cantidad, opcion_unidad, entrada_especificacion, opcion_requerido],
+            "widgets": [entrada_material, entrada_cantidad, opcion_unidad, entrada_especificacion],
         }
 
         def eliminar_material():
@@ -2348,12 +2357,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             seccion_misc, text="Eliminar", width=82, height=31,
             fg_color="#DC2626", hover_color="#B91C1C", command=eliminar_material
         )
-        btn_eliminar.grid(row=fila, column=5, sticky="ew", padx=5, pady=2)
+        btn_eliminar.grid(row=fila, column=4, sticky="ew", padx=5, pady=2)
         item_material["widgets"].append(btn_eliminar)
         materiales_miscelaneos_items.append(item_material)
-
-    # Se muestra una sola fila vacía. El usuario agrega o elimina las necesarias.
-    agregar_material_miscelaneo(None)
 
     ctk.CTkButton(
         seccion_misc, text="➕ Agregar otro material", height=32, fg_color=PRIMARY,
@@ -2372,10 +2378,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 seccion_misc.grid_remove()
                 # Evita guardar materiales previamente seleccionados si el usuario
                 # cambia de "Suministro e instalación" a "Suministro".
-                for item in materiales_miscelaneos_items:
-                    item["requerido"].set("No")
-                    item["cantidad"].set("")
-                    item["especificacion"].set("")
+                for item in list(materiales_miscelaneos_items):
+                    for widget in item.get("widgets", []):
+                        try:
+                            widget.destroy()
+                        except Exception:
+                            pass
+                materiales_miscelaneos_items.clear()
             elif accion == "Suministro e instalación":
                 visibles = {0, 1, 4, 5}
                 seccion_misc.grid()
@@ -2404,19 +2413,39 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         # En formularios especializados el resumen técnico se construye desde campos estructurados.
         # Se conserva un textbox oculto como respaldo para no romper funciones existentes.
         txt_descripcion = ctk.CTkTextbox(form_body, height=1)
-        txt_observaciones = campo_texto("Observaciones", altura=100, fila=fila_textos)
+        titulo_observaciones = (
+            "Describe detalladamente el tipo de mantenimiento que se debe realizar; anota cantidades, ubicaciones, "
+            "estados físicos, marcas, modelos y números de serie si es necesario."
+            if tipo_levantamiento == "Seguridad y Monitoreo" else "Observaciones"
+        )
+        txt_observaciones = campo_texto(titulo_observaciones, altura=100, fila=fila_textos)
     else:
         txt_descripcion = campo_texto("Descripción del levantamiento", altura=90, fila=fila_textos)
         txt_observaciones = campo_texto("Observaciones", altura=100, fila=fila_textos + 1)
 
+    if tipo_levantamiento == "Seguridad y Monitoreo":
+        def actualizar_secciones_comunes_seguridad(*_args):
+            modalidad = var_modalidad_levantamiento.get()
+            if modalidad == "Instalación":
+                seccion_equipos.grid()
+                seccion_misc.grid()
+                txt_observaciones.master.grid()
+            elif modalidad == "Reparación":
+                seccion_equipos.grid_remove()
+                seccion_misc.grid_remove()
+                txt_observaciones.master.grid_remove()
+            else:  # Mantenimiento
+                seccion_equipos.grid_remove()
+                seccion_misc.grid()
+                txt_observaciones.master.grid()
 
+        var_modalidad_levantamiento.trace_add("write", actualizar_secciones_comunes_seguridad)
+        actualizar_secciones_comunes_seguridad()
 
     def obtener_materiales_miscelaneos_json():
         """Devuelve únicamente los materiales marcados como requeridos."""
         materiales = []
         for item in materiales_miscelaneos_items:
-            if item["requerido"].get().strip() != "Sí":
-                continue
             material = item["material"].get().strip()
             if not material:
                 continue
@@ -3011,13 +3040,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 "",
                 "--- INFRAESTRUCTURA REQUERIDA ---",
                 *obtener_resumen_infraestructura(canalizacion_items, cable_items),
-                "",
-                "--- CONSUMIBLES DE CONECTIVIDAD ---",
-                f"Plugs RJ45: {var_plugs_rj45.get().strip() or '0'}",
-                f"Jacks RJ45: {var_jacks_rj45.get().strip() or '0'}",
-                f"Keystone: {var_keystone.get().strip() or '0'}",
-                f"Faceplates: {var_faceplate.get().strip() or '0'}",
-                f"Patch cords: {var_patchcord.get().strip() or '0'}",
                 "",
                 "--- RACK, GABINETE Y ENERGÍA ---",
                 f"Rack requerido: {var_rack_requerido.get().strip() or 'No'}" + (f" | Tipo: {var_tipo_rack.get().strip()}" if var_rack_requerido.get() == "Sí" and var_tipo_rack.get().strip() else ""),

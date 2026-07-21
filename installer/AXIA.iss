@@ -1,5 +1,5 @@
 #define MyAppName "AXIA"
-#define MyAppVersion "0.95.4"
+#define MyAppVersion "0.95.5"
 #define MyAppPublisher "AXIA Comunicaciones"
 #define MyAppExeName "AXIA.exe"
 
@@ -49,14 +49,12 @@ Source: "..\dist\AXIA\*"; \
 
 [Icons]
 Name: "{autoprograms}\AXIA"; \
-    Filename: "{app}\AXIA.exe"; \
+    Filename: "{app}\{#MyAppExeName}"; \
     WorkingDir: "{app}"
-    IconFilename: "{app}\AXIA.exe"
 
 Name: "{autodesktop}\AXIA"; \
-    Filename: "{app}\AXIA.exe"; \
+    Filename: "{app}\{#MyAppExeName}"; \
     WorkingDir: "{app}"; \
-    IconFilename: "{app}\AXIA.exe"
     Tasks: desktopicon
 
 [Run]
