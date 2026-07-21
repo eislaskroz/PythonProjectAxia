@@ -11,8 +11,9 @@ from PIL import Image
 # Framework visual utilizado en el sistema
 import customtkinter as ctk
 
-# Cache visual: evita abrir y decodificar el mismo PNG en cada ventana.
-_LOGO_CACHE = {}
+# Cache únicamente de la imagen PIL base.
+# No se reutilizan objetos CTkImage entre ventanas raíz distintas porque
+# pertenecen al intérprete Tcl/Tk que los creó y dejan de existir al cerrar sesión.
 _BASE_LOGO_IMAGE = None
 
 # =========================================================
@@ -107,22 +108,19 @@ def cargar_logo_axia(size=(210, 210)):
 
     global _BASE_LOGO_IMAGE
     key = tuple(size)
-    cached = _LOGO_CACHE.get(key)
-    if cached is not None:
-        return cached
 
-    # Se decodifica una sola vez y se conserva en memoria durante la sesión.
+    # El PNG se decodifica una sola vez, pero se crea un CTkImage nuevo para
+    # cada ventana raíz. Reutilizar un CTkImage después de app.destroy() causa
+    # el error TclError: image "pyimageX" doesn't exist al volver al Login.
     if _BASE_LOGO_IMAGE is None:
         with Image.open(ruta_logo) as source:
             _BASE_LOGO_IMAGE = source.convert("RGBA").copy()
 
-    logo = ctk.CTkImage(
+    return ctk.CTkImage(
         light_image=_BASE_LOGO_IMAGE,
         dark_image=_BASE_LOGO_IMAGE,
         size=key
     )
-    _LOGO_CACHE[key] = logo
-    return logo
 
 # =========================================================
 # FUNCIÓN: configurar_icono_ventana()

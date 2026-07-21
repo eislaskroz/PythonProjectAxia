@@ -282,7 +282,7 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
 
     ctk.CTkButton(
         acciones_sesion,
-        text="🔒 Cerrar",
+        text="⏻ Cerrar AXIA",
         width=98,
         height=38,
         corner_radius=10,
@@ -290,7 +290,7 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
         hover_color="#475569",
         text_color=WHITE,
         font=BUTTON_FONT,
-        command=on_logout or on_exit
+        command=on_exit
     ).grid(
         row=0,
         column=0,
@@ -300,7 +300,7 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
 
     ctk.CTkButton(
         acciones_sesion,
-        text="⏻ Salir",
+        text="🔒 Salir",
         width=98,
         height=38,
         corner_radius=10,
@@ -308,7 +308,7 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
         hover_color=BUTTON_HOVER,
         text_color=WHITE,
         font=BUTTON_FONT,
-        command=on_exit
+        command=on_logout or on_exit
     ).grid(
         row=0,
         column=1,
