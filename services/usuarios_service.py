@@ -20,6 +20,7 @@ Incluye:
 
 from supabase_config import supabase, TABLA_USUARIOS
 from utils import encriptar_password
+from security.permissions import OPERADOR, TIPOS_VALIDOS
 from security.data_encryption import (
     cifrar_diccionario,
     descifrar_diccionario,
@@ -82,6 +83,15 @@ def validar_datos_usuario(datos):
     if not datos.get("usu_apellido"):
         return False, "El apellido es obligatorio."
 
+    try:
+        usu_tipo = int(datos.get("usu_tipo", OPERADOR))
+    except (TypeError, ValueError):
+        return False, "El tipo de usuario debe ser un número entre 1 y 6."
+
+    if usu_tipo not in TIPOS_VALIDOS:
+        return False, "El tipo de usuario debe estar entre 1 y 6."
+
+    datos["usu_tipo"] = usu_tipo
     return True, "Datos válidos"
 
 
@@ -125,7 +135,9 @@ def registrar_usuario(datos):
             datos_guardar["usu_password"]
         )
 
-        datos_guardar["usu_tipo"] = 3
+        # Si el alta no proviene del módulo administrativo se aplica el
+        # principio de menor privilegio: Operador (nivel 4).
+        datos_guardar["usu_tipo"] = int(datos_guardar.get("usu_tipo", OPERADOR))
 
         datos_guardar = cifrar_diccionario(datos_guardar, CAMPOS_SENSIBLES_USUARIO)
 
@@ -231,6 +243,14 @@ def actualizar_usuario_admin(id_usuario, datos):
 
         datos_guardar = normalizar_datos_usuario(dict(datos))
         datos_guardar.pop("confirmar_password", None)
+
+        if "usu_tipo" in datos_guardar:
+            try:
+                datos_guardar["usu_tipo"] = int(datos_guardar["usu_tipo"])
+            except (TypeError, ValueError):
+                return False, "El tipo de usuario debe ser un número entre 1 y 6.", None
+            if datos_guardar["usu_tipo"] not in TIPOS_VALIDOS:
+                return False, "El tipo de usuario debe estar entre 1 y 6.", None
 
         password = datos_guardar.get("usu_password", "")
         if password:
@@ -407,3 +427,80 @@ def cambiar_password_usuario_actual(password_actual, password_nuevo, password_co
     except Exception as error:
         logger.exception("Error al cambiar contraseña del usuario actual.")
         return False, f"No fue posible cambiar la contraseña.\n\n{error}"
+
+
+def _nombre_mostrable_usuario(usuario):
+    """Construye el nombre legible usado en selectores operativos."""
+    nombre = " ".join(
+        parte.strip()
+        for parte in (
+            str(usuario.get("usu_nombre", "") or ""),
+            str(usuario.get("usu_apellido", "") or ""),
+        )
+        if parte and parte.strip()
+    ).strip()
+    nickname = str(usuario.get("usu_nickname", "") or "").strip()
+    return nombre or nickname
+
+
+def obtener_usuarios_por_tipos(tipos, limite=500):
+    """
+    Obtiene usuarios para los selectores de asignación de formularios.
+
+    No recupera contraseñas ni datos personales sensibles. Devuelve únicamente
+    id, nickname, nombre, apellido y tipo. Los registros se ordenan por nombre.
+    """
+    try:
+        tipos_validos = sorted({int(tipo) for tipo in tipos if int(tipo) in TIPOS_VALIDOS})
+        if not tipos_validos:
+            return []
+
+        respuesta = (
+            supabase
+            .table(TABLA_USUARIOS)
+            .select("id_usuario,usu_nickname,usu_nombre,usu_apellido,usu_tipo")
+            .in_("usu_tipo", tipos_validos)
+            .limit(limite)
+            .execute()
+        )
+
+        registros_validos = []
+        frecuencias = {}
+        for registro in respuesta.data or []:
+            nombre_base = _nombre_mostrable_usuario(registro)
+            if not nombre_base:
+                continue
+            registros_validos.append((registro, nombre_base))
+            clave = nombre_base.casefold()
+            frecuencias[clave] = frecuencias.get(clave, 0) + 1
+
+        usuarios = []
+        for registro, nombre_base in registros_validos:
+            etiqueta = nombre_base
+            if frecuencias.get(nombre_base.casefold(), 0) > 1:
+                nickname = str(registro.get("usu_nickname", "") or "").strip()
+                etiqueta = f"{nombre_base} ({nickname})" if nickname else nombre_base
+            usuarios.append({**registro, "etiqueta": etiqueta})
+
+        return sorted(usuarios, key=lambda item: item["etiqueta"].casefold())
+    except Exception:
+        logger.exception("Error al obtener usuarios por tipo para formularios.")
+        return []
+
+
+def obtener_nombres_usuarios_por_tipos(tipos, limite=500):
+    """Devuelve solo las etiquetas legibles para CTkOptionMenu."""
+    return [
+        usuario["etiqueta"]
+        for usuario in obtener_usuarios_por_tipos(tipos, limite=limite)
+    ]
+
+
+def obtener_tecnicos_responsables(limite=500):
+    """Operadores (usu_tipo = 4) disponibles como técnicos responsables."""
+    return obtener_nombres_usuarios_por_tipos([4], limite=limite)
+
+
+def obtener_supervisores_formulario(limite=500):
+    """Jefes de Operaciones y Supervisores (usu_tipo 2 y 3)."""
+    return obtener_nombres_usuarios_por_tipos([2, 3], limite=limite)

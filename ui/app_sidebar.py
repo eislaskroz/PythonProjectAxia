@@ -44,7 +44,16 @@ from ui.fonts import (
     BUTTON_FONT
 )
 
-from security.permissions import es_admin
+from security.permissions import (
+    es_admin,
+    puede_administrar_clientes,
+    puede_administrar_usuarios,
+    puede_consultar_procesos,
+    puede_entrar_inicio_aco,
+    puede_generar_levantamiento,
+    puede_ver_auditoria,
+    puede_ver_reportes,
+)
 
 
 # =====================================================
@@ -179,68 +188,64 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
     # BOTONES PRINCIPALES
     # =================================================
     usuario_es_admin = es_admin(usuario_activo)
+    puede_inicio = puede_entrar_inicio_aco(usuario_activo)
+    puede_consulta = puede_consultar_procesos(usuario_activo)
 
-    crear_boton_sidebar(
-        sidebar,
-        "🏠 Inicio ACO",
-        callbacks["inicio_aco"]
-    )
+    if puede_inicio:
+        crear_boton_sidebar(
+            sidebar,
+            "🏠 Inicio ACO",
+            callbacks["inicio_aco"]
+        )
 
-    crear_boton_sidebar(
-        sidebar,
-        "📋 Levantamientos",
-        callbacks["admin_levantamientos"] if usuario_es_admin else callbacks["levantamiento"]
-    )
+    if puede_generar_levantamiento(usuario_activo):
+        crear_boton_sidebar(
+            sidebar,
+            "📋 Levantamientos",
+            callbacks["admin_levantamientos"] if puede_consulta else callbacks["levantamiento"]
+        )
 
-    crear_boton_sidebar(
-        sidebar,
-        "🧾 Órdenes de servicio",
-        callbacks["admin_ordenes_servicio"] if usuario_es_admin else None,
-        habilitado=usuario_es_admin
-    )
+    if puede_consulta:
+        crear_boton_sidebar(
+            sidebar,
+            "🧾 Órdenes de servicio",
+            callbacks["admin_ordenes_servicio"]
+        )
 
-    crear_boton_sidebar(
-        sidebar,
-        "🛠️ Órdenes de trabajo",
-        callbacks["admin_ordenes_trabajo"] if usuario_es_admin else None,
-        habilitado=usuario_es_admin
-    )
+        crear_boton_sidebar(
+            sidebar,
+            "🛠️ Órdenes de trabajo",
+            callbacks["admin_ordenes_trabajo"]
+        )
 
-    crear_boton_sidebar(
-        sidebar,
-        "📊 Bitácoras operativas",
-        callbacks["admin_bitacoras"] if usuario_es_admin else None,
-        habilitado=usuario_es_admin
-    )
+        crear_boton_sidebar(
+            sidebar,
+            "📊 Bitácoras operativas",
+            callbacks["admin_bitacoras"]
+        )
 
-    # Obras civiles se retira del menú lateral.
-    # El flujo queda integrado desde Inicio ACO / Levantamientos.
-
-    # =================================================
-    # OPCIONES ADMINISTRADOR
-    # =================================================
-    if usuario_es_admin:
+    if puede_ver_reportes(usuario_activo):
         crear_boton_sidebar(
             sidebar,
             "📈 Reportes",
             callbacks["reportes"]
         )
 
-        # Dashboard se retira temporalmente porque todavía no
-        # aporta funcionalidad operativa y ocupa espacio vertical.
-
+    if puede_ver_auditoria(usuario_activo):
         crear_boton_sidebar(
             sidebar,
             "🛡️ Auditoría",
             callbacks["auditoria"]
         )
 
+    if puede_administrar_usuarios(usuario_activo):
         crear_boton_sidebar(
             sidebar,
             "👥 Usuarios",
             callbacks["usuarios"]
         )
 
+    if puede_administrar_clientes(usuario_activo):
         crear_boton_sidebar(
             sidebar,
             "🏢 Clientes",

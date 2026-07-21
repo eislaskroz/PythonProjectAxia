@@ -9,7 +9,7 @@ import customtkinter as ctk
 from tkinter import messagebox
 
 from app_context import obtener_usuario_actual
-from security.permissions import es_admin
+from security.permissions import puede_ver_auditoria
 from ui.colors import WHITE, TEXT_PRIMARY, TEXT_SECONDARY, PRIMARY, SECONDARY, BUTTON_HOVER
 from ui.fonts import TEXT_MD, TEXT_SM, BUTTON_FONT
 from services.auditoria_service import (
@@ -37,8 +37,8 @@ COLUMNAS = {
 
 def mostrar_auditoria(parent, app):
     usuario_activo = obtener_usuario_actual()
-    if not es_admin(usuario_activo):
-        messagebox.showerror("Acceso denegado", "Solo administradores pueden consultar auditoría.")
+    if not puede_ver_auditoria(usuario_activo):
+        messagebox.showerror("Acceso denegado", "La auditoría de accesos y movimientos está reservada al Administrador.")
         app.mostrar_vista_inicio_aco()
         return
 

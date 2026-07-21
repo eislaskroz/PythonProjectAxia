@@ -23,3 +23,10 @@ logs/
 *.log
 *.exe
 *.msi
+
+# Importaciones de usuarios y respaldos sensibles
+listaoperadores.csv
+importacion_usuarios/salida/
+*CREDENCIALES_TEMPORALES*
+respaldo_db_usuarios_*.json
+usuarios_preparados_seguros.json

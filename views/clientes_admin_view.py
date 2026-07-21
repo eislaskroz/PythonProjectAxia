@@ -15,7 +15,7 @@ import customtkinter as ctk
 from tkinter import messagebox
 
 from app_context import obtener_usuario_actual
-from security.permissions import es_admin
+from security.permissions import puede_administrar_clientes
 from ui.date_picker import abrir_selector_fecha
 from ui.colors import WHITE, TEXT_PRIMARY, TEXT_SECONDARY, SECONDARY, BUTTON_HOVER
 from ui.fonts import TEXT_SM, BUTTON_FONT
@@ -62,8 +62,8 @@ def mostrar_clientes_admin(parent, app):
     """
 
     usuario_activo = obtener_usuario_actual()
-    if not es_admin(usuario_activo):
-        messagebox.showerror("Acceso denegado", "Solo administradores pueden administrar clientes.")
+    if not puede_administrar_clientes(usuario_activo):
+        messagebox.showerror("Acceso denegado", "Tu nivel de usuario no tiene permiso para administrar clientes.")
         app.mostrar_vista_inicio_aco()
         return
 

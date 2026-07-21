@@ -47,6 +47,7 @@ from services.levantamientos_service import (
     buscar_levantamiento_por_folio
 )
 from services.folios_service import generar_siguiente_folio
+from services.usuarios_service import obtener_tecnicos_responsables, obtener_supervisores_formulario
 from views.formato_helpers import generar_pdf_preview, generar_pdf_archivo, enfocar_inicio_formulario
 
 from security.permissions import puede_generar_levantamiento
@@ -335,6 +336,14 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
     var_supervisor = ctk.StringVar()
     var_fecha_programada = ctk.StringVar()
     var_fecha_realizacion = ctk.StringVar()
+
+    # Catálogos de asignación obtenidos directamente de db_usuarios.
+    tecnicos_disponibles = obtener_tecnicos_responsables()
+    supervisores_disponibles = obtener_supervisores_formulario()
+    if tecnicos_disponibles and not var_tecnico.get().strip():
+        var_tecnico.set(tecnicos_disponibles[0])
+    if supervisores_disponibles and not var_supervisor.get().strip():
+        var_supervisor.set(supervisores_disponibles[0])
 
     materiales_miscelaneos_items = []
     equipos_catalogo_items = []
@@ -1117,18 +1126,18 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         var_estatus.set("Pendiente")
         fila_operativa = fila_inicio_operativa
 
-    campo_entry(
+    campo_option(
         "Técnico responsable",
         var_tecnico,
-        "Nombre del técnico",
+        tecnicos_disponibles or ["Sin operadores tipo 4 registrados"],
         columna=0,
         fila=fila_operativa
     )
 
-    campo_entry(
+    campo_option(
         "Supervisor",
         var_supervisor,
-        "Nombre del supervisor",
+        supervisores_disponibles or ["Sin usuarios tipo 2 o 3 registrados"],
         columna=1,
         fila=fila_operativa
     )

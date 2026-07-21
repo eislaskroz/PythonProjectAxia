@@ -103,7 +103,7 @@ def _valor_visible(valor):
 def _normalizar_valor_usuario(campo, valor):
     """Convierte valores técnicos a texto legible para Mi Usuario."""
     if campo == "usu_tipo":
-        mapa = {1: "Administrador", 2: "Supervisor", 3: "Usuario operativo", "1": "Administrador", "2": "Supervisor", "3": "Usuario operativo"}
+        mapa = {1: "Administrador", 2: "Jefe de Operaciones", 3: "Supervisor", 4: "Operador", 5: "Administrativo", 6: "Especial", "1": "Administrador", "2": "Jefe de Operaciones", "3": "Supervisor", "4": "Operador", "5": "Administrativo", "6": "Especial"}
         return mapa.get(valor, _valor_visible(valor))
     return _valor_visible(valor)
 

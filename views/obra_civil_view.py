@@ -10,6 +10,7 @@ from services.aco_context_service import normalizar_datos_aco
 from services.acos_service import buscar_aco_por_numero
 from services.clientes_service import buscar_clientes, construir_direccion_cliente
 from services.folios_service import generar_siguiente_folio
+from services.usuarios_service import obtener_supervisores_formulario
 from services.movimientos_service import registrar_movimiento
 from services.materiales_catalogo_service import obtener_materiales_por_especialidad, UNIDADES_MATERIAL
 from services.equipos_catalogo_service import (
@@ -38,6 +39,7 @@ def mostrar_obra_civil(parent, app, aco=None):
         widget.destroy()
 
     datos_aco = normalizar_datos_aco(aco)
+    supervisores_disponibles = obtener_supervisores_formulario()
     entradas_bloqueadas = []
     campos_validables = []
     evidencias = []
@@ -55,6 +57,8 @@ def mostrar_obra_civil(parent, app, aco=None):
     var_direccion = ctk.StringVar(value=datos_aco.get("direccion", ""))
     var_responsable = ctk.StringVar(value=datos_aco.get("responsable", "") or usuario_activo.get("nombre", "") or usuario_activo.get("usuario", ""))
     var_supervisor = ctk.StringVar(value=datos_aco.get("supervisor", ""))
+    if supervisores_disponibles and not var_supervisor.get().strip():
+        var_supervisor.set(supervisores_disponibles[0])
     var_tipo_giro = ctk.StringVar()
     var_nombre_proyecto = ctk.StringVar()
 
@@ -243,7 +247,7 @@ def mostrar_obra_civil(parent, app, aco=None):
         if clientes_por_nombre:
             cargar_cliente(var_cliente_selector.get())
 
-    entry("Supervisor", var_supervisor, 3, 0, "Supervisor")
+    option("Supervisor", var_supervisor, supervisores_disponibles or ["Sin usuarios tipo 2 o 3 registrados"], 3, 0)
     entry("Tipo de giro", var_tipo_giro, 3, 1, "Ej. Bancario, retail, oficina")
     entry("Nombre del proyecto", var_nombre_proyecto, 3, 2, "Proyecto ejecutivo", colspan=2)
 

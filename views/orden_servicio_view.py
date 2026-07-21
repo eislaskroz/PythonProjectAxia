@@ -15,6 +15,7 @@ from services.movimientos_service import registrar_movimiento
 from services.aco_context_service import normalizar_datos_aco
 from services.acos_service import buscar_aco_por_numero
 from services.folios_service import generar_siguiente_folio
+from services.usuarios_service import obtener_supervisores_formulario
 from services.ordenes_servicio_service import crear_orden_servicio, buscar_orden_por_folio
 from security.permissions import puede_generar_orden
 from views.formato_helpers import ENTRY_H, OPTION_H, LABEL_FONT, SMALL_FONT, SECTION_FONT, obtener_textbox, enfocar_inicio_formulario, firmar_en_popup, generar_pdf_preview, generar_pdf_archivo
@@ -38,6 +39,7 @@ def mostrar_orden_servicio(parent, app, aco=None):
     contenedor.pack(fill="both", expand=True, padx=7, pady=5)
 
     datos_aco = normalizar_datos_aco(aco)
+    supervisores_disponibles = obtener_supervisores_formulario()
     entradas_bloqueadas = []
     campos_validables = []
     textboxes_validables = []
@@ -56,6 +58,8 @@ def mostrar_orden_servicio(parent, app, aco=None):
     var_hora_salida = ctk.StringVar()
     var_aco = ctk.StringVar(value=datos_aco.get("aco_numero", ""))
     var_supervisor = ctk.StringVar(value=datos_aco.get("supervisor", ""))
+    if supervisores_disponibles and not var_supervisor.get().strip():
+        var_supervisor.set(supervisores_disponibles[0])
     var_encargado_servicio = ctk.StringVar(value=datos_aco.get("contacto", ""))
     var_tecnicos = ctk.StringVar()
     var_eval_trato = ctk.StringVar(value="Bueno")
@@ -184,7 +188,7 @@ def mostrar_orden_servicio(parent, app, aco=None):
     for i, tipo in enumerate(TIPOS_SERVICIO):
         cb = ctk.CTkCheckBox(grid, text=tipo, variable=tipos_vars[tipo], font=SMALL_FONT, text_color=TEXT_PRIMARY, height=24, command=lambda: validar_preview())
         cb.grid(row=i // 5, column=i % 5, sticky="w", padx=4, pady=1)
-    entry("Supervisor", var_supervisor, "Nombre", 6, 0)
+    option("Supervisor", var_supervisor, supervisores_disponibles or ["Sin usuarios tipo 2 o 3 registrados"], 6, 0)
     entry("Encargado", var_encargado_servicio, "Autollenado", 6, 1, lock=True)
     entry("Técnicos", var_tecnicos, "Técnicos asignados", 6, 2)
 

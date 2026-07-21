@@ -14,7 +14,7 @@ import customtkinter as ctk
 from tkinter import messagebox
 
 from app_context import obtener_usuario_actual
-from security.permissions import es_superadmin
+from security.permissions import puede_ver_reportes
 
 from ui.colors import WHITE, TEXT_PRIMARY, TEXT_SECONDARY, PRIMARY, SECONDARY, BUTTON_HOVER
 from ui.fonts import TEXT_MD, TEXT_SM, BUTTON_FONT
@@ -94,10 +94,10 @@ def mostrar_reportes(parent, app):
 
     usuario_activo = obtener_usuario_actual()
 
-    if not es_superadmin(usuario_activo):
+    if not puede_ver_reportes(usuario_activo):
         messagebox.showerror(
             "Acceso denegado",
-            "Solo usuarios con permisos de superadministrador pueden consultar reportes."
+            "Tu nivel de usuario no tiene permiso para consultar reportes."
         )
         app.mostrar_vista_inicio_aco()
         return

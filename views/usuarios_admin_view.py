@@ -10,7 +10,7 @@ import customtkinter as ctk
 from tkinter import messagebox
 
 from app_context import obtener_usuario_actual
-from security.permissions import es_admin
+from security.permissions import puede_administrar_usuarios
 from ui.date_picker import abrir_selector_fecha
 from ui.colors import WHITE, TEXT_PRIMARY, TEXT_SECONDARY, SECONDARY, BUTTON_HOVER
 from ui.fonts import TEXT_MD, TEXT_SM, BUTTON_FONT
@@ -26,6 +26,7 @@ CAMPOS_USUARIO = [
     ("usu_password", "Nueva contraseña", False),
     ("usu_nombre", "Nombre", True),
     ("usu_apellido", "Apellido", True),
+    ("usu_tipo", "Tipo de usuario (1-6)", True),
     ("usu_rfc", "RFC", False),
     ("usu_curp", "CURP", False),
     ("usu_imss", "IMSS", False),
@@ -50,8 +51,8 @@ def mostrar_usuarios_admin(parent, app):
     """
 
     usuario_activo = obtener_usuario_actual()
-    if not es_admin(usuario_activo):
-        messagebox.showerror("Acceso denegado", "Solo administradores pueden administrar usuarios.")
+    if not puede_administrar_usuarios(usuario_activo):
+        messagebox.showerror("Acceso denegado", "Tu nivel de usuario no tiene permiso para administrar usuarios.")
         app.mostrar_vista_inicio_aco()
         return
 

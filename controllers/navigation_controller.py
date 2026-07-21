@@ -25,6 +25,18 @@ Solo coordina qué vista se muestra y cuándo.
 # =====================================================
 
 import customtkinter as ctk
+from tkinter import messagebox
+
+from app_context import obtener_usuario_actual
+from security.permissions import (
+    puede_administrar_clientes,
+    puede_administrar_usuarios,
+    puede_consultar_procesos,
+    puede_entrar_inicio_aco,
+    puede_generar_levantamiento,
+    puede_ver_auditoria,
+    puede_ver_reportes,
+)
 
 # =====================================================
 # IMPORTACIÓN DIFERIDA DE VISTAS Y SERVICIOS
@@ -87,6 +99,19 @@ class NavigationController:
         self._historial = []
         self._vista_actual = None
         self._regresando = False
+
+    def _verificar_permiso(self, validador, mensaje):
+        """Aplica defensa en profundidad antes de cargar una vista."""
+        usuario = obtener_usuario_actual()
+        if validador(usuario):
+            return True
+        logger.warning(
+            "Acceso denegado a vista para usuario=%s usu_tipo=%s",
+            usuario.get("usuario"),
+            usuario.get("usu_tipo"),
+        )
+        messagebox.showerror("Acceso denegado", mensaje)
+        return False
 
     # =================================================
     # HISTORIAL DE NAVEGACIÓN
@@ -154,6 +179,10 @@ class NavigationController:
         Carga la pantalla inicial del flujo operativo ACO.
         """
 
+        if not puede_entrar_inicio_aco(obtener_usuario_actual()):
+            self.mostrar_selector_levantamiento()
+            return
+
         self._registrar_vista("mostrar_inicio_aco")
         logger.info("Cargando vista: Inicio ACO")
         self.limpiar_contenido()
@@ -198,6 +227,12 @@ class NavigationController:
         """
         Carga la pantalla previa para seleccionar el tipo de levantamiento.
         """
+
+        if not self._verificar_permiso(
+            puede_generar_levantamiento,
+            "Tu nivel de usuario no tiene permiso para agregar levantamientos.",
+        ):
+            return
 
         self._registrar_vista("mostrar_selector_levantamiento", aco=aco)
         logger.info("Cargando selector de tipo de levantamiento")
@@ -335,6 +370,13 @@ class NavigationController:
         No genera registros nuevos; la creación inicia desde Inicio ACO.
         """
 
+        if not self._verificar_permiso(
+            puede_consultar_procesos,
+            "Tu nivel de usuario no tiene permiso para consultar esta sección.",
+        ):
+            return
+
+
         self._registrar_vista("mostrar_admin_levantamientos")
         logger.info("Cargando vista administrativa: Levantamientos")
         self.limpiar_contenido()
@@ -366,6 +408,13 @@ class NavigationController:
         """
         Carga la administración/consulta de órdenes de servicio.
         """
+
+        if not self._verificar_permiso(
+            puede_consultar_procesos,
+            "Tu nivel de usuario no tiene permiso para consultar esta sección.",
+        ):
+            return
+
 
         self._registrar_vista("mostrar_admin_ordenes_servicio")
         logger.info("Cargando vista administrativa: Órdenes de Servicio")
@@ -399,6 +448,13 @@ class NavigationController:
         Carga la administración/consulta de órdenes de trabajo.
         """
 
+        if not self._verificar_permiso(
+            puede_consultar_procesos,
+            "Tu nivel de usuario no tiene permiso para consultar esta sección.",
+        ):
+            return
+
+
         self._registrar_vista("mostrar_admin_ordenes_trabajo")
         logger.info("Cargando vista administrativa: Órdenes de Trabajo")
         self.limpiar_contenido()
@@ -430,6 +486,13 @@ class NavigationController:
         """
         Carga la administración/consulta de bitácoras operativas.
         """
+
+        if not self._verificar_permiso(
+            puede_consultar_procesos,
+            "Tu nivel de usuario no tiene permiso para consultar esta sección.",
+        ):
+            return
+
 
         self._registrar_vista("mostrar_admin_bitacoras")
         logger.info("Cargando vista administrativa: Bitácoras Operativas")
@@ -463,6 +526,13 @@ class NavigationController:
         """
         Carga la administración/consulta de obras civiles.
         """
+
+        if not self._verificar_permiso(
+            puede_consultar_procesos,
+            "Tu nivel de usuario no tiene permiso para consultar esta sección.",
+        ):
+            return
+
 
         self._registrar_vista("mostrar_admin_obras_civiles")
         logger.info("Cargando vista administrativa: Obras Civiles")
@@ -499,6 +569,13 @@ class NavigationController:
         Carga la vista administrativa de reportes.
         """
 
+        if not self._verificar_permiso(
+            puede_ver_reportes,
+            "Tu nivel de usuario no tiene permiso para consultar reportes.",
+        ):
+            return
+
+
         self._registrar_vista("mostrar_reportes")
         logger.info("Cargando vista: Reportes")
         self.limpiar_contenido()
@@ -524,6 +601,13 @@ class NavigationController:
         Carga la vista administrativa para buscar, crear y editar usuarios.
         """
 
+        if not self._verificar_permiso(
+            puede_administrar_usuarios,
+            "Tu nivel de usuario no tiene permiso para administrar usuarios.",
+        ):
+            return
+
+
         self._registrar_vista("mostrar_usuarios")
         logger.info("Cargando vista: Administración de Usuarios")
         self.limpiar_contenido()
@@ -547,6 +631,13 @@ class NavigationController:
         """
         Carga la vista administrativa para buscar, crear y editar clientes.
         """
+
+        if not self._verificar_permiso(
+            puede_administrar_clientes,
+            "Tu nivel de usuario no tiene permiso para administrar clientes.",
+        ):
+            return
+
 
         self._registrar_vista("mostrar_clientes")
         logger.info("Cargando vista: Administración de Clientes")
@@ -624,6 +715,13 @@ class NavigationController:
         """
         Carga la vista administrativa de auditoría.
         """
+
+        if not self._verificar_permiso(
+            puede_ver_auditoria,
+            "La auditoría de accesos y movimientos está reservada al Administrador.",
+        ):
+            return
+
 
         self._registrar_vista("mostrar_auditoria")
         logger.info("Cargando vista: Auditoría")

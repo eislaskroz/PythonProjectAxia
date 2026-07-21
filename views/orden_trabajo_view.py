@@ -15,6 +15,7 @@ from services.movimientos_service import registrar_movimiento
 from services.aco_context_service import normalizar_datos_aco
 from services.acos_service import buscar_aco_por_numero
 from services.folios_service import generar_siguiente_folio
+from services.usuarios_service import obtener_supervisores_formulario
 from services.ordenes_trabajo_service import crear_orden_trabajo, buscar_orden_trabajo_por_folio
 from security.permissions import puede_generar_orden
 from views.formato_helpers import ENTRY_H, LABEL_FONT, SMALL_FONT, SECTION_FONT, generar_pdf_preview, generar_pdf_archivo, enfocar_inicio_formulario
@@ -34,6 +35,7 @@ def mostrar_orden_trabajo(parent, app, aco=None):
     contenedor.pack(fill="both", expand=True, padx=7, pady=5)
 
     datos_aco = normalizar_datos_aco(aco)
+    supervisores_disponibles = obtener_supervisores_formulario()
     entradas_bloqueadas = []
     campos_validables = []
     btn_preview = None
@@ -46,6 +48,8 @@ def mostrar_orden_trabajo(parent, app, aco=None):
     var_sucursal = ctk.StringVar(value=datos_aco.get("sucursal", ""))
     var_jefe_operacion = ctk.StringVar(value=datos_aco.get("jefe_operacion", ""))
     var_supervisor = ctk.StringVar(value=datos_aco.get("supervisor", ""))
+    if supervisores_disponibles and not var_supervisor.get().strip():
+        var_supervisor.set(supervisores_disponibles[0])
     var_esi = ctk.StringVar(value=datos_aco.get("esi", ""))
     var_numero_dias = ctk.StringVar()
     var_numero_personas = ctk.StringVar()
@@ -88,6 +92,23 @@ def mostrar_orden_trabajo(parent, app, aco=None):
             var.trace_add("write", lambda *_: validar_preview())
         return e
 
+    def option(texto, var, values, fila=0, col=0, required=True):
+        c = celda(fila, col)
+        label(c, texto)
+        menu = ctk.CTkOptionMenu(
+            c,
+            variable=var,
+            values=values,
+            height=ENTRY_H,
+            corner_radius=8,
+            font=SMALL_FONT,
+        )
+        menu.pack(fill="x")
+        if required:
+            campos_validables.append(var)
+            var.trace_add("write", lambda *_: validar_preview())
+        return menu
+
     def bloquear_autollenados():
         for e in entradas_bloqueadas:
             e.configure(state="disabled")
@@ -128,7 +149,7 @@ def mostrar_orden_trabajo(parent, app, aco=None):
     entry("Contacto", var_contacto, "Autollenado", 2, 0, lock=True)
     entry("Sucursal", var_sucursal, "Autollenado", 2, 1, lock=True)
     entry("Jefe de Operación", var_jefe_operacion, "Autollenado", 2, 2, lock=True)
-    entry("Supervisor", var_supervisor, "Nombre", 2, 3)
+    option("Supervisor", var_supervisor, supervisores_disponibles or ["Sin usuarios tipo 2 o 3 registrados"], 2, 3)
     entry("ESI", var_esi, "ESI", 3, 0)
     entry("Número de Días", var_numero_dias, "Ej. 3", 3, 1)
     entry("Número de Personas", var_numero_personas, "Ej. 2", 3, 2)

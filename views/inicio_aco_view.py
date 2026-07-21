@@ -276,14 +276,10 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
         Muestra las opciones operativas disponibles
         después de validar correctamente un ACO.
 
-        REGLA OPERATIVA:
-            - ADMIN / usu_tipo = 1:
-                Puede generar levantamiento, orden de servicio,
-                orden de trabajo y bitácora operativa.
-
-            - TÉCNICO / otros tipos:
-                Solo puede generar orden de servicio, orden de trabajo
-                o bitácora operativa de avance.
+        Las opciones se construyen con la matriz central de permisos:
+        Administrador, Jefe de Operaciones, Supervisor, Administrativo y
+        Especial pueden usar todos los flujos operativos. El Operador solo
+        puede generar levantamientos.
         """
 
         limpiar_frame(panel_dinamico)
@@ -300,7 +296,6 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
         # =================================================
 
         usuario_activo = obtener_usuario_actual()
-        usu_tipo = usuario_activo.get("usu_tipo", 3)
 
         # =================================================
         # ENCABEZADO DE CONFIRMACIÓN
@@ -785,7 +780,6 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     # =================================================
 
     usuario_activo = obtener_usuario_actual()
-    es_administrativo = usuario_activo.get("usu_tipo") == 1
 
     ctk.CTkButton(
         frame_botones,
