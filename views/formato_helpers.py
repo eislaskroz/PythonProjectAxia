@@ -17,6 +17,7 @@ from PIL import Image, ImageDraw
 
 from ui.colors import SECONDARY, TEXT_PRIMARY, TEXT_SECONDARY, BUTTON_HOVER, WHITE
 from ui.fonts import TEXT_SM, BUTTON_FONT
+from core.pdf import BasePdfGenerator
 
 ENTRY_H = 30
 OPTION_H = 30
@@ -169,7 +170,6 @@ def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, 
         from reportlab.graphics.barcode import qr
         from reportlab.graphics.shapes import Drawing
         from reportlab.graphics import renderPDF
-        from reportlab.pdfgen.canvas import Canvas
     except Exception as error:
         messagebox.showerror("Preview PDF", f"No está instalado reportlab.\n\n{error}")
         return False
@@ -183,7 +183,6 @@ def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, 
     folio = _valor_por_clave(["Folio OS", "Folio OT", "Folio BIT", "Folio OBC", "Folio LEV", "Folio de Levantamiento", "Folio Bitácora", "Folio de bitácora"])
     fecha = _valor_por_clave(["Fecha"])
     qr_texto = f"AXIA | {titulo} | {folio or 'SIN_FOLIO'} | {fecha or 'SIN_FECHA'}"
-    ruta_logo = Path(__file__).resolve().parents[1] / "assets" / "LogoAxia-Full.png"
 
     if ruta_salida:
         ruta = Path(ruta_salida)
@@ -191,20 +190,20 @@ def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, 
     else:
         ruta = Path(tempfile.gettempdir()) / f"AXIA_preview_{titulo.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     try:
-        doc = SimpleDocTemplate(str(ruta), pagesize=letter, rightMargin=32, leftMargin=32, topMargin=30, bottomMargin=42)
+        doc = SimpleDocTemplate(
+            str(ruta), pagesize=letter,
+            rightMargin=BasePdfGenerator.RIGHT_MARGIN,
+            leftMargin=BasePdfGenerator.LEFT_MARGIN,
+            topMargin=BasePdfGenerator.TOP_MARGIN,
+            bottomMargin=BasePdfGenerator.BOTTOM_MARGIN,
+        )
         estilos = getSampleStyleSheet()
-        estilo_normal = ParagraphStyle("AxiaNormal", parent=estilos["Normal"], fontSize=7, leading=8.2)
-        estilo_titulo = ParagraphStyle("AxiaTitle", parent=estilos["Title"], fontSize=13, leading=15, alignment=1)
-        estilo_sub = ParagraphStyle("AxiaSub", parent=estilos["Normal"], fontSize=7, leading=8.2, alignment=1, textColor=colors.HexColor("#44546A"))
+        estilos_axia = BasePdfGenerator.styles()
+        estilo_normal = estilos_axia["normal"]
+        estilo_titulo = estilos_axia["title"]
+        estilo_sub = estilos_axia["subtitle"]
 
         contenido = []
-
-        logo_obj = ""
-        if ruta_logo.exists():
-            try:
-                logo_obj = RLImage(str(ruta_logo), width=1.25 * inch, height=0.75 * inch)
-            except Exception:
-                logo_obj = ""
 
         qr_code = qr.QrCodeWidget(qr_texto)
         bounds = qr_code.getBounds()
@@ -213,12 +212,18 @@ def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, 
         dibujo_qr = Drawing(0.75 * inch, 0.75 * inch, transform=[0.75 * inch / qr_w, 0, 0, 0.75 * inch / qr_h, 0, 0])
         dibujo_qr.add(qr_code)
 
-        centro = [Paragraph(f"<b>{titulo}</b>", estilo_titulo), Paragraph(f"Folio: <b>{folio or 'Pendiente'}</b> &nbsp;&nbsp; Fecha: <b>{fecha or 'Pendiente'}</b>", estilo_sub)]
-        encabezado = Table([[logo_obj, centro, dibujo_qr]], colWidths=[1.55 * inch, 4.25 * inch, 0.95 * inch])
+        centro = [
+            Paragraph(f"<b>{titulo}</b>", estilo_titulo),
+            Paragraph(
+                f"Folio: <b>{folio or 'Pendiente'}</b> &nbsp;&nbsp; Fecha: <b>{fecha or 'Pendiente'}</b>",
+                estilo_sub,
+            ),
+        ]
+        encabezado = Table([[centro, dibujo_qr]], colWidths=[5.92 * inch, 0.75 * inch])
         encabezado.setStyle(TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("ALIGN", (1, 0), (1, 0), "CENTER"),
-            ("ALIGN", (2, 0), (2, 0), "RIGHT"),
+            ("ALIGN", (0, 0), (0, 0), "CENTER"),
+            ("ALIGN", (1, 0), (1, 0), "RIGHT"),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
         ]))
         contenido.append(encabezado)
@@ -480,26 +485,8 @@ def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, 
             contenido.append(Spacer(1, 8))
             contenido.append(firmas)
 
-        def _canvas_axia(filename, pagesize=None, **kwargs):
-            canvas = Canvas(filename, pagesize=pagesize, **kwargs)
-            canvas.setTitle(f"AXIA - {titulo}")
-            canvas.setAuthor("Sistema AXIA")
-            canvas.setSubject("Documento generado por Sistema AXIA")
-            canvas.setCreator("Sistema AXIA")
-            return canvas
-
-        def _pie_pagina(canvas, documento):
-            """Pie único para todos los formatos operativos de AXIA."""
-            canvas.saveState()
-            ancho, _alto = letter
-            canvas.setStrokeColor(colors.HexColor("#B8C2CC"))
-            canvas.setLineWidth(0.35)
-            canvas.line(32, 27, ancho - 32, 27)
-            canvas.setFont("Helvetica", 6.5)
-            canvas.setFillColor(colors.HexColor("#44546A"))
-            canvas.drawString(32, 16, "AXIA Comunicaciones S.A. de C.V. | Documento generado por Sistema AXIA")
-            canvas.drawRightString(ancho - 32, 16, f"Página {documento.page}")
-            canvas.restoreState()
+        def _pagina_corporativa(canvas, documento):
+            BasePdfGenerator.draw_page(canvas, documento, title=titulo)
 
         doc.title = f"AXIA - {titulo}"
         doc.author = "AXIA Comunicaciones S.A. de C.V."
@@ -507,9 +494,9 @@ def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, 
         doc.creator = "Sistema AXIA"
         doc.build(
             contenido,
-            canvasmaker=_canvas_axia,
-            onFirstPage=_pie_pagina,
-            onLaterPages=_pie_pagina,
+            canvasmaker=BasePdfGenerator.canvas_factory(titulo),
+            onFirstPage=_pagina_corporativa,
+            onLaterPages=_pagina_corporativa,
         )
         if abrir:
             os.startfile(str(ruta)) if os.name == "nt" else os.system(f'xdg-open "{ruta}" >/dev/null 2>&1 &')

@@ -20,6 +20,7 @@ import csv
 import json
 from pathlib import Path
 from tkinter import filedialog, messagebox
+from core.pdf import BasePdfGenerator
 
 
 def _normalizar_registros(registros):
@@ -100,7 +101,7 @@ def exportar_registros_dialogo(registros, nombre_sugerido="exportacion_axia"):
             from reportlab.lib import colors
             from reportlab.lib.styles import getSampleStyleSheet
 
-            doc = SimpleDocTemplate(str(ruta), pagesize=landscape(letter), rightMargin=28, leftMargin=28, topMargin=30, bottomMargin=42)
+            doc = SimpleDocTemplate(str(ruta), pagesize=landscape(letter), rightMargin=34, leftMargin=34, topMargin=76, bottomMargin=70)
             doc.title = "AXIA - Exportación"
             doc.author = "AXIA Comunicaciones S.A. de C.V."
             doc.subject = "Reporte exportado por Sistema AXIA"
@@ -121,19 +122,15 @@ def exportar_registros_dialogo(registros, nombre_sugerido="exportacion_axia"):
             ]))
             contenido.append(tabla)
 
-            def _pie_exportacion(canvas, documento):
-                canvas.saveState()
-                ancho, _alto = landscape(letter)
-                canvas.setStrokeColor(colors.HexColor("#B8C2CC"))
-                canvas.setLineWidth(0.35)
-                canvas.line(28, 27, ancho - 28, 27)
-                canvas.setFont("Helvetica", 6.5)
-                canvas.setFillColor(colors.HexColor("#44546A"))
-                canvas.drawString(28, 16, "AXIA Comunicaciones S.A. de C.V. | Documento generado por Sistema AXIA")
-                canvas.drawRightString(ancho - 28, 16, f"Página {documento.page}")
-                canvas.restoreState()
+            def _pagina_exportacion(canvas, documento):
+                BasePdfGenerator.draw_page(canvas, documento, title="Reporte de información")
 
-            doc.build(contenido, onFirstPage=_pie_exportacion, onLaterPages=_pie_exportacion)
+            doc.build(
+                contenido,
+                canvasmaker=BasePdfGenerator.canvas_factory("Reporte de información"),
+                onFirstPage=_pagina_exportacion,
+                onLaterPages=_pagina_exportacion,
+            )
         elif ruta.suffix.lower() == ".json":
             ruta.write_text(json.dumps(registros, ensure_ascii=False, indent=2), encoding="utf-8")
         elif ruta.suffix.lower() == ".txt":
