@@ -156,7 +156,7 @@ def buscar_aco_por_numero(aco_numero):
         respuesta = (
             supabase
             .table(TABLA_ACOS)
-            .select("*")
+            .select(COLUMNAS_ACOS)
             .eq("aco_numero", aco_numero)
             .execute()
         )
@@ -187,7 +187,7 @@ def buscar_aco_por_numero(aco_numero):
 # FUNCIÓN: obtener_acos()
 # =====================================================
 @ttl_cache(ttl_seconds=60)
-def obtener_acos():
+def obtener_acos(page=1, page_size=100):
     """
     Consulta todos los ACOs registrados.
 
@@ -200,8 +200,9 @@ def obtener_acos():
         respuesta = (
             supabase
             .table(TABLA_ACOS)
-            .select("*")
+            .select(COLUMNAS_ACOS)
             .order("fecha_registro", desc=True)
+            .range(*page_range(page, page_size))
             .execute()
         )
 

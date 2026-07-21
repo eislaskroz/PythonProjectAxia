@@ -1,37 +1,72 @@
-"""Medición ligera de rendimiento para AXIA.
-
-Se activa con AXIA_PERF_LOG=1. Los tiempos se escriben en el logger y permiten
-identificar cuellos de botella sin agregar dependencias externas.
-"""
+"""Utilidades de rendimiento para consultas, caché y trabajo en segundo plano."""
 from __future__ import annotations
 
-import os
+import threading
 import time
-from contextlib import contextmanager
-from typing import Iterator
+from dataclasses import dataclass
+from typing import Any, Callable
 
 from core.logger import configurar_logger
 
-logger = configurar_logger("axia.performance")
-_ENABLED = os.getenv("AXIA_PERF_LOG", "1").strip().lower() not in {"0", "false", "no"}
-_START = time.perf_counter()
+logger = configurar_logger(__name__)
+DEFAULT_PAGE_SIZE = 100
+MAX_PAGE_SIZE = 500
 
 
-def elapsed_ms() -> float:
-    return (time.perf_counter() - _START) * 1000.0
+def page_range(page: int = 1, page_size: int = DEFAULT_PAGE_SIZE) -> tuple[int, int]:
+    page = max(1, int(page or 1))
+    page_size = min(MAX_PAGE_SIZE, max(1, int(page_size or DEFAULT_PAGE_SIZE)))
+    start = (page - 1) * page_size
+    return start, start + page_size - 1
 
 
-def mark(label: str) -> None:
-    if _ENABLED:
-        logger.info("PERF %-38s %9.1f ms desde inicio", label, elapsed_ms())
+@dataclass
+class _CacheEntry:
+    value: Any
+    expires_at: float
 
 
-@contextmanager
-def measure(label: str) -> Iterator[None]:
-    start = time.perf_counter()
-    try:
-        yield
-    finally:
-        if _ENABLED:
-            duration = (time.perf_counter() - start) * 1000.0
-            logger.info("PERF %-38s %9.1f ms", label, duration)
+class TTLCache:
+    def __init__(self, ttl_seconds: int = 120):
+        self.ttl_seconds = ttl_seconds
+        self._items: dict[Any, _CacheEntry] = {}
+        self._lock = threading.RLock()
+
+    def get(self, key: Any):
+        with self._lock:
+            item = self._items.get(key)
+            if not item or item.expires_at <= time.monotonic():
+                self._items.pop(key, None)
+                return None
+            return item.value
+
+    def set(self, key: Any, value: Any):
+        with self._lock:
+            self._items[key] = _CacheEntry(value, time.monotonic() + self.ttl_seconds)
+
+    def clear(self):
+        with self._lock:
+            self._items.clear()
+
+
+def run_in_background(task: Callable[[], Any], *, widget=None, on_success=None, on_error=None, name="AXIA-worker"):
+    """Ejecuta red/PDF fuera del hilo Tk y devuelve callbacks al hilo visual."""
+    def dispatch(callback, *args):
+        if not callback:
+            return
+        if widget is not None and hasattr(widget, "after"):
+            widget.after(0, lambda: callback(*args))
+        else:
+            callback(*args)
+
+    def worker():
+        try:
+            result = task()
+            dispatch(on_success, result)
+        except Exception as exc:
+            logger.exception("Falló una tarea en segundo plano: %s", name)
+            dispatch(on_error, exc)
+
+    thread = threading.Thread(target=worker, name=name, daemon=True)
+    thread.start()
+    return thread

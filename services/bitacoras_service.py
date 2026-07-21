@@ -17,6 +17,7 @@ Deben llamar funciones de esta capa `services/`.
 
 from core.logger import configurar_logger
 from core.date_utils import normalizar_campos_fecha
+from core.performance import page_range
 
 logger = configurar_logger(__name__)
 from services.movimientos_service import registrar_movimiento_seguro
@@ -25,6 +26,7 @@ from supabase_config import supabase
 from services.folios_service import asegurar_folio
 
 TABLA_BITACORAS = "db_bitacoras"
+COLUMNAS_BITACORAS = "id_bitacora,bit_aco_numero,bit_avance,bit_cliente,bit_descripcion,bit_direccion_sucursal,bit_encargado_proyecto_axia,bit_estatus,bit_fecha,bit_folio,bit_hora_llegada,bit_hora_salida,bit_observaciones,bit_porcentaje_avance,bit_tecnico,bit_tecnico_sitio,fecha_registro"
 
 
 # =====================================================
@@ -62,7 +64,7 @@ def crear_bitacora(datos_bitacora):
 # =====================================================
 # FUNCIÓN: obtener_bitacoras()
 # =====================================================
-def obtener_bitacoras():
+def obtener_bitacoras(page=1, page_size=100):
     """
     Obtiene todas las bitácoras registradas.
     """
@@ -71,8 +73,9 @@ def obtener_bitacoras():
         respuesta = (
             supabase
             .table(TABLA_BITACORAS)
-            .select("*")
+            .select(COLUMNAS_BITACORAS)
             .order("fecha_registro", desc=True)
+            .range(*page_range(page, page_size))
             .execute()
         )
 
@@ -92,7 +95,7 @@ def obtener_bitacoras():
 # =====================================================
 # FUNCIÓN: obtener_bitacoras_por_aco()
 # =====================================================
-def obtener_bitacoras_por_aco(aco_numero):
+def obtener_bitacoras_por_aco(aco_numero, page=1, page_size=100):
     """
     Obtiene bitácoras relacionadas con un ACO.
     """
@@ -101,9 +104,10 @@ def obtener_bitacoras_por_aco(aco_numero):
         respuesta = (
             supabase
             .table(TABLA_BITACORAS)
-            .select("*")
+            .select(COLUMNAS_BITACORAS)
             .eq("bit_aco_numero", aco_numero)
             .order("fecha_registro", desc=True)
+            .range(*page_range(page, page_size))
             .execute()
         )
 
@@ -132,7 +136,7 @@ def buscar_bitacora_por_folio(folio):
         respuesta = (
             supabase
             .table(TABLA_BITACORAS)
-            .select("*")
+            .select(COLUMNAS_BITACORAS)
             .eq("bit_folio", folio)
             .execute()
         )
@@ -192,7 +196,7 @@ def actualizar_bitacora(id_bitacora, datos_bitacora):
 # =====================================================
 # FUNCIÓN: obtener_estadisticas_bitacoras()
 # =====================================================
-def obtener_estadisticas_bitacoras():
+def obtener_estadisticas_bitacoras(page=1, page_size=100):
     """
     Obtiene estadísticas generales de bitácoras.
     """

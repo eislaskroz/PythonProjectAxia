@@ -31,7 +31,7 @@ def _con_id(contacto):
 
 
 @ttl_cache(ttl_seconds=180)
-def obtener_sucursales_por_cliente(id_cliente):
+def obtener_sucursales_por_cliente(id_cliente, page=1, page_size=100):
     """Devuelve las sucursales activas ligadas a un cliente."""
     if not id_cliente:
         return []
@@ -39,10 +39,11 @@ def obtener_sucursales_por_cliente(id_cliente):
         respuesta = (
             supabase
             .table(TABLA_SUCURSALES)
-            .select("*")
+            .select(COLUMNAS_SUCURSALES)
             .eq("id_cliente", id_cliente)
             .eq("suc_estatus", 1)
             .order("suc_nombre")
+            .range(*page_range(page, page_size))
             .execute()
         )
         return respuesta.data or []
@@ -60,7 +61,7 @@ def obtener_sucursal_por_id(id_sucursal):
         respuesta = (
             supabase
             .table(TABLA_SUCURSALES)
-            .select("*")
+            .select(COLUMNAS_SUCURSALES)
             .eq("suc_id", id_sucursal)
             .limit(1)
             .execute()
@@ -72,7 +73,7 @@ def obtener_sucursal_por_id(id_sucursal):
 
 
 @ttl_cache(ttl_seconds=180)
-def obtener_contactos_por_sucursal(id_sucursal):
+def obtener_contactos_por_sucursal(id_sucursal, page=1, page_size=100):
     """Devuelve contactos activos ligados a una sucursal usando suc_id."""
     if not id_sucursal:
         return []
@@ -80,10 +81,11 @@ def obtener_contactos_por_sucursal(id_sucursal):
         respuesta = (
             supabase
             .table(TABLA_CONTACTOS_SUCURSAL)
-            .select("*")
+            .select(COLUMNAS_SUCURSALES)
             .eq("suc_id", id_sucursal)
             .eq("con_estatus", 1)
             .order("con_nombre")
+            .range(*page_range(page, page_size))
             .execute()
         )
         return respuesta.data or []
@@ -101,7 +103,7 @@ def obtener_contacto_por_id(id_contacto):
         respuesta = (
             supabase
             .table(TABLA_CONTACTOS_SUCURSAL)
-            .select("*")
+            .select(COLUMNAS_SUCURSALES)
             .eq("con_id", id_contacto)
             .limit(1)
             .execute()

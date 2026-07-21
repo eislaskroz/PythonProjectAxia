@@ -47,6 +47,13 @@ def validar_empaquetado() -> list[str]:
 
 def main() -> int:
     errores = validar_compilacion() + validar_excepciones_silenciosas() + validar_empaquetado()
+    for archivo in ROOT.rglob("*.py"):
+        if archivo == Path(__file__):
+            continue
+        texto = archivo.read_text(encoding="utf-8", errors="ignore")
+        if '.select("*")' in texto or ".select('*')" in texto:
+            errores.append(f"Consulta select(*) detectada: {archivo.relative_to(ROOT)}")
+
     if errores:
         print("PUERTA DE CALIDAD: FALLÓ")
         for error in errores:

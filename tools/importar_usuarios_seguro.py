@@ -237,7 +237,7 @@ def aplicar_supabase(preparados: list[dict[str, Any]], salida: Path) -> None:
     from supabase_config import supabase, TABLA_USUARIOS
 
     print("Creando respaldo de db_usuarios...")
-    existentes = supabase.table(TABLA_USUARIOS).select("*").execute().data or []
+    existentes = supabase.table(TABLA_USUARIOS).select("id_usuario,usu_nickname,usu_nombre,usu_apellido,usu_password,usu_tipo,usu_correo,usu_rfc,usu_curp,usu_imss,usu_ine,usu_telefono,usu_calle,usu_numero,usu_colonia,usu_cp,usu_municipio,usu_estado,usu_fechanac,usu_depto,usu_puesto,usu_regimen").execute().data or []
     marca = datetime.now().strftime("%Y%m%d_%H%M%S")
     respaldo = salida / f"respaldo_db_usuarios_{marca}.json"
     guardar_json(respaldo, existentes)

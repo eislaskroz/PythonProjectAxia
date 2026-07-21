@@ -17,6 +17,7 @@ Deben llamar funciones de esta capa `services/`.
 
 from core.logger import configurar_logger
 from core.date_utils import normalizar_campos_fecha
+from core.performance import page_range
 
 logger = configurar_logger(__name__)
 from services.movimientos_service import registrar_movimiento_seguro
@@ -34,6 +35,7 @@ from services.folios_service import asegurar_folio
 # =====================================================
 
 TABLA_LEVANTAMIENTOS = "db_levantamientos"
+COLUMNAS_LEVANTAMIENTOS = "id_levantamiento,lev_aco_numero,lev_cliente,lev_contacto,lev_correo,lev_descripcion,lev_descripcion_fallas,lev_detalle_tecnico_json,lev_direccion,lev_equipos_danados_json,lev_estatus,lev_fecha,lev_fecha_programada,lev_fecha_realizacion,lev_firma,lev_firma_tecnico,lev_folio,lev_modalidad_operativa,lev_motivo,lev_observaciones,lev_prioridad,lev_requerimientos,lev_supervisor,lev_tecnico,lev_telefono,lev_tipo,lev_ubicacion,fecha_registro"
 
 
 # =====================================================
@@ -81,7 +83,7 @@ def crear_levantamiento(datos_levantamiento):
 # =====================================================
 # FUNCIÓN: obtener_levantamientos()
 # =====================================================
-def obtener_levantamientos():
+def obtener_levantamientos(page=1, page_size=100):
     """
     Consulta todos los levantamientos registrados.
 
@@ -95,8 +97,9 @@ def obtener_levantamientos():
         respuesta = (
             supabase
             .table(TABLA_LEVANTAMIENTOS)
-            .select("*")
+            .select(COLUMNAS_LEVANTAMIENTOS)
             .order("fecha_registro", desc=True)
+            .range(*page_range(page, page_size))
             .execute()
         )
 
@@ -116,7 +119,7 @@ def obtener_levantamientos():
 # =====================================================
 # FUNCIÓN: obtener_levantamientos_por_aco()
 # =====================================================
-def obtener_levantamientos_por_aco(aco_numero):
+def obtener_levantamientos_por_aco(aco_numero, page=1, page_size=100):
     """
     Consulta los levantamientos relacionados con un ACO.
 
@@ -133,9 +136,10 @@ def obtener_levantamientos_por_aco(aco_numero):
         respuesta = (
             supabase
             .table(TABLA_LEVANTAMIENTOS)
-            .select("*")
+            .select(COLUMNAS_LEVANTAMIENTOS)
             .eq("lev_aco_numero", aco_numero)
             .order("fecha_registro", desc=True)
+            .range(*page_range(page, page_size))
             .execute()
         )
 
@@ -173,7 +177,7 @@ def buscar_levantamiento_por_folio(folio):
         respuesta = (
             supabase
             .table(TABLA_LEVANTAMIENTOS)
-            .select("*")
+            .select(COLUMNAS_LEVANTAMIENTOS)
             .eq("lev_folio", folio)
             .execute()
         )
@@ -246,7 +250,7 @@ def actualizar_levantamiento(id_levantamiento, datos_levantamiento):
 # =====================================================
 # FUNCIÓN: obtener_estadisticas_levantamientos()
 # =====================================================
-def obtener_estadisticas_levantamientos():
+def obtener_estadisticas_levantamientos(page=1, page_size=100):
     """
     Obtiene estadísticas generales de levantamientos.
 

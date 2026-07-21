@@ -545,3 +545,14 @@ def enfocar_inicio_formulario(scroll_widget=None, primer_widget=None, delay=180)
         root.after(delay, _run)
     except Exception:
         logger.debug("Excepción recuperable controlada.", exc_info=True)
+
+
+def generar_pdf_preview_async(parent, titulo, datos, **kwargs):
+    """Genera la vista previa fuera del hilo visual para evitar congelamientos."""
+    from core.performance import run_in_background
+    return run_in_background(
+        lambda: generar_pdf_preview(titulo, datos, **kwargs),
+        widget=parent,
+        on_error=lambda exc: messagebox.showerror("Preview PDF", f"No fue posible generar el PDF.\n\n{exc}"),
+        name="AXIA-pdf-preview",
+    )

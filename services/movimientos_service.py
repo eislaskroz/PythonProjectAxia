@@ -220,7 +220,7 @@ def obtener_bitacora_movimientos():
         respuesta = (
             supabase
             .table(TABLA_BITACORA_MOVIMIENTOS)
-            .select("*")
+            .select(COLUMNAS_MOVIMIENTOS)
             .order("fecha_hora", desc=True)
             .execute()
         )
@@ -260,7 +260,7 @@ def obtener_movimientos_usuario_actual(limite=300):
         id_usuario = usuario_activo.get("id_usuario")
         usuario = usuario_activo.get("usuario")
 
-        consulta = supabase.table(TABLA_BITACORA_MOVIMIENTOS).select("*")
+        consulta = supabase.table(TABLA_BITACORA_MOVIMIENTOS).select(COLUMNAS_MOVIMIENTOS)
 
         if id_usuario:
             consulta = consulta.eq("id_usuario", id_usuario)
@@ -354,7 +354,7 @@ def buscar_movimientos(termino="", limite=200):
         respuesta = (
             supabase
             .table(TABLA_BITACORA_MOVIMIENTOS)
-            .select("*")
+            .select(COLUMNAS_MOVIMIENTOS)
             .order("fecha_hora", desc=True)
             .limit(max(limite, 500))
             .execute()
@@ -385,7 +385,7 @@ def buscar_movimientos_usuario_actual(termino="", limite=100):
         id_usuario = usuario_activo.get("id_usuario")
         usuario = usuario_activo.get("usuario")
 
-        consulta = supabase.table(TABLA_BITACORA_MOVIMIENTOS).select("*")
+        consulta = supabase.table(TABLA_BITACORA_MOVIMIENTOS).select(COLUMNAS_MOVIMIENTOS)
 
         if id_usuario:
             consulta = consulta.eq("id_usuario", id_usuario)

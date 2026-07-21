@@ -2,12 +2,14 @@
 
 from core.logger import configurar_logger
 from core.date_utils import normalizar_campos_fecha
+from core.performance import page_range
 from supabase_config import supabase
 from services.folios_service import asegurar_folio
 from services.movimientos_service import registrar_movimiento_seguro
 
 logger = configurar_logger(__name__)
 TABLA_OBRAS_CIVILES = "db_obras_civiles"
+COLUMNAS_OBRAS_CIVILES = "id_obra_civil,obc_aco_numero,obc_cliente,obc_contacto,obc_direccion,obc_ejecucion_json,obc_entrega_formal,obc_estatus,obc_etapa_acabados,obc_evidencias_json,obc_fecha,obc_fecha_entrega,obc_firma_cliente_base64,obc_firma_tecnico_base64,obc_folio,obc_generacion_planos,obc_nombre_proyecto,obc_obra_blanca,obc_observaciones_finales,obc_observaciones_iniciales,obc_permisos,obc_planos_acabados,obc_planos_arquitectonicos,obc_preentrega_observaciones,obc_preentrega_resultado,obc_pruebas_observaciones,obc_pruebas_resultado,obc_requiere_maquinaria,obc_responsable_axia,obc_sucursal,obc_superficie_adecuada,obc_superficie_disponible,obc_supervisor,obc_tipo_giro,fecha_registro"
 
 
 def crear_obra_civil(datos_obra):
@@ -27,22 +29,23 @@ def crear_obra_civil(datos_obra):
         return None
 
 
-def obtener_obras_civiles():
+def obtener_obras_civiles(page=1, page_size=100):
     try:
-        respuesta = supabase.table(TABLA_OBRAS_CIVILES).select("*").order("fecha_registro", desc=True).execute()
+        respuesta = supabase.table(TABLA_OBRAS_CIVILES).select(COLUMNAS_OBRAS_CIVILES).order("fecha_registro", desc=True).execute()
         return respuesta.data
     except Exception:
         logger.exception("Error al consultar obras civiles.")
         return []
 
 
-def obtener_obras_civiles_por_aco(aco_numero):
+def obtener_obras_civiles_por_aco(aco_numero, page=1, page_size=100):
     try:
         respuesta = (
             supabase.table(TABLA_OBRAS_CIVILES)
-            .select("*")
+            .select(COLUMNAS_OBRAS_CIVILES)
             .eq("obc_aco_numero", aco_numero)
             .order("fecha_registro", desc=True)
+            .range(*page_range(page, page_size))
             .execute()
         )
         return respuesta.data
@@ -53,7 +56,7 @@ def obtener_obras_civiles_por_aco(aco_numero):
 
 def buscar_obra_civil_por_folio(folio):
     try:
-        respuesta = supabase.table(TABLA_OBRAS_CIVILES).select("*").eq("obc_folio", folio).execute()
+        respuesta = supabase.table(TABLA_OBRAS_CIVILES).select(COLUMNAS_OBRAS_CIVILES).eq("obc_folio", folio).execute()
         return respuesta.data[0] if respuesta.data else None
     except Exception:
         logger.exception("Error al buscar obra civil por folio.")

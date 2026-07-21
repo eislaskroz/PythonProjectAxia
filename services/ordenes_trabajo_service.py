@@ -9,6 +9,7 @@ La vista no consulta Supabase directamente; todo pasa por este servicio.
 
 from core.logger import configurar_logger
 from core.date_utils import normalizar_campos_fecha
+from core.performance import page_range
 from supabase_config import supabase
 from services.folios_service import asegurar_folio
 
@@ -16,6 +17,7 @@ logger = configurar_logger(__name__)
 from services.movimientos_service import registrar_movimiento_seguro
 
 TABLA_ORDENES_TRABAJO = "db_ordenes_trabajo"
+COLUMNAS_ORDENES_TRABAJO = "id_orden,ot_aco_numero,ot_actividad,ot_asunto,ot_cliente,ot_contacto,ot_descripcion,ot_esi,ot_estatus,ot_fecha,ot_fecha_programada,ot_folio,ot_jefe_operacion,ot_numero_dias,ot_numero_personas,ot_partidas_json,ot_prioridad,ot_sucursal,ot_supervisor,ot_tecnico,fecha_registro"
 
 
 def crear_orden_trabajo(datos_orden):
@@ -48,7 +50,7 @@ def crear_orden_trabajo(datos_orden):
         return None
 
 
-def obtener_ordenes_trabajo():
+def obtener_ordenes_trabajo(page=1, page_size=100):
     """
     Consulta todas las órdenes de trabajo registradas.
     """
@@ -57,8 +59,9 @@ def obtener_ordenes_trabajo():
         respuesta = (
             supabase
             .table(TABLA_ORDENES_TRABAJO)
-            .select("*")
+            .select(COLUMNAS_ORDENES_TRABAJO)
             .order("fecha_registro", desc=True)
+            .range(*page_range(page, page_size))
             .execute()
         )
 
@@ -75,7 +78,7 @@ def obtener_ordenes_trabajo():
         return []
 
 
-def obtener_ordenes_trabajo_por_aco(aco_numero):
+def obtener_ordenes_trabajo_por_aco(aco_numero, page=1, page_size=100):
     """
     Consulta órdenes de trabajo asociadas a un ACO.
     """
@@ -84,9 +87,10 @@ def obtener_ordenes_trabajo_por_aco(aco_numero):
         respuesta = (
             supabase
             .table(TABLA_ORDENES_TRABAJO)
-            .select("*")
+            .select(COLUMNAS_ORDENES_TRABAJO)
             .eq("ot_aco_numero", aco_numero)
             .order("fecha_registro", desc=True)
+            .range(*page_range(page, page_size))
             .execute()
         )
 
@@ -112,7 +116,7 @@ def buscar_orden_trabajo_por_folio(folio):
         respuesta = (
             supabase
             .table(TABLA_ORDENES_TRABAJO)
-            .select("*")
+            .select(COLUMNAS_ORDENES_TRABAJO)
             .eq("ot_folio", folio)
             .execute()
         )
@@ -139,7 +143,7 @@ def buscar_orden_trabajo_por_folio(folio):
         return None
 
 
-def obtener_estadisticas_ordenes_trabajo():
+def obtener_estadisticas_ordenes_trabajo(page=1, page_size=100):
     """
     Estadísticas simples para reportes administrativos.
     """

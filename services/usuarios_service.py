@@ -1,5 +1,6 @@
 from core.logger import configurar_logger
 from core.date_utils import normalizar_campos_fecha
+from core.performance import page_range, TTLCache
 
 logger = configurar_logger(__name__)
 from services.movimientos_service import registrar_movimiento_seguro
@@ -26,6 +27,9 @@ from security.data_encryption import (
     descifrar_diccionario,
     descifrar_lista,
 )
+
+
+_catalogo_usuarios_cache = TTLCache(ttl_seconds=120)
 
 
 CAMPOS_SENSIBLES_USUARIO = [
@@ -198,7 +202,7 @@ def buscar_usuarios(termino="", limite=100):
         respuesta = (
             supabase
             .table(TABLA_USUARIOS)
-            .select("*")
+            .select(COLUMNAS_USUARIOS)
             .limit(limite)
             .execute()
         )
@@ -300,7 +304,7 @@ def obtener_usuario_por_id(id_usuario):
         respuesta = (
             supabase
             .table(TABLA_USUARIOS)
-            .select("*")
+            .select(COLUMNAS_USUARIOS)
             .eq("id_usuario", id_usuario)
             .limit(1)
             .execute()
@@ -444,6 +448,10 @@ def _nombre_mostrable_usuario(usuario):
 
 
 def obtener_usuarios_por_tipos(tipos, limite=500):
+    cache_key = (tuple(sorted(int(x) for x in tipos)), int(limite))
+    cached = _catalogo_usuarios_cache.get(cache_key)
+    if cached is not None:
+        return list(cached)
     """
     Obtiene usuarios para los selectores de asignación de formularios.
 

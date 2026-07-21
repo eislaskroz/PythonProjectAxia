@@ -266,7 +266,7 @@ def buscar_clientes(termino="", limite=100):
         respuesta = (
             supabase
             .table(TABLA_CLIENTES)
-            .select("*")
+            .select(COLUMNAS_CLIENTES)
             .limit(limite)
             .execute()
         )

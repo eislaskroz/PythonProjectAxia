@@ -17,6 +17,7 @@ Deben llamar funciones de esta capa `services/`.
 
 from core.logger import configurar_logger
 from core.date_utils import normalizar_campos_fecha
+from core.performance import page_range
 
 logger = configurar_logger(__name__)
 from services.movimientos_service import registrar_movimiento_seguro
@@ -34,6 +35,7 @@ from services.folios_service import asegurar_folio
 # =====================================================
 
 TABLA_ORDENES = "db_ordenes_servicio"
+COLUMNAS_ORDENES = "id_orden,os_aco_numero,os_actividad,os_celular,os_cliente,os_correo,os_descripcion,os_domicilio,os_encargado,os_encargado_servicio,os_equipos_json,os_estatus,os_eval_habilidades,os_eval_otro,os_eval_trato,os_eval_velocidad,os_fecha,os_fecha_programada,os_firma_cliente,os_folio,os_hora_llegada,os_hora_salida,os_observaciones,os_prioridad,os_solicitante,os_sucursal,os_supervisor,os_tecnico,os_tecnicos,os_tipo_servicio,os_tipos_servicio_json,fecha_registro"
 
 
 # =====================================================
@@ -79,7 +81,7 @@ def crear_orden_servicio(datos_orden):
 # =====================================================
 # FUNCIÓN: obtener_ordenes_servicio()
 # =====================================================
-def obtener_ordenes_servicio():
+def obtener_ordenes_servicio(page=1, page_size=100):
     """
     Consulta todas las órdenes de servicio.
 
@@ -92,8 +94,9 @@ def obtener_ordenes_servicio():
         respuesta = (
             supabase
             .table(TABLA_ORDENES)
-            .select("*")
+            .select(COLUMNAS_ORDENES)
             .order("fecha_registro", desc=True)
+            .range(*page_range(page, page_size))
             .execute()
         )
 
@@ -113,7 +116,7 @@ def obtener_ordenes_servicio():
 # =====================================================
 # FUNCIÓN: obtener_ordenes_por_aco()
 # =====================================================
-def obtener_ordenes_por_aco(aco_numero):
+def obtener_ordenes_por_aco(aco_numero, page=1, page_size=100):
     """
     Consulta órdenes relacionadas con un ACO.
 
@@ -130,9 +133,10 @@ def obtener_ordenes_por_aco(aco_numero):
         respuesta = (
             supabase
             .table(TABLA_ORDENES)
-            .select("*")
+            .select(COLUMNAS_ORDENES)
             .eq("os_aco_numero", aco_numero)
             .order("fecha_registro", desc=True)
+            .range(*page_range(page, page_size))
             .execute()
         )
 
@@ -169,7 +173,7 @@ def buscar_orden_por_folio(folio):
         respuesta = (
             supabase
             .table(TABLA_ORDENES)
-            .select("*")
+            .select(COLUMNAS_ORDENES)
             .eq("os_folio", folio)
             .execute()
         )
@@ -242,7 +246,7 @@ def actualizar_orden_servicio(id_orden, datos_orden):
 # =====================================================
 # FUNCIÓN: obtener_estadisticas_ordenes()
 # =====================================================
-def obtener_estadisticas_ordenes():
+def obtener_estadisticas_ordenes(page=1, page_size=100):
     """
     Obtiene estadísticas generales de órdenes.
 
