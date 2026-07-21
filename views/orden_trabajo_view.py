@@ -3,6 +3,10 @@ Formulario Orden de Trabajo AXIA.
 Actualizado: campos compactos, partidas dinámicas y preview PDF.
 """
 
+from core.logger import configurar_logger
+
+logger = configurar_logger(__name__)
+
 import json
 import customtkinter as ctk
 from tkinter import messagebox
@@ -137,7 +141,7 @@ def mostrar_orden_trabajo(parent, app, aco=None):
             if btn_preview is not None:
                 btn_preview.configure(state="normal" if formulario_completo() else "disabled")
         except Exception:
-            pass
+            logger.debug("Excepción recuperable controlada.", exc_info=True)
 
     seccion("Datos generales", 0)
     entry("Folio OT", var_folio, "Automático", 1, 0, state="disabled", required=False)

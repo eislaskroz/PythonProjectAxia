@@ -13,7 +13,13 @@ Objetivo:
 =========================================================
 """
 
+
+
 from __future__ import annotations
+
+from core.logger import configurar_logger
+
+logger = configurar_logger(__name__)
 
 import calendar
 from datetime import date
@@ -67,7 +73,7 @@ def abrir_selector_fecha(parent, variable):
     try:
         ventana.transient(parent.winfo_toplevel())
     except Exception:
-        pass
+        logger.debug("Excepción recuperable controlada.", exc_info=True)
 
     def cerrar_calendario():
         global _calendario_activo

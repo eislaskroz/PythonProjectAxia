@@ -6,6 +6,10 @@ Formulario operativo AXIA actualizado al formato físico vigente.
 =========================================================
 """
 
+from core.logger import configurar_logger
+
+logger = configurar_logger(__name__)
+
 import customtkinter as ctk
 from tkinter import messagebox
 
@@ -179,7 +183,7 @@ def mostrar_bitacora_avance(parent, app, aco=None):
         try:
             btn_preview.configure(state="normal" if formulario_completo() else "disabled")
         except Exception:
-            pass
+            logger.debug("Excepción recuperable controlada.", exc_info=True)
 
     for v in [var_folio, var_fecha, var_aco, var_direccion, var_cliente, var_encargado_proyecto, var_hora_llegada, var_hora_salida, var_tecnico_sitio, var_estatus]:
         v.trace_add("write", lambda *_: validar_preview())

@@ -1,5 +1,9 @@
 """Formulario Obra Civil / Proyecto Ejecutivo AXIA."""
 
+from core.logger import configurar_logger
+
+logger = configurar_logger(__name__)
+
 import json
 import customtkinter as ctk
 from tkinter import messagebox, filedialog
@@ -125,7 +129,7 @@ def mostrar_obra_civil(parent, app, aco=None):
             if btn_preview is not None:
                 btn_preview.configure(state="normal" if formulario_completo() else "disabled")
         except Exception:
-            pass
+            logger.debug("Excepción recuperable controlada.", exc_info=True)
 
     def seccion(texto, fila):
         ctk.CTkLabel(form, text=texto, font=SECTION_FONT, text_color=TEXT_PRIMARY).grid(row=fila, column=0, columnspan=4, sticky="w", pady=(6, 3))
@@ -306,7 +310,8 @@ def mostrar_obra_civil(parent, app, aco=None):
         def eliminar_equipo():
             for widget in item_equipo.get("widgets", []):
                 try: widget.destroy()
-                except Exception: pass
+                except Exception:
+                    logger.debug("Excepción recuperable controlada.", exc_info=True)
             equipos_catalogo_items[:] = [x for x in equipos_catalogo_items if x is not item_equipo]
         btn=ctk.CTkButton(panel_equipos,text="Eliminar",width=82,height=30,fg_color="#DC2626",hover_color="#B91C1C",command=eliminar_equipo)
         btn.grid(row=fila_eq,column=6,sticky="ew",padx=3,pady=2)
@@ -379,7 +384,8 @@ def mostrar_obra_civil(parent, app, aco=None):
         def eliminar_material():
             for widget in item_material.get("widgets", []):
                 try: widget.destroy()
-                except Exception: pass
+                except Exception:
+                    logger.debug("Excepción recuperable controlada.", exc_info=True)
             materiales_miscelaneos_items[:] = [x for x in materiales_miscelaneos_items if x is not item_material]
         btn=ctk.CTkButton(panel_misc,text="Eliminar",width=82,height=30,fg_color="#DC2626",hover_color="#B91C1C",command=eliminar_material)
         btn.grid(row=fila_misc,column=5,sticky="ew",padx=3,pady=2)

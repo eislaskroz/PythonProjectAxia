@@ -21,6 +21,10 @@ Nunca imprime AXIA_DATA_KEY ni contraseñas en consola.
 """
 from __future__ import annotations
 
+from core.logger import configurar_logger
+
+logger = configurar_logger(__name__)
+
 import argparse
 import csv
 import json
@@ -80,7 +84,7 @@ def _normalizar_fecha(valor: str) -> str:
         try:
             return datetime.strptime(valor, formato).date().isoformat()
         except ValueError:
-            pass
+            logger.debug("Excepción recuperable controlada.", exc_info=True)
     raise ValueError(f"Fecha inválida: {valor!r}. Usa DD/MM/AAAA o AAAA-MM-DD.")
 
 
@@ -364,7 +368,7 @@ def main() -> int:
         try:
             os.chmod(cred_path, 0o600)
         except OSError:
-            pass
+            logger.debug("Excepción recuperable controlada.", exc_info=True)
 
     reporte = {
         "generado_utc": datetime.now(timezone.utc).isoformat(),

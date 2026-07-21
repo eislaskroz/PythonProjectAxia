@@ -3,6 +3,10 @@ Helpers visuales y de preview para formularios operativos AXIA.
 """
 from __future__ import annotations
 
+from core.logger import configurar_logger
+
+logger = configurar_logger(__name__)
+
 import base64
 import io
 import json
@@ -529,15 +533,15 @@ def enfocar_inicio_formulario(scroll_widget=None, primer_widget=None, delay=180)
             if scroll_widget is not None and hasattr(scroll_widget, "_parent_canvas"):
                 scroll_widget._parent_canvas.yview_moveto(0)
         except Exception:
-            pass
+            logger.debug("Excepción recuperable controlada.", exc_info=True)
         try:
             objetivo = primer_widget or (_buscar_primer(scroll_widget) if scroll_widget is not None else None)
             if objetivo is not None:
                 objetivo.focus_set()
         except Exception:
-            pass
+            logger.debug("Excepción recuperable controlada.", exc_info=True)
 
     try:
         root.after(delay, _run)
     except Exception:
-        pass
+        logger.debug("Excepción recuperable controlada.", exc_info=True)

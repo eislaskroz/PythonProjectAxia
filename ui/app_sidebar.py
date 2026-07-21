@@ -19,6 +19,10 @@ Recibe callbacks ya preparados desde app.py/controladores.
 =========================================================
 """
 
+from core.logger import configurar_logger
+
+logger = configurar_logger(__name__)
+
 # =====================================================
 # IMPORTACIÓN DE LIBRERÍAS
 # =====================================================
@@ -123,7 +127,7 @@ def crear_boton_sidebar(parent, texto, comando=None, habilitado=True):
             try:
                 widget.configure(cursor="hand2")
             except Exception:
-                pass
+                logger.debug("Excepción recuperable controlada.", exc_info=True)
 
 
 

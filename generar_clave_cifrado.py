@@ -8,6 +8,10 @@ El script crea o actualiza `.env` sin mostrar la llave en pantalla. Use
 """
 from __future__ import annotations
 
+from core.logger import configurar_logger
+
+logger = configurar_logger(__name__)
+
 import argparse
 import os
 from pathlib import Path
@@ -35,7 +39,7 @@ def actualizar_env(ruta: Path, clave: str) -> None:
     try:
         os.chmod(ruta, 0o600)
     except OSError:
-        pass
+        logger.debug("Excepción recuperable controlada.", exc_info=True)
 
 
 def main() -> None:

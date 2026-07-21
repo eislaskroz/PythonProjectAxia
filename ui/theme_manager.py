@@ -10,7 +10,13 @@ Objetivo:
 - Centralizar colores, radios, escalas y estilos nativos de Tk/ttk.
 """
 
+
+
 from __future__ import annotations
+
+from core.logger import configurar_logger
+
+logger = configurar_logger(__name__)
 
 import os
 import sys
@@ -81,7 +87,7 @@ class ThemeManager:
                 ctk.set_appearance_mode("Light")
                 ctk.set_default_color_theme("blue")
             except Exception:
-                pass
+                logger.debug("Excepción recuperable controlada.", exc_info=True)
 
     @classmethod
     def apply_native_tk_theme(cls, root=None) -> None:
@@ -112,7 +118,7 @@ class ThemeManager:
                     font = tkfont.nametofont(name)
                     font.configure(family=cls.FONT_FAMILY, size=cls.BASE_FONT_SIZE)
                 except Exception:
-                    pass
+                    logger.debug("Excepción recuperable controlada.", exc_info=True)
 
             # Estilo ttk uniforme para tablas/combos nativos.
             try:
@@ -144,16 +150,16 @@ class ThemeManager:
                 style.map("Treeview", background=[("selected", cls.PRIMARY)], foreground=[("selected", "#FFFFFF")])
                 style.configure("TCombobox", fieldbackground=cls.SURFACE, background=cls.SURFACE)
             except Exception:
-                pass
+                logger.debug("Excepción recuperable controlada.", exc_info=True)
 
             # Fondo base de la ventana raíz.
             if root is not None:
                 try:
                     root.configure(bg=cls.BACKGROUND)
                 except Exception:
-                    pass
+                    logger.debug("Excepción recuperable controlada.", exc_info=True)
         except Exception:
-            pass
+            logger.debug("Excepción recuperable controlada.", exc_info=True)
 
     @classmethod
     def apply_window_defaults(cls, window, min_width: int | None = None, min_height: int | None = None) -> None:
@@ -162,12 +168,12 @@ class ThemeManager:
         try:
             window.configure(fg_color=cls.BACKGROUND)
         except Exception:
-            pass
+            logger.debug("Excepción recuperable controlada.", exc_info=True)
         if min_width and min_height:
             try:
                 window.minsize(min_width, min_height)
             except Exception:
-                pass
+                logger.debug("Excepción recuperable controlada.", exc_info=True)
 
     @classmethod
     def style_preview_metadata_name(cls) -> str:

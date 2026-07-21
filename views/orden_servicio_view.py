@@ -3,6 +3,10 @@ Formulario Orden de Servicio AXIA.
 Actualizado: campos compactos, renglones dinámicos, firma del cliente y preview PDF.
 """
 
+from core.logger import configurar_logger
+
+logger = configurar_logger(__name__)
+
 import json
 import customtkinter as ctk
 from tkinter import messagebox
@@ -163,7 +167,7 @@ def mostrar_orden_servicio(parent, app, aco=None):
             if btn_preview is not None:
                 btn_preview.configure(state="normal" if formulario_completo() else "disabled")
         except Exception:
-            pass
+            logger.debug("Excepción recuperable controlada.", exc_info=True)
 
     seccion("Información General", 0)
     entry("Folio OS", var_folio, "Automático", 1, 0, state="disabled", required=False)

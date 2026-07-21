@@ -4,6 +4,10 @@ Centraliza fondo, metadatos, márgenes, estilos y numeración de página.
 """
 from __future__ import annotations
 
+from core.logger import configurar_logger
+
+logger = configurar_logger(__name__)
+
 from pathlib import Path
 
 from reportlab.lib import colors
@@ -61,7 +65,7 @@ class BasePdfGenerator:
                     mask="auto",
                 )
             except Exception:
-                pass
+                logger.debug("Excepción recuperable controlada.", exc_info=True)
 
         # Número de página sobre la franja inferior, sin duplicar datos del fondo.
         canvas.setFillColor(cls.TEXT)

@@ -6,6 +6,10 @@ campos de texto, selectores, casillas, interruptores y botones.
 """
 from __future__ import annotations
 
+from core.logger import configurar_logger
+
+logger = configurar_logger(__name__)
+
 import customtkinter as ctk
 
 _SUPPORTED = tuple(
@@ -87,7 +91,7 @@ def _scroll_into_view(widget) -> None:
                 total = max(1, current.winfo_height())
                 canvas.yview_moveto(max(0.0, min(1.0, y / total - 0.08)))
             except Exception:
-                pass
+                logger.debug("Excepción recuperable controlada.", exc_info=True)
             return
         current = getattr(current, "master", None)
 
@@ -97,7 +101,7 @@ def _focus(widget) -> None:
     try:
         widget.focus_set()
     except Exception:
-        pass
+        logger.debug("Excepción recuperable controlada.", exc_info=True)
 
 
 def _selector_step(widget, delta: int) -> bool:
@@ -167,7 +171,7 @@ def install_keyboard_navigation(root) -> None:
             try:
                 current.invoke()
             except Exception:
-                pass
+                logger.debug("Excepción recuperable controlada.", exc_info=True)
             return "break"
         return None
 

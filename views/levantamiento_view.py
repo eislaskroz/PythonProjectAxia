@@ -9,6 +9,10 @@ No abre ventanas nuevas.
 =========================================================
 """
 
+from core.logger import configurar_logger
+
+logger = configurar_logger(__name__)
+
 import json
 
 import customtkinter as ctk
@@ -56,206 +60,9 @@ from security.permissions import puede_generar_levantamiento
 # El catálogo maestro de materiales se carga desde services.materiales_catalogo_service.
 
 
-# Formularios especializados adicionales.
-# Se declaran como estructura de datos para mantener el código ordenado y evitar
-# duplicar lógica visual, de guardado y PDF por cada nueva disciplina.
-FORMULARIOS_DETALLADOS_EXTRA = {
-    "Tecnología, Equipos y Periféricos": {
-        "titulo": "Levantamiento Tecnología, Equipos y Periféricos",
-        "tipo_sistema": "Tecnología",
-        "secciones": [
-            ("🧭 1. Tipo de solicitud y alcance", [
-                ("accion_ti", "option", "¿Qué deseas realizar?", ["Revisión", "Mantenimiento", "Reparación", "Suministro", "Suministro e instalación"], "Suministro"),
-                ("categoria_equipo", "option", "Categoría del equipo o producto", ["Computadora", "Laptop", "Servidor", "Impresora", "Monitor", "Router", "Switch", "Access Point", "Telefonía", "Periférico", "Almacenamiento", "Energía/UPS", "Software/Licencia", "Otro"], "Computadora"),
-                ("cantidad_equipos", "entry", "Cantidad de equipos o productos", "Ej. 2", ""),
-                ("ubicacion_servicio", "entry", "Ubicación donde se requiere", "Ej. oficina administrativa", ""),
-                ("prioridad_solicitud", "option", "Prioridad requerida", ["Normal", "Alta", "Urgente", "Por validar"], "Normal"),
-            ]),
-            ("🖥️ 2. Identificación y características generales", [
-                ("marca_actual", "entry", "Marca actual o preferida", "Ej. HP / Cisco / Logitech", ""),
-                ("modelo_actual", "entry", "Modelo actual o sugerido", "Modelo vigente o por definir", ""),
-                ("numero_serie", "entry", "Número de serie / activo", "Si aplica", ""),
-                ("uso_requerido", "entry", "Uso principal del equipo", "Ej. diseño, oficina, impresión", ""),
-                ("compatibilidad", "entry", "Compatibilidad requerida", "Sistema, red, accesorios, software", ""),
-            ]),
-            ("🔎 3. Revisión y diagnóstico", [
-                ("enciende_equipo", "option", "¿El equipo enciende?", ["Sí", "No", "Intermitente", "No aplica"], "No aplica"),
-                ("estado_fisico", "option", "Estado físico general", ["Bueno", "Regular", "Dañado", "No aplica"], "No aplica"),
-                ("falla_reportada", "entry", "Falla o síntoma reportado", "Describe el comportamiento", ""),
-                ("mensaje_error", "entry", "Mensaje o código de error", "Si existe", ""),
-                ("garantia_vigente", "option", "¿Cuenta con garantía vigente?", ["Sí", "No", "Por validar", "No aplica"], "Por validar"),
-                ("respaldo_requerido", "option", "¿Requiere respaldo de información?", ["Sí", "No", "Por validar", "No aplica"], "Por validar"),
-                ("diagnostico_preliminar", "entry", "Diagnóstico preliminar", "Hallazgos del técnico", ""),
-            ]),
-            ("🛠️ 4. Mantenimiento o reparación", [
-                ("tipo_intervencion", "option", "Tipo de intervención", ["Preventivo", "Correctivo", "Reparación de hardware", "Reparación de software", "Mixto", "No aplica"], "No aplica"),
-                ("limpieza_interna", "option", "Limpieza interna requerida", ["Sí", "No", "No aplica"], "No aplica"),
-                ("actualizacion_software", "option", "Actualización de sistema/software", ["Sí", "No", "Por validar", "No aplica"], "No aplica"),
-                ("repuesto_requerido", "entry", "Refacción o componente requerido", "RAM, disco, fuente, rodillo, etc.", ""),
-                ("migracion_datos", "option", "Migración o recuperación de datos", ["Sí", "No", "Por validar", "No aplica"], "No aplica"),
-                ("tiempo_fuera_servicio", "entry", "Tiempo máximo fuera de servicio", "Ej. 4 horas", ""),
-            ]),
-            ("📦 5. Requerimientos para suministro", [
-                ("especificaciones_minimas", "entry", "Especificaciones mínimas requeridas", "Procesador, RAM, capacidad, puertos, etc.", ""),
-                ("marca_abierta", "option", "¿Se acepta cualquier marca equivalente?", ["Sí", "No", "Por validar"], "Sí"),
-                ("presupuesto_referencia", "entry", "Presupuesto de referencia", "Opcional", ""),
-                ("incluye_accesorios", "entry", "Accesorios requeridos", "Cables, adaptadores, consumibles, etc.", ""),
-                ("licenciamiento", "entry", "Licenciamiento o software requerido", "Sistema operativo, antivirus, suite, etc.", ""),
-                ("fecha_requerida", "entry", "Fecha requerida de entrega", "DD/MM/AAAA", ""),
-            ]),
-            ("✅ 6. Instalación, configuración, pruebas y entrega", [
-                ("instalacion_fisica", "option", "¿Requiere instalación física?", ["Sí", "No", "No aplica"], "No"),
-                ("configuracion_inicial", "option", "¿Requiere configuración inicial?", ["Sí", "No", "No aplica"], "Sí"),
-                ("integracion_red", "option", "¿Requiere integración a red/dominio?", ["Sí", "No", "Por validar", "No aplica"], "Por validar"),
-                ("transferencia_informacion", "option", "¿Requiere transferencia de información?", ["Sí", "No", "Por validar", "No aplica"], "No"),
-                ("prueba_funcional", "option", "Prueba funcional y de conectividad", ["Sí", "No", "No aplica"], "Sí"),
-                ("capacitacion_usuario", "option", "Capacitación o entrega al usuario", ["Sí", "No", "No aplica"], "Sí"),
-                ("dias_trabajo", "entry", "Días de trabajo proyectados", "Ej. 1", ""),
-                ("personas_trabajo", "entry", "Personas consideradas", "Ej. 1", ""),
-                ("observaciones_ti", "entry", "Observaciones técnicas finales", "Condiciones, restricciones o recomendaciones", ""),
-            ]),
-        ],
-    },
-    "Control de Accesos": {
-        "titulo": "Levantamiento Control de Accesos",
-        "tipo_sistema": "Seguridad",
-        "secciones": [
-            ("🚪 1. Necesidad inicial y alcance", [
-                ("necesidad", "option", "¿Qué se necesita realizar?", ["Instalación nueva", "Ampliación", "Reubicación", "Reparación", "Diagnóstico previo"], "Instalación nueva"),
-                ("tipo_control", "option", "Tipo de control de acceso", ["Peatonal", "Vehicular", "Peatonal y vehicular", "SITE / área restringida", "Por validar"], "Peatonal"),
-                ("cantidad_accesos", "entry", "Cantidad de accesos", "Ej. 3", ""),
-                ("ubicacion_accesos", "entry", "Ubicación de accesos", "Ej. recepción / almacén", ""),
-                ("flujo_personas", "entry", "Flujo estimado de usuarios", "Ej. 80 diarios", ""),
-            ]),
-            ("🪪 2. Lectores, autenticación y usuarios", [
-                ("tipo_lector", "option", "Tipo de lector", ["Tarjeta", "Huella", "Rostro", "PIN", "QR", "Mixto", "Por validar"], "Tarjeta"),
-                ("cantidad_lectores", "entry", "Cantidad de lectores", "Ej. 4", ""),
-                ("entrada_salida", "option", "Lectura entrada/salida", ["Solo entrada", "Entrada y salida", "Por validar"], "Solo entrada"),
-                ("usuarios_iniciales", "entry", "Usuarios iniciales a enrolar", "Ej. 50", ""),
-                ("integracion_asistencia", "option", "¿Integra asistencia?", ["Sí", "No", "Por validar"], "No"),
-            ]),
-            ("🔐 3. Cerraduras, puertas y barreras", [
-                ("tipo_puerta", "option", "Tipo de puerta/acceso", ["Madera", "Cristal", "Metal", "Torniquete", "Pluma vehicular", "Chapa magnética", "Por validar"], "Metal"),
-                ("tipo_chapa", "option", "Tipo de cerradura/chapa", ["Magnética", "Eléctrica", "Contra eléctrica", "Electroimán", "No aplica", "Por validar"], "Magnética"),
-                ("boton_salida", "option", "Botón de salida", ["Sí", "No", "No aplica"], "Sí"),
-                ("sensor_puerta", "option", "Sensor de puerta", ["Sí", "No", "No aplica"], "Sí"),
-                ("liberacion_emergencia", "option", "Liberación por emergencia", ["Sí", "No", "Por validar"], "Por validar"),
-            ]),
-            ("🌐 4. Red, energía y canalización", [
-                ("controlador", "option", "Controlador requerido", ["Standalone", "Controlador central", "IP", "Por validar"], "IP"),
-                ("punto_red", "option", "Punto de red disponible", ["Sí", "No", "Por validar"], "Por validar"),
-                ("punto_energia", "option", "Punto de energía disponible", ["Sí", "No", "Por validar"], "Por validar"),
-                ("metros_cable", "entry", "Metros estimados de cable", "Ej. 120", ""),
-                ("canalizacion", "option", "Canalización requerida", ["Canaleta", "EMT", "PVC", "Charola", "Existente", "Por validar"], "Por validar"),
-                ("ups_respaldo", "option", "¿Requiere UPS/respaldo?", ["Sí", "No", "Por validar"], "Por validar"),
-            ]),
-            ("✅ 5. Configuración, pruebas y entrega", [
-                ("software_config", "option", "Configuración de software", ["Sí", "No", "Por validar"], "Sí"),
-                ("prueba_apertura", "option", "Prueba de apertura/cierre", ["Sí", "No"], "Sí"),
-                ("prueba_eventos", "option", "Prueba de eventos/logs", ["Sí", "No", "No aplica"], "Sí"),
-                ("capacitacion", "option", "Capacitación al usuario", ["Sí", "No"], "Sí"),
-                ("dias_trabajo", "entry", "Días de trabajo proyectados", "Ej. 2", ""),
-                ("personas_trabajo", "entry", "Personas consideradas", "Ej. 3", ""),
-            ]),
-        ],
-    },
-    "Enlaces Inalámbricos": {
-        "titulo": "Levantamiento Enlaces Inalámbricos",
-        "tipo_sistema": "Infraestructura",
-        "secciones": [
-            ("📡 1. Necesidad inicial y alcance", [
-                ("necesidad", "option", "¿Qué se necesita realizar?", ["Enlace punto a punto", "Punto multipunto", "Ampliación", "Reubicación", "Diagnóstico"], "Enlace punto a punto"),
-                ("sitio_origen", "entry", "Sitio origen", "Ej. corporativo", ""),
-                ("sitio_destino", "entry", "Sitio destino", "Ej. almacén", ""),
-                ("distancia", "entry", "Distancia aproximada", "Ej. 1.5 km", ""),
-                ("ancho_banda", "entry", "Ancho de banda requerido", "Ej. 100 Mbps", ""),
-            ]),
-            ("🗼 2. Línea de vista y condiciones del sitio", [
-                ("linea_vista", "option", "¿Existe línea de vista?", ["Sí", "No", "Por validar"], "Por validar"),
-                ("altura_origen", "entry", "Altura origen", "Ej. 12 m", ""),
-                ("altura_destino", "entry", "Altura destino", "Ej. 10 m", ""),
-                ("obstrucciones", "option", "Obstrucciones", ["Sin obstrucciones", "Árboles", "Edificios", "Terreno", "Por validar"], "Por validar"),
-                ("acceso_azotea", "option", "Acceso a azotea/torre", ["Fácil", "Difícil", "Requiere permiso", "Por validar"], "Por validar"),
-            ]),
-            ("📶 3. Equipo, frecuencia y montaje", [
-                ("frecuencia", "option", "Frecuencia sugerida", ["5 GHz", "6 GHz", "60 GHz", "Por validar"], "5 GHz"),
-                ("tipo_equipo", "option", "Tipo de equipo", ["Radio exterior", "Antena direccional", "CPE", "Bridge", "Por validar"], "Radio exterior"),
-                ("cantidad_radios", "entry", "Cantidad de radios", "Ej. 2", ""),
-                ("mastil_torre", "option", "Mástil/torre requerido", ["Sí", "No", "Existente", "Por validar"], "Por validar"),
-                ("proteccion_clima", "option", "Protección exterior", ["Sí", "No", "Por validar"], "Por validar"),
-            ]),
-            ("⚡ 4. Red, energía y canalización", [
-                ("punto_red_origen", "option", "Red disponible origen", ["Sí", "No", "Por validar"], "Por validar"),
-                ("punto_red_destino", "option", "Red disponible destino", ["Sí", "No", "Por validar"], "Por validar"),
-                ("energia_origen", "option", "Energía origen", ["Sí", "No", "Por validar"], "Por validar"),
-                ("energia_destino", "option", "Energía destino", ["Sí", "No", "Por validar"], "Por validar"),
-                ("metros_cable", "entry", "Metros de cable exterior", "Ej. 80", ""),
-                ("proteccion_tierra", "option", "Tierra/pararrayos", ["Sí", "No", "Por validar"], "Por validar"),
-            ]),
-            ("✅ 5. Alineación, pruebas y entrega", [
-                ("alineacion", "option", "Alineación fina", ["Sí", "No"], "Sí"),
-                ("prueba_throughput", "option", "Prueba de throughput", ["Sí", "No"], "Sí"),
-                ("prueba_estabilidad", "option", "Prueba de estabilidad", ["Sí", "No"], "Sí"),
-                ("documentacion", "option", "Documentación de IPs/accesos", ["Sí", "No"], "Sí"),
-                ("dias_trabajo", "entry", "Días de trabajo proyectados", "Ej. 1", ""),
-                ("personas_trabajo", "entry", "Personas consideradas", "Ej. 2", ""),
-            ]),
-        ],
-    },
-    "Paneles Solares": {
-        "titulo": "Levantamiento Paneles Solares",
-        "tipo_sistema": "Energía",
-        "secciones": [
-            ("☀️ 1. Necesidad inicial y consumo", [
-                ("necesidad", "option", "¿Qué se necesita realizar?", ["Sistema nuevo", "Ampliación", "Diagnóstico", "Mantenimiento", "Reubicación"], "Sistema nuevo"),
-                ("tipo_sistema", "option", "Tipo de sistema", ["Interconectado", "Aislado", "Híbrido", "Por validar"], "Interconectado"),
-                ("consumo_mensual", "entry", "Consumo mensual", "Ej. 850 kWh", ""),
-                ("recibo_cfe", "option", "¿Cuenta con recibo CFE?", ["Sí", "No"], "Sí"),
-                ("objetivo_ahorro", "entry", "Objetivo de ahorro", "Ej. 80%", ""),
-            ]),
-            ("🏠 2. Sitio, techo y orientación", [
-                ("ubicacion_paneles", "entry", "Ubicación de paneles", "Ej. azotea nave 1", ""),
-                ("tipo_techo", "option", "Tipo de techo", ["Losa", "Lámina", "Teja", "Estructura metálica", "Suelo", "Por validar"], "Losa"),
-                ("area_disponible", "entry", "Área disponible", "Ej. 60 m2", ""),
-                ("orientacion", "option", "Orientación", ["Sur", "Este", "Oeste", "Norte", "Por validar"], "Por validar"),
-                ("sombras", "option", "Sombras/obstrucciones", ["No", "Árboles", "Edificios", "Antenas", "Por validar"], "Por validar"),
-            ]),
-            ("🔋 3. Equipo requerido", [
-                ("cantidad_paneles", "entry", "Cantidad estimada de paneles", "Ej. 12", ""),
-                ("capacidad_panel", "entry", "Capacidad por panel", "Ej. 550 W", ""),
-                ("inversor", "option", "Tipo de inversor", ["String", "Microinversor", "Híbrido", "Por validar"], "Por validar"),
-                ("baterias", "option", "¿Requiere baterías?", ["Sí", "No", "Por validar"], "No"),
-                ("monitoreo", "option", "Monitoreo remoto", ["Sí", "No", "Por validar"], "Sí"),
-            ]),
-            ("⚡ 4. Interconexión eléctrica y seguridad", [
-                ("tablero_interconexion", "entry", "Tablero de interconexión", "Ej. principal", ""),
-                ("distancia_tablero", "entry", "Distancia a tablero", "Ej. 25 m", ""),
-                ("protecciones", "option", "Protecciones requeridas", ["Sí", "No", "Por validar"], "Por validar"),
-                ("tierra_fisica", "option", "Tierra física", ["Existente", "Requerida", "Por validar"], "Por validar"),
-                ("permisos", "option", "Permisos/interconexión CFE", ["Requiere", "No requiere", "Por validar"], "Por validar"),
-            ]),
-            ("✅ 5. Instalación, pruebas y entrega", [
-                ("estructura_montaje", "option", "Estructura de montaje", ["Incluida", "Existente", "Por validar"], "Por validar"),
-                ("prueba_generacion", "option", "Prueba de generación", ["Sí", "No"], "Sí"),
-                ("prueba_monitoreo", "option", "Prueba de monitoreo", ["Sí", "No", "No aplica"], "Sí"),
-                ("capacitacion", "option", "Capacitación al usuario", ["Sí", "No"], "Sí"),
-                ("dias_trabajo", "entry", "Días de trabajo proyectados", "Ej. 3", ""),
-                ("personas_trabajo", "entry", "Personas consideradas", "Ej. 4", ""),
-            ]),
-        ],
-    },
-}
-
-TIPOS_LEVANTAMIENTO_ESPECIALIZADOS = (
-    "Seguridad y Monitoreo",
-    "Aires Acondicionados",
-    "Redes Voz y Datos",
-    "Plantas de Energía",
-    "Electricidad",
-    "Control de Accesos",
-    "Enlaces Inalámbricos",
-    "Tecnología, Equipos y Periféricos",
-    "Paneles Solares",
+from views.levantamientos.form_definitions import (
+    FORMULARIOS_DETALLADOS_EXTRA,
+    TIPOS_LEVANTAMIENTO_ESPECIALIZADOS,
 )
 
 # =====================================================
@@ -1323,7 +1130,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                     if isinstance(widget, (ctk.CTkEntry, ctk.CTkOptionMenu, ctk.CTkTextbox, ctk.CTkButton)):
                         widget.configure(state=estado)
                 except Exception:
-                    pass
+                    logger.debug("Excepción recuperable controlada.", exc_info=True)
 
         def actualizar_campos_infra_existente(_valor=None):
             """Si no existe infraestructura, bloquea los campos que no aplican."""
@@ -1335,16 +1142,16 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 try:
                     txt_infra_observaciones.delete("1.0", "end")
                 except Exception:
-                    pass
+                    logger.debug("Excepción recuperable controlada.", exc_info=True)
             for widget in (widget_infra_tipo_existente, widget_infra_estado, txt_infra_observaciones):
                 try:
                     widget.configure(state=estado)
                 except Exception:
-                    pass
+                    logger.debug("Excepción recuperable controlada.", exc_info=True)
             try:
                 actualizar_estado_preview()
             except Exception:
-                pass
+                logger.debug("Excepción recuperable controlada.", exc_info=True)
 
         def actualizar_detalle_rack_energia(*_args):
             """Habilita el campo de tipo/detalle solo cuando el técnico marca Sí."""
@@ -1362,11 +1169,11 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 try:
                     widget.configure(state="normal" if habilitado else "disabled")
                 except Exception:
-                    pass
+                    logger.debug("Excepción recuperable controlada.", exc_info=True)
             try:
                 actualizar_estado_preview()
             except Exception:
-                pass
+                logger.debug("Excepción recuperable controlada.", exc_info=True)
 
         def actualizar_secciones_infraestructura(_valor=None):
             """Muestra el subformulario correcto según Instalación/Reparación/Mantenimiento."""
@@ -1415,7 +1222,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             try:
                 actualizar_estado_preview()
             except Exception:
-                pass
+                logger.debug("Excepción recuperable controlada.", exc_info=True)
 
         # Tipo operativo del levantamiento: detona formularios dentro de la misma vista.
         seccion_tipo_operativo = crear_seccion("🧭 El levantamiento es para Instalación, Reparación o Mantenimiento", fila_textos)
@@ -1547,11 +1354,11 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 widget_altura_trabajo.configure(state=estado)
                 widget_riesgo_instalacion.configure(state=estado)
             except Exception:
-                pass
+                logger.debug("Excepción recuperable controlada.", exc_info=True)
             try:
                 actualizar_estado_preview()
             except Exception:
-                pass
+                logger.debug("Excepción recuperable controlada.", exc_info=True)
 
         option_en(seccion_seguridad, "Escalera/andamio", var_escalera_requerida, ["Sí", "No"], 0, 0, command=actualizar_acceso_altura)
         widget_altura_trabajo = entry_en(seccion_seguridad, "Altura", var_altura_trabajo, "Ej. 4 metros", 0, 1)
@@ -1602,7 +1409,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 try:
                     actualizar_estado_preview()
                 except Exception:
-                    pass
+                    logger.debug("Excepción recuperable controlada.", exc_info=True)
 
             ctk.CTkButton(fila, text="Quitar", width=70, height=32, fg_color="#9CA3AF", command=eliminar_fila).grid(row=0, column=4, sticky="ew")
             coleccion.append({"frame": fila, "tipo": var_equipo_tipo, "marca": var_equipo_marca, "modelo": var_equipo_modelo, "serie": var_equipo_serie})
@@ -1610,7 +1417,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 try:
                     _var.trace_add("write", lambda *_args: actualizar_estado_preview())
                 except Exception:
-                    pass
+                    logger.debug("Excepción recuperable controlada.", exc_info=True)
 
         seccion_rep_sintomas = crear_seccion("🛠️ Reparación: Ubicación, Estado y Síntomas del Equipo", fila_textos + 7)
         registrar_seccion("rep_sintomas", seccion_rep_sintomas)
@@ -2229,7 +2036,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 try:
                     widget.destroy()
                 except Exception:
-                    pass
+                    logger.debug("Excepción recuperable controlada.", exc_info=True)
             equipos_catalogo_items[:] = [x for x in equipos_catalogo_items if x is not item_equipo]
 
         btn_eliminar = ctk.CTkButton(
@@ -2359,7 +2166,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 try:
                     widget.destroy()
                 except Exception:
-                    pass
+                    logger.debug("Excepción recuperable controlada.", exc_info=True)
             materiales_miscelaneos_items[:] = [x for x in materiales_miscelaneos_items if x is not item_material]
 
         btn_eliminar = ctk.CTkButton(
@@ -2392,7 +2199,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                         try:
                             widget.destroy()
                         except Exception:
-                            pass
+                            logger.debug("Excepción recuperable controlada.", exc_info=True)
                 materiales_miscelaneos_items.clear()
             elif accion == "Suministro e instalación":
                 visibles = {0, 1, 4, 5}
@@ -2495,7 +2302,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                     "numero_serie": item["serie"].get().strip(),
                 })
         except Exception:
-            pass
+            logger.debug("Excepción recuperable controlada.", exc_info=True)
         return equipos
 
     def obtener_detalle_tecnico_json():
@@ -3408,7 +3215,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
     try:
         card.pack_forget()
     except Exception:
-        pass
+        logger.debug("Excepción recuperable controlada.", exc_info=True)
 
     frame_botones = ctk.CTkFrame(
         contenedor,
@@ -3494,21 +3301,21 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         try:
             _var.trace_add("write", lambda *_args: actualizar_estado_preview())
         except Exception:
-            pass
+            logger.debug("Excepción recuperable controlada.", exc_info=True)
 
     for _txt in [txt_descripcion, txt_observaciones]:
         try:
             _txt.bind("<KeyRelease>", lambda _event: actualizar_estado_preview(), add="+")
         except Exception:
-            pass
+            logger.debug("Excepción recuperable controlada.", exc_info=True)
     try:
         txt_rep_descripcion_fallas.bind("<KeyRelease>", lambda _event: actualizar_estado_preview(), add="+")
     except Exception:
-        pass
+        logger.debug("Excepción recuperable controlada.", exc_info=True)
     try:
         txt_infra_observaciones.bind("<KeyRelease>", lambda _event: actualizar_estado_preview(), add="+")
     except Exception:
-        pass
+        logger.debug("Excepción recuperable controlada.", exc_info=True)
     actualizar_estado_preview()
 
     ctk.CTkButton(
