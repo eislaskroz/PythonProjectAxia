@@ -24,6 +24,7 @@ from services.movimientos_service import registrar_movimiento_seguro
 
 from supabase_config import supabase
 from services.folios_service import asegurar_folio
+from services.query_compat import execute_select_compatible
 
 TABLA_BITACORAS = "db_bitacoras"
 COLUMNAS_BITACORAS = "id_bitacora,bit_aco_numero,bit_avance,bit_cliente,bit_descripcion,bit_direccion_sucursal,bit_encargado_proyecto_axia,bit_estatus,bit_fecha,bit_folio,bit_hora_llegada,bit_hora_salida,bit_observaciones,bit_porcentaje_avance,bit_tecnico,bit_tecnico_sitio,fecha_registro"
@@ -70,13 +71,13 @@ def obtener_bitacoras(page=1, page_size=100):
     """
 
     try:
-        respuesta = (
-            supabase
-            .table(TABLA_BITACORAS)
-            .select(COLUMNAS_BITACORAS)
+        respuesta = execute_select_compatible(
+            supabase,
+            TABLA_BITACORAS,
+            COLUMNAS_BITACORAS,
+            lambda query: query
             .order("fecha_registro", desc=True)
             .range(*page_range(page, page_size))
-            .execute()
         )
 
         registrar_movimiento_seguro(
@@ -101,14 +102,14 @@ def obtener_bitacoras_por_aco(aco_numero, page=1, page_size=100):
     """
 
     try:
-        respuesta = (
-            supabase
-            .table(TABLA_BITACORAS)
-            .select(COLUMNAS_BITACORAS)
+        respuesta = execute_select_compatible(
+            supabase,
+            TABLA_BITACORAS,
+            COLUMNAS_BITACORAS,
+            lambda query: query
             .eq("bit_aco_numero", aco_numero)
             .order("fecha_registro", desc=True)
             .range(*page_range(page, page_size))
-            .execute()
         )
 
         registrar_movimiento_seguro(
@@ -133,12 +134,12 @@ def buscar_bitacora_por_folio(folio):
     """
 
     try:
-        respuesta = (
-            supabase
-            .table(TABLA_BITACORAS)
-            .select(COLUMNAS_BITACORAS)
-            .eq("bit_folio", folio)
-            .execute()
+        respuesta = execute_select_compatible(
+            supabase,
+            TABLA_BITACORAS,
+            COLUMNAS_BITACORAS,
+            lambda query: query
+            .eq("bit_folio", str(folio).strip().upper())
         )
 
         if respuesta.data:
@@ -160,7 +161,7 @@ def buscar_bitacora_por_folio(folio):
 
     except Exception as error:
         logger.exception("Error al buscar bitácora.")
-        return None
+        raise RuntimeError("No fue posible consultar la bitácora en Supabase.") from error
 
 
 # =====================================================

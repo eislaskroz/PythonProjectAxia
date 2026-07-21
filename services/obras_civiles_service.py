@@ -5,6 +5,7 @@ from core.date_utils import normalizar_campos_fecha
 from core.performance import page_range
 from supabase_config import supabase
 from services.folios_service import asegurar_folio
+from services.query_compat import execute_select_compatible
 from services.movimientos_service import registrar_movimiento_seguro
 
 logger = configurar_logger(__name__)
@@ -31,7 +32,12 @@ def crear_obra_civil(datos_obra):
 
 def obtener_obras_civiles(page=1, page_size=100):
     try:
-        respuesta = supabase.table(TABLA_OBRAS_CIVILES).select(COLUMNAS_OBRAS_CIVILES).order("fecha_registro", desc=True).execute()
+        respuesta = execute_select_compatible(
+            supabase,
+            TABLA_OBRAS_CIVILES,
+            COLUMNAS_OBRAS_CIVILES,
+            lambda query: query.order("fecha_registro", desc=True).range(*page_range(page, page_size)),
+        )
         return respuesta.data
     except Exception:
         logger.exception("Error al consultar obras civiles.")
@@ -40,13 +46,13 @@ def obtener_obras_civiles(page=1, page_size=100):
 
 def obtener_obras_civiles_por_aco(aco_numero, page=1, page_size=100):
     try:
-        respuesta = (
-            supabase.table(TABLA_OBRAS_CIVILES)
-            .select(COLUMNAS_OBRAS_CIVILES)
-            .eq("obc_aco_numero", aco_numero)
+        respuesta = execute_select_compatible(
+            supabase,
+            TABLA_OBRAS_CIVILES,
+            COLUMNAS_OBRAS_CIVILES,
+            lambda query: query.eq("obc_aco_numero", aco_numero)
             .order("fecha_registro", desc=True)
-            .range(*page_range(page, page_size))
-            .execute()
+            .range(*page_range(page, page_size)),
         )
         return respuesta.data
     except Exception:
@@ -56,8 +62,13 @@ def obtener_obras_civiles_por_aco(aco_numero, page=1, page_size=100):
 
 def buscar_obra_civil_por_folio(folio):
     try:
-        respuesta = supabase.table(TABLA_OBRAS_CIVILES).select(COLUMNAS_OBRAS_CIVILES).eq("obc_folio", folio).execute()
+        respuesta = execute_select_compatible(
+            supabase,
+            TABLA_OBRAS_CIVILES,
+            COLUMNAS_OBRAS_CIVILES,
+            lambda query: query.eq("obc_folio", str(folio).strip().upper()),
+        )
         return respuesta.data[0] if respuesta.data else None
-    except Exception:
+    except Exception as error:
         logger.exception("Error al buscar obra civil por folio.")
-        return None
+        raise RuntimeError("No fue posible consultar la obra civil en Supabase.") from error

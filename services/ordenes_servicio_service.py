@@ -28,6 +28,7 @@ from services.movimientos_service import registrar_movimiento_seguro
 
 from supabase_config import supabase
 from services.folios_service import asegurar_folio
+from services.query_compat import execute_select_compatible
 
 
 # =====================================================
@@ -91,13 +92,13 @@ def obtener_ordenes_servicio(page=1, page_size=100):
     """
 
     try:
-        respuesta = (
-            supabase
-            .table(TABLA_ORDENES)
-            .select(COLUMNAS_ORDENES)
+        respuesta = execute_select_compatible(
+            supabase,
+            TABLA_ORDENES,
+            COLUMNAS_ORDENES,
+            lambda query: query
             .order("fecha_registro", desc=True)
             .range(*page_range(page, page_size))
-            .execute()
         )
 
         registrar_movimiento_seguro(
@@ -130,14 +131,14 @@ def obtener_ordenes_por_aco(aco_numero, page=1, page_size=100):
     """
 
     try:
-        respuesta = (
-            supabase
-            .table(TABLA_ORDENES)
-            .select(COLUMNAS_ORDENES)
+        respuesta = execute_select_compatible(
+            supabase,
+            TABLA_ORDENES,
+            COLUMNAS_ORDENES,
+            lambda query: query
             .eq("os_aco_numero", aco_numero)
             .order("fecha_registro", desc=True)
             .range(*page_range(page, page_size))
-            .execute()
         )
 
         registrar_movimiento_seguro(
@@ -170,12 +171,12 @@ def buscar_orden_por_folio(folio):
     """
 
     try:
-        respuesta = (
-            supabase
-            .table(TABLA_ORDENES)
-            .select(COLUMNAS_ORDENES)
-            .eq("os_folio", folio)
-            .execute()
+        respuesta = execute_select_compatible(
+            supabase,
+            TABLA_ORDENES,
+            COLUMNAS_ORDENES,
+            lambda query: query
+            .eq("os_folio", str(folio).strip().upper())
         )
 
         if respuesta.data:
@@ -196,8 +197,8 @@ def buscar_orden_por_folio(folio):
         return None
 
     except Exception as error:
-        logger.exception("Error al buscar orden.")
-        return None
+        logger.exception("Error al buscar orden de servicio.")
+        raise RuntimeError("No fue posible consultar la orden de servicio en Supabase.") from error
 
 
 # =====================================================

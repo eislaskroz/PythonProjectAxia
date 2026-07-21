@@ -28,6 +28,7 @@ from services.movimientos_service import registrar_movimiento_seguro
 
 from supabase_config import supabase
 from services.folios_service import asegurar_folio
+from services.query_compat import execute_select_compatible
 
 
 # =====================================================
@@ -94,13 +95,13 @@ def obtener_levantamientos(page=1, page_size=100):
     """
 
     try:
-        respuesta = (
-            supabase
-            .table(TABLA_LEVANTAMIENTOS)
-            .select(COLUMNAS_LEVANTAMIENTOS)
+        respuesta = execute_select_compatible(
+            supabase,
+            TABLA_LEVANTAMIENTOS,
+            COLUMNAS_LEVANTAMIENTOS,
+            lambda query: query
             .order("fecha_registro", desc=True)
             .range(*page_range(page, page_size))
-            .execute()
         )
 
         registrar_movimiento_seguro(
@@ -133,14 +134,14 @@ def obtener_levantamientos_por_aco(aco_numero, page=1, page_size=100):
     """
 
     try:
-        respuesta = (
-            supabase
-            .table(TABLA_LEVANTAMIENTOS)
-            .select(COLUMNAS_LEVANTAMIENTOS)
+        respuesta = execute_select_compatible(
+            supabase,
+            TABLA_LEVANTAMIENTOS,
+            COLUMNAS_LEVANTAMIENTOS,
+            lambda query: query
             .eq("lev_aco_numero", aco_numero)
             .order("fecha_registro", desc=True)
             .range(*page_range(page, page_size))
-            .execute()
         )
 
         registrar_movimiento_seguro(
@@ -174,12 +175,12 @@ def buscar_levantamiento_por_folio(folio):
     """
 
     try:
-        respuesta = (
-            supabase
-            .table(TABLA_LEVANTAMIENTOS)
-            .select(COLUMNAS_LEVANTAMIENTOS)
-            .eq("lev_folio", folio)
-            .execute()
+        respuesta = execute_select_compatible(
+            supabase,
+            TABLA_LEVANTAMIENTOS,
+            COLUMNAS_LEVANTAMIENTOS,
+            lambda query: query
+            .eq("lev_folio", str(folio).strip().upper())
         )
 
         if respuesta.data:
@@ -201,7 +202,7 @@ def buscar_levantamiento_por_folio(folio):
 
     except Exception as error:
         logger.exception("Error al buscar levantamiento.")
-        return None
+        raise RuntimeError("No fue posible consultar el levantamiento en Supabase.") from error
 
 
 # =====================================================
