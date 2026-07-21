@@ -1,5 +1,5 @@
 #define MyAppName "AXIA"
-#define MyAppVersion "0.96.1"
+#define MyAppVersion "0.97.0"
 #define MyAppPublisher "AXIA Comunicaciones"
 #define MyAppExeName "AXIA.exe"
 
@@ -24,6 +24,17 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
 PrivilegesRequired=admin
+
+VersionInfoVersion={#MyAppVersion}
+VersionInfoCompany={#MyAppPublisher}
+VersionInfoDescription=AXIA - Plataforma operativa
+VersionInfoProductName={#MyAppName}
+VersionInfoProductVersion={#MyAppVersion}
+SetupLogging=yes
+UsePreviousAppDir=yes
+UsePreviousGroup=yes
+DisableDirPage=auto
+Uninstallable=yes
 
 UninstallDisplayName={#MyAppName}
 UninstallDisplayIcon={app}\{#MyAppExeName}
@@ -63,4 +74,5 @@ Filename: "{app}\{#MyAppExeName}"; \
     Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
-Type: filesandordirs; Name: "{app}"
+; Se eliminan únicamente temporales conocidos. La configuración y logs viven en LocalAppData.
+Type: filesandordirs; Name: "{app}\_internal\__pycache__"

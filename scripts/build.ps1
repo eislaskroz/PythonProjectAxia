@@ -1,7 +1,8 @@
 param(
-    [ValidateSet("test", "app", "installer")]
+    [ValidateSet("test", "app", "installer", "production")]
     [string]$Target = "app",
-    [switch]$SkipInstall
+    [switch]$SkipInstall,
+    [switch]$RequireSignature
 )
 
 $ErrorActionPreference = "Stop"
@@ -53,6 +54,10 @@ if (-not (Test-Path ".\dist\AXIA\AXIA.exe")) { throw "No se generó dist\AXIA\AX
 if (Test-Path ".\dist\AXIA\.env") { throw "Se encontró un .env dentro de dist. Proceso cancelado." }
 Copy-Item ".env.example" ".\dist\AXIA\.env.example" -Force
 
+if ($Target -eq "production") { $RequireSignature = $true }
+& ".\scripts\sign_release.ps1" -Files @(".\dist\AXIA\AXIA.exe") -RequireSignature:$RequireSignature
+if ($LASTEXITCODE -ne 0) { throw "Falló la firma del ejecutable." }
+
 if ($Target -eq "app") {
     Write-Host "Aplicación generada: dist\AXIA\AXIA.exe" -ForegroundColor Green
     exit 0
@@ -73,4 +78,7 @@ if ($LASTEXITCODE -ne 0) { throw "Inno Setup terminó con errores." }
 
 $Installer = Get-ChildItem ".\release\AXIA_Setup_*.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 if (-not $Installer) { throw "No se encontró el instalador final." }
+& ".\scripts\sign_release.ps1" -Files @($Installer.FullName) -RequireSignature:$RequireSignature
+if ($LASTEXITCODE -ne 0) { throw "Falló la firma del instalador." }
+Invoke-Python .\scripts\create_release_manifest.py ".\dist\AXIA\AXIA.exe" $Installer.FullName
 Write-Host "Instalador generado: $($Installer.FullName)" -ForegroundColor Green

@@ -18,6 +18,9 @@ from services.movimientos_service import registrar_movimiento_seguro
 logger = configurar_logger(__name__)
 
 
+COLUMNAS_SUCURSALES = "suc_id,id_cliente,suc_nombre,suc_domicilio,suc_telefono,suc_correo,suc_estado,suc_municipio,suc_estatus,fecha_registro"
+COLUMNAS_CONTACTOS = "con_id,suc_id,con_nombre,con_puesto,con_correo,con_telefono,con_estatus,fecha_registro"
+
 def _suc_id(sucursal):
     """Devuelve el ID real de sucursal aceptando alias antiguos."""
     sucursal = sucursal or {}
@@ -81,7 +84,7 @@ def obtener_contactos_por_sucursal(id_sucursal, page=1, page_size=100):
         respuesta = (
             supabase
             .table(TABLA_CONTACTOS_SUCURSAL)
-            .select(COLUMNAS_SUCURSALES)
+            .select(COLUMNAS_CONTACTOS)
             .eq("suc_id", id_sucursal)
             .eq("con_estatus", 1)
             .order("con_nombre")
@@ -103,7 +106,7 @@ def obtener_contacto_por_id(id_contacto):
         respuesta = (
             supabase
             .table(TABLA_CONTACTOS_SUCURSAL)
-            .select(COLUMNAS_SUCURSALES)
+            .select(COLUMNAS_CONTACTOS)
             .eq("con_id", id_contacto)
             .limit(1)
             .execute()

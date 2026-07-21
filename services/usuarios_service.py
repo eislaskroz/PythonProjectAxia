@@ -29,6 +29,8 @@ from security.data_encryption import (
 )
 
 
+COLUMNAS_USUARIOS = "id_usuario,usu_nickname,usu_nombre,usu_apellido,usu_rfc,usu_curp,usu_imss,usu_ine,usu_fechanac,usu_telefono,usu_correo,usu_calle,usu_numero,usu_colonia,usu_municipio,usu_estado,usu_cp,usu_regimen,usu_depto,usu_puesto,usu_tipo,usu_auth_id,fecha_registro"
+
 _catalogo_usuarios_cache = TTLCache(ttl_seconds=120)
 
 

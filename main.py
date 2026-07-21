@@ -89,6 +89,7 @@ def main():
     # =============================================
 
     from core.environment import cargar_entorno
+    from core.deployment import DeploymentConfigurationError, load_deployment_config
     from security.data_encryption import (
         EncryptionConfigurationError,
         validar_configuracion_cifrado,
@@ -96,6 +97,24 @@ def main():
 
     # La configuración se carga antes de importar servicios que dependan de ella.
     cargar_entorno()
+    try:
+        deployment = load_deployment_config()
+        logger.info(
+            "Ambiente AXIA validado: %s / Supabase %s",
+            deployment.environment,
+            deployment.project_ref,
+        )
+    except DeploymentConfigurationError as exc:
+        logger.critical("Configuración de despliegue inválida: %s", exc)
+        try:
+            from tkinter import messagebox
+            messagebox.showerror(
+                "AXIA · Configuración de ambiente",
+                f"{exc}\n\nAXIA no continuará para evitar conectarse al ambiente equivocado.",
+            )
+        except Exception:
+            logger.exception("No fue posible mostrar el aviso de ambiente.")
+        return
     try:
         ruta_generada = validar_configuracion_cifrado()
         if ruta_generada:

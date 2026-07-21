@@ -30,3 +30,11 @@ importacion_usuarios/salida/
 *CREDENCIALES_TEMPORALES*
 respaldo_db_usuarios_*.json
 usuarios_preparados_seguros.json
+
+# Respaldos, certificados y entregables de producción
+backups/
+*.axbak
+*.axbak.sha256
+*.pfx
+*.p12
+release_manifest.json

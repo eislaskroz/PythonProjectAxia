@@ -19,6 +19,8 @@ from core.logger import configurar_logger
 
 logger = configurar_logger(__name__)
 
+COLUMNAS_MOVIMIENTOS = "id_usuario,fecha_hora,usuario,modulo,accion,descripcion,equipo,ip_local,registro_afectado,ciudad,region,pais"
+
 # =====================================================
 # IMPORTACIÓN DE LIBRERÍAS
 # =====================================================

@@ -23,6 +23,8 @@ from services.movimientos_service import registrar_movimiento_seguro
 
 
 # Campos reales detectados en db_clientes.
+COLUMNAS_CLIENTES = "id_cliente,cli_tipo,cli_estatus,cli_razonsocial,cli_rfc,cli_contacto,cli_telefono,cli_correo,cli_calle,cli_numero,cli_colonia,cli_municipio,cli_estado,cli_cp,cli_notas,fecha_registro"
+
 CAMPOS_CLIENTE = [
     "cli_tipo",
     "cli_estatus",
