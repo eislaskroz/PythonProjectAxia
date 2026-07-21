@@ -29,7 +29,7 @@ class BasePdfGenerator:
     # Área útil calculada para no invadir encabezado ni pie de la plantilla.
     LEFT_MARGIN = 34
     RIGHT_MARGIN = 34
-    TOP_MARGIN = 112
+    TOP_MARGIN = 96
     BOTTOM_MARGIN = 78
 
     @classmethod

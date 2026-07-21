@@ -158,8 +158,8 @@ def generar_pdf_archivo(titulo, datos, nombre_archivo=None, subcarpeta="document
 def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, firma_tecnico_base64=None, mostrar_firmas=None, ruta_salida=None, abrir=True):
     """Genera PDF temporal y lo abre con el visor predeterminado.
 
-    El PDF incluye encabezado operativo con logo AXIA, folio, fecha,
-    QR de identificación del registro y zona de firmas.
+    El PDF incluye encabezado operativo, folio, fecha y zona de firmas
+    cuando corresponda. La plantilla corporativa se aplica en cada página.
     """
     try:
         from reportlab.lib.pagesizes import letter
@@ -167,9 +167,6 @@ def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, 
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib import colors
         from reportlab.lib.units import inch
-        from reportlab.graphics.barcode import qr
-        from reportlab.graphics.shapes import Drawing
-        from reportlab.graphics import renderPDF
     except Exception as error:
         messagebox.showerror("Preview PDF", f"No está instalado reportlab.\n\n{error}")
         return False
@@ -182,8 +179,6 @@ def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, 
 
     folio = _valor_por_clave(["Folio OS", "Folio OT", "Folio BIT", "Folio OBC", "Folio LEV", "Folio de Levantamiento", "Folio Bitácora", "Folio de bitácora"])
     fecha = _valor_por_clave(["Fecha"])
-    qr_texto = f"AXIA | {titulo} | {folio or 'SIN_FOLIO'} | {fecha or 'SIN_FECHA'}"
-
     if ruta_salida:
         ruta = Path(ruta_salida)
         ruta.parent.mkdir(parents=True, exist_ok=True)
@@ -205,13 +200,6 @@ def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, 
 
         contenido = []
 
-        qr_code = qr.QrCodeWidget(qr_texto)
-        bounds = qr_code.getBounds()
-        qr_w = bounds[2] - bounds[0]
-        qr_h = bounds[3] - bounds[1]
-        dibujo_qr = Drawing(0.75 * inch, 0.75 * inch, transform=[0.75 * inch / qr_w, 0, 0, 0.75 * inch / qr_h, 0, 0])
-        dibujo_qr.add(qr_code)
-
         centro = [
             Paragraph(f"<b>{titulo}</b>", estilo_titulo),
             Paragraph(
@@ -219,12 +207,11 @@ def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, 
                 estilo_sub,
             ),
         ]
-        encabezado = Table([[centro, dibujo_qr]], colWidths=[5.92 * inch, 0.75 * inch])
+        encabezado = Table([[centro]], colWidths=[6.90 * inch])
         encabezado.setStyle(TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("ALIGN", (0, 0), (0, 0), "CENTER"),
-            ("ALIGN", (1, 0), (1, 0), "RIGHT"),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
         ]))
         contenido.append(encabezado)
         contenido.append(Spacer(1, 3))
