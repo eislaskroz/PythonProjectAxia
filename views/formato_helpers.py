@@ -124,7 +124,7 @@ def ruta_documentos_axia(subcarpeta="documentos"):
     return base
 
 
-def generar_pdf_archivo(titulo, datos, nombre_archivo=None, subcarpeta="documentos", secciones_tabla=None, firma_base64=None, firma_tecnico_base64=None):
+def generar_pdf_archivo(titulo, datos, nombre_archivo=None, subcarpeta="documentos", secciones_tabla=None, firma_base64=None, firma_tecnico_base64=None, mostrar_firmas=None):
     """Genera y guarda un PDF definitivo sin abrir vista previa.
 
     Se utiliza después de guardar formularios en Supabase para conservar
@@ -148,12 +148,13 @@ def generar_pdf_archivo(titulo, datos, nombre_archivo=None, subcarpeta="document
         secciones_tabla=secciones_tabla,
         firma_base64=firma_base64,
         firma_tecnico_base64=firma_tecnico_base64,
+        mostrar_firmas=mostrar_firmas,
         ruta_salida=ruta,
         abrir=False,
     )
 
 
-def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, firma_tecnico_base64=None, ruta_salida=None, abrir=True):
+def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, firma_tecnico_base64=None, mostrar_firmas=None, ruta_salida=None, abrir=True):
     """Genera PDF temporal y lo abre con el visor predeterminado.
 
     El PDF incluye encabezado operativo con logo AXIA, folio, fecha,
@@ -443,36 +444,41 @@ def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, 
             contenido.append(t)
             contenido.append(Spacer(1, 5))
 
-        firma_cliente_obj = Paragraph("<br/><br/><br/>______________________________<br/><b>Firma Cliente</b>", estilo_sub)
-        if firma_base64:
-            try:
-                img_bytes = base64.b64decode(firma_base64)
-                img_path = Path(tempfile.gettempdir()) / f"firma_axia_{datetime.now().strftime('%H%M%S')}.png"
-                img_path.write_bytes(img_bytes)
-                firma_cliente_obj = RLImage(str(img_path), width=2.8 * inch, height=0.95 * inch)
-            except Exception:
-                firma_cliente_obj = Paragraph("Firma Cliente capturada", estilo_sub)
+        # Los levantamientos son documentos de diagnóstico y no requieren firmas.
+        if mostrar_firmas is None:
+            mostrar_firmas = "levantamiento" not in str(titulo or "").lower()
 
-        firma_tecnico_obj = Paragraph("<br/><br/><br/>______________________________<br/><b>Firma Técnico</b>", estilo_sub)
-        if firma_tecnico_base64:
-            try:
-                img_bytes = base64.b64decode(firma_tecnico_base64)
-                img_path = Path(tempfile.gettempdir()) / f"firma_tecnico_axia_{datetime.now().strftime('%H%M%S')}.png"
-                img_path.write_bytes(img_bytes)
-                firma_tecnico_obj = RLImage(str(img_path), width=2.8 * inch, height=0.95 * inch)
-            except Exception:
-                firma_tecnico_obj = Paragraph("Firma Técnico capturada", estilo_sub)
+        if mostrar_firmas:
+            firma_cliente_obj = Paragraph("<br/><br/><br/>______________________________<br/><b>Firma Cliente</b>", estilo_sub)
+            if firma_base64:
+                try:
+                    img_bytes = base64.b64decode(firma_base64)
+                    img_path = Path(tempfile.gettempdir()) / f"firma_axia_{datetime.now().strftime('%H%M%S')}.png"
+                    img_path.write_bytes(img_bytes)
+                    firma_cliente_obj = RLImage(str(img_path), width=2.8 * inch, height=0.95 * inch)
+                except Exception:
+                    firma_cliente_obj = Paragraph("Firma Cliente capturada", estilo_sub)
 
-        firmas = Table([
-            [firma_cliente_obj, firma_tecnico_obj]
-        ], colWidths=[3.35 * inch, 3.35 * inch])
-        firmas.setStyle(TableStyle([
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
-            ("TOPPADDING", (0, 0), (-1, -1), 14),
-        ]))
-        contenido.append(Spacer(1, 8))
-        contenido.append(firmas)
+            firma_tecnico_obj = Paragraph("<br/><br/><br/>______________________________<br/><b>Firma Técnico</b>", estilo_sub)
+            if firma_tecnico_base64:
+                try:
+                    img_bytes = base64.b64decode(firma_tecnico_base64)
+                    img_path = Path(tempfile.gettempdir()) / f"firma_tecnico_axia_{datetime.now().strftime('%H%M%S')}.png"
+                    img_path.write_bytes(img_bytes)
+                    firma_tecnico_obj = RLImage(str(img_path), width=2.8 * inch, height=0.95 * inch)
+                except Exception:
+                    firma_tecnico_obj = Paragraph("Firma Técnico capturada", estilo_sub)
+
+            firmas = Table([
+                [firma_cliente_obj, firma_tecnico_obj]
+            ], colWidths=[3.35 * inch, 3.35 * inch])
+            firmas.setStyle(TableStyle([
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
+                ("TOPPADDING", (0, 0), (-1, -1), 14),
+            ]))
+            contenido.append(Spacer(1, 8))
+            contenido.append(firmas)
 
         def _canvas_axia(filename, pagesize=None, **kwargs):
             canvas = Canvas(filename, pagesize=pagesize, **kwargs)

@@ -14,7 +14,7 @@ import customtkinter as ctk
 from tkinter import messagebox
 
 from app_context import obtener_usuario_actual
-from security.permissions import es_admin
+from security.permissions import es_superadmin
 
 from ui.colors import WHITE, TEXT_PRIMARY, TEXT_SECONDARY, PRIMARY, SECONDARY, BUTTON_HOVER
 from ui.fonts import TEXT_MD, TEXT_SM, BUTTON_FONT
@@ -94,10 +94,10 @@ def mostrar_reportes(parent, app):
 
     usuario_activo = obtener_usuario_actual()
 
-    if not es_admin(usuario_activo):
+    if not es_superadmin(usuario_activo):
         messagebox.showerror(
             "Acceso denegado",
-            "Solo administradores pueden consultar reportes."
+            "Solo usuarios con permisos de superadministrador pueden consultar reportes."
         )
         app.mostrar_vista_inicio_aco()
         return
@@ -136,17 +136,17 @@ def mostrar_reportes(parent, app):
             widget.destroy()
 
         for boton_clave, boton in botones_categoria.items():
-            activo = boton_clave == clave or (clave is None and boton_clave == "todas")
+            activo = boton_clave == clave
             boton.configure(
                 fg_color=SECONDARY if activo else "#64748B",
                 hover_color=BUTTON_HOVER if activo else "#475569",
             )
 
-        seleccion = REPORTES if clave is None else [r for r in REPORTES if r["clave"] == clave]
+        seleccion = [r for r in REPORTES if r["clave"] == clave]
         for reporte in seleccion:
             crear_bloque_reporte(scroll, reporte)
 
-    categorias = [("todas", "Todas")] + [(r["clave"], r["titulo"]) for r in REPORTES]
+    categorias = [(r["clave"], r["titulo"]) for r in REPORTES]
     for indice, (clave, texto) in enumerate(categorias):
         boton = ctk.CTkButton(
             botones,
@@ -156,13 +156,13 @@ def mostrar_reportes(parent, app):
             fg_color="#64748B",
             hover_color="#475569",
             font=TEXT_SM,
-            command=lambda c=None if clave == "todas" else clave: mostrar_categoria(c),
+            command=lambda c=clave: mostrar_categoria(c),
         )
         boton.grid(row=indice // 4, column=indice % 4, sticky="ew", padx=3, pady=3)
         botones.grid_columnconfigure(indice % 4, weight=1)
         botones_categoria[clave] = boton
 
-    mostrar_categoria(None)
+    mostrar_categoria(REPORTES[0]["clave"])
 
 
 def crear_bloque_reporte(parent, reporte):

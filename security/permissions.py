@@ -15,6 +15,11 @@ CAPTURISTA = 4
 CONSULTA = 5
 
 
+
+def es_superadmin(usuario_activo):
+    """Valida el nivel máximo de permisos del sistema (usu_tipo = 1)."""
+    return bool(usuario_activo) and usuario_activo.get("usu_tipo") == ADMIN
+
 def es_admin(usuario_activo):
     """
     Valida si el usuario activo es administrador.
