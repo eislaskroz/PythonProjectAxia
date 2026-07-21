@@ -1,7 +1,6 @@
 import os
-from dotenv import load_dotenv
 
-from core.app_paths import candidate_env_files
+from core.environment import cargar_entorno
 from supabase import create_client
 
 from core.logger import configurar_logger
@@ -12,16 +11,7 @@ logger = configurar_logger(__name__)
 # CARGAR VARIABLES DE ENTORNO
 # =================================================
 
-ENV_CARGADO = None
-for _env_path in candidate_env_files():
-    if _env_path.is_file():
-        load_dotenv(dotenv_path=_env_path, override=False)
-        ENV_CARGADO = _env_path
-        break
-
-# Conserva compatibilidad con variables definidas por el sistema operativo.
-if ENV_CARGADO is None:
-    load_dotenv(override=False)
+ENV_CARGADO = cargar_entorno()
 
 # =================================================
 # VARIABLES SUPABASE

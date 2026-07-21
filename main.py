@@ -88,8 +88,35 @@ def main():
     # ABRIR LOGIN DEL SISTEMA
     # =============================================
 
-    from security.data_encryption import validar_configuracion_cifrado
-    validar_configuracion_cifrado()
+    from core.environment import cargar_entorno
+    from security.data_encryption import (
+        EncryptionConfigurationError,
+        validar_configuracion_cifrado,
+    )
+
+    # La configuración se carga antes de importar servicios que dependan de ella.
+    cargar_entorno()
+    try:
+        ruta_generada = validar_configuracion_cifrado()
+        if ruta_generada:
+            logger.warning(
+                "Configuración de cifrado creada automáticamente para desarrollo en %s.",
+                ruta_generada,
+            )
+    except EncryptionConfigurationError as exc:
+        logger.critical("Configuración de cifrado inválida: %s", exc)
+        try:
+            from tkinter import messagebox
+            messagebox.showerror(
+                "AXIA · Configuración de seguridad",
+                f"{exc}\n\n"
+                "Por seguridad, AXIA no continuará.\n\n"
+                "En producción configura AXIA_DATA_KEY con la misma llave Fernet "
+                "en todos los equipos autorizados.",
+            )
+        except Exception:
+            logger.exception("No fue posible mostrar el aviso de configuración de cifrado.")
+        return
 
     logger.info("Iniciando sistema AXIA.")
     mark("main: tema y bootstrap listos")
