@@ -19,6 +19,8 @@ contra el hash almacenado.
 import bcrypt
 import hashlib
 import re
+import os
+import hmac
 
 
 # =====================================================
@@ -166,10 +168,9 @@ def verificar_password(password_plano, password_guardado):
     if es_hash_sha256(password_guardado):
         return generar_hash_sha256_legacy(password_plano) == password_guardado
 
-    # =============================================
-    # CASO 3: PASSWORD HEREDADO EN TEXTO PLANO
-    # =============================================
-    return password_plano == password_guardado
+    # CASO 3: texto plano heredado. Deshabilitado por defecto.
+    permitir_plano = os.getenv("AXIA_ALLOW_LEGACY_PLAINTEXT_PASSWORDS", "0").strip().lower() in {"1", "true", "yes"}
+    return permitir_plano and hmac.compare_digest(password_plano, password_guardado)
 
 
 # =====================================================
@@ -186,3 +187,19 @@ def requiere_migracion_a_bcrypt(password_guardado):
     """
 
     return not es_hash_bcrypt(password_guardado)
+
+
+def validar_fortaleza_password(password: str) -> tuple[bool, str]:
+    """Política mínima para altas y cambios de contraseña."""
+    password = str(password or "")
+    if len(password) < 10:
+        return False, "La contraseña debe tener al menos 10 caracteres."
+    if not re.search(r"[A-Z]", password):
+        return False, "La contraseña debe incluir una letra mayúscula."
+    if not re.search(r"[a-z]", password):
+        return False, "La contraseña debe incluir una letra minúscula."
+    if not re.search(r"\d", password):
+        return False, "La contraseña debe incluir un número."
+    if not re.search(r"[^A-Za-z0-9]", password):
+        return False, "La contraseña debe incluir un carácter especial."
+    return True, "Contraseña válida."

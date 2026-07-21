@@ -71,8 +71,10 @@ def validar_datos_usuario(datos):
     if datos.get("usu_password") != datos.get("confirmar_password"):
         return False, "Las contraseñas no coinciden."
 
-    if len(datos.get("usu_password", "")) < 4:
-        return False, "La contraseña debe tener mínimo 4 caracteres."
+    from security.passwords import validar_fortaleza_password
+    password_valida, mensaje_password = validar_fortaleza_password(datos.get("usu_password", ""))
+    if not password_valida:
+        return False, mensaje_password
 
     if not datos.get("usu_nombre"):
         return False, "El nombre es obligatorio."
@@ -311,7 +313,7 @@ def cambiar_password_usuario_actual(password_actual, password_nuevo, password_co
 
     try:
         from app_context import obtener_usuario_actual
-        from security.passwords import verificar_password, generar_hash_password
+        from security.passwords import verificar_password, generar_hash_password, validar_fortaleza_password
 
         usuario_activo = obtener_usuario_actual()
         id_usuario = usuario_activo.get("id_usuario")
@@ -332,8 +334,9 @@ def cambiar_password_usuario_actual(password_actual, password_nuevo, password_co
         if password_nuevo != password_confirmacion:
             return False, "La nueva contraseña y la confirmación no coinciden."
 
-        if len(password_nuevo) < 4:
-            return False, "La nueva contraseña debe tener mínimo 4 caracteres."
+        password_valida, mensaje_password = validar_fortaleza_password(password_nuevo)
+        if not password_valida:
+            return False, mensaje_password
 
         respuesta = (
             supabase

@@ -30,14 +30,12 @@ def _cargar_servicios_auth():
             obtener_contexto_login,
             validar_login,
             registrar_bitacora_login,
-            cambiar_password_usuario,
         )
         from services.movimientos_service import registrar_movimiento
         _AUTH_SERVICES = {
             "obtener_contexto_login": obtener_contexto_login,
             "validar_login": validar_login,
             "registrar_bitacora_login": registrar_bitacora_login,
-            "cambiar_password_usuario": cambiar_password_usuario,
             "registrar_movimiento": registrar_movimiento,
         }
     return _AUTH_SERVICES
@@ -137,8 +135,14 @@ def abrir_login():
     entry_password.pack(pady=4)
 
     def iniciar_sesion():
+        from security.login_guard import estado
         nickname = entry_usuario.get().strip()
         password = entry_password.get().strip()
+        restante = estado(nickname)
+        if restante > 0:
+            minutos = max(1, (restante + 59) // 60)
+            messagebox.showerror("Acceso bloqueado", f"Demasiados intentos. Intenta nuevamente en {minutos} minuto(s).")
+            return
 
         if not nickname or not password:
             messagebox.showwarning("Campos vacíos", "Ingresa usuario y contraseña")
@@ -184,9 +188,15 @@ def abrir_login():
             return {"acceso": False, "usuario": None}
 
         def login_correcto(resultado):
+            from security.login_guard import registrar_exito, registrar_fallo
             if not resultado["acceso"]:
-                messagebox.showerror("Acceso denegado", "Usuario o contraseña incorrectos")
+                restante = registrar_fallo(nickname)
+                mensaje = "Usuario o contraseña incorrectos"
+                if restante > 0:
+                    mensaje += "\n\nEl acceso quedó bloqueado temporalmente por seguridad."
+                messagebox.showerror("Acceso denegado", mensaje)
                 return
+            registrar_exito(nickname)
 
             usuario = resultado["usuario"]
             establecer_usuario_actual(
@@ -224,155 +234,12 @@ def abrir_login():
         )
 
     def abrir_cambio_password():
-        ventana = ctk.CTkToplevel(app)
-        aplicar_estilo_ventana(ventana)
-        configurar_icono_app(ventana)
-        ventana.title("Cambiar contraseña - Sistema AXIA")
-        centrar_ventana(ventana, PASSWORD_WIDTH, PASSWORD_HEIGHT)
-        ventana.resizable(False, False)
-        ventana.transient(app)
-        ventana.grab_set()
-
-        root_password = ctk.CTkFrame(ventana, fg_color=CONTENT_BG, corner_radius=0)
-        root_password.pack(fill="both", expand=True)
-
-        password_card = ctk.CTkFrame(
-            root_password,
-            width=CARD_WIDTH,
-            height=585,
-            fg_color=WHITE,
-            corner_radius=22,
-            border_width=1,
-            border_color="#D8E1EC",
+        messagebox.showinfo(
+            "Restablecimiento seguro",
+            "El restablecimiento con usuario y RFC fue retirado por seguridad.\n\n"
+            "Solicita a un administrador que restablezca tu acceso. Después podrás "
+            "cambiar tu contraseña desde Mi Bitácora, confirmando la contraseña actual.",
         )
-        password_card.pack(expand=True, padx=19, pady=14)
-        password_card.pack_propagate(False)
-
-        _crear_logo(password_card, size=(82, 82), pady=(8, 1))
-
-        ctk.CTkLabel(
-            password_card,
-            text="Cambiar contraseña",
-            font=TITLE_MD,
-            text_color=TEXT_PRIMARY,
-        ).pack(pady=(1, 2))
-
-        ctk.CTkLabel(
-            password_card,
-            text="Valida tu usuario y RFC",
-            font=TEXT_MD,
-            text_color=TEXT_SECONDARY,
-        ).pack(pady=(0, 7))
-
-        common_entry = {
-            "width": 340,
-            "height": 42,
-            "corner_radius": 12,
-            "font": TEXT_MD,
-        }
-
-        entry_nickname = ctk.CTkEntry(
-            password_card,
-            placeholder_text="Usuario / Nickname",
-            **common_entry,
-        )
-        entry_nickname.pack(pady=3)
-        entry_nickname.focus()
-
-        entry_rfc = ctk.CTkEntry(password_card, placeholder_text="RFC", **common_entry)
-        entry_rfc.pack(pady=3)
-
-        entry_nueva_password = ctk.CTkEntry(
-            password_card,
-            placeholder_text="Nueva contraseña",
-            show="*",
-            **common_entry,
-        )
-        entry_nueva_password.pack(pady=3)
-
-        entry_confirmar_password = ctk.CTkEntry(
-            password_card,
-            placeholder_text="Confirmar contraseña",
-            show="*",
-            **common_entry,
-        )
-        entry_confirmar_password.pack(pady=3)
-
-        def guardar_nueva_password():
-            nickname = entry_nickname.get().strip()
-            rfc = entry_rfc.get().strip().upper()
-            nueva_password = entry_nueva_password.get().strip()
-            confirmar_password = entry_confirmar_password.get().strip()
-
-            if not all((nickname, rfc, nueva_password, confirmar_password)):
-                messagebox.showwarning("Campos vacíos", "Completa todos los campos")
-                return
-            if nueva_password != confirmar_password:
-                messagebox.showerror("Error", "Las contraseñas no coinciden")
-                return
-            if len(nueva_password) < 4:
-                messagebox.showwarning(
-                    "Contraseña débil",
-                    "La contraseña debe tener mínimo 4 caracteres",
-                )
-                return
-
-            def tarea_cambio_password():
-                servicios = _cargar_servicios_auth()
-                return servicios["cambiar_password_usuario"](nickname, rfc, nueva_password)
-
-            def cambio_password_correcto(resultado):
-                actualizado, mensaje = resultado
-                if actualizado:
-                    messagebox.showinfo("Contraseña actualizada", mensaje)
-                    ventana.destroy()
-                    return
-                messagebox.showerror("Error", mensaje)
-
-            def cambio_password_error(_error):
-                messagebox.showerror(
-                    "Error de conexión",
-                    "No fue posible actualizar la contraseña. Intenta nuevamente.",
-                )
-
-            run_async(
-                root=ventana,
-                task=tarea_cambio_password,
-                on_success=cambio_password_correcto,
-                on_error=cambio_password_error,
-                before=lambda: ventana.configure(cursor="watch"),
-                after=lambda: ventana.configure(cursor=""),
-            )
-
-        ctk.CTkButton(
-            password_card,
-            text="ACTUALIZAR CONTRASEÑA",
-            width=340,
-            height=43,
-            corner_radius=12,
-            fg_color=PRIMARY,
-            hover_color=BUTTON_HOVER,
-            font=BUTTON_FONT,
-            command=guardar_nueva_password,
-        ).pack(pady=(9, 4))
-
-        ctk.CTkButton(
-            password_card,
-            text="Cancelar",
-            width=340,
-            height=39,
-            corner_radius=12,
-            fg_color="transparent",
-            border_width=1,
-            border_color=SECONDARY,
-            text_color=PRIMARY,
-            hover_color="#E8F0FF",
-            font=BUTTON_FONT,
-            command=ventana.destroy,
-        ).pack(pady=2)
-
-        ventana.bind("<Return>", lambda _event: guardar_nueva_password())
-        ventana.bind("<Escape>", lambda _event: ventana.destroy())
 
     ctk.CTkButton(
         card,
@@ -388,7 +255,7 @@ def abrir_login():
 
     ctk.CTkButton(
         card,
-        text="Cambiar contraseña",
+        text="¿Olvidaste tu contraseña?",
         width=340,
         height=39,
         corner_radius=12,

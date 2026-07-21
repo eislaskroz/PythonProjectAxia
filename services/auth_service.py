@@ -1,7 +1,6 @@
 from core.logger import configurar_logger
 
 logger = configurar_logger(__name__)
-from services.movimientos_service import registrar_movimiento_seguro
 
 # =====================================================
 # SERVICIO DE AUTENTICACIÓN - AXIA
@@ -21,6 +20,7 @@ Responsabilidades:
 """
 
 import platform
+import os
 import socket
 from datetime import datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
@@ -50,6 +50,9 @@ def obtener_geolocalizacion():
     Retorna un diccionario con valores seguros aunque falle internet.
     Esta función no debe detener el login si la consulta externa falla.
     """
+
+    if os.getenv("AXIA_ENABLE_IP_GEOLOCATION", "0").strip().lower() not in {"1", "true", "yes"}:
+        return {"latitud": "No disponible", "longitud": "No disponible", "ciudad": "No disponible", "region": "No disponible", "pais": "No disponible"}
 
     try:
         respuesta = requests.get(
@@ -166,12 +169,6 @@ def validar_login(nickname, password):
                 .execute()
             )
 
-        registrar_movimiento_seguro(
-            modulo="LOGIN",
-            accion="LOGIN_VALIDADO",
-            descripcion=f"Credenciales válidas para usuario: {nickname}",
-            registro_afectado=usuario.get("id_usuario"),
-        )
         return usuario
 
     except Exception as error:
@@ -228,106 +225,9 @@ def registrar_bitacora_login(
 # FUNCIÓN: cambiar_password_usuario()
 # =====================================================
 def cambiar_password_usuario(nickname, rfc, nueva_password):
-    """
-    Cambia la contraseña validando nickname + RFC.
-
-    Nota importante:
-    En usuarios creados desde la app, el RFC puede estar cifrado. Por eso
-    esta función primero intenta validar por nickname y después compara RFC
-    en claro o descifrado cuando sea posible.
-
-    También evita bloquear usuarios: después de guardar el hash nuevo, lo
-    vuelve a leer y verifica que funcione. Si no funciona, restaura el valor
-    anterior.
-    """
-
-    try:
-        from security.passwords import generar_hash_password, verificar_password
-        from security.data_encryption import descifrar_valor
-
-        nickname = str(nickname or "").strip()
-        rfc = str(rfc or "").strip().upper()
-        nueva_password = str(nueva_password or "")
-
-        if not nickname or not rfc or not nueva_password:
-            return False, "Usuario, RFC y nueva contraseña son obligatorios."
-
-        respuesta_busqueda = (
-            supabase
-            .table(TABLA_USUARIOS)
-            .select("id_usuario, usu_nickname, usu_rfc, usu_password")
-            .ilike("usu_nickname", nickname)
-            .limit(1)
-            .execute()
-        )
-
-        if not respuesta_busqueda.data:
-            return False, "No se encontró usuario con ese nickname"
-
-        usuario = respuesta_busqueda.data[0]
-        rfc_guardado = str(usuario.get("usu_rfc") or "").strip().upper()
-
-        # RFC puede venir en claro o cifrado. Intentamos descifrar sin romper
-        # compatibilidad con registros antiguos.
-        rfc_descifrado = rfc_guardado
-        try:
-            valor_descifrado = descifrar_valor(rfc_guardado)
-            if valor_descifrado:
-                rfc_descifrado = str(valor_descifrado).strip().upper()
-        except Exception:
-            pass
-
-        if rfc not in (rfc_guardado, rfc_descifrado):
-            return False, "El RFC no corresponde al usuario indicado"
-
-        id_usuario = usuario.get("id_usuario")
-        password_anterior = usuario.get("usu_password") or ""
-        nuevo_hash = generar_hash_password(nueva_password)
-
-        if len(nuevo_hash) < 55:
-            return False, "No fue posible generar un hash seguro para la contraseña."
-
-        if not verificar_password(nueva_password, nuevo_hash):
-            return False, "No fue posible validar el hash de la nueva contraseña."
-
-        supabase.table(TABLA_USUARIOS).update({"usu_password": nuevo_hash}).eq("id_usuario", id_usuario).execute()
-
-        verificacion = (
-            supabase
-            .table(TABLA_USUARIOS)
-            .select("usu_password")
-            .eq("id_usuario", id_usuario)
-            .limit(1)
-            .execute()
-        )
-
-        password_confirmado = ""
-        if verificacion.data:
-            password_confirmado = verificacion.data[0].get("usu_password") or ""
-
-        if len(str(password_confirmado)) < 55:
-            supabase.table(TABLA_USUARIOS).update({"usu_password": password_anterior}).eq("id_usuario", id_usuario).execute()
-            return False, (
-                "La base de datos no guardó completo el hash de contraseña. "
-                "Ejecuta la migración para convertir usu_password a TEXT."
-            )
-
-        if not verificar_password(nueva_password, password_confirmado):
-            supabase.table(TABLA_USUARIOS).update({"usu_password": password_anterior}).eq("id_usuario", id_usuario).execute()
-            return False, (
-                "La contraseña nueva no pudo verificarse después de guardarse. "
-                "No se aplicó el cambio. Revisa que la columna usu_password "
-                "permita guardar al menos 80 caracteres."
-            )
-
-        registrar_movimiento_seguro(
-            modulo="USUARIOS",
-            accion="CAMBIAR_PASSWORD",
-            descripcion=f"Cambio de contraseña para usuario: {nickname}",
-            registro_afectado=id_usuario,
-        )
-        return True, "La contraseña fue cambiada correctamente"
-
-    except Exception:
-        logger.exception("Error al cambiar contraseña.")
-        return False, "Ocurrió un error al cambiar la contraseña"
+    """Recuperación insegura retirada: nickname + RFC no acredita identidad."""
+    logger.warning("Intento de recuperación heredada bloqueado para usuario %r", nickname)
+    return False, (
+        "Por seguridad, el cambio de contraseña sin sesión fue deshabilitado. "
+        "Solicita a un administrador que restablezca tu acceso y cambia la contraseña al ingresar."
+    )

@@ -88,6 +88,9 @@ def main():
     # ABRIR LOGIN DEL SISTEMA
     # =============================================
 
+    from security.data_encryption import validar_configuracion_cifrado
+    validar_configuracion_cifrado()
+
     logger.info("Iniciando sistema AXIA.")
     mark("main: tema y bootstrap listos")
 

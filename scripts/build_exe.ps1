@@ -19,7 +19,10 @@ Write-Host "[3/5] Instalando dependencias..." -ForegroundColor Cyan
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt -r requirements-dev.txt
 
-Write-Host "[4/5] Generando AXIA.exe desde AXIA.spec..." -ForegroundColor Cyan
+Write-Host "[4/5] Verificando que no se empaqueten secretos..." -ForegroundColor Cyan
+if ((Get-Content .\AXIA.spec -Raw) -match "\.env['\"]") { throw "AXIA.spec intenta empaquetar .env. Compilación cancelada." }
+if (Test-Path ".\dist\AXIA\.env") { Remove-Item ".\dist\AXIA\.env" -Force }
+Write-Host "Generando AXIA.exe desde AXIA.spec..." -ForegroundColor Cyan
 pyinstaller --noconfirm --clean AXIA.spec
 
 Write-Host "[5/5] Preparando configuración de despliegue..." -ForegroundColor Cyan
