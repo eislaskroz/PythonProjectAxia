@@ -1,6 +1,7 @@
 from core.logger import configurar_logger
 from core.date_utils import normalizar_campos_fecha
 from core.performance import page_range, TTLCache
+from services.query_compat import execute_select_compatible
 
 logger = configurar_logger(__name__)
 from services.movimientos_service import registrar_movimiento_seguro
@@ -195,26 +196,57 @@ def _coincide_usuario(usuario, termino):
     )
 
 
-def buscar_usuarios(termino="", limite=100):
-    """
-    Busca usuarios para la vista administrativa.
-    """
+class UsuarioServiceError(RuntimeError):
+    """Error de consulta administrativa de usuarios."""
 
-    try:
-        respuesta = (
-            supabase
-            .table(TABLA_USUARIOS)
-            .select(COLUMNAS_USUARIOS)
-            .limit(limite)
-            .execute()
+
+def _obtener_usuarios_paginados(limite=500):
+    """Recupera usuarios con columnas explícitas y paginación real.
+
+    La búsqueda administrativa necesita descifrar algunos campos antes de
+    comparar. Por eso se consultan páginas sucesivas en lugar de limitarse a
+    los primeros 100 registros de la tabla.
+    """
+    limite = max(1, int(limite or 500))
+    page_size = min(500, limite)
+    registros = []
+    page = 1
+
+    while len(registros) < limite:
+        start, end = page_range(page, page_size)
+        respuesta = execute_select_compatible(
+            supabase,
+            TABLA_USUARIOS,
+            COLUMNAS_USUARIOS,
+            lambda query, start=start, end=end: query.order("id_usuario").range(start, end),
         )
+        lote = list(respuesta.data or [])
+        registros.extend(lote)
+        if len(lote) < page_size:
+            break
+        page += 1
 
-        registros = descifrar_lista(respuesta.data or [], CAMPOS_SENSIBLES_USUARIO)
-        resultado = [
-            usuario
-            for usuario in registros
-            if _coincide_usuario(usuario, termino)
-        ]
+    return registros[:limite]
+
+
+def buscar_usuarios(termino="", limite=500):
+    """Busca por nickname, nombre, apellido y campos administrativos.
+
+    Diferencia claramente entre una búsqueda sin coincidencias y una falla de
+    Supabase/esquema. Nunca convierte un error técnico en una lista vacía.
+    """
+    try:
+        termino = str(termino or "").strip()
+        registros = _obtener_usuarios_paginados(limite=limite)
+        registros = descifrar_lista(registros, CAMPOS_SENSIBLES_USUARIO)
+        resultado = [usuario for usuario in registros if _coincide_usuario(usuario, termino)]
+        resultado.sort(
+            key=lambda usuario: (
+                str(usuario.get("usu_nickname", "") or "").casefold(),
+                str(usuario.get("usu_nombre", "") or "").casefold(),
+                str(usuario.get("usu_apellido", "") or "").casefold(),
+            )
+        )
         registrar_movimiento_seguro(
             modulo="USUARIOS",
             accion="BUSCAR",
@@ -222,10 +254,11 @@ def buscar_usuarios(termino="", limite=100):
             registro_afectado=f"Resultados: {len(resultado)}",
         )
         return resultado
-
-    except Exception:
+    except Exception as error:
         logger.exception("Error al buscar usuarios.")
-        return []
+        raise UsuarioServiceError(
+            "No fue posible consultar los usuarios. Revisa la conexión y la estructura de db_usuarios."
+        ) from error
 
 
 def crear_usuario_admin(datos):
@@ -303,13 +336,11 @@ def obtener_usuario_por_id(id_usuario):
         if not id_usuario:
             return None
 
-        respuesta = (
-            supabase
-            .table(TABLA_USUARIOS)
-            .select(COLUMNAS_USUARIOS)
-            .eq("id_usuario", id_usuario)
-            .limit(1)
-            .execute()
+        respuesta = execute_select_compatible(
+            supabase,
+            TABLA_USUARIOS,
+            COLUMNAS_USUARIOS,
+            lambda query: query.eq("id_usuario", id_usuario).limit(1),
         )
 
         if not respuesta.data:

@@ -1,5 +1,5 @@
 #define MyAppName "AXIA"
-#define MyAppVersion "1.00.9"
+#define MyAppVersion "0.97.0"
 #define MyAppPublisher "AXIA Comunicaciones"
 #define MyAppExeName "AXIA.exe"
 
@@ -54,7 +54,7 @@ Name: "desktopicon"; \
     Flags: unchecked
 
 [Files]
-Source: "..\AXIA\*"; \
+Source: "..\dist\AXIA\*"; \
     DestDir: "{app}"; \
     Flags: ignoreversion recursesubdirs createallsubdirs
 

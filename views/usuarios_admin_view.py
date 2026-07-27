@@ -18,6 +18,7 @@ from services.usuarios_service import (
     buscar_usuarios,
     crear_usuario_admin,
     actualizar_usuario_admin,
+    UsuarioServiceError,
 )
 
 
@@ -269,8 +270,19 @@ def mostrar_usuarios_admin(parent, app):
             pintar_resultados()
             messagebox.showwarning("Búsqueda requerida", "Ingresa un dato para buscar usuarios.")
             return
-        estado["resultados"] = buscar_usuarios(termino)
+        try:
+            estado["resultados"] = buscar_usuarios(termino)
+        except UsuarioServiceError as error:
+            estado["resultados"] = []
+            pintar_resultados()
+            messagebox.showerror("Error al consultar usuarios", str(error))
+            return
         pintar_resultados()
+        if not estado["resultados"]:
+            messagebox.showinfo(
+                "Sin coincidencias",
+                "No se encontraron usuarios que coincidan con la búsqueda.",
+            )
 
     def guardar_nuevo():
         if estado.get("modo") != "nuevo":
