@@ -385,7 +385,7 @@ class NavigationController:
             "Busca y consulta levantamientos registrados."
         )
         from views.admin_procesos_view import mostrar_admin_procesos
-        from services.levantamientos_service import obtener_levantamientos, buscar_levantamiento_por_folio
+        from services.levantamientos_service import obtener_levantamientos, buscar_levantamiento_por_folio, buscar_levantamientos
 
         mostrar_admin_procesos(
             parent=self.content,
@@ -400,6 +400,7 @@ class NavigationController:
                 "campos_fecha": ["fecha_registro", "created_at"],
                 "campos_descripcion": ["lev_descripcion", "lev_motivo", "descripcion"],
                 "obtener_todos": obtener_levantamientos,
+                "buscar": buscar_levantamientos,
                 "buscar_por_folio": buscar_levantamiento_por_folio,
             }
         )
@@ -424,7 +425,7 @@ class NavigationController:
             "Busca y consulta órdenes de servicio registradas."
         )
         from views.admin_procesos_view import mostrar_admin_procesos
-        from services.ordenes_servicio_service import obtener_ordenes_servicio, buscar_orden_por_folio
+        from services.ordenes_servicio_service import obtener_ordenes_servicio, buscar_orden_por_folio, buscar_ordenes_servicio
 
         mostrar_admin_procesos(
             parent=self.content,
@@ -439,6 +440,7 @@ class NavigationController:
                 "campos_fecha": ["fecha_registro", "created_at"],
                 "campos_descripcion": ["os_descripcion", "os_actividad", "descripcion"],
                 "obtener_todos": obtener_ordenes_servicio,
+                "buscar": buscar_ordenes_servicio,
                 "buscar_por_folio": buscar_orden_por_folio,
             }
         )
@@ -463,7 +465,7 @@ class NavigationController:
             "Busca y consulta órdenes de trabajo registradas."
         )
         from views.admin_procesos_view import mostrar_admin_procesos
-        from services.ordenes_trabajo_service import obtener_ordenes_trabajo, buscar_orden_trabajo_por_folio
+        from services.ordenes_trabajo_service import obtener_ordenes_trabajo, buscar_orden_trabajo_por_folio, buscar_ordenes_trabajo
 
         mostrar_admin_procesos(
             parent=self.content,
@@ -478,6 +480,7 @@ class NavigationController:
                 "campos_fecha": ["fecha_registro", "created_at"],
                 "campos_descripcion": ["ot_descripcion", "ot_actividad", "descripcion"],
                 "obtener_todos": obtener_ordenes_trabajo,
+                "buscar": buscar_ordenes_trabajo,
                 "buscar_por_folio": buscar_orden_trabajo_por_folio,
             }
         )
@@ -502,7 +505,7 @@ class NavigationController:
             "Busca y consulta bitácoras operativas registradas."
         )
         from views.admin_procesos_view import mostrar_admin_procesos
-        from services.bitacoras_service import obtener_bitacoras, buscar_bitacora_por_folio
+        from services.bitacoras_service import obtener_bitacoras, buscar_bitacora_por_folio, buscar_bitacoras
 
         mostrar_admin_procesos(
             parent=self.content,
@@ -517,6 +520,7 @@ class NavigationController:
                 "campos_fecha": ["fecha_registro", "created_at"],
                 "campos_descripcion": ["bit_descripcion", "bit_avance", "descripcion"],
                 "obtener_todos": obtener_bitacoras,
+                "buscar": buscar_bitacoras,
                 "buscar_por_folio": buscar_bitacora_por_folio,
             }
         )
@@ -542,7 +546,7 @@ class NavigationController:
             "Busca y consulta proyectos ejecutivos de obra civil."
         )
         from views.admin_procesos_view import mostrar_admin_procesos
-        from services.obras_civiles_service import obtener_obras_civiles, buscar_obra_civil_por_folio
+        from services.obras_civiles_service import obtener_obras_civiles, buscar_obra_civil_por_folio, buscar_obras_civiles
 
         mostrar_admin_procesos(
             parent=self.content,
@@ -557,6 +561,7 @@ class NavigationController:
                 "campos_fecha": ["obc_fecha", "fecha_registro", "created_at"],
                 "campos_descripcion": ["obc_nombre_proyecto", "obc_observaciones_finales", "descripcion"],
                 "obtener_todos": obtener_obras_civiles,
+                "buscar": buscar_obras_civiles,
                 "buscar_por_folio": buscar_obra_civil_por_folio,
             }
         )

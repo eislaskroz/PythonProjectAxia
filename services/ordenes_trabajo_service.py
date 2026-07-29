@@ -16,6 +16,7 @@ from services.query_compat import execute_select_compatible
 
 logger = configurar_logger(__name__)
 from services.movimientos_service import registrar_movimiento_seguro
+from services.search_service import buscar_parcial_supabase
 
 TABLA_ORDENES_TRABAJO = "db_ordenes_trabajo"
 COLUMNAS_ORDENES_TRABAJO = "id_orden,ot_aco_numero,ot_actividad,ot_asunto,ot_cliente,ot_contacto,ot_descripcion,ot_esi,ot_estatus,ot_fecha,ot_fecha_programada,ot_folio,ot_jefe_operacion,ot_numero_dias,ot_numero_personas,ot_partidas_json,ot_prioridad,ot_sucursal,ot_supervisor,ot_tecnico,fecha_registro"
@@ -160,3 +161,17 @@ def obtener_estadisticas_ordenes_trabajo(page=1, page_size=100):
     except Exception:
         logger.exception("Error al obtener estadísticas de órdenes de trabajo.")
         return 0, 0, 0, 0
+
+
+# Búsqueda parcial unificada
+def buscar_ordenes_trabajo(termino, limite=100):
+    resultados = buscar_parcial_supabase(
+        supabase=supabase, tabla=TABLA_ORDENES_TRABAJO, columnas=COLUMNAS_ORDENES_TRABAJO, termino=termino,
+        campos=('ot_folio', 'ot_aco_numero', 'ot_cliente', 'ot_sucursal', 'ot_tecnico', 'ot_supervisor', 'ot_estatus', 'ot_actividad', 'ot_descripcion'), id_campos=('id_orden', 'ot_folio'), orden='fecha_registro', limite=limite,
+    )
+    registrar_movimiento_seguro(
+        modulo='ORDENES_TRABAJO', accion="BUSCAR",
+        descripcion=f"Búsqueda parcial: {str(termino).strip().upper()}",
+        registro_afectado=f"Coincidencias: {len(resultados)}",
+    )
+    return resultados

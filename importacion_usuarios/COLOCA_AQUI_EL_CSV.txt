@@ -1,2 +1,0 @@
-Por seguridad, el CSV original con contraseñas en texto plano no se incluye en el proyecto.
-Copia listaoperadores.csv en la raíz del proyecto y sigue docs/IMPORTACION_USUARIOS_SUPABASE.md.

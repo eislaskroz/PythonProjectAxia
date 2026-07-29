@@ -18,9 +18,11 @@ Deben llamar funciones de esta capa `services/`.
 from core.logger import configurar_logger
 from core.date_utils import normalizar_campos_fecha
 from core.performance import page_range
+from core.search_utils import normalizar_termino_busqueda, puntaje_coincidencia
 
 logger = configurar_logger(__name__)
 from services.movimientos_service import registrar_movimiento_seguro
+from services.search_service import buscar_parcial_supabase
 
 # =====================================================
 # IMPORTACIÓN DE SUPABASE
@@ -155,6 +157,26 @@ def obtener_levantamientos_por_aco(aco_numero, page=1, page_size=100):
     except Exception as error:
         logger.exception("Error al consultar levantamientos por ACO.")
         return []
+
+
+# =====================================================
+# FUNCIÓN: buscar_levantamientos()
+# =====================================================
+def buscar_levantamientos(termino, limite=100):
+    """Busca coincidencias parciales por folio, ACO y datos relacionados."""
+    resultados = buscar_parcial_supabase(
+        supabase=supabase, tabla=TABLA_LEVANTAMIENTOS,
+        columnas=COLUMNAS_LEVANTAMIENTOS, termino=termino,
+        campos=("lev_folio", "lev_aco_numero", "lev_cliente", "lev_ubicacion", "lev_tecnico", "lev_supervisor", "lev_estatus", "lev_tipo"),
+        id_campos=("id_levantamiento", "lev_folio"), orden="fecha_registro", limite=limite,
+    )
+    termino_normalizado = normalizar_termino_busqueda(termino)
+    registrar_movimiento_seguro(
+        modulo="LEVANTAMIENTOS", accion="BUSCAR",
+        descripcion=f"Búsqueda parcial de levantamientos: {termino_normalizado}",
+        registro_afectado=f"Coincidencias: {len(resultados)}",
+    )
+    return resultados
 
 
 # =====================================================

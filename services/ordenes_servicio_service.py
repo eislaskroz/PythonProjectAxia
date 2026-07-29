@@ -21,6 +21,7 @@ from core.performance import page_range
 
 logger = configurar_logger(__name__)
 from services.movimientos_service import registrar_movimiento_seguro
+from services.search_service import buscar_parcial_supabase
 
 # =====================================================
 # IMPORTACIÓN DE SUPABASE
@@ -269,3 +270,16 @@ def obtener_estadisticas_ordenes(page=1, page_size=100):
     except Exception as error:
         logger.exception("Error al obtener estadísticas de movimientos.")
         return 0, 0, 0, 0
+
+# Búsqueda parcial unificada
+def buscar_ordenes_servicio(termino, limite=100):
+    resultados = buscar_parcial_supabase(
+        supabase=supabase, tabla=TABLA_ORDENES, columnas=COLUMNAS_ORDENES, termino=termino,
+        campos=('os_folio', 'os_aco_numero', 'os_cliente', 'os_sucursal', 'os_tecnico', 'os_supervisor', 'os_estatus', 'os_tipo_servicio', 'os_descripcion'), id_campos=('id_orden', 'os_folio'), orden='fecha_registro', limite=limite,
+    )
+    registrar_movimiento_seguro(
+        modulo='ORDENES_SERVICIO', accion="BUSCAR",
+        descripcion=f"Búsqueda parcial: {str(termino).strip().upper()}",
+        registro_afectado=f"Coincidencias: {len(resultados)}",
+    )
+    return resultados

@@ -27,6 +27,9 @@ COLUMNAS_MOVIMIENTOS = "id_usuario,fecha_hora,usuario,modulo,accion,descripcion,
 
 # Librería para obtener información del equipo local
 import socket
+import json
+from datetime import datetime
+from core.app_paths import user_data_dir
 
 # =====================================================
 # IMPORTACIÓN DE SUPABASE
@@ -77,6 +80,20 @@ def obtener_ip_local():
     except Exception:
         logger.warning("No fue posible obtener la IP local.", exc_info=True)
         return "DESCONOCIDA"
+
+
+def _guardar_movimiento_pendiente(datos):
+    """Conserva localmente un movimiento si Supabase no está disponible."""
+    try:
+        carpeta = user_data_dir() / "audit_pending"
+        carpeta.mkdir(parents=True, exist_ok=True)
+        ruta = carpeta / "movimientos_pendientes.jsonl"
+        payload = dict(datos)
+        payload["pendiente_desde"] = datetime.now().isoformat()
+        with ruta.open("a", encoding="utf-8") as archivo:
+            archivo.write(json.dumps(payload, ensure_ascii=False, default=str) + "\n")
+    except Exception:
+        logger.exception("No fue posible conservar localmente el movimiento pendiente.")
 
 
 # =====================================================
@@ -174,7 +191,11 @@ def registrar_movimiento(
         return True
 
     except Exception as error:
-        logger.exception("Error al registrar movimiento.")
+        logger.exception("Error al registrar movimiento; se conservará en cola local.")
+        try:
+            _guardar_movimiento_pendiente(datos)
+        except UnboundLocalError:
+            logger.warning("No fue posible construir el movimiento para la cola local.", exc_info=True)
         return False
 
 

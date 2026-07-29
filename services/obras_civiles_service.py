@@ -7,6 +7,7 @@ from supabase_config import supabase
 from services.folios_service import asegurar_folio
 from services.query_compat import execute_select_compatible
 from services.movimientos_service import registrar_movimiento_seguro
+from services.search_service import buscar_parcial_supabase
 
 logger = configurar_logger(__name__)
 TABLA_OBRAS_CIVILES = "db_obras_civiles"
@@ -72,3 +73,17 @@ def buscar_obra_civil_por_folio(folio):
     except Exception as error:
         logger.exception("Error al buscar obra civil por folio.")
         raise RuntimeError("No fue posible consultar la obra civil en Supabase.") from error
+
+
+# Búsqueda parcial unificada
+def buscar_obras_civiles(termino, limite=100):
+    resultados = buscar_parcial_supabase(
+        supabase=supabase, tabla=TABLA_OBRAS_CIVILES, columnas=COLUMNAS_OBRAS_CIVILES, termino=termino,
+        campos=('obc_folio', 'obc_aco_numero', 'obc_cliente', 'obc_sucursal', 'obc_supervisor', 'obc_responsable_axia', 'obc_estatus', 'obc_nombre_proyecto'), id_campos=('id_obra_civil', 'obc_folio'), orden='fecha_registro', limite=limite,
+    )
+    registrar_movimiento_seguro(
+        modulo='OBRAS_CIVILES', accion="BUSCAR",
+        descripcion=f"Búsqueda parcial: {str(termino).strip().upper()}",
+        registro_afectado=f"Coincidencias: {len(resultados)}",
+    )
+    return resultados

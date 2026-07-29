@@ -19,6 +19,7 @@ from ui.fonts import TITLE_MD, TEXT_MD, TEXT_SM, BUTTON_FONT
 from services.pdf_registro_service import previsualizar_pdf_registro, guardar_pdf_registro
 from ui.detail_popup import mostrar_detalle_registro
 from core.background_tasks import run_async
+from core.search_utils import normalizar_termino_busqueda
 
 
 def _valor(registro, campos, default="No registrado"):
@@ -139,13 +140,27 @@ def mostrar_admin_procesos(parent, app, configuracion):
 
     ctk.CTkLabel(
         barra_busqueda,
-        text="Ingresa un folio para consultar. No se cargan registros automáticamente para mejorar rendimiento.",
+        text="Ingresa un folio o dato relacionado. La búsqueda acepta coincidencias parciales.",
         font=TEXT_MD,
         text_color=TEXT_SECONDARY,
         anchor="w"
     ).grid(row=1, column=0, columnspan=3, sticky="ew", padx=11, pady=(0, 7))
 
     var_folio = ctk.StringVar()
+    actualizando_mayusculas = False
+
+    def convertir_a_mayusculas(*_args):
+        nonlocal actualizando_mayusculas
+        if actualizando_mayusculas:
+            return
+        valor_actual = var_folio.get()
+        valor_normalizado = valor_actual.upper()
+        if valor_actual != valor_normalizado:
+            actualizando_mayusculas = True
+            var_folio.set(valor_normalizado)
+            actualizando_mayusculas = False
+
+    var_folio.trace_add("write", convertir_a_mayusculas)
 
     entrada = ctk.CTkEntry(
         barra_busqueda,
@@ -209,12 +224,12 @@ def mostrar_admin_procesos(parent, app, configuracion):
             )
             return
 
-        mostrar_cargando("Buscando folio...")
+        mostrar_cargando("Buscando coincidencias...")
 
         run_async(
             root=parent.winfo_toplevel(),
-            task=lambda: configuracion["buscar_por_folio"](folio),
-            on_success=lambda registro: renderizar_lista([registro] if registro else []),
+            task=lambda: configuracion.get("buscar", configuracion["buscar_por_folio"])(normalizar_termino_busqueda(folio)),
+            on_success=lambda registros: renderizar_lista(registros if isinstance(registros, list) else ([registros] if registros else [])),
             on_error=lambda error: messagebox.showerror("Error", f"No fue posible consultar el folio.\n\n{error}")
         )
 
@@ -245,7 +260,7 @@ def mostrar_admin_procesos(parent, app, configuracion):
         limpiar_resultados()
         ctk.CTkLabel(
             resultados,
-            text="Ingresa un folio para consultar registros.",
+            text="Ingresa un término para consultar registros.",
             font=TEXT_MD,
             text_color=TEXT_SECONDARY
         ).pack(pady=40)

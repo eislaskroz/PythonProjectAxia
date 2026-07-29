@@ -23,6 +23,8 @@ import platform
 import os
 import socket
 from datetime import datetime
+import json
+from core.app_paths import user_data_dir
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 import requests
@@ -176,6 +178,19 @@ def validar_login(nickname, password):
         return None
 
 
+def _guardar_login_pendiente(datos):
+    try:
+        carpeta = user_data_dir() / "audit_pending"
+        carpeta.mkdir(parents=True, exist_ok=True)
+        ruta = carpeta / "login_pendientes.jsonl"
+        payload = dict(datos)
+        payload["pendiente_desde"] = datetime.now().isoformat()
+        with ruta.open("a", encoding="utf-8") as archivo:
+            archivo.write(json.dumps(payload, ensure_ascii=False, default=str) + "\n")
+    except Exception:
+        logger.exception("No fue posible conservar localmente el login pendiente.")
+
+
 # =====================================================
 # FUNCIÓN: registrar_bitacora_login()
 # =====================================================
@@ -218,7 +233,11 @@ def registrar_bitacora_login(
         supabase.table(TABLA_BITACORA_LOGIN).insert(datos).execute()
 
     except Exception as error:
-        logger.exception("Error al registrar bitácora login.")
+        logger.exception("Error al registrar bitácora login; se conservará en cola local.")
+        try:
+            _guardar_login_pendiente(datos)
+        except UnboundLocalError:
+            logger.warning("No fue posible construir el evento de login para la cola local.", exc_info=True)
 
 
 # =====================================================

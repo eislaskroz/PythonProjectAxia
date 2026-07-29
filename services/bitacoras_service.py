@@ -21,6 +21,7 @@ from core.performance import page_range
 
 logger = configurar_logger(__name__)
 from services.movimientos_service import registrar_movimiento_seguro
+from services.search_service import buscar_parcial_supabase
 
 from supabase_config import supabase
 from services.folios_service import asegurar_folio
@@ -227,3 +228,16 @@ def obtener_estadisticas_bitacoras(page=1, page_size=100):
     except Exception as error:
         logger.exception("Error al obtener estadísticas de movimientos.")
         return 0, 0, 0, 0
+
+# Búsqueda parcial unificada
+def buscar_bitacoras(termino, limite=100):
+    resultados = buscar_parcial_supabase(
+        supabase=supabase, tabla=TABLA_BITACORAS, columnas=COLUMNAS_BITACORAS, termino=termino,
+        campos=('bit_folio', 'bit_aco_numero', 'bit_cliente', 'bit_tecnico', 'bit_tecnico_sitio', 'bit_estatus', 'bit_descripcion', 'bit_avance'), id_campos=('id_bitacora', 'bit_folio'), orden='fecha_registro', limite=limite,
+    )
+    registrar_movimiento_seguro(
+        modulo='BITACORAS', accion="BUSCAR",
+        descripcion=f"Búsqueda parcial: {str(termino).strip().upper()}",
+        registro_afectado=f"Coincidencias: {len(resultados)}",
+    )
+    return resultados

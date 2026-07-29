@@ -19,12 +19,12 @@ from security.permissions import puede_ver_reportes
 from ui.colors import WHITE, TEXT_PRIMARY, TEXT_SECONDARY, PRIMARY, SECONDARY, BUTTON_HOVER
 from ui.fonts import TEXT_MD, TEXT_SM, BUTTON_FONT
 
-from services.acos_service import obtener_acos, buscar_aco_por_numero
-from services.levantamientos_service import obtener_levantamientos, buscar_levantamiento_por_folio
-from services.ordenes_servicio_service import obtener_ordenes_servicio, buscar_orden_por_folio
-from services.ordenes_trabajo_service import obtener_ordenes_trabajo, buscar_orden_trabajo_por_folio
-from services.bitacoras_service import obtener_bitacoras, buscar_bitacora_por_folio
-from services.obras_civiles_service import obtener_obras_civiles, buscar_obra_civil_por_folio
+from services.acos_service import obtener_acos, buscar_aco_por_numero, buscar_acos
+from services.levantamientos_service import obtener_levantamientos, buscar_levantamiento_por_folio, buscar_levantamientos
+from services.ordenes_servicio_service import obtener_ordenes_servicio, buscar_orden_por_folio, buscar_ordenes_servicio
+from services.ordenes_trabajo_service import obtener_ordenes_trabajo, buscar_orden_trabajo_por_folio, buscar_ordenes_trabajo
+from services.bitacoras_service import obtener_bitacoras, buscar_bitacora_por_folio, buscar_bitacoras
+from services.obras_civiles_service import obtener_obras_civiles, buscar_obra_civil_por_folio, buscar_obras_civiles
 from services.export_service import exportar_registros_dialogo
 from ui.detail_popup import mostrar_detalle_registro
 
@@ -36,7 +36,7 @@ REPORTES = [
         "icono": "📁",
         "placeholder": "Buscar por número de ACO...",
         "obtener": obtener_acos,
-        "buscar": buscar_aco_por_numero,
+        "buscar": buscar_acos,
         "campos": ["aco_numero", "aco_cliente", "aco_responsable", "aco_fecha_inicio", "aco_fecha_compromiso"],
     },
     {
@@ -45,7 +45,7 @@ REPORTES = [
         "icono": "📋",
         "placeholder": "Buscar por folio LEV-0001...",
         "obtener": obtener_levantamientos,
-        "buscar": buscar_levantamiento_por_folio,
+        "buscar": buscar_levantamientos,
         "campos": ["lev_folio", "lev_aco_numero", "lev_cliente", "lev_tecnico", "lev_fecha_programada"],
     },
     {
@@ -54,7 +54,7 @@ REPORTES = [
         "icono": "🧾",
         "placeholder": "Buscar por folio OS-0001...",
         "obtener": obtener_ordenes_servicio,
-        "buscar": buscar_orden_por_folio,
+        "buscar": buscar_ordenes_servicio,
         "campos": ["os_folio", "os_aco_numero", "os_cliente", "os_tecnico", "os_fecha_programada"],
     },
     {
@@ -63,7 +63,7 @@ REPORTES = [
         "icono": "🛠️",
         "placeholder": "Buscar por folio OT-0001...",
         "obtener": obtener_ordenes_trabajo,
-        "buscar": buscar_orden_trabajo_por_folio,
+        "buscar": buscar_ordenes_trabajo,
         "campos": ["ot_folio", "ot_aco_numero", "ot_cliente", "ot_tecnico", "ot_fecha_programada"],
     },
     {
@@ -72,7 +72,7 @@ REPORTES = [
         "icono": "📊",
         "placeholder": "Buscar por folio BIT-0001...",
         "obtener": obtener_bitacoras,
-        "buscar": buscar_bitacora_por_folio,
+        "buscar": buscar_bitacoras,
         "campos": ["bit_folio", "bit_aco_numero", "bit_cliente", "bit_tecnico", "bit_avance"],
     },
     {
@@ -81,7 +81,7 @@ REPORTES = [
         "icono": "🏗️",
         "placeholder": "Buscar por folio OBC-0001...",
         "obtener": obtener_obras_civiles,
-        "buscar": buscar_obra_civil_por_folio,
+        "buscar": buscar_obras_civiles,
         "campos": ["obc_folio", "obc_aco_numero", "obc_cliente", "obc_nombre_proyecto", "obc_fecha"],
     },
 ]
@@ -206,6 +206,17 @@ def crear_bloque_reporte(parent, reporte):
     barra.grid_columnconfigure(0, weight=1)
 
     var_busqueda = ctk.StringVar()
+    _actualizando_busqueda = {"activo": False}
+    def _a_mayusculas(*_args):
+        if _actualizando_busqueda["activo"]:
+            return
+        valor = var_busqueda.get()
+        mayus = valor.upper()
+        if valor != mayus:
+            _actualizando_busqueda["activo"] = True
+            var_busqueda.set(mayus)
+            _actualizando_busqueda["activo"] = False
+    var_busqueda.trace_add("write", _a_mayusculas)
     entry_busqueda = ctk.CTkEntry(
         barra,
         textvariable=var_busqueda,
@@ -330,9 +341,9 @@ def crear_bloque_reporte(parent, reporte):
             return
 
         try:
-            encontrado = reporte["buscar"](termino)
-            estado["registros"] = [encontrado] if encontrado else []
-        except Exception:
+            estado["registros"] = reporte["buscar"](termino) or []
+        except Exception as error:
+            messagebox.showerror("Error de consulta", f"No fue posible realizar la búsqueda.\n\n{error}")
             estado["registros"] = []
 
         pintar(estado["registros"])

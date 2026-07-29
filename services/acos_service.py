@@ -22,6 +22,7 @@ from core.cache import ttl_cache, clear_cache
 
 logger = configurar_logger(__name__)
 from services.movimientos_service import registrar_movimiento_seguro
+from services.search_service import buscar_parcial_supabase
 
 # =====================================================
 # NORMALIZACIÓN DE FECHAS
@@ -350,3 +351,16 @@ def validar_aco_existente(aco_numero):
     """
 
     return buscar_aco_por_numero(aco_numero) is not None
+
+# Búsqueda parcial unificada
+def buscar_acos(termino, limite=100):
+    resultados = buscar_parcial_supabase(
+        supabase=supabase, tabla=TABLA_ACOS, columnas=COLUMNAS_ACOS, termino=termino,
+        campos=('aco_numero', 'aco_cliente', 'aco_responsable', 'aco_sucursal', 'aco_estatus'), id_campos=('id_aco', 'aco_numero'), orden='fecha_registro', limite=limite,
+    )
+    registrar_movimiento_seguro(
+        modulo='ACOS', accion="BUSCAR",
+        descripcion=f"Búsqueda parcial: {str(termino).strip().upper()}",
+        registro_afectado=f"Coincidencias: {len(resultados)}",
+    )
+    return resultados
