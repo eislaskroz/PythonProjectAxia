@@ -8,7 +8,6 @@ from core.background_tasks import run_async
 from utils import centrar_ventana
 from ui.colors import (
     PRIMARY,
-    SECONDARY,
     WHITE,
     CONTENT_BG,
     TEXT_PRIMARY,
@@ -41,9 +40,7 @@ def _cargar_servicios_auth():
     return _AUTH_SERVICES
 
 LOGIN_WIDTH = 520
-LOGIN_HEIGHT = 620
-PASSWORD_WIDTH = 520
-PASSWORD_HEIGHT = 650
+LOGIN_HEIGHT = 570
 CARD_WIDTH = 440
 
 
@@ -87,7 +84,7 @@ def abrir_login():
     card = ctk.CTkFrame(
         root,
         width=CARD_WIDTH,
-        height=555,
+        height=505,
         fg_color=WHITE,
         corner_radius=22,
         border_width=1,
@@ -233,14 +230,6 @@ def abrir_login():
             after=lambda: app.configure(cursor=""),
         )
 
-    def abrir_cambio_password():
-        messagebox.showinfo(
-            "Restablecimiento seguro",
-            "El restablecimiento con usuario y RFC fue retirado por seguridad.\n\n"
-            "Solicita a un administrador que restablezca tu acceso. Después podrás "
-            "cambiar tu contraseña desde Mi Bitácora, confirmando la contraseña actual.",
-        )
-
     ctk.CTkButton(
         card,
         text="INGRESAR",
@@ -251,29 +240,15 @@ def abrir_login():
         hover_color=BUTTON_HOVER,
         font=BUTTON_FONT,
         command=iniciar_sesion,
-    ).pack(pady=(10, 4))
+    ).pack(pady=(12, 8))
 
-    ctk.CTkButton(
-        card,
-        text="¿Olvidaste tu contraseña?",
-        width=340,
-        height=39,
-        corner_radius=12,
-        fg_color="transparent",
-        border_width=1,
-        border_color=SECONDARY,
-        text_color=PRIMARY,
-        hover_color="#E8F0FF",
-        font=BUTTON_FONT,
-        command=abrir_cambio_password,
-    ).pack(pady=2)
 
     ctk.CTkLabel(
         card,
         text="Sistema AXIA · v2.0",
         font=TEXT_SM,
         text_color=TEXT_SECONDARY,
-    ).pack(pady=(7, 2))
+    ).pack(pady=(14, 2))
 
     app.bind("<Return>", lambda _event: iniciar_sesion())
     app.mainloop()
