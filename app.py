@@ -48,6 +48,7 @@ from ui.app_sidebar import crear_app_sidebar
 # =====================================================
 
 from ui.assets import configurar_icono_ventana
+from ui.keyboard_navigation import install_keyboard_navigation
 
 from ui.colors import (
     CONTENT_BG,
@@ -65,6 +66,8 @@ from ui.fonts import (
 # =====================================================
 
 from core.logger import configurar_logger
+from core.error_reporting import show_operation_error
+from core.performance import mark, measure
 
 logger = configurar_logger(__name__)
 
@@ -108,6 +111,7 @@ class AxiaApp(ctk.CTk):
         self.resizable(True, True)
         self.minsize(1180, 720)
         self.configure(fg_color=CONTENT_BG)
+        install_keyboard_navigation(self)
 
         # =================================================
         # USUARIO ACTIVO
@@ -138,7 +142,23 @@ class AxiaApp(ctk.CTk):
         # =================================================
         # VISTA INICIAL
         # =================================================
-        self.navigation.mostrar_inicio_aco()
+        # Se difiere hasta que Tk haya dibujado la ventana y el sidebar. Así
+        # el usuario percibe respuesta inmediata aunque la primera vista tarde.
+        mark("app: shell principal construido")
+        self.after_idle(self._cargar_vista_inicial)
+
+    def report_callback_exception(self, exc, value, traceback_obj):
+        """Muestra errores no controlados de callbacks con un código de soporte."""
+        show_operation_error(
+            "Error inesperado de AXIA",
+            "Ejecutar una acción de la interfaz",
+            value,
+            parent=self,
+        )
+
+    def _cargar_vista_inicial(self):
+        with measure("app: vista inicial ACO"):
+            self.navigation.mostrar_inicio_aco()
 
     # =====================================================
     # MÉTODO: maximizar_ventana()
@@ -241,8 +261,8 @@ class AxiaApp(ctk.CTk):
         )
         self.label_titulo.pack(
             anchor="center",
-            padx=35,
-            pady=(18, 2)
+            padx=18,
+            pady=(9, 1)
         )
 
         self.label_subtitulo = ctk.CTkLabel(
@@ -253,7 +273,7 @@ class AxiaApp(ctk.CTk):
         )
         self.label_subtitulo.pack(
             anchor="center",
-            padx=35
+            padx=18
         )
 
     # =====================================================

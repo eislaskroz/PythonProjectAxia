@@ -1,27 +1,40 @@
-# AXIA - archivos que no deben versionarse
+# Entornos y secretos
 .env
+.env.*
+!.env.example
 .venv/
 venv/
-env/
 
+# Python
 __pycache__/
 *.py[cod]
-*.pyo
-*.pyd
+.pytest_cache/
+.mypy_cache/
 
-build/
-dist/
-*.spec.bak
-
-logs/
-*.log
-
+# IDE
 .idea/
 .vscode/
-.DS_Store
-Thumbs.db
 
-# PDFs/documentos generados localmente
-documentos/
-Documents/
-AXIA_Output/
+# Build/runtime
+build/
+dist/
+release/
+logs/
+*.log
+*.exe
+*.msi
+
+# Importaciones de usuarios y respaldos sensibles
+listaoperadores.csv
+importacion_usuarios/salida/
+*CREDENCIALES_TEMPORALES*
+respaldo_db_usuarios_*.json
+usuarios_preparados_seguros.json
+
+# Respaldos, certificados y entregables de producción
+backups/
+*.axbak
+*.axbak.sha256
+*.pfx
+*.p12
+release_manifest.json

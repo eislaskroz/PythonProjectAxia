@@ -1,7 +1,8 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('assets', 'assets'), ('controllers', 'controllers'), ('core', 'core'), ('logs', 'logs'), ('modules', 'modules'), ('security', 'security'), ('services', 'services'), ('tools', 'tools'), ('ui', 'ui'), ('views', 'views'), ('.env', '.')]
+# SECURITY: .env, logs and runtime data must never be bundled.
+datas = [('assets', 'assets'), ('controllers', 'controllers'), ('core', 'core'), ('modules', 'modules'), ('security', 'security'), ('services', 'services'), ('tools', 'tools'), ('ui', 'ui'), ('views', 'views')]
 binaries = []
 hiddenimports = ['reportlab.graphics.barcode.code39', 'reportlab.graphics.barcode.code93', 'reportlab.graphics.barcode.code128', 'reportlab.graphics.barcode', 'reportlab.graphics', 'reportlab.platypus', 'reportlab.pdfgen', 'reportlab']
 tmp_ret = collect_all('reportlab')
@@ -34,6 +35,7 @@ exe = EXE(
     strip=False,
     upx=True,
     console=False,
+    icon="assets/SoloAxia.ico",
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

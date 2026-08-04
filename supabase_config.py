@@ -1,5 +1,6 @@
 import os
-from dotenv import load_dotenv
+
+from core.environment import cargar_entorno
 from supabase import create_client
 
 from core.logger import configurar_logger
@@ -10,7 +11,7 @@ logger = configurar_logger(__name__)
 # CARGAR VARIABLES DE ENTORNO
 # =================================================
 
-load_dotenv()
+ENV_CARGADO = cargar_entorno()
 
 # =================================================
 # VARIABLES SUPABASE
@@ -18,6 +19,15 @@ load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+
+# Una service_role key jamás debe distribuirse en una app de escritorio.
+# JWT de service_role suele contener esta cadena en el payload; además se permite
+# una defensa explícita por nombre de variable.
+if os.getenv("SUPABASE_SERVICE_ROLE_KEY"):
+    raise RuntimeError("No configures SUPABASE_SERVICE_ROLE_KEY en el cliente AXIA.")
+if SUPABASE_KEY and "service_role" in SUPABASE_KEY.lower():
+    raise RuntimeError("AXIA rechazó una clave service_role. Usa únicamente la clave pública anon.")
 
 # =================================================
 # CLIENTE SUPABASE
@@ -38,7 +48,7 @@ try:
         SUPABASE_URL,
         SUPABASE_KEY
     )
-    logger.info("Cliente Supabase inicializado correctamente.")
+    logger.info("Cliente Supabase inicializado correctamente. Configuración: %s", ENV_CARGADO or "variables del sistema")
 except Exception:
     logger.exception("No fue posible inicializar el cliente Supabase.")
     raise
