@@ -154,6 +154,18 @@ class AxiaPdfProfileRegistry:
         return tuple(sorted(cls._profiles))
 
 
+def _generic_table_blocks(data: Mapping[str, Any]) -> Sequence[AxiaPdfBlock]:
+    blocks: list[AxiaPdfBlock] = []
+    for item in data.get("_tablas_pdf", ()) or ():
+        try:
+            title, columns, rows = item
+        except (TypeError, ValueError):
+            continue
+        if rows:
+            blocks.append(DataTableBlock(str(title), tuple(columns), rows))
+    return tuple(blocks)
+
+
 def register_builtin_profiles() -> None:
     """Registra perfiles base para las entidades actuales de AXIA."""
     generic = AxiaPdfProfile(
@@ -168,6 +180,7 @@ def register_builtin_profiles() -> None:
             FieldSpec("Fecha", lambda d: d.get("Fecha") or d.get("fecha") or ""),
         ),
         detail_source=lambda d: d.get("Detalle técnico") or d.get("detalle_tecnico") or "",
+        extra_blocks=_generic_table_blocks,
         show_signatures=lambda d: bool(d.get("_mostrar_firmas", False)),
     )
     AxiaPdfProfileRegistry.register(generic, replace=True)

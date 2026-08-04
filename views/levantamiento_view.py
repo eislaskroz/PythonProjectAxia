@@ -59,6 +59,20 @@ from security.permissions import puede_generar_levantamiento
 # El catálogo maestro de materiales se carga desde services.materiales_catalogo_service.
 
 
+from views.levantamientos.catalogos_canalizacion import (
+    TIPOS_TUBOS,
+    TAMANOS_TUBOS,
+    TIPOS_COPLES,
+    TIPOS_REGISTROS,
+    TIPOS_CONECTORES,
+    TIPOS_ABRAZADERAS,
+    TIPOS_CABLE_ELECTRICO,
+    CALIBRES_CABLE_ELECTRICO,
+    TIPOS_CABLE_DATOS_CONTROL,
+    TIPOS_CABLE_EXTERIOR,
+    TIPOS_CANALIZACION,
+)
+
 from views.levantamientos.form_definitions import (
     FORMULARIOS_DETALLADOS_EXTRA,
     TIPOS_LEVANTAMIENTO_ESPECIALIZADOS,
@@ -153,6 +167,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
 
     materiales_miscelaneos_items = []
     equipos_catalogo_items = []
+    canalizacion_materiales_items = []
 
     # Campos dedicados del formulario Seguridad y Monitoreo.
     # Se guardan dentro de los campos descriptivos existentes para evitar
@@ -307,23 +322,23 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
     var_ele_espacios_disponibles = ctk.StringVar(value="Por validar")
     var_ele_breaker_requerido = ctk.StringVar()
     var_ele_tipo_circuito = ctk.StringVar(value="Normal")
-    var_ele_canalizacion = ctk.StringVar(value="Tubería EMT")
+    var_ele_canalizacion = ctk.StringVar(value=TIPOS_CANALIZACION[0])
     var_ele_metros_canalizacion = ctk.StringVar()
     var_ele_metros_cable = ctk.StringVar()
-    var_ele_calibre_cable = ctk.StringVar(value="Por calcular")
-    var_ele_tipo_conductor = ctk.StringVar(value="THW-LS")
+    var_ele_calibre_cable = ctk.StringVar(value=CALIBRES_CABLE_ELECTRICO[0])
     # Infraestructura requerida homologada con los demás levantamientos.
-    var_ele_tubos_tipo = ctk.StringVar(value="EMT")
+    var_ele_tubos_tipo = ctk.StringVar(value=TIPOS_TUBOS[0])
+    var_ele_tubos_tamano = ctk.StringVar(value=TAMANOS_TUBOS[0])
     var_ele_tubos_cantidad = ctk.StringVar()
-    var_ele_coples_tipo = ctk.StringVar(value="EMT")
+    var_ele_coples_tipo = ctk.StringVar(value=TIPOS_COPLES[0])
     var_ele_coples_cantidad = ctk.StringVar()
-    var_ele_registros_tipo = ctk.StringVar(value="Metálico")
+    var_ele_registros_tipo = ctk.StringVar(value=TIPOS_REGISTROS[0])
     var_ele_registros_cantidad = ctk.StringVar()
-    var_ele_conectores_tipo = ctk.StringVar(value="EMT")
+    var_ele_conectores_tipo = ctk.StringVar(value=TIPOS_CONECTORES[0])
     var_ele_conectores_cantidad = ctk.StringVar()
-    var_ele_abrazaderas_tipo = ctk.StringVar(value="Omega")
+    var_ele_abrazaderas_tipo = ctk.StringVar(value=TIPOS_ABRAZADERAS[0])
     var_ele_abrazaderas_cantidad = ctk.StringVar()
-    var_ele_cable_tipo = ctk.StringVar(value="THW-LS")
+    var_ele_cable_tipo = ctk.StringVar(value=TIPOS_CABLE_ELECTRICO[0])
     var_ele_cable_cantidad = ctk.StringVar()
     var_ele_contactos = ctk.StringVar()
     var_ele_apagadores = ctk.StringVar()
@@ -388,7 +403,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
     var_rep_firmware_software = ctk.StringVar(value="No")
     var_rep_actualizacion_corte = ctk.StringVar(value="No")
 
-    var_metros_emt = ctk.StringVar()
+    var_metros_pared_delgada = ctk.StringVar()
     var_metros_pvc = ctk.StringVar()
     var_metros_canaleta = ctk.StringVar()
     var_metros_charola = ctk.StringVar()
@@ -402,15 +417,16 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
     var_metros_coaxial = ctk.StringVar()
 
     # Infraestructura requerida en el orden operativo solicitado.
-    var_infra_tubos_tipo = ctk.StringVar(value="EMT")
+    var_infra_tubos_tipo = ctk.StringVar(value=TIPOS_TUBOS[0])
+    var_infra_tubos_tamano = ctk.StringVar(value=TAMANOS_TUBOS[0])
     var_infra_tubos_cantidad = ctk.StringVar()
-    var_infra_coples_tipo = ctk.StringVar(value="EMT")
+    var_infra_coples_tipo = ctk.StringVar(value=TIPOS_COPLES[0])
     var_infra_coples_cantidad = ctk.StringVar()
-    var_infra_registros_tipo = ctk.StringVar(value="Metálico")
+    var_infra_registros_tipo = ctk.StringVar(value=TIPOS_REGISTROS[0])
     var_infra_registros_cantidad = ctk.StringVar()
-    var_infra_conectores_tipo = ctk.StringVar(value="EMT")
+    var_infra_conectores_tipo = ctk.StringVar(value=TIPOS_CONECTORES[0])
     var_infra_conectores_cantidad = ctk.StringVar()
-    var_infra_abrazaderas_tipo = ctk.StringVar(value="Omega")
+    var_infra_abrazaderas_tipo = ctk.StringVar(value=TIPOS_ABRAZADERAS[0])
     var_infra_abrazaderas_cantidad = ctk.StringVar()
     var_infra_cable_tipo = ctk.StringVar(value="UTP Cat6")
     var_infra_cable_cantidad = ctk.StringVar()
@@ -1068,14 +1084,15 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             entry.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=6, pady=(0, 3))
             return entry
 
-        def option_en(parent_frame, texto, variable, values, fila, columna, command=None):
+        def option_en(parent_frame, texto, variable, values, fila, columna, command=None, width=None):
             label_en(parent_frame, texto, fila * 2 + 1, columna)
             option = NativeComboBox(
                 parent_frame,
                 variable=variable,
                 values=values,
                 height=32,
-                command=command
+                command=command,
+                width=width
             )
             option.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=6, pady=(0, 3))
             return option
@@ -1086,8 +1103,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         canalizacion_items = []
         cable_items = []
 
-        TIPOS_CANALIZACION = ["EMT", "PVC", "Canaleta", "Charola", "Escalerilla", "Ductería"]
-        TIPOS_CABLE = ["UTP Cat5e", "UTP Cat6", "UTP Cat6A", "Fibra óptica", "Coaxial"]
+        TIPOS_CANALIZACION_LOCAL = TIPOS_CANALIZACION
+        TIPOS_CABLE = TIPOS_CABLE_DATOS_CONTROL
 
         def agregar_fila_canalizacion(frame, coleccion):
             """Agrega una partida exclusiva de canalización."""
@@ -1301,28 +1318,24 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         # Conectores, Abrazaderas y Cable. Cada partida conserva variante y cantidad.
         seccion_infra_req = crear_seccion("🧱 Infraestructura requerida", fila_textos + 2)
         registrar_seccion("infraestructura_requerida", seccion_infra_req)
+        TIPOS_CABLE_INFRA = TIPOS_CABLE_DATOS_CONTROL
 
-        TIPOS_TUBO = ["EMT", "PVC", "Pared gruesa", "Flexible", "Conduit galvanizado"]
-        TIPOS_COPLE = ["EMT", "PVC", "Roscado", "Compresión", "Flexible"]
-        TIPOS_REGISTRO = ["Metálico", "PVC", "4x4", "Octagonal", "Con tapa", "Hermético"]
-        TIPOS_CONECTOR = ["EMT", "PVC", "Roscado", "Compresión", "Recto", "Curvo"]
-        TIPOS_ABRAZADERA = ["Omega", "Uña", "Unicanal", "Tipo U", "Metálica", "Plástica"]
-        TIPOS_CABLE_INFRA = ["UTP Cat5e", "UTP Cat6", "UTP Cat6A", "Fibra óptica", "Coaxial", "Eléctrico"]
+        option_en(seccion_infra_req, "Tubos / tipo", var_infra_tubos_tipo, TIPOS_TUBOS, 0, 0)
+        option_en(seccion_infra_req, "Tubos / tamaño", var_infra_tubos_tamano, TAMANOS_TUBOS, 0, 1)
+        entry_en(seccion_infra_req, "Tubos / cantidad o metros", var_infra_tubos_cantidad, "Ej. 20 m", 0, 2)
+        option_en(seccion_infra_req, "Coples / tipo", var_infra_coples_tipo, TIPOS_COPLES, 0, 3)
+        entry_en(seccion_infra_req, "Coples / cantidad", var_infra_coples_cantidad, "Ej. 10", 0, 4)
 
-        option_en(seccion_infra_req, "Tubos / tipo", var_infra_tubos_tipo, TIPOS_TUBO, 0, 0)
-        entry_en(seccion_infra_req, "Tubos / cantidad o metros", var_infra_tubos_cantidad, "Ej. 20 m", 0, 1)
-        option_en(seccion_infra_req, "Coples / tipo", var_infra_coples_tipo, TIPOS_COPLE, 0, 2)
-        entry_en(seccion_infra_req, "Coples / cantidad", var_infra_coples_cantidad, "Ej. 10", 0, 3)
-
-        option_en(seccion_infra_req, "Registros / tipo", var_infra_registros_tipo, TIPOS_REGISTRO, 1, 0)
+        option_en(seccion_infra_req, "Registros / tipo", var_infra_registros_tipo, TIPOS_REGISTROS, 1, 0)
         entry_en(seccion_infra_req, "Registros / cantidad", var_infra_registros_cantidad, "Ej. 4", 1, 1)
-        option_en(seccion_infra_req, "Conectores / tipo", var_infra_conectores_tipo, TIPOS_CONECTOR, 1, 2)
+        option_en(seccion_infra_req, "Conectores / tipo", var_infra_conectores_tipo, TIPOS_CONECTORES, 1, 2)
         entry_en(seccion_infra_req, "Conectores / cantidad", var_infra_conectores_cantidad, "Ej. 12", 1, 3)
 
-        option_en(seccion_infra_req, "Abrazaderas / tipo", var_infra_abrazaderas_tipo, TIPOS_ABRAZADERA, 2, 0)
+        option_en(seccion_infra_req, "Abrazaderas / tipo", var_infra_abrazaderas_tipo, TIPOS_ABRAZADERAS, 2, 0)
         entry_en(seccion_infra_req, "Abrazaderas / cantidad", var_infra_abrazaderas_cantidad, "Ej. 30", 2, 1)
         option_en(seccion_infra_req, "Cable / tipo", var_infra_cable_tipo, TIPOS_CABLE_INFRA, 2, 2)
         entry_en(seccion_infra_req, "Cable / cantidad o metros", var_infra_cable_cantidad, "Ej. 150 m", 2, 3)
+        seccion_infra_req.grid_remove()  # Sustituida por captura dinámica común.
 
         # Consumibles de Conectividad
         seccion_conectividad = crear_seccion("🔌 Consumibles de Conectividad", fila_textos + 3)
@@ -1805,7 +1818,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         seccion_rvd_materiales = crear_seccion_rvd("📦 3. Cableado, canalización y consumibles", fila_textos + 2)
         option_rvd(seccion_rvd_materiales, "Cable / tipo", var_rvd_tipo_cable, ["Cat5e", "Cat6", "Cat6A", "Fibra óptica monomodo", "Fibra óptica multimodo", "Coaxial", "Por validar"], 0, 0)
         entry_rvd(seccion_rvd_materiales, "Cable / cantidad o metros", var_rvd_metros_cable, "Ej. 180", 0, 1, ancho_corto=True)
-        option_rvd(seccion_rvd_materiales, "Canalización / tipo", var_rvd_tipo_canalizacion, ["Canaleta", "Tubería EMT", "Tubería PVC", "Charola", "Escalerilla", "Existente", "Por validar"], 0, 2)
+        option_rvd(seccion_rvd_materiales, "Canalización / tipo", var_rvd_tipo_canalizacion, TIPOS_CANALIZACION, 0, 2)
         entry_rvd(seccion_rvd_materiales, "Canalización / cantidad o metros", var_rvd_metros_canalizacion, "Ej. 45", 0, 3, ancho_corto=True)
 
         option_rvd(seccion_rvd_materiales, "Jacks RJ45 / tipo", var_rvd_tipo_jacks, ["Cat5e", "Cat6", "Cat6A", "Blindado", "Por validar"], 1, 0)
@@ -1834,6 +1847,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
 
         widget_rvd_patch_panel.configure(command=lambda _valor: actualizar_patch_panel_rvd())
         actualizar_patch_panel_rvd()
+        seccion_rvd_materiales.grid_remove()  # Sustituida por captura dinámica común.
 
         seccion_rvd_rack = crear_seccion_rvd("🗄️ 4. Rack, gabinete, equipo activo y energía", fila_textos + 3)
         widget_rvd_requiere_rack = option_rvd(seccion_rvd_rack, "¿Se requiere rack?", var_rvd_requiere_rack, ["Sí", "No"], 0, 0)
@@ -1992,9 +2006,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 entry.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=6, pady=(0, 3))
             return entry
 
-        def option_ele(parent_frame, texto, variable, values, fila, columna, command=None):
+        def option_ele(parent_frame, texto, variable, values, fila, columna, command=None, width=None):
             label_ele(parent_frame, texto, fila * 2 + 1, columna)
-            option = NativeComboBox(parent_frame, variable=variable, values=values, height=32, command=command)
+            option = NativeComboBox(parent_frame, variable=variable, values=values, height=32, command=command, width=width)
             option.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=6, pady=(0, 3))
             return option
 
@@ -2022,30 +2036,31 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
 
         seccion_ele_materiales = crear_seccion_ele("📦 3. Canalización, cableado y materiales", fila_textos + 2)
         # Infraestructura requerida: formato tipo + cantidad/metros.
-        option_ele(seccion_ele_materiales, "Tubos / tipo", var_ele_tubos_tipo, ["EMT", "PVC", "Pared gruesa", "Pared delgada", "Flexible", "Otro"], 0, 0)
-        entry_ele(seccion_ele_materiales, "Tubos / cantidad o metros", var_ele_tubos_cantidad, "Ej. 30", 0, 1, ancho_corto=True)
-        option_ele(seccion_ele_materiales, "Coples / tipo", var_ele_coples_tipo, ["EMT", "PVC", "Flexible", "Roscado", "Otro"], 0, 2)
-        entry_ele(seccion_ele_materiales, "Coples / cantidad", var_ele_coples_cantidad, "Ej. 20", 0, 3, ancho_corto=True)
-        option_ele(seccion_ele_materiales, "Registros / tipo", var_ele_registros_tipo, ["Metálico", "PVC", "Con tapa", "Hermético", "Otro"], 1, 0)
+        option_ele(seccion_ele_materiales, "Tubos / tipo", var_ele_tubos_tipo, TIPOS_TUBOS, 0, 0)
+        option_ele(seccion_ele_materiales, "Tubos / tamaño", var_ele_tubos_tamano, TAMANOS_TUBOS, 0, 1)
+        entry_ele(seccion_ele_materiales, "Tubos / cantidad o metros", var_ele_tubos_cantidad, "Ej. 30", 0, 2, ancho_corto=True)
+        option_ele(seccion_ele_materiales, "Coples / tipo", var_ele_coples_tipo, TIPOS_COPLES, 0, 3)
+        entry_ele(seccion_ele_materiales, "Coples / cantidad", var_ele_coples_cantidad, "Ej. 20", 0, 4, ancho_corto=True)
+        option_ele(seccion_ele_materiales, "Registros / tipo", var_ele_registros_tipo, TIPOS_REGISTROS, 1, 0)
         entry_ele(seccion_ele_materiales, "Registros / cantidad", var_ele_registros_cantidad, "Ej. 4", 1, 1, ancho_corto=True)
-        option_ele(seccion_ele_materiales, "Conectores / tipo", var_ele_conectores_tipo, ["EMT", "PVC", "Roscado", "Hermético", "Otro"], 1, 2)
+        option_ele(seccion_ele_materiales, "Conectores / tipo", var_ele_conectores_tipo, TIPOS_CONECTORES, 1, 2)
         entry_ele(seccion_ele_materiales, "Conectores / cantidad", var_ele_conectores_cantidad, "Ej. 20", 1, 3, ancho_corto=True)
-        option_ele(seccion_ele_materiales, "Abrazaderas / tipo", var_ele_abrazaderas_tipo, ["Omega", "Uña", "Unicanal", "Galvanizada", "Otro"], 2, 0)
+        option_ele(seccion_ele_materiales, "Abrazaderas / tipo", var_ele_abrazaderas_tipo, TIPOS_ABRAZADERAS, 2, 0)
         entry_ele(seccion_ele_materiales, "Abrazaderas / cantidad", var_ele_abrazaderas_cantidad, "Ej. 30", 2, 1, ancho_corto=True)
-        option_ele(seccion_ele_materiales, "Cable / tipo", var_ele_cable_tipo, ["THW-LS", "THHN", "Uso rudo", "Cobre desnudo", "Otro"], 2, 2)
+        option_ele(seccion_ele_materiales, "Cable / tipo", var_ele_cable_tipo, TIPOS_CABLE_ELECTRICO, 2, 2)
         entry_ele(seccion_ele_materiales, "Cable / cantidad o metros", var_ele_cable_cantidad, "Ej. 90", 2, 3, ancho_corto=True)
 
         # Datos eléctricos complementarios que siguen siendo necesarios para el cálculo.
-        option_ele(seccion_ele_materiales, "Tipo de canalización", var_ele_canalizacion, ["Tubería EMT", "Tubería PVC", "Canaleta", "Charola", "Escalerilla", "Existente", "Por validar"], 3, 0)
+        option_ele(seccion_ele_materiales, "Tipo de canalización", var_ele_canalizacion, TIPOS_CANALIZACION, 3, 0)
         entry_ele(seccion_ele_materiales, "Metros de canalización", var_ele_metros_canalizacion, "Ej. 30", 3, 1, ancho_corto=True)
         entry_ele(seccion_ele_materiales, "Metros de cable", var_ele_metros_cable, "Ej. 90", 3, 2, ancho_corto=True)
-        entry_ele(seccion_ele_materiales, "Calibre de cable", var_ele_calibre_cable, "Ej. 12 AWG", 3, 3, ancho_corto=True)
-        option_ele(seccion_ele_materiales, "Tipo de conductor", var_ele_tipo_conductor, ["THW-LS", "THHN", "Uso rudo", "Por validar"], 3, 4)
+        option_ele(seccion_ele_materiales, "Calibre de cable", var_ele_calibre_cable, CALIBRES_CABLE_ELECTRICO, 3, 3)
         entry_ele(seccion_ele_materiales, "Contactos", var_ele_contactos, "Ej. 8", 4, 0, ancho_corto=True)
         entry_ele(seccion_ele_materiales, "Apagadores", var_ele_apagadores, "Ej. 2", 4, 1, ancho_corto=True)
         entry_ele(seccion_ele_materiales, "Luminarias", var_ele_luminarias, "Ej. 6", 4, 2, ancho_corto=True)
         option_ele(seccion_ele_materiales, "Tierra física", var_ele_tierra_fisica, ["Existente", "Requerida", "Por validar"], 4, 3)
         option_ele(seccion_ele_materiales, "Neutro disponible", var_ele_neutro, ["Sí", "No", "Por validar"], 4, 4)
+        seccion_ele_materiales.grid_remove()  # Sustituida por captura dinámica común.
 
         seccion_ele_seguridad = crear_seccion_ele("🦺 4. Condiciones de seguridad y operación", fila_textos + 3)
         entry_ele(seccion_ele_seguridad, "Altura de trabajo", var_ele_altura_trabajo, "Ej. 3 m", 0, 0, ancho_corto=True)
@@ -2118,8 +2133,12 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
 
         secciones_extra_frames = []
         extra_widgets = {}
+        indice_visual = 0
         for indice_seccion, (titulo_sec, campos_sec) in enumerate(FORMULARIOS_DETALLADOS_EXTRA[tipo_levantamiento]["secciones"]):
-            seccion_extra = crear_seccion_extra(titulo_sec, fila_textos + indice_seccion)
+            if tipo_levantamiento in ("Control de Accesos", "Enlaces Inalámbricos") and "Cableado, canalización e infraestructura requerida" in titulo_sec:
+                continue
+            seccion_extra = crear_seccion_extra(titulo_sec, fila_textos + indice_visual)
+            indice_visual += 1
             secciones_extra_frames.append(seccion_extra)
             for indice_campo, (clave, tipo_campo, etiqueta, opciones_placeholder, _default) in enumerate(campos_sec):
                 fila_campo = indice_campo // 5
@@ -2132,45 +2151,171 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 else:
                     extra_widgets[clave] = entry_extra(seccion_extra, etiqueta, variable, opciones_placeholder, fila_campo, columna_campo, ancho_corto=es_corto)
 
-        if tipo_levantamiento in ("Control de Accesos", "Enlaces Inalámbricos"):
-            if tipo_levantamiento == "Control de Accesos":
-                campos_infraestructura_condicional = (
-                    "tipo_cable", "cantidad_cable",
-                    "tipo_canalizacion", "cantidad_canalizacion",
-                    "tipo_tubos", "cantidad_tubos",
-                    "tipo_coples", "cantidad_coples",
-                    "tipo_registros", "cantidad_registros",
-                    "tipo_conectores", "cantidad_conectores",
-                    "tipo_abrazaderas", "cantidad_abrazaderas",
-                )
-            else:
-                campos_infraestructura_condicional = (
-                    "tipo_cable_infra", "cantidad_cable_infra",
-                    "tipo_canalizacion", "cantidad_canalizacion",
-                    "tipo_tubos", "cantidad_tubos",
-                    "tipo_coples", "cantidad_coples",
-                    "tipo_registros", "cantidad_registros",
-                    "tipo_conectores", "cantidad_conectores",
-                    "tipo_abrazaderas", "cantidad_abrazaderas",
-                )
+        # La canalización de estos formularios se captura en la sección dinámica común.
 
-            def actualizar_infraestructura_extra(*_args):
-                habilitada = vars_extra["requiere_infraestructura"].get().strip() == "Sí"
-                estado = "normal" if habilitada else "disabled"
-                for clave_campo in campos_infraestructura_condicional:
-                    widget = extra_widgets.get(clave_campo)
-                    if widget is not None:
-                        try:
-                            widget.configure(state=estado)
-                        except (TypeError, AttributeError):
-                            pass
-                    if not habilitada:
-                        vars_extra[clave_campo].set("")
+        fila_textos = fila_textos + len(secciones_extra_frames)
 
-            vars_extra["requiere_infraestructura"].trace_add("write", actualizar_infraestructura_extra)
-            actualizar_infraestructura_extra()
+    # =============================================================
+    # CANALIZACIÓN, CABLEADO Y MATERIALES (CAPTURA DINÁMICA)
+    # =============================================================
+    tipos_con_canalizacion = {
+        "Seguridad y Monitoreo", "Redes Voz y Datos", "Electricidad",
+        "Control de Accesos", "Enlaces Inalámbricos",
+    }
+    seccion_canalizacion_dinamica = None
+    var_requiere_canalizacion = ctk.StringVar(value="Sí")
 
-        fila_textos = fila_textos + len(FORMULARIOS_DETALLADOS_EXTRA[tipo_levantamiento]["secciones"])
+    def catalogo_tipos_por_categoria(categoria):
+        if categoria == "Tubo": return list(TIPOS_TUBOS)
+        if categoria == "Cople": return list(TIPOS_COPLES)
+        if categoria == "Registro": return list(TIPOS_REGISTROS)
+        if categoria == "Conector": return list(TIPOS_CONECTORES)
+        if categoria == "Abrazadera": return list(TIPOS_ABRAZADERAS)
+        if categoria == "Canalización": return list(TIPOS_CANALIZACION)
+        if categoria == "Cable":
+            if tipo_levantamiento == "Electricidad": return list(TIPOS_CABLE_ELECTRICO)
+            if tipo_levantamiento == "Enlaces Inalámbricos": return list(dict.fromkeys(TIPOS_CABLE_EXTERIOR + TIPOS_CABLE_ELECTRICO))
+            return list(dict.fromkeys(TIPOS_CABLE_DATOS_CONTROL + TIPOS_CABLE_ELECTRICO))
+        if categoria == "Jack RJ45": return ["Cat5e", "Cat6", "Cat6A", "Blindado"]
+        if categoria == "Plug RJ45": return ["Cat5e", "Cat6", "Cat6A", "Blindado"]
+        if categoria == "Faceplate": return ["1 puerto", "2 puertos", "4 puertos", "Caja de superficie"]
+        if categoria == "Patch cord": return ["Cat5e - 1 m", "Cat5e - 2 m", "Cat6 - 1 m", "Cat6 - 2 m", "Cat6A", "Fibra óptica"]
+        if categoria == "Patch panel": return ["12 puertos Cat6", "24 puertos Cat6", "48 puertos Cat6", "Cat6A", "Fibra óptica"]
+        return ["Otro"]
+
+    def catalogo_especificacion_por_categoria(categoria):
+        if categoria == "Tubo": return list(TAMANOS_TUBOS)
+        if categoria == "Cable" and tipo_levantamiento == "Electricidad": return list(CALIBRES_CABLE_ELECTRICO)
+        return ["No aplica", "Por definir"]
+
+    def obtener_canalizacion_materiales_json():
+        if tipo_levantamiento in tipos_con_canalizacion and var_requiere_canalizacion.get() == "No":
+            return []
+        filas = []
+        for item in canalizacion_materiales_items:
+            categoria = item["categoria"].get().strip()
+            tipo = item["tipo"].get().strip()
+            cantidad = item["cantidad"].get().strip()
+            if not (categoria or tipo or cantidad):
+                continue
+            filas.append({
+                "categoria": categoria,
+                "tipo": tipo,
+                "tamano_calibre_especificacion": item["especificacion"].get().strip(),
+                "cantidad": cantidad,
+                "unidad": item["unidad"].get().strip(),
+            })
+        return filas
+
+    def canalizacion_materiales_completa():
+        if tipo_levantamiento not in tipos_con_canalizacion:
+            return True
+        if var_requiere_canalizacion.get() == "No":
+            return True
+        filas = obtener_canalizacion_materiales_json()
+        if not filas:
+            return False
+        for fila in filas:
+            if not (fila.get("categoria") and fila.get("tipo") and fila.get("cantidad") and fila.get("unidad")):
+                return False
+            if fila.get("categoria") == "Tubo" and not fila.get("tamano_calibre_especificacion"):
+                return False
+            if fila.get("categoria") == "Cable" and tipo_levantamiento == "Electricidad" and not fila.get("tamano_calibre_especificacion"):
+                return False
+        return True
+
+    def construir_resumen_canalizacion_materiales():
+        filas = obtener_canalizacion_materiales_json()
+        if not filas:
+            return ""
+        lineas = ["CANALIZACIÓN, CABLEADO Y MATERIALES:"]
+        for fila in filas:
+            extra = fila.get("tamano_calibre_especificacion")
+            linea = f"- {fila['categoria']}: {fila['tipo']}"
+            if extra and extra not in ("No aplica", "Por definir"):
+                linea += f" | {extra}"
+            linea += f" | {fila['cantidad']} {fila['unidad']}"
+            lineas.append(linea)
+        return "\n".join(lineas)
+
+    if tipo_levantamiento in tipos_con_canalizacion:
+        seccion_canalizacion_dinamica = ctk.CTkFrame(form_body, fg_color="#F8FAFC", corner_radius=14)
+        seccion_canalizacion_dinamica.grid(row=fila_textos, column=0, columnspan=5, sticky="ew", pady=(2, 5))
+        for col, peso in enumerate((2, 4, 3, 2, 2, 1)):
+            seccion_canalizacion_dinamica.grid_columnconfigure(col, weight=peso)
+        ctk.CTkLabel(seccion_canalizacion_dinamica, text="🧱 Canalización, cableado y materiales",
+                     font=("Montserrat", 14, "bold"), text_color=TEXT_PRIMARY).grid(
+            row=0, column=0, columnspan=6, sticky="w", padx=7, pady=(5, 1))
+        ctk.CTkLabel(seccion_canalizacion_dinamica,
+                     text="Agrega todas las partidas necesarias. Puedes registrar varios tipos, medidas y cantidades.",
+                     font=TEXT_SM, text_color=TEXT_SECONDARY).grid(
+            row=1, column=0, columnspan=6, sticky="w", padx=7, pady=(0, 4))
+        ctk.CTkLabel(seccion_canalizacion_dinamica, text="¿Se requiere?", font=("Montserrat", 11, "bold")).grid(row=2, column=0, sticky="w", padx=5)
+        combo_requiere = NativeComboBox(seccion_canalizacion_dinamica, variable=var_requiere_canalizacion, values=["Sí", "No"], width=120, height=31)
+        combo_requiere.grid(row=3, column=0, sticky="w", padx=5, pady=(0,4))
+        for col, encabezado in enumerate(("Categoría", "Tipo", "Tamaño / calibre / especificación", "Cantidad", "Unidad", "Acción")):
+            ctk.CTkLabel(seccion_canalizacion_dinamica, text=encabezado, font=("Montserrat", 11, "bold"), text_color=TEXT_PRIMARY).grid(row=4, column=col, sticky="w", padx=5, pady=(0,2))
+
+        categorias = ["Tubo", "Cople", "Registro", "Conector", "Abrazadera", "Canalización", "Cable"]
+        if tipo_levantamiento == "Redes Voz y Datos":
+            categorias += ["Jack RJ45", "Plug RJ45", "Faceplate", "Patch cord", "Patch panel"]
+
+        def agregar_partida_canalizacion(categoria_inicial="Tubo"):
+            fila = 5 + len(canalizacion_materiales_items)
+            var_categoria = ctk.StringVar(value=categoria_inicial)
+            var_tipo_item = ctk.StringVar()
+            var_especificacion = ctk.StringVar()
+            var_cantidad_item = ctk.StringVar()
+            var_unidad_item = ctk.StringVar(value="Metro(s)" if categoria_inicial in ("Tubo", "Canalización", "Cable") else "Pieza(s)")
+            combo_categoria = NativeComboBox(seccion_canalizacion_dinamica, variable=var_categoria, values=categorias, width=155, height=31)
+            combo_tipo = NativeComboBox(seccion_canalizacion_dinamica, variable=var_tipo_item, values=[], width=300, height=31)
+            combo_especificacion = NativeComboBox(seccion_canalizacion_dinamica, variable=var_especificacion, values=[], width=225, height=31)
+            entrada_cantidad = ctk.CTkEntry(seccion_canalizacion_dinamica, textvariable=var_cantidad_item, width=120, height=31, placeholder_text="Ej. 20")
+            combo_unidad = NativeComboBox(seccion_canalizacion_dinamica, variable=var_unidad_item,
+                                          values=["Metro(s)", "Pieza(s)", "Caja(s)", "Rollo(s)", "Juego(s)"], width=125, height=31)
+            widgets = [combo_categoria, combo_tipo, combo_especificacion, entrada_cantidad, combo_unidad]
+            for col, widget in enumerate(widgets):
+                widget.grid(row=fila, column=col, sticky="ew", padx=5, pady=2)
+            item = {"categoria": var_categoria, "tipo": var_tipo_item, "especificacion": var_especificacion,
+                    "cantidad": var_cantidad_item, "unidad": var_unidad_item, "widgets": widgets}
+
+            def actualizar_catalogos(*_):
+                categoria = var_categoria.get().strip()
+                tipos = catalogo_tipos_por_categoria(categoria)
+                especificaciones = catalogo_especificacion_por_categoria(categoria)
+                combo_tipo.configure(values=tipos)
+                combo_especificacion.configure(values=especificaciones)
+                if var_tipo_item.get() not in tipos: var_tipo_item.set(tipos[0] if tipos else "")
+                if var_especificacion.get() not in especificaciones: var_especificacion.set(especificaciones[0] if especificaciones else "")
+                if categoria in ("Tubo", "Canalización", "Cable") and not var_unidad_item.get(): var_unidad_item.set("Metro(s)")
+                elif categoria not in ("Tubo", "Canalización", "Cable") and var_unidad_item.get() == "Metro(s)": var_unidad_item.set("Pieza(s)")
+            var_categoria.trace_add("write", actualizar_catalogos)
+            actualizar_catalogos()
+
+            def eliminar():
+                for w in item["widgets"]:
+                    try: w.destroy()
+                    except Exception: pass
+                try: btn_eliminar.destroy()
+                except Exception: pass
+                canalizacion_materiales_items[:] = [x for x in canalizacion_materiales_items if x is not item]
+            btn_eliminar = ctk.CTkButton(seccion_canalizacion_dinamica, text="Eliminar", width=78, height=31,
+                                         fg_color="#DC2626", hover_color="#B91C1C", command=eliminar)
+            btn_eliminar.grid(row=fila, column=5, sticky="ew", padx=5, pady=2)
+            item["widgets"].append(btn_eliminar)
+            canalizacion_materiales_items.append(item)
+
+        def actualizar_requiere_canalizacion(*_):
+            habilitado = var_requiere_canalizacion.get() == "Sí"
+            for item in canalizacion_materiales_items:
+                for w in item.get("widgets", []):
+                    try: w.configure(state="normal" if habilitado else "disabled")
+                    except Exception: pass
+        var_requiere_canalizacion.trace_add("write", actualizar_requiere_canalizacion)
+        ctk.CTkButton(seccion_canalizacion_dinamica, text="➕ Agregar partida", height=32, fg_color=PRIMARY,
+                      command=agregar_partida_canalizacion).grid(row=1000, column=0, columnspan=2, sticky="w", padx=5, pady=(4,5))
+        agregar_partida_canalizacion("Tubo")
+        fila_textos += 1
 
     # =============================================================
     # EQUIPOS PRINCIPALES REQUERIDOS (CATÁLOGO ESCALABLE)
@@ -2592,21 +2737,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                     "nivel_riesgo": var_rvd_riesgo.get().strip(),
                 },
                 "cableado_canalizacion_consumibles": {
-                    "tipo_cable": var_rvd_tipo_cable.get().strip(),
-                    "metros_cable": var_rvd_metros_cable.get().strip(),
-                    "tipo_canalizacion": var_rvd_tipo_canalizacion.get().strip(),
-                    "metros_canalizacion": var_rvd_metros_canalizacion.get().strip(),
-                    "tipo_jacks_rj45": var_rvd_tipo_jacks.get().strip(),
-                    "jacks_rj45": var_rvd_jacks.get().strip(),
-                    "tipo_plugs_rj45": var_rvd_tipo_plugs.get().strip(),
-                    "plugs_rj45": var_rvd_plugs.get().strip(),
-                    "tipo_faceplates": var_rvd_tipo_faceplates.get().strip(),
-                    "faceplates": var_rvd_faceplates.get().strip(),
-                    "tipo_patch_cords": var_rvd_tipo_patch_cords.get().strip(),
-                    "patch_cords": var_rvd_patch_cords.get().strip(),
-                    "patch_panel": var_rvd_patch_panel.get().strip(),
-                    "tipo_patch_panel": var_rvd_tipo_patch_panel.get().strip(),
-                    "cantidad_patch_panel": var_rvd_cantidad_patch_panel.get().strip(),
+                    "requiere": var_requiere_canalizacion.get().strip(),
+                    "partidas": obtener_canalizacion_materiales_json(),
                 },
                 "rack_equipo_activo_energia": {
                     "requiere_rack": var_rvd_requiere_rack.get().strip(),
@@ -2695,23 +2827,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                     "tipo_circuito": var_ele_tipo_circuito.get().strip(),
                 },
                 "canalizacion_cableado_materiales": {
-                    "tubos_tipo": var_ele_tubos_tipo.get().strip(),
-                    "tubos_cantidad_metros": var_ele_tubos_cantidad.get().strip(),
-                    "coples_tipo": var_ele_coples_tipo.get().strip(),
-                    "coples_cantidad": var_ele_coples_cantidad.get().strip(),
-                    "registros_tipo": var_ele_registros_tipo.get().strip(),
-                    "registros_cantidad": var_ele_registros_cantidad.get().strip(),
-                    "conectores_tipo": var_ele_conectores_tipo.get().strip(),
-                    "conectores_cantidad": var_ele_conectores_cantidad.get().strip(),
-                    "abrazaderas_tipo": var_ele_abrazaderas_tipo.get().strip(),
-                    "abrazaderas_cantidad": var_ele_abrazaderas_cantidad.get().strip(),
-                    "cable_tipo": var_ele_cable_tipo.get().strip(),
-                    "cable_cantidad_metros": var_ele_cable_cantidad.get().strip(),
-                    "tipo_canalizacion": var_ele_canalizacion.get().strip(),
-                    "metros_canalizacion": var_ele_metros_canalizacion.get().strip(),
-                    "metros_cable": var_ele_metros_cable.get().strip(),
-                    "calibre_cable": var_ele_calibre_cable.get().strip(),
-                    "tipo_conductor": var_ele_tipo_conductor.get().strip(),
+                    "requiere": var_requiere_canalizacion.get().strip(),
+                    "partidas": obtener_canalizacion_materiales_json(),
                     "contactos": var_ele_contactos.get().strip(),
                     "apagadores": var_ele_apagadores.get().strip(),
                     "luminarias": var_ele_luminarias.get().strip(),
@@ -2801,7 +2918,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 "estado_general": var_infra_estado.get().strip(),
             },
             "infraestructura_requerida": {
-                "tubos": {"tipo": var_infra_tubos_tipo.get().strip(), "cantidad": var_infra_tubos_cantidad.get().strip()},
+                "tubos": {"tipo": var_infra_tubos_tipo.get().strip(), "tamano": var_infra_tubos_tamano.get().strip(), "cantidad": var_infra_tubos_cantidad.get().strip()},
                 "coples": {"tipo": var_infra_coples_tipo.get().strip(), "cantidad": var_infra_coples_cantidad.get().strip()},
                 "registros": {"tipo": var_infra_registros_tipo.get().strip(), "cantidad": var_infra_registros_cantidad.get().strip()},
                 "conectores": {"tipo": var_infra_conectores_tipo.get().strip(), "cantidad": var_infra_conectores_cantidad.get().strip()},
@@ -2937,14 +3054,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             f"Nivel de riesgo: {var_rvd_riesgo.get().strip() or 'No definido'}",
             "",
             "--- 3. CABLEADO, CANALIZACIÓN Y CONSUMIBLES ---",
-            f"Cable: {var_rvd_tipo_cable.get().strip() or 'No definido'} - {var_rvd_metros_cable.get().strip() or '0'} m/pzas",
-            f"Canalización: {var_rvd_tipo_canalizacion.get().strip() or 'No definido'} - {var_rvd_metros_canalizacion.get().strip() or '0'} m/pzas",
-            f"Jacks RJ45: {var_rvd_tipo_jacks.get().strip() or 'No definido'} - {var_rvd_jacks.get().strip() or '0'}",
-            f"Plugs RJ45: {var_rvd_tipo_plugs.get().strip() or 'No definido'} - {var_rvd_plugs.get().strip() or '0'}",
-            f"Faceplates: {var_rvd_tipo_faceplates.get().strip() or 'No definido'} - {var_rvd_faceplates.get().strip() or '0'}",
-            f"Patch cords: {var_rvd_tipo_patch_cords.get().strip() or 'No definido'} - {var_rvd_patch_cords.get().strip() or '0'}",
-            f"Patch panel requerido: {var_rvd_patch_panel.get().strip() or 'No definido'}",
-            f"Patch panel: {var_rvd_tipo_patch_panel.get().strip() or 'No aplica'} - {var_rvd_cantidad_patch_panel.get().strip() or '0'}",
+            construir_resumen_canalizacion_materiales() or "Sin partidas capturadas",
             "",
             "--- 4. RACK, GABINETE, EQUIPO ACTIVO Y ENERGÍA ---",
             f"Requiere rack: {var_rvd_requiere_rack.get().strip() or 'No definido'}",
@@ -2980,11 +3090,16 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             "",
         ]
         for titulo_sec, campos_sec in FORMULARIOS_DETALLADOS_EXTRA[tipo_levantamiento]["secciones"]:
+            if tipo_levantamiento in ("Control de Accesos", "Enlaces Inalámbricos") and "Cableado, canalización e infraestructura requerida" in titulo_sec:
+                continue
             lineas.append(f"--- {titulo_sec} ---")
             for clave, _tipo_campo, etiqueta, _opciones_placeholder, _default in campos_sec:
                 valor = vars_extra[clave].get().strip() or "No definido"
                 lineas.append(f"{etiqueta}: {valor}")
             lineas.append("")
+        resumen_canalizacion = construir_resumen_canalizacion_materiales()
+        if resumen_canalizacion:
+            lineas.extend(["", resumen_canalizacion])
         return "\n".join(lineas).strip()
 
     def construir_resumen_cctv():
@@ -3079,7 +3194,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             lineas.extend([
                 "",
                 "--- INFRAESTRUCTURA REQUERIDA ---",
-                f"Tubos: {var_infra_tubos_tipo.get().strip()} - {var_infra_tubos_cantidad.get().strip() or '0'}",
+                f"Tubos: {var_infra_tubos_tipo.get().strip()} | Tamaño: {var_infra_tubos_tamano.get().strip()} | Cantidad/metros: {var_infra_tubos_cantidad.get().strip() or '0'}",
                 f"Coples: {var_infra_coples_tipo.get().strip()} - {var_infra_coples_cantidad.get().strip() or '0'}",
                 f"Registros: {var_infra_registros_tipo.get().strip()} - {var_infra_registros_cantidad.get().strip() or '0'}",
                 f"Conectores: {var_infra_conectores_tipo.get().strip()} - {var_infra_conectores_cantidad.get().strip() or '0'}",
@@ -3136,15 +3251,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                     return False
                 if var_infra_existe.get() in ("Sí", "Parcial") and not (var_infra_tipo_existente.get().strip() and var_infra_estado.get().strip()):
                     return False
-                if var_infra_existe.get() in ("No", "Parcial"):
-                    requeridos = [var_infra_tubos_tipo.get().strip(), var_infra_tubos_cantidad.get().strip(), var_infra_coples_tipo.get().strip(), var_infra_coples_cantidad.get().strip(), var_infra_registros_tipo.get().strip(), var_infra_registros_cantidad.get().strip(), var_infra_conectores_tipo.get().strip(), var_infra_conectores_cantidad.get().strip(), var_infra_abrazaderas_tipo.get().strip(), var_infra_abrazaderas_cantidad.get().strip(), var_infra_cable_tipo.get().strip(), var_infra_cable_cantidad.get().strip()]
-                    if not all(requeridos):
-                        return False
-                    pares = [(var_rack_requerido, var_tipo_rack), (var_gabinete_requerido, var_tipo_gabinete), (var_ups_requerida, var_tipo_ups), (var_contacto_regulado, var_tipo_contacto_regulado), (var_tierra_fisica, var_tipo_tierra_fisica)]
-                    if any(a.get() == "Sí" and not b.get().strip() for a,b in pares):
-                        return False
-                    if var_escalera_requerida.get() == "Sí" and not (var_altura_trabajo.get().strip() and var_riesgo_instalacion.get().strip()):
-                        return False
+                if var_infra_existe.get() in ("No", "Parcial") and not canalizacion_materiales_completa():
+                    return False
+                pares = [(var_rack_requerido, var_tipo_rack), (var_gabinete_requerido, var_tipo_gabinete), (var_ups_requerida, var_tipo_ups), (var_contacto_regulado, var_tipo_contacto_regulado), (var_tierra_fisica, var_tipo_tierra_fisica)]
+                if any(a.get() == "Sí" and not b.get().strip() for a,b in pares):
+                    return False
+                if var_escalera_requerida.get() == "Sí" and not (var_altura_trabajo.get().strip() and var_riesgo_instalacion.get().strip()):
+                    return False
                 return True
             if modalidad == "Mantenimiento":
                 return bool(txt_observaciones.get("1.0", "end").strip())
@@ -3179,12 +3292,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 var_rvd_area_instalacion.get().strip(),
                 var_rvd_horario_trabajo.get().strip(),
                 var_rvd_altura_trabajo.get().strip(),
-                var_rvd_tipo_cable.get().strip(), var_rvd_metros_cable.get().strip(),
-                var_rvd_tipo_canalizacion.get().strip(), var_rvd_metros_canalizacion.get().strip(),
-                var_rvd_tipo_jacks.get().strip(), var_rvd_jacks.get().strip(),
-                var_rvd_tipo_plugs.get().strip(), var_rvd_plugs.get().strip(),
-                var_rvd_tipo_faceplates.get().strip(), var_rvd_faceplates.get().strip(),
-                var_rvd_tipo_patch_cords.get().strip(), var_rvd_patch_cords.get().strip(),
                 var_rvd_dias_trabajo.get().strip(), var_rvd_personas_trabajo.get().strip(),
             ]
             if tipo_servicio in ("Datos", "Voz y datos", "Fibra óptica", "Mixto"):
@@ -3207,7 +3314,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 requeridos.append(var_rvd_detalle_contacto.get().strip())
             if var_rvd_tierra_fisica.get() == "Sí":
                 requeridos.append(var_rvd_detalle_tierra.get().strip())
-            return all(requeridos)
+            return all(requeridos) and canalizacion_materiales_completa()
         if tipo_levantamiento == "Electricidad":
             requeridos = [
                 var_ele_necesidad.get().strip(), var_ele_tipo_servicio.get().strip(),
@@ -3216,16 +3323,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 var_ele_fases.get().strip(), var_ele_tablero_origen.get().strip(),
                 var_ele_capacidad_tablero.get().strip(), var_ele_breaker_requerido.get().strip(),
                 var_ele_tipo_circuito.get().strip(),
-                var_ele_tubos_tipo.get().strip(), var_ele_tubos_cantidad.get().strip(),
-                var_ele_coples_tipo.get().strip(), var_ele_coples_cantidad.get().strip(),
-                var_ele_registros_tipo.get().strip(), var_ele_registros_cantidad.get().strip(),
-                var_ele_conectores_tipo.get().strip(), var_ele_conectores_cantidad.get().strip(),
-                var_ele_abrazaderas_tipo.get().strip(), var_ele_abrazaderas_cantidad.get().strip(),
-                var_ele_cable_tipo.get().strip(), var_ele_cable_cantidad.get().strip(),
                 var_ele_altura_trabajo.get().strip(), var_ele_dias_trabajo.get().strip(),
                 var_ele_personas_trabajo.get().strip(),
             ]
-            return all(requeridos)
+            return all(requeridos) and canalizacion_materiales_completa()
         if tipo_levantamiento == "Control de Accesos":
             requeridos = [
                 vars_extra["cantidad_accesos"].get().strip(),
@@ -3236,17 +3337,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 vars_extra["dias_trabajo"].get().strip(),
                 vars_extra["personas_trabajo"].get().strip(),
             ]
-            if vars_extra["requiere_infraestructura"].get().strip() == "Sí":
-                requeridos.extend([
-                    vars_extra["tipo_cable"].get().strip(), vars_extra["cantidad_cable"].get().strip(),
-                    vars_extra["tipo_canalizacion"].get().strip(), vars_extra["cantidad_canalizacion"].get().strip(),
-                    vars_extra["tipo_tubos"].get().strip(), vars_extra["cantidad_tubos"].get().strip(),
-                    vars_extra["tipo_coples"].get().strip(), vars_extra["cantidad_coples"].get().strip(),
-                    vars_extra["tipo_registros"].get().strip(), vars_extra["cantidad_registros"].get().strip(),
-                    vars_extra["tipo_conectores"].get().strip(), vars_extra["cantidad_conectores"].get().strip(),
-                    vars_extra["tipo_abrazaderas"].get().strip(), vars_extra["cantidad_abrazaderas"].get().strip(),
-                ])
-            return all(requeridos)
+            return all(requeridos) and canalizacion_materiales_completa()
         if tipo_levantamiento == "Enlaces Inalámbricos":
             requeridos = [
                 vars_extra["necesidad"].get().strip(),
@@ -3273,17 +3364,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 vars_extra["dias_trabajo"].get().strip(),
                 vars_extra["personas_trabajo"].get().strip(),
             ]
-            if vars_extra["requiere_infraestructura"].get().strip() == "Sí":
-                requeridos.extend([
-                    vars_extra["tipo_cable_infra"].get().strip(), vars_extra["cantidad_cable_infra"].get().strip(),
-                    vars_extra["tipo_canalizacion"].get().strip(), vars_extra["cantidad_canalizacion"].get().strip(),
-                    vars_extra["tipo_tubos"].get().strip(), vars_extra["cantidad_tubos"].get().strip(),
-                    vars_extra["tipo_coples"].get().strip(), vars_extra["cantidad_coples"].get().strip(),
-                    vars_extra["tipo_registros"].get().strip(), vars_extra["cantidad_registros"].get().strip(),
-                    vars_extra["tipo_conectores"].get().strip(), vars_extra["cantidad_conectores"].get().strip(),
-                    vars_extra["tipo_abrazaderas"].get().strip(), vars_extra["cantidad_abrazaderas"].get().strip(),
-                ])
-            return all(requeridos)
+            return all(requeridos) and canalizacion_materiales_completa()
         return True
 
     def titulo_pdf_levantamiento():
@@ -3331,6 +3412,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         detalle = obtener_detalle_tecnico_json() if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else {}
         if detalle:
             detalle = dict(detalle)
+            detalle["canalizacion_materiales"] = obtener_canalizacion_materiales_json()
             detalle["equipos_principales"] = obtener_equipos_catalogo_json()
             detalle["materiales_miscelaneos"] = obtener_materiales_miscelaneos_json()
 
@@ -3381,93 +3463,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
 
     # =================================================
     # FUNCIÓN: guardar_levantamiento()
-    def formulario_preview_completo():
-        """Valida solo campos visibles/aplicables; los deshabilitados no bloquean."""
-        if not var_cliente.get().strip():
-            return False
-        if tipo_levantamiento == "Seguridad y Monitoreo":
-            modalidad = var_modalidad_levantamiento.get().strip()
-            if modalidad == "Instalación":
-                if not txt_observaciones.get("1.0", "end").strip():
-                    return False
-                obligatorios = [var_cctv_cantidad_camaras.get().strip(), var_cctv_tipo_camaras.get().strip(), var_cctv_dias_retencion.get().strip(), var_cctv_personas_considerar.get().strip(), var_cctv_ubicacion_nvr.get().strip(), var_cctv_punto_red.get().strip(), var_cctv_punto_energia.get().strip(), var_infra_existe.get().strip()]
-                if not all(obligatorios):
-                    return False
-                if var_infra_existe.get() in ("Sí", "Parcial") and not (var_infra_tipo_existente.get().strip() and var_infra_estado.get().strip()):
-                    return False
-                if var_infra_existe.get() in ("No", "Parcial"):
-                    requeridos = [var_infra_tubos_tipo.get().strip(), var_infra_tubos_cantidad.get().strip(), var_infra_coples_tipo.get().strip(), var_infra_coples_cantidad.get().strip(), var_infra_registros_tipo.get().strip(), var_infra_registros_cantidad.get().strip(), var_infra_conectores_tipo.get().strip(), var_infra_conectores_cantidad.get().strip(), var_infra_abrazaderas_tipo.get().strip(), var_infra_abrazaderas_cantidad.get().strip(), var_infra_cable_tipo.get().strip(), var_infra_cable_cantidad.get().strip()]
-                    if not all(requeridos):
-                        return False
-                    pares = [(var_rack_requerido, var_tipo_rack), (var_gabinete_requerido, var_tipo_gabinete), (var_ups_requerida, var_tipo_ups), (var_contacto_regulado, var_tipo_contacto_regulado), (var_tierra_fisica, var_tipo_tierra_fisica)]
-                    if any(a.get() == "Sí" and not b.get().strip() for a,b in pares):
-                        return False
-                    if var_escalera_requerida.get() == "Sí" and not (var_altura_trabajo.get().strip() and var_riesgo_instalacion.get().strip()):
-                        return False
-                return True
-            if modalidad == "Mantenimiento":
-                return bool(txt_observaciones.get("1.0", "end").strip())
-            if modalidad == "Reparación":
-                objetivo = var_rep_objetivo.get().strip()
-                if not objetivo:
-                    return False
-                if objetivo == "Infraestructura":
-                    return bool(txt_rep_infraestructura.get("1.0", "end").strip())
-                if not (var_rep_ubicacion_equipos.get().strip() and var_rep_acceso_equipos.get().strip() and var_rep_estado_camaras.get().strip() and txt_rep_descripcion_fallas.get("1.0", "end").strip()):
-                    return False
-                if objetivo == "NVRs y/o DVRs" and not (var_rep_codigo_error.get().strip() and var_rep_horario_falla.get().strip()):
-                    return False
-                if objetivo in ("Cámaras", "NVRs y/o DVRs"):
-                    for equipo in equipos_danados_items:
-                        if not all(equipo[c].get().strip() for c in ("tipo", "marca", "modelo", "serie")):
-                            return False
-                return True
-            return False
-        descripcion = txt_descripcion.get("1.0", "end").strip()
-        observaciones = txt_observaciones.get("1.0", "end").strip()
-        if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS:
-            if not observaciones:
-                return False
-        elif not (descripcion and observaciones):
-            return False
-        if tipo_levantamiento == "Aires Acondicionados":
-            return all([var_aa_cantidad_equipos.get().strip(), var_aa_area_climatizar.get().strip(), var_aa_ubicacion_evaporadora.get().strip(), var_aa_ubicacion_condensadora.get().strip(), var_aa_dias_trabajo.get().strip(), var_aa_personas_trabajo.get().strip()])
-        if tipo_levantamiento == "Redes Voz y Datos":
-            tipo_servicio = var_rvd_tipo_servicio.get().strip()
-            requeridos = [
-                var_rvd_area_instalacion.get().strip(),
-                var_rvd_horario_trabajo.get().strip(),
-                var_rvd_altura_trabajo.get().strip(),
-                var_rvd_tipo_cable.get().strip(), var_rvd_metros_cable.get().strip(),
-                var_rvd_tipo_canalizacion.get().strip(), var_rvd_metros_canalizacion.get().strip(),
-                var_rvd_tipo_jacks.get().strip(), var_rvd_jacks.get().strip(),
-                var_rvd_tipo_plugs.get().strip(), var_rvd_plugs.get().strip(),
-                var_rvd_tipo_faceplates.get().strip(), var_rvd_faceplates.get().strip(),
-                var_rvd_tipo_patch_cords.get().strip(), var_rvd_patch_cords.get().strip(),
-                var_rvd_dias_trabajo.get().strip(), var_rvd_personas_trabajo.get().strip(),
-            ]
-            if tipo_servicio in ("Datos", "Voz y datos", "Fibra óptica", "Mixto"):
-                requeridos.append(var_rvd_cantidad_nodos.get().strip())
-            if tipo_servicio in ("Voz", "Voz y datos", "Mixto"):
-                requeridos.append(var_rvd_cantidad_telefonia.get().strip())
-            if var_rvd_patch_panel.get() == "Sí":
-                requeridos.extend([var_rvd_tipo_patch_panel.get().strip(), var_rvd_cantidad_patch_panel.get().strip()])
-            if var_rvd_requiere_rack.get() == "Sí":
-                requeridos.append(var_rvd_tipo_rack.get().strip())
-            if var_rvd_requiere_gabinete.get() == "Sí":
-                requeridos.append(var_rvd_tipo_gabinete.get().strip())
-            if var_rvd_requiere_rack.get() == "Sí" or var_rvd_requiere_gabinete.get() == "Sí":
-                requeridos.append(var_rvd_ubicacion_rack.get().strip())
-            if var_rvd_requiere_switch.get() == "Sí":
-                requeridos.extend([var_rvd_tipo_switch.get().strip(), var_rvd_puertos_switch.get().strip(), var_rvd_switch_poe.get().strip()])
-            if var_rvd_ups.get() == "Sí":
-                requeridos.append(var_rvd_detalle_ups.get().strip())
-            if var_rvd_contacto_regulado.get() == "Sí":
-                requeridos.append(var_rvd_detalle_contacto.get().strip())
-            if var_rvd_tierra_fisica.get() == "Sí":
-                requeridos.append(var_rvd_detalle_tierra.get().strip())
-            return all(requeridos)
-        return True
 
     def titulo_pdf_levantamiento():
         titulos = {
@@ -3514,6 +3509,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         detalle = obtener_detalle_tecnico_json() if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else {}
         if detalle:
             detalle = dict(detalle)
+            detalle["canalizacion_materiales"] = obtener_canalizacion_materiales_json()
             detalle["equipos_principales"] = obtener_equipos_catalogo_json()
             detalle["materiales_miscelaneos"] = obtener_materiales_miscelaneos_json()
 
@@ -3597,6 +3593,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         resumen_extra = construir_resumen_formulario_detallado()
         requerimientos = ""
         resumen_misc = construir_resumen_materiales_miscelaneos()
+        resumen_canalizacion = construir_resumen_canalizacion_materiales()
         resumen_equipos = construir_resumen_equipos_catalogo()
         observaciones = txt_observaciones.get("1.0", "end").strip()
 
@@ -3647,6 +3644,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS:
             modalidad_operativa = (var_modalidad_levantamiento.get().strip() or "Instalación") if tipo_levantamiento == "Seguridad y Monitoreo" else "Instalación"
             detalle_tecnico = obtener_detalle_tecnico_json()
+            detalle_tecnico["canalizacion_materiales"] = obtener_canalizacion_materiales_json()
             detalle_tecnico["equipos_principales"] = obtener_equipos_catalogo_json()
             detalle_tecnico["materiales_miscelaneos"] = obtener_materiales_miscelaneos_json()
             equipos_danados = obtener_equipos_danados_json() if tipo_levantamiento == "Seguridad y Monitoreo" and modalidad_operativa == "Reparación" else []
@@ -3790,7 +3788,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         var_cctv_personas_considerar, var_cctv_ubicacion_nvr, var_cctv_punto_red,
         var_cctv_punto_energia, var_escalera_requerida, var_altura_trabajo,
         var_infra_existe, var_infra_tipo_existente, var_infra_estado,
-        var_infra_tubos_tipo, var_infra_tubos_cantidad, var_infra_coples_tipo, var_infra_coples_cantidad,
+        var_infra_tubos_tipo, var_infra_tubos_tamano, var_infra_tubos_cantidad, var_infra_coples_tipo, var_infra_coples_cantidad,
         var_infra_registros_tipo, var_infra_registros_cantidad, var_infra_conectores_tipo, var_infra_conectores_cantidad,
         var_infra_abrazaderas_tipo, var_infra_abrazaderas_cantidad, var_infra_cable_tipo, var_infra_cable_cantidad,
         var_rep_objetivo, var_rep_ubicacion_equipos, var_rep_acceso_equipos, var_rep_estado_camaras,

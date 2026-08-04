@@ -52,6 +52,14 @@ ETIQUETAS = {
     "modelo": "Modelo",
     "numero_serie": "Número de serie",
     "especificaciones": "Especificaciones",
+    "especificacion": "Especificación",
+    "caracteristicas": "Características",
+    "categoria": "Categoría",
+    "familia": "Familia",
+    "subfamilia": "Subfamilia",
+    "material": "Material",
+    "unidad": "Unidad",
+    "tipo_equipo": "Tipo de equipo",
     "rack_requerido": "¿Se requiere rack?",
     "tipo_rack": "Tipo de rack",
     "gabinete_requerido": "¿Se requiere gabinete?",
@@ -78,6 +86,29 @@ OCULTAR = {
     "firma", "firma_base64", "firma_tecnico", "firma_tecnico_base64",
     "lev_firma", "lev_firma_tecnico", "detalle_tecnico", "requerimientos",
 }
+
+# Listas capturadas en formularios que deben presentarse como tablas, no como
+# texto corrido. Las columnas conocidas mantienen un orden estable; cualquier
+# catálogo nuevo de materiales/equipos/insumos se adapta dinámicamente.
+TABLAS_CONOCIDAS = {
+    "equipos_principales": (
+        "Equipos principales requeridos",
+        ("familia", "subfamilia", "cantidad", "marca", "modelo", "caracteristicas"),
+    ),
+    "materiales_miscelaneos": (
+        "Materiales misceláneos y consumibles",
+        ("material", "categoria", "cantidad", "unidad", "especificacion"),
+    ),
+    "equipos_danados": (
+        "Equipos dañados",
+        ("tipo_equipo", "marca", "modelo", "numero_serie"),
+    ),
+}
+
+PALABRAS_TABLA = (
+    "material", "materiales", "equipo", "equipos", "insumo", "insumos",
+    "consumible", "consumibles", "partida", "partidas",
+)
 
 
 def _limpiar_clave(campo: str) -> str:
@@ -118,6 +149,57 @@ def _es_vacio(valor) -> bool:
     return valor in VACIOS
 
 
+def _quitar_resumenes_tabulares(texto: str) -> str:
+    """Evita duplicar en texto los registros que ya se muestran como tabla."""
+    resultado = str(texto or "")
+    patrones = (
+        r"(?ims)\n*EQUIPOS PRINCIPALES REQUERIDOS:\s*\n(?:-.*(?:\n|$))*",
+        r"(?ims)\n*MATERIALES MISCELÁNEOS Y CONSUMIBLES:\s*\n(?:-.*(?:\n|$))*",
+        r"(?ims)\n*---\s*EQUIPOS DAÑADOS\s*---.*?(?=\n---|\Z)",
+    )
+    for patron in patrones:
+        resultado = re.sub(patron, "\n", resultado)
+    return re.sub(r"\n{3,}", "\n\n", resultado).strip()
+
+
+def _es_lista_tabular(campo: str, valor) -> bool:
+    if not isinstance(valor, (list, tuple)) or not valor:
+        return False
+    if not all(isinstance(_normalizar(item), dict) for item in valor):
+        return False
+    clave = _limpiar_clave(campo).casefold()
+    return clave in TABLAS_CONOCIDAS or any(p in clave for p in PALABRAS_TABLA)
+
+
+def _construir_tabla(campo: str, lista) -> tuple[str, list[str], list[dict]] | None:
+    registros = [dict(_normalizar(item)) for item in lista if isinstance(_normalizar(item), dict)]
+    if not registros:
+        return None
+    clave = _limpiar_clave(campo).casefold()
+    if clave in TABLAS_CONOCIDAS:
+        titulo, claves_columnas = TABLAS_CONOCIDAS[clave]
+    else:
+        titulo = _etiqueta(campo)
+        claves_columnas = tuple(
+            dict.fromkeys(
+                k for registro in registros for k in registro.keys()
+                if _limpiar_clave(k) not in OCULTAR
+            )
+        )
+    columnas = [_etiqueta(k) for k in claves_columnas]
+    filas = []
+    for registro in registros:
+        fila = {}
+        for clave_columna, etiqueta in zip(claves_columnas, columnas):
+            valor = registro.get(clave_columna, "")
+            if isinstance(valor, (dict, list, tuple)):
+                valor = json.dumps(valor, ensure_ascii=False)
+            fila[etiqueta] = _texto(valor)
+        if any(str(v).strip() for v in fila.values()):
+            filas.append(fila)
+    return (titulo, columnas, filas) if filas else None
+
+
 def _filas_lista(lista):
     lineas = []
     for indice, item in enumerate(lista, 1):
@@ -135,7 +217,7 @@ def _filas_lista(lista):
     return lineas
 
 
-def _secciones_desde_dict(diccionario: dict, titulo_raiz: str | None = None):
+def _secciones_desde_dict(diccionario: dict, titulo_raiz: str | None = None, tablas: list | None = None):
     """Convierte JSON anidado en secciones y pares legibles, sin exponer sintaxis JSON."""
     secciones = []
     pares_raiz = []
@@ -154,7 +236,12 @@ def _secciones_desde_dict(diccionario: dict, titulo_raiz: str | None = None):
                 if subclave in OCULTAR or _es_vacio(subvalor):
                     continue
                 if isinstance(subvalor, list):
-                    lineas.extend(_filas_lista(subvalor))
+                    if _es_lista_tabular(subcampo, subvalor):
+                        tabla = _construir_tabla(subcampo, subvalor)
+                        if tabla and tablas is not None:
+                            tablas.append(tabla)
+                    else:
+                        lineas.extend(_filas_lista(subvalor))
                 elif isinstance(subvalor, dict):
                     for k2, v2 in subvalor.items():
                         if not _es_vacio(v2):
@@ -164,9 +251,14 @@ def _secciones_desde_dict(diccionario: dict, titulo_raiz: str | None = None):
             if lineas:
                 secciones.append((_etiqueta(campo), lineas))
         elif isinstance(valor, list):
-            lineas = _filas_lista(valor)
-            if lineas:
-                secciones.append((_etiqueta(campo), lineas))
+            if _es_lista_tabular(campo, valor):
+                tabla = _construir_tabla(campo, valor)
+                if tabla and tablas is not None:
+                    tablas.append(tabla)
+            else:
+                lineas = _filas_lista(valor)
+                if lineas:
+                    secciones.append((_etiqueta(campo), lineas))
         else:
             pares_raiz.append(f"{_etiqueta(campo)}: {_texto(valor)}")
 
@@ -195,6 +287,7 @@ def _construir_datos(registro: dict, configuracion: dict | None = None) -> tuple
     tipo = _clasificar_registro(registro, configuracion)
     datos = {}
     secciones = []
+    tablas_pdf = []
 
     # Datos generales: solo valores simples. JSON y listas se convierten después.
     for campo, valor in (registro or {}).items():
@@ -211,11 +304,21 @@ def _construir_datos(registro: dict, configuracion: dict | None = None) -> tuple
     for campo, valor in (registro or {}).items():
         normalizado = _normalizar(valor)
         if isinstance(normalizado, dict):
-            secciones.extend(_secciones_desde_dict(normalizado, _etiqueta(campo)))
+            secciones.extend(_secciones_desde_dict(normalizado, _etiqueta(campo), tablas_pdf))
         elif isinstance(normalizado, list) and normalizado:
-            lineas = _filas_lista(normalizado)
-            if lineas:
-                secciones.append((_etiqueta(campo), lineas))
+            if _es_lista_tabular(campo, normalizado):
+                tabla = _construir_tabla(campo, normalizado)
+                if tabla:
+                    tablas_pdf.append(tabla)
+            else:
+                lineas = _filas_lista(normalizado)
+                if lineas:
+                    secciones.append((_etiqueta(campo), lineas))
+
+    if tablas_pdf:
+        for etiqueta_dato, valor_dato in list(datos.items()):
+            if isinstance(valor_dato, str):
+                datos[etiqueta_dato] = _quitar_resumenes_tabulares(valor_dato)
 
     # Eliminar duplicados frecuentes generados por columnas resumen.
     for repetido in ("Detalle técnico", "Requerimientos"):
@@ -249,6 +352,19 @@ def _construir_datos(registro: dict, configuracion: dict | None = None) -> tuple
         datos["Detalle técnico"] = "\n".join(
             [f"--- {titulo.upper()} ---\n" + "\n".join(lineas) for titulo, lineas in unicas]
         )
+
+    # Se adjuntan como metadato interno para que el perfil genérico cree
+    # DataTableBlock. No se muestran como un campo de datos generales.
+    if tablas_pdf:
+        unicas_tabla = []
+        firmas_tabla = set()
+        for titulo_tabla, columnas, filas in tablas_pdf:
+            firma = (str(titulo_tabla).casefold(), tuple(columnas), tuple(tuple(f.get(c, "") for c in columnas) for f in filas))
+            if firma in firmas_tabla:
+                continue
+            firmas_tabla.add(firma)
+            unicas_tabla.append((titulo_tabla, columnas, filas))
+        datos["_tablas_pdf"] = unicas_tabla
 
     mostrar_firmas = tipo != "levantamiento"
     return datos, mostrar_firmas

@@ -168,7 +168,7 @@ def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, fi
     """
     try:
         from reportlab.lib.pagesizes import letter
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage, KeepTogether
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, LongTable, TableStyle, Image as RLImage, KeepTogether
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib import colors
         from reportlab.lib.units import inch
@@ -425,10 +425,61 @@ def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, fi
             ]))
             contenido.append(encabezado_tabla)
             contenido.append(Spacer(1, 3))
+            # ReportLab no puede dividir una sola fila alta entre páginas.
+            # Normalizamos cada registro en filas de continuación para que textos
+            # extensos (principalmente Concepto/Descripción) siempre puedan paginarse.
+            def _fragmentar_celda(valor, limite):
+                texto = str(valor or "").strip()
+                if not texto:
+                    return [""]
+                fragmentos = []
+                for linea in texto.splitlines() or [texto]:
+                    restante = linea.strip()
+                    if not restante:
+                        fragmentos.append("")
+                        continue
+                    while len(restante) > limite:
+                        corte = restante.rfind(" ", 0, limite + 1)
+                        if corte < max(20, limite // 3):
+                            corte = limite
+                        fragmentos.append(restante[:corte].strip())
+                        restante = restante[corte:].strip()
+                    if restante:
+                        fragmentos.append(restante)
+                return fragmentos or [""]
+
+            limite_celda = 120 if len(columnas) >= 7 else 190
+            filas_seguras = []
+            for registro in registros:
+                fragmentos_por_columna = {
+                    columna: _fragmentar_celda(registro.get(columna, ""), limite_celda)
+                    for columna in columnas
+                }
+                total_fragmentos = max(len(v) for v in fragmentos_por_columna.values())
+                for indice in range(total_fragmentos):
+                    fila_continuacion = {}
+                    for columna in columnas:
+                        partes = fragmentos_por_columna[columna]
+                        fila_continuacion[columna] = partes[indice] if indice < len(partes) else ""
+                    filas_seguras.append(fila_continuacion)
+
             data = [[Paragraph(f"<b>{c}</b>", estilo_normal) for c in columnas]]
-            for r in registros:
+            for r in filas_seguras:
                 data.append([Paragraph(str(r.get(c, "") or ""), estilo_normal) for c in columnas])
-            t = Table(data, repeatRows=1)
+
+            ancho_total = 6.90 * inch
+            pesos = []
+            for columna in columnas:
+                clave_col = str(columna).strip().casefold()
+                if clave_col in {"concepto", "descripción", "descripcion", "actividades", "observaciones"}:
+                    pesos.append(3.2)
+                elif clave_col in {"partida", "parte", "cantidad", "unidad", "día", "dia", "total"}:
+                    pesos.append(0.8)
+                else:
+                    pesos.append(1.25)
+            suma_pesos = sum(pesos) or len(columnas)
+            anchos = [ancho_total * peso / suma_pesos for peso in pesos]
+            t = LongTable(data, colWidths=anchos, repeatRows=1, splitByRow=1)
             t.setStyle(TableStyle([
                 ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1F4E79")),
                 ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),

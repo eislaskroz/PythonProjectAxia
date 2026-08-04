@@ -1,5 +1,11 @@
 """Definiciones declarativas de formularios especializados."""
 
+from views.levantamientos.catalogos_canalizacion import (
+    TIPOS_ABRAZADERAS, TIPOS_CABLE_DATOS_CONTROL, TIPOS_CABLE_EXTERIOR,
+    TIPOS_CANALIZACION, TIPOS_CONECTORES, TIPOS_COPLES, TIPOS_REGISTROS,
+    TIPOS_TUBOS, TAMANOS_TUBOS,
+)
+
 FORMULARIOS_DETALLADOS_EXTRA = {
     "Tecnología, Equipos y Periféricos": {
         "titulo": "Levantamiento Tecnología, Equipos y Periféricos",
@@ -87,24 +93,25 @@ FORMULARIOS_DETALLADOS_EXTRA = {
                 ("punto_red", "option", "Punto de red disponible", ["Sí", "No", "Por validar"], "Por validar"),
                 ("punto_energia", "option", "Punto de energía disponible", ["Sí", "No", "Por validar"], "Por validar"),
                 ("metros_cable", "entry", "Metros estimados de cable", "Ej. 120", ""),
-                ("canalizacion", "option", "Canalización requerida", ["Canaleta", "EMT", "PVC", "Charola", "Existente", "Por validar"], "Por validar"),
+                ("canalizacion", "option", "Canalización requerida", TIPOS_CANALIZACION + ["Por validar"], "Por validar"),
                 ("ups_respaldo", "option", "¿Requiere UPS/respaldo?", ["Sí", "No", "Por validar"], "Por validar"),
             ]),
             ("🧱 5. Cableado, canalización e infraestructura requerida", [
                 ("requiere_infraestructura", "option", "¿Se requiere infraestructura nueva?", ["Sí", "No"], "Sí"),
-                ("tipo_cable", "option", "Cable / tipo", ["UTP Cat5e", "UTP Cat6", "UTP Cat6A", "Control 4 hilos", "Control 6 hilos", "Eléctrico", "Otro"], "UTP Cat6"),
+                ("tipo_cable", "option", "Cable / tipo", TIPOS_CABLE_DATOS_CONTROL + ["Otro"], "UTP Cat6"),
                 ("cantidad_cable", "entry", "Cable / cantidad o metros", "Ej. 120", ""),
-                ("tipo_canalizacion", "option", "Canalización / tipo", ["Canaleta", "Tubería EMT", "Tubería PVC", "Charola", "Escalerilla", "Existente", "Otro"], "Canaleta"),
+                ("tipo_canalizacion", "option", "Canalización / tipo", TIPOS_CANALIZACION + ["Otro"], "Canaleta"),
                 ("cantidad_canalizacion", "entry", "Canalización / cantidad o metros", "Ej. 80", ""),
-                ("tipo_tubos", "option", "Tubos / tipo", ["EMT", "PVC", "Pared delgada", "Pared gruesa", "Flexible", "Otro"], "EMT"),
+                ("tipo_tubos", "option", "Tubos / tipo", TIPOS_TUBOS + ["Otro"], TIPOS_TUBOS[0]),
+                ("tamano_tubos", "option", "Tubos / tamaño", TAMANOS_TUBOS + ["Otro"], TAMANOS_TUBOS[0]),
                 ("cantidad_tubos", "entry", "Tubos / cantidad o metros", "Ej. 20", ""),
-                ("tipo_coples", "option", "Coples / tipo", ["EMT", "PVC", "Flexible", "Roscado", "Otro"], "EMT"),
+                ("tipo_coples", "option", "Coples / tipo", TIPOS_COPLES + ["Otro"], TIPOS_COPLES[0]),
                 ("cantidad_coples", "entry", "Coples / cantidad", "Ej. 20", ""),
-                ("tipo_registros", "option", "Registros / tipo", ["Metálico", "PVC", "Con tapa", "4x4", "Otro"], "Metálico"),
+                ("tipo_registros", "option", "Registros / tipo", TIPOS_REGISTROS + ["Otro"], TIPOS_REGISTROS[0]),
                 ("cantidad_registros", "entry", "Registros / cantidad", "Ej. 4", ""),
-                ("tipo_conectores", "option", "Conectores / tipo", ["EMT", "PVC", "Roscado", "Compresión", "Otro"], "EMT"),
+                ("tipo_conectores", "option", "Conectores / tipo", TIPOS_CONECTORES + ["Otro"], TIPOS_CONECTORES[0]),
                 ("cantidad_conectores", "entry", "Conectores / cantidad", "Ej. 20", ""),
-                ("tipo_abrazaderas", "option", "Abrazaderas / tipo", ["Omega", "Uña", "Unicanal", "Otra"], "Omega"),
+                ("tipo_abrazaderas", "option", "Abrazaderas / tipo", TIPOS_ABRAZADERAS + ["Otra"], TIPOS_ABRAZADERAS[0]),
                 ("cantidad_abrazaderas", "entry", "Abrazaderas / cantidad", "Ej. 30", ""),
             ]),
             ("📋 6. Estimación de recursos", [
@@ -148,19 +155,20 @@ FORMULARIOS_DETALLADOS_EXTRA = {
             ]),
             ("🧱 5. Cableado, canalización e infraestructura requerida", [
                 ("requiere_infraestructura", "option", "¿Se requiere infraestructura nueva?", ["Sí", "No"], "Sí"),
-                ("tipo_cable_infra", "option", "Cable / tipo", ["UTP Cat5e exterior", "UTP Cat6 exterior", "UTP Cat6A exterior", "Fibra óptica", "Eléctrico", "Control", "Otro"], "UTP Cat6 exterior"),
+                ("tipo_cable_infra", "option", "Cable / tipo", TIPOS_CABLE_EXTERIOR + ["Otro"], "UTP Cat6 exterior"),
                 ("cantidad_cable_infra", "entry", "Cable / cantidad o metros", "Ej. 120", ""),
-                ("tipo_canalizacion", "option", "Canalización / tipo", ["Canaleta", "Tubería EMT", "Tubería PVC", "Charola", "Escalerilla", "Ductería exterior", "Existente", "Otro"], "Tubería EMT"),
+                ("tipo_canalizacion", "option", "Canalización / tipo", TIPOS_CANALIZACION + ["Otro"], TIPOS_CANALIZACION[0]),
                 ("cantidad_canalizacion", "entry", "Canalización / cantidad o metros", "Ej. 80", ""),
-                ("tipo_tubos", "option", "Tubos / tipo", ["EMT", "PVC", "Pared delgada", "Pared gruesa", "Flexible", "Galvanizado", "Otro"], "EMT"),
+                ("tipo_tubos", "option", "Tubos / tipo", TIPOS_TUBOS + ["Otro"], TIPOS_TUBOS[0]),
+                ("tamano_tubos", "option", "Tubos / tamaño", TAMANOS_TUBOS + ["Otro"], TAMANOS_TUBOS[0]),
                 ("cantidad_tubos", "entry", "Tubos / cantidad o metros", "Ej. 20", ""),
-                ("tipo_coples", "option", "Coples / tipo", ["EMT", "PVC", "Flexible", "Roscado", "Compresión", "Otro"], "EMT"),
+                ("tipo_coples", "option", "Coples / tipo", TIPOS_COPLES + ["Otro"], TIPOS_COPLES[0]),
                 ("cantidad_coples", "entry", "Coples / cantidad", "Ej. 20", ""),
-                ("tipo_registros", "option", "Registros / tipo", ["Metálico", "PVC", "Exterior hermético", "Con tapa", "4x4", "Otro"], "Exterior hermético"),
+                ("tipo_registros", "option", "Registros / tipo", TIPOS_REGISTROS + ["Otro"], TIPOS_REGISTROS[-1]),
                 ("cantidad_registros", "entry", "Registros / cantidad", "Ej. 4", ""),
-                ("tipo_conectores", "option", "Conectores / tipo", ["EMT", "PVC", "Roscado", "Compresión", "Hermético", "Prensaestopa", "Otro"], "Hermético"),
+                ("tipo_conectores", "option", "Conectores / tipo", TIPOS_CONECTORES + ["Otro"], TIPOS_CONECTORES[-1]),
                 ("cantidad_conectores", "entry", "Conectores / cantidad", "Ej. 20", ""),
-                ("tipo_abrazaderas", "option", "Abrazaderas / tipo", ["Omega", "Uña", "Unicanal", "Exterior galvanizada", "Otra"], "Omega"),
+                ("tipo_abrazaderas", "option", "Abrazaderas / tipo", TIPOS_ABRAZADERAS + ["Otra"], TIPOS_ABRAZADERAS[0]),
                 ("cantidad_abrazaderas", "entry", "Abrazaderas / cantidad", "Ej. 30", ""),
             ]),
             ("📋 6. Estimación de recursos", [

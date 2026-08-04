@@ -25,7 +25,7 @@ def _json_list(value):
 
 
 
-def _dividir_texto_largo(valor, limite=650):
+def _dividir_texto_largo(valor, limite=180):
     """Divide textos largos sin cortar palabras para que una fila pueda paginarse.
 
     ReportLab no puede partir una sola fila de tabla entre páginas. Al dividir el

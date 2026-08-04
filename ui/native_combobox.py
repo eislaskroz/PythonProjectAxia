@@ -99,7 +99,7 @@ class NativeComboBox(ttk.Combobox):
         }
         if width is not None:
             # CTk expresa width en píxeles; ttk lo hace en caracteres.
-            ttk_kwargs["width"] = max(8, min(45, int(width / 9)))
+            ttk_kwargs["width"] = max(8, min(80, int(width / 9)))
         ttk_kwargs.update(kwargs)
 
         super().__init__(master, **ttk_kwargs)
