@@ -16,6 +16,7 @@ Deben llamar funciones de esta capa `services/`.
 """
 
 from core.logger import configurar_logger
+from core.error_reporting import register_error
 from core.date_utils import normalizar_campos_fecha
 from core.performance import page_range
 
@@ -59,6 +60,7 @@ def crear_bitacora(datos_bitacora):
         return respuesta.data
 
     except Exception as error:
+        register_error(error, "Registrar bitácora operativa")
         logger.exception("Error al crear bitácora.")
         return None
 

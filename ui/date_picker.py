@@ -1,32 +1,20 @@
-"""
-=========================================================
-MÓDULO: ui/date_picker.py
-DESCRIPCIÓN:
-Selector de fecha simple para campos CustomTkinter.
-
-Objetivo:
-- Evitar capturas manuales inconsistentes.
-- Guardar fechas siempre como YYYY-MM-DD.
-- No depender de librerías externas obligatorias.
-- Mantener una sola ventana de calendario abierta para evitar
-  duplicados y bloqueos visuales.
-=========================================================
-"""
-
-
-
+"""Selector de fecha ligero basado en controles ttk/tkcalendar."""
 from __future__ import annotations
+
+import calendar
+import tkinter as tk
+from datetime import date, datetime
+from tkinter import ttk
 
 from core.logger import configurar_logger
 
 logger = configurar_logger(__name__)
-
-import calendar
-from datetime import date
-import customtkinter as ctk
-
-
 _calendario_activo = None
+
+try:
+    from tkcalendar import Calendar as TkCalendar
+except Exception:  # dependencia opcional durante desarrollo
+    TkCalendar = None
 
 
 def _ventana_existe(ventana) -> bool:
@@ -37,121 +25,101 @@ def _ventana_existe(ventana) -> bool:
 
 
 def abrir_selector_fecha(parent, variable):
-    """
-    Abre un calendario pequeño y escribe la fecha seleccionada en formato ISO.
-
-    Args:
-        parent: ventana/contenedor dueño.
-        variable: ctk.StringVar/tk.StringVar donde se guardará YYYY-MM-DD.
-
-    Reglas de estabilidad:
-    - Solo permite un calendario abierto a la vez.
-    - Si ya existe, lo trae al frente en lugar de crear otro.
-    - Al elegir fecha o cerrar con X, limpia la referencia global.
-    """
-
+    """Abre un calendario ttk y guarda la selección como YYYY-MM-DD."""
     global _calendario_activo
-
     if _ventana_existe(_calendario_activo):
-        try:
-            _calendario_activo.lift()
-            _calendario_activo.focus_force()
-            return
-        except Exception:
-            _calendario_activo = None
+        _calendario_activo.lift()
+        _calendario_activo.focus_force()
+        return
 
-    hoy = date.today()
-    estado = {"year": hoy.year, "month": hoy.month}
-
-    ventana = ctk.CTkToplevel(parent)
+    root = parent.winfo_toplevel()
+    ventana = tk.Toplevel(root)
     _calendario_activo = ventana
-
     ventana.title("Seleccionar fecha")
-    ventana.geometry("330x330")
     ventana.resizable(False, False)
+    ventana.transient(root)
+    ventana.grab_set()
 
-    try:
-        ventana.transient(parent.winfo_toplevel())
-    except Exception:
-        logger.debug("Excepción recuperable controlada.", exc_info=True)
-
-    def cerrar_calendario():
+    def cerrar():
         global _calendario_activo
         try:
-            if _ventana_existe(ventana):
-                ventana.destroy()
-        finally:
-            if _calendario_activo is ventana:
-                _calendario_activo = None
+            ventana.grab_release()
+        except Exception:
+            pass
+        ventana.destroy()
+        if _calendario_activo is ventana:
+            _calendario_activo = None
 
-    ventana.protocol("WM_DELETE_WINDOW", cerrar_calendario)
-    ventana.lift()
+    ventana.protocol("WM_DELETE_WINDOW", cerrar)
+    contenedor = ttk.Frame(ventana, padding=8)
+    contenedor.pack(fill="both", expand=True)
+
+    inicial = date.today()
+    try:
+        inicial = datetime.strptime(variable.get(), "%Y-%m-%d").date()
+    except Exception:
+        pass
+
+    if TkCalendar is not None:
+        calendario_widget = TkCalendar(
+            contenedor,
+            selectmode="day",
+            year=inicial.year,
+            month=inicial.month,
+            day=inicial.day,
+            date_pattern="yyyy-mm-dd",
+            locale="es_MX",
+        )
+        calendario_widget.pack(fill="both", expand=True)
+
+        def aceptar():
+            variable.set(calendario_widget.get_date())
+            cerrar()
+
+        botones = ttk.Frame(contenedor)
+        botones.pack(fill="x", pady=(8, 0))
+        ttk.Button(botones, text="Cancelar", command=cerrar).pack(side="right")
+        ttk.Button(botones, text="Aceptar", command=aceptar).pack(side="right", padx=(0, 6))
+        calendario_widget.bind("<Double-1>", lambda _e: aceptar())
+    else:
+        # Respaldo sin dependencia externa: calendario mensual construido solo con ttk.
+        estado = {"year": inicial.year, "month": inicial.month}
+        header = ttk.Frame(contenedor)
+        header.pack(fill="x")
+        titulo = ttk.Label(header, anchor="center")
+        titulo.pack(side="left", fill="x", expand=True)
+        cuerpo = ttk.Frame(contenedor)
+        cuerpo.pack(fill="both", expand=True, pady=(6, 0))
+
+        def pintar():
+            for widget in cuerpo.winfo_children():
+                widget.destroy()
+            titulo.configure(text=f"{calendar.month_name[estado['month']].capitalize()} {estado['year']}")
+            for col, dia in enumerate(("Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do")):
+                ttk.Label(cuerpo, text=dia, anchor="center").grid(row=0, column=col, padx=2, pady=2)
+            for fila, semana in enumerate(calendar.monthcalendar(estado["year"], estado["month"]), 1):
+                for col, dia in enumerate(semana):
+                    if dia:
+                        ttk.Button(cuerpo, text=str(dia), width=4, command=lambda d=dia: elegir(d)).grid(row=fila, column=col, padx=1, pady=1)
+
+        def elegir(dia):
+            variable.set(date(estado["year"], estado["month"], dia).isoformat())
+            cerrar()
+
+        def mover(delta):
+            estado["month"] += delta
+            if estado["month"] < 1:
+                estado["month"], estado["year"] = 12, estado["year"] - 1
+            elif estado["month"] > 12:
+                estado["month"], estado["year"] = 1, estado["year"] + 1
+            pintar()
+
+        ttk.Button(header, text="‹", width=4, command=lambda: mover(-1)).pack(side="left")
+        ttk.Button(header, text="›", width=4, command=lambda: mover(1)).pack(side="right")
+        pintar()
+
+    ventana.update_idletasks()
+    x = root.winfo_rootx() + max(20, (root.winfo_width() - ventana.winfo_reqwidth()) // 2)
+    y = root.winfo_rooty() + max(20, (root.winfo_height() - ventana.winfo_reqheight()) // 3)
+    ventana.geometry(f"+{x}+{y}")
     ventana.focus_force()
-
-    marco = ctk.CTkFrame(ventana, fg_color="transparent")
-    marco.pack(fill="both", expand=True, padx=6, pady=6)
-    marco.grid_columnconfigure(tuple(range(7)), weight=1)
-
-    encabezado = ctk.CTkFrame(marco, fg_color="transparent")
-    encabezado.grid(row=0, column=0, columnspan=7, sticky="ew", pady=(0, 4))
-    encabezado.grid_columnconfigure(1, weight=1)
-
-    titulo = ctk.CTkLabel(encabezado, text="", font=("Montserrat", 14, "bold"))
-    titulo.grid(row=0, column=1, sticky="ew")
-
-    cuerpo = ctk.CTkFrame(marco, fg_color="transparent")
-    cuerpo.grid(row=2, column=0, columnspan=7, sticky="nsew")
-    for col in range(7):
-        cuerpo.grid_columnconfigure(col, weight=1)
-
-    def pintar():
-        for w in cuerpo.winfo_children():
-            w.destroy()
-
-        meses = [
-            "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-            "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
-        ]
-        titulo.configure(text=f"{meses[estado['month']-1]} {estado['year']}")
-
-        for col, dia in enumerate(["Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do"]):
-            ctk.CTkLabel(cuerpo, text=dia, font=("Montserrat", 12, "bold")).grid(row=0, column=col, padx=1, pady=1)
-
-        semanas = calendar.monthcalendar(estado["year"], estado["month"])
-        for r, semana in enumerate(semanas, start=1):
-            for c, dia in enumerate(semana):
-                if dia == 0:
-                    ctk.CTkLabel(cuerpo, text="").grid(row=r, column=c, padx=1, pady=1)
-                    continue
-
-                def elegir(d=dia):
-                    variable.set(date(estado["year"], estado["month"], d).isoformat())
-                    cerrar_calendario()
-
-                ctk.CTkButton(
-                    cuerpo,
-                    text=str(dia),
-                    width=34,
-                    height=28,
-                    corner_radius=8,
-                    command=elegir,
-                ).grid(row=r, column=c, padx=1, pady=1)
-
-    def anterior():
-        estado["month"] -= 1
-        if estado["month"] < 1:
-            estado["month"] = 12
-            estado["year"] -= 1
-        pintar()
-
-    def siguiente():
-        estado["month"] += 1
-        if estado["month"] > 12:
-            estado["month"] = 1
-            estado["year"] += 1
-        pintar()
-
-    ctk.CTkButton(encabezado, text="‹", width=42, command=anterior).grid(row=0, column=0, sticky="w")
-    ctk.CTkButton(encabezado, text="›", width=42, command=siguiente).grid(row=0, column=2, sticky="e")
-
-    pintar()

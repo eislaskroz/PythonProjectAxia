@@ -1,4 +1,5 @@
 from core.logger import configurar_logger
+from core.error_reporting import register_error
 from core.date_utils import normalizar_campos_fecha
 from core.performance import page_range, TTLCache
 from services.query_compat import execute_select_compatible
@@ -168,8 +169,13 @@ def registrar_usuario(datos):
         return False, "No fue posible registrar el usuario.", None
 
     except Exception as error:
+        report = register_error(error, "Registrar usuario")
         logger.exception("Error al registrar usuario.")
-        return False, f"No fue posible registrar el usuario.\n\n{error}", None
+        return False, (
+            "No fue posible registrar el usuario. "
+            f"Motivo técnico: {report.technical_message} "
+            f"Código: {report.incident_id}"
+        ), None
 
 
 def _coincide_usuario(usuario, termino):
@@ -320,8 +326,13 @@ def actualizar_usuario_admin(id_usuario, datos):
         return False, "No fue posible actualizar el usuario.", None
 
     except Exception as error:
+        report = register_error(error, "Actualizar usuario")
         logger.exception("Error al actualizar usuario.")
-        return False, f"No fue posible actualizar el usuario.\n\n{error}", None
+        return False, (
+            "No fue posible actualizar el usuario. "
+            f"Motivo técnico: {report.technical_message} "
+            f"Código: {report.incident_id}"
+        ), None
 
 # =====================================================
 # FUNCIÓN: obtener_usuario_por_id()
@@ -538,8 +549,8 @@ def obtener_nombres_usuarios_por_tipos(tipos, limite=500):
 
 
 def obtener_tecnicos_responsables(limite=500):
-    """Operadores (usu_tipo = 4) disponibles como técnicos responsables."""
-    return obtener_nombres_usuarios_por_tipos([4], limite=limite)
+    """Todos los empleados activos (usu_tipo 1 a 6) disponibles como técnicos responsables."""
+    return obtener_nombres_usuarios_por_tipos([1, 2, 3, 4, 5, 6], limite=limite)
 
 
 def obtener_supervisores_formulario(limite=500):

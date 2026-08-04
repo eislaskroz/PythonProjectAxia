@@ -19,6 +19,7 @@ from services.auditoria_service import (
 )
 from services.export_service import exportar_registros_dialogo
 from ui.detail_popup import mostrar_detalle_registro
+from ui.native_table import NativeTreeTable
 
 
 COLUMNAS = {
@@ -127,8 +128,36 @@ def mostrar_auditoria(parent, app):
     )
     aviso.pack(side="right", padx=8)
 
-    panel = ctk.CTkScrollableFrame(contenedor, fg_color=WHITE, corner_radius=16)
+    panel = ctk.CTkFrame(contenedor, fg_color=WHITE, corner_radius=16)
     panel.pack(fill="both", expand=True)
+    panel.grid_rowconfigure(1, weight=1)
+    panel.grid_columnconfigure(0, weight=1)
+    lbl_tabla = ctk.CTkLabel(
+        panel, text="Registros encontrados (0)", font=("Montserrat", 16, "bold"),
+        text_color=TEXT_PRIMARY, anchor="w",
+    )
+    lbl_tabla.grid(row=0, column=0, sticky="ew", padx=9, pady=(8, 4))
+    tabla_auditoria = NativeTreeTable(panel, columns=(), height=18)
+    tabla_auditoria.grid(row=1, column=0, sticky="nsew", padx=8, pady=(0, 4))
+    acciones_tabla = ctk.CTkFrame(panel, fg_color="transparent")
+    acciones_tabla.grid(row=2, column=0, sticky="e", padx=8, pady=(0, 8))
+
+    def ver_seleccionado():
+        registro = tabla_auditoria.selected_payload()
+        if registro:
+            mostrar_detalle_registro(parent, "Registro de auditoría", registro)
+        else:
+            messagebox.showinfo("Selecciona un registro", "Selecciona una fila para consultar su detalle.")
+
+    def exportar_seleccionado():
+        registro = tabla_auditoria.selected_payload()
+        if registro:
+            exportar_registros_dialogo(registro, "AXIA_registro_auditoria")
+        else:
+            messagebox.showinfo("Selecciona un registro", "Selecciona una fila para exportarla.")
+
+    ctk.CTkButton(acciones_tabla, text="👁 Ver detalle", width=120, command=ver_seleccionado).pack(side="left", padx=3)
+    ctk.CTkButton(acciones_tabla, text="⬇ Exportar", width=110, command=exportar_seleccionado).pack(side="left", padx=3)
 
     def actualizar_metricas(registros):
         valores = resumen_registros(registros, estado["tipo"])
@@ -157,65 +186,28 @@ def mostrar_auditoria(parent, app):
         )
 
     def pintar_tabla(registros):
-        for widget in panel.winfo_children():
-            widget.destroy()
         actualizar_metricas(registros)
-        nombre = "accesos" if estado["tipo"] == "accesos" else "movimientos"
-        ctk.CTkLabel(
-            panel, text=f"{nombre.capitalize()} encontrados ({len(registros)})",
-            font=("Montserrat", 16, "bold"), text_color=TEXT_PRIMARY, anchor="w",
-        ).pack(anchor="w", padx=9, pady=(8, 4))
-        if not registros:
-            ctk.CTkLabel(
-                panel, text="Ingresa al menos un filtro y presiona Buscar.",
-                font=TEXT_SM, text_color=TEXT_SECONDARY, anchor="w",
-            ).pack(anchor="w", padx=9, pady=4)
-            return
-
+        nombre = "Accesos" if estado["tipo"] == "accesos" else "Movimientos"
+        lbl_tabla.configure(text=f"{nombre} encontrados ({len(registros)})")
         columnas = COLUMNAS[estado["tipo"]]
-        header = ctk.CTkFrame(panel, fg_color="#F4F7FB", corner_radius=10)
-        header.pack(fill="x", padx=9, pady=(0, 2))
-        for columna, (campo, etiqueta) in enumerate(columnas):
-            peso = 2 if campo == "descripcion" else 1
-            header.grid_columnconfigure(columna, weight=peso, uniform="auditoria")
-            ctk.CTkLabel(header, text=etiqueta, font=TEXT_SM, text_color=TEXT_PRIMARY, anchor="w").grid(
-                row=0, column=columna, sticky="ew", padx=4, pady=4
-            )
+        tabla_auditoria.set_columns([
+            (campo, etiqueta, 260 if campo == "descripcion" else 130)
+            for campo, etiqueta in columnas
+        ])
 
-        for registro in registros[:100]:
-            fila = ctk.CTkFrame(panel, fg_color="transparent")
-            fila.pack(fill="x", padx=9, pady=1)
-            for columna, (campo, _etiqueta) in enumerate(columnas):
-                peso = 2 if campo == "descripcion" else 1
-                fila.grid_columnconfigure(columna, weight=peso, uniform="auditoria")
+        def valores(registro):
+            salida = []
+            for campo, _etiqueta in columnas:
                 valor = str(registro.get(campo, "") or "-")
                 if campo == "estatus":
-                    valor = "✅ CORRECTO" if valor.upper() == "CORRECTO" else f"⚠ {valor}"
+                    valor = "CORRECTO" if valor.upper() == "CORRECTO" else valor
                 if campo == "ciudad" and estado["tipo"] == "accesos":
                     partes = [registro.get("ciudad"), registro.get("region"), registro.get("pais")]
                     valor = ", ".join(str(p) for p in partes if p and p != "No disponible") or "No disponible"
-                ctk.CTkLabel(
-                    fila, text=valor, font=TEXT_SM, text_color=TEXT_SECONDARY, anchor="w",
-                    justify="left", wraplength=260 if campo == "descripcion" else 150,
-                ).grid(row=0, column=columna, sticky="ew", padx=4, pady=2)
-            acciones_fila = ctk.CTkFrame(fila, fg_color="transparent")
-            acciones_fila.grid(row=0, column=len(columnas), sticky="e", padx=4, pady=2)
-            ctk.CTkButton(
-                acciones_fila, text="👁", width=34, height=28, fg_color="#64748B",
-                hover_color="#475569",
-                command=lambda r=registro: mostrar_detalle_registro(parent, "Registro de auditoría", r),
-            ).pack(side="left", padx=(0, 2))
-            ctk.CTkButton(
-                acciones_fila, text="⬇", width=34, height=28, fg_color=SECONDARY,
-                hover_color=BUTTON_HOVER,
-                command=lambda r=registro: exportar_registros_dialogo(r, "AXIA_registro_auditoria"),
-            ).pack(side="left")
+                salida.append(valor)
+            return salida
 
-        if len(registros) > 100:
-            ctk.CTkLabel(
-                panel, text=f"Mostrando los 100 más recientes de {len(registros)} registros.",
-                font=TEXT_SM, text_color=TEXT_SECONDARY, anchor="e",
-            ).pack(anchor="e", padx=9, pady=(4, 8))
+        tabla_auditoria.set_rows(registros[:100], value_factory=valores)
 
     def aplicar_filtros():
         termino = " ".join(v.get().strip() for v in variables.values() if v.get().strip()).strip()

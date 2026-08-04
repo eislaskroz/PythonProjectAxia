@@ -139,6 +139,11 @@ def puede_generar_levantamiento(usuario_activo) -> bool:
     return obtener_tipo_usuario(usuario_activo) in ROLES_TODOS
 
 
+
+def puede_convertir_levantamiento_a_orden(usuario_activo) -> bool:
+    """Solo el personal Administrativo (usu_tipo=5) convierte levantamientos en OS."""
+    return _es_rol(usuario_activo, ADMINISTRATIVO)
+
 def puede_generar_orden(usuario_activo) -> bool:
     """Todos salvo Operador pueden generar órdenes."""
     return obtener_tipo_usuario(usuario_activo) in ROLES_GESTION_OPERATIVA
@@ -163,6 +168,7 @@ def matriz_permisos() -> dict[int, dict[str, bool]]:
             "agregar_levantamiento": tipo in ROLES_TODOS,
             "consultar_procesos": tipo in ROLES_GESTION_OPERATIVA,
             "ordenes": tipo in ROLES_GESTION_OPERATIVA,
+            "convertir_levantamiento_a_orden": tipo == ADMINISTRATIVO,
             "bitacoras_operativas": tipo in ROLES_GESTION_OPERATIVA,
             "reportes_operativos": tipo in ROLES_GESTION_OPERATIVA,
             "usuarios": tipo in {ADMINISTRADOR, JEFE_OPERACIONES},

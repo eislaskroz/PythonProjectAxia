@@ -12,6 +12,7 @@ from tkinter import messagebox
 from app_context import obtener_usuario_actual
 from security.permissions import puede_administrar_usuarios
 from ui.date_picker import abrir_selector_fecha
+from ui.native_table import NativeTreeTable
 from ui.colors import WHITE, TEXT_PRIMARY, TEXT_SECONDARY, SECONDARY, BUTTON_HOVER
 from ui.fonts import TEXT_MD, TEXT_SM, BUTTON_FONT
 from services.usuarios_service import (
@@ -102,8 +103,23 @@ def mostrar_usuarios_admin(parent, app):
     cuerpo.grid_columnconfigure(1, weight=2)
     cuerpo.grid_rowconfigure(0, weight=1)
 
-    panel_resultados = ctk.CTkScrollableFrame(cuerpo, fg_color=WHITE, corner_radius=16)
+    panel_resultados = ctk.CTkFrame(cuerpo, fg_color=WHITE, corner_radius=16)
     panel_resultados.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
+    panel_resultados.grid_rowconfigure(1, weight=1)
+    panel_resultados.grid_columnconfigure(0, weight=1)
+    lbl_resultados = ctk.CTkLabel(
+        panel_resultados, text="Resultados (0)", font=("Montserrat", 16, "bold"),
+        text_color=TEXT_PRIMARY, anchor="w",
+    )
+    lbl_resultados.grid(row=0, column=0, sticky="ew", padx=9, pady=(8, 4))
+    tabla_resultados = NativeTreeTable(
+        panel_resultados,
+        columns=(("nickname", "Usuario", 120), ("nombre", "Nombre completo", 210), ("tipo", "Tipo", 70)),
+        on_select=lambda usuario: cargar_en_formulario(usuario),
+        on_open=lambda usuario: cargar_en_formulario(usuario),
+        height=18,
+    )
+    tabla_resultados.grid(row=1, column=0, sticky="nsew", padx=8, pady=(0, 8))
 
     panel_formulario = ctk.CTkScrollableFrame(cuerpo, fg_color=WHITE, corner_radius=16)
     panel_formulario.grid(row=0, column=1, sticky="nsew")
@@ -240,28 +256,15 @@ def mostrar_usuarios_admin(parent, app):
         label.bind("<Button-1>", lambda _event, seleccionado=usuario: cargar_en_formulario(seleccionado))
 
     def pintar_resultados():
-        for widget in panel_resultados.winfo_children():
-            widget.destroy()
-
-        ctk.CTkLabel(
-            panel_resultados,
-            text=f"Resultados ({len(estado['resultados'])})",
-            font=("Montserrat", 16, "bold"),
-            text_color=TEXT_PRIMARY,
-        ).pack(anchor="w", padx=9, pady=(8, 4))
-
-        if not estado["resultados"]:
-            ctk.CTkLabel(
-                panel_resultados,
-                text="Ingresa un dato de búsqueda para consultar usuarios.",
-                font=TEXT_SM,
-                text_color=TEXT_SECONDARY,
-            ).pack(anchor="w", padx=9, pady=4)
-            return
-
-        for usuario in estado["resultados"]:
-            texto = f"{usuario.get('usu_nickname', '-') }\n{usuario.get('usu_nombre', '')} {usuario.get('usu_apellido', '')}".strip()
-            crear_item_resultado(usuario, texto)
+        lbl_resultados.configure(text=f"Resultados ({len(estado['resultados'])})")
+        tabla_resultados.set_rows(
+            estado["resultados"],
+            value_factory=lambda usuario: (
+                usuario.get("usu_nickname", "-"),
+                f"{usuario.get('usu_nombre', '')} {usuario.get('usu_apellido', '')}".strip(),
+                usuario.get("usu_tipo", "-"),
+            ),
+        )
 
     def cargar_resultados(termino=""):
         termino = (termino or "").strip()

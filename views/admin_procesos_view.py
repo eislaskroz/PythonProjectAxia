@@ -20,6 +20,7 @@ from services.pdf_registro_service import previsualizar_pdf_registro, guardar_pd
 from ui.detail_popup import mostrar_detalle_registro
 from core.background_tasks import run_async
 from core.search_utils import normalizar_termino_busqueda
+from ui.native_table import NativeTreeTable
 
 
 def _valor(registro, campos, default="No registrado"):
@@ -171,48 +172,52 @@ def mostrar_admin_procesos(parent, app, configuracion):
     )
     entrada.grid(row=2, column=0, sticky="ew", padx=(11, 5), pady=(0, 9))
 
-    resultados = ctk.CTkScrollableFrame(
-        contenedor,
-        fg_color=WHITE,
-        corner_radius=18
-    )
+    resultados = ctk.CTkFrame(contenedor, fg_color=WHITE, corner_radius=18)
     resultados.grid(row=1, column=0, sticky="nsew")
+    resultados.grid_rowconfigure(1, weight=1)
+    resultados.grid_columnconfigure(0, weight=1)
+    lbl_resultados = ctk.CTkLabel(resultados, text="Resultados (0)", font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="w")
+    lbl_resultados.grid(row=0, column=0, sticky="ew", padx=9, pady=(9, 4))
+    tabla_resultados = NativeTreeTable(
+        resultados,
+        columns=(("folio", "Folio", 130), ("aco", "ACO", 120), ("cliente", "Cliente", 220), ("estatus", "Estatus", 100), ("fecha", "Fecha", 100), ("descripcion", "Descripción", 300)),
+        height=18,
+    )
+    tabla_resultados.grid(row=1, column=0, sticky="nsew", padx=8, pady=(0, 4))
+    acciones_resultado = ctk.CTkFrame(resultados, fg_color="transparent")
+    acciones_resultado.grid(row=2, column=0, sticky="e", padx=8, pady=(0, 8))
+
+    def registro_seleccionado():
+        registro = tabla_resultados.selected_payload()
+        if not registro:
+            messagebox.showinfo("Selecciona un registro", "Selecciona una fila para continuar.")
+        return registro
+
+    ctk.CTkButton(acciones_resultado, text="👁 Vista previa PDF", width=145, command=lambda: (lambda r: previsualizar_pdf_registro(r, configuracion) if r else None)(registro_seleccionado())).pack(side="left", padx=3)
+    ctk.CTkButton(acciones_resultado, text="⬇ Guardar PDF", width=130, command=lambda: (lambda r: guardar_pdf_registro(r, configuracion) if r else None)(registro_seleccionado())).pack(side="left", padx=3)
 
     def limpiar_resultados():
-        for widget in resultados.winfo_children():
-            widget.destroy()
+        tabla_resultados.clear()
+        lbl_resultados.configure(text="Resultados (0)")
 
     def renderizar_lista(registros):
-        limpiar_resultados()
-
-        if not registros:
-            ctk.CTkLabel(
-                resultados,
-                text="No se encontraron registros.",
-                font=TEXT_MD,
-                text_color=TEXT_SECONDARY
-            ).pack(pady=40)
-            return
-
-        ctk.CTkLabel(
-            resultados,
-            text=f"Resultados ({len(registros)})",
-            font=TITLE_MD,
-            text_color=TEXT_PRIMARY,
-            anchor="w"
-        ).pack(fill="x", padx=9, pady=(9, 4))
-
-        for registro in registros:
-            _crear_card_resultado(resultados, registro, configuracion)
+        registros = registros or []
+        lbl_resultados.configure(text=f"Resultados ({len(registros)})")
+        tabla_resultados.set_rows(
+            registros,
+            value_factory=lambda registro: (
+                _valor(registro, [configuracion["campo_folio"]]),
+                _valor(registro, configuracion["campos_aco"]),
+                _valor(registro, configuracion["campos_cliente"]),
+                _valor(registro, configuracion["campos_estatus"]),
+                _valor(registro, configuracion["campos_fecha"]),
+                _valor(registro, configuracion["campos_descripcion"]),
+            ),
+        )
 
     def mostrar_cargando(mensaje="Consultando información..."):
         limpiar_resultados()
-        ctk.CTkLabel(
-            resultados,
-            text=mensaje,
-            font=TEXT_MD,
-            text_color=TEXT_SECONDARY
-        ).pack(pady=40)
+        lbl_resultados.configure(text=mensaje)
 
     def buscar_por_folio():
         folio = var_folio.get().strip()
@@ -258,12 +263,7 @@ def mostrar_admin_procesos(parent, app, configuracion):
     def limpiar_busqueda():
         var_folio.set("")
         limpiar_resultados()
-        ctk.CTkLabel(
-            resultados,
-            text="Ingresa un término para consultar registros.",
-            font=TEXT_MD,
-            text_color=TEXT_SECONDARY
-        ).pack(pady=40)
+        lbl_resultados.configure(text="Ingresa un término para consultar registros")
 
     ctk.CTkButton(
         barra_busqueda,

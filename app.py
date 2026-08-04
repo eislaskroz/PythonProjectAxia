@@ -66,6 +66,7 @@ from ui.fonts import (
 # =====================================================
 
 from core.logger import configurar_logger
+from core.error_reporting import show_operation_error
 from core.performance import mark, measure
 
 logger = configurar_logger(__name__)
@@ -145,6 +146,15 @@ class AxiaApp(ctk.CTk):
         # el usuario percibe respuesta inmediata aunque la primera vista tarde.
         mark("app: shell principal construido")
         self.after_idle(self._cargar_vista_inicial)
+
+    def report_callback_exception(self, exc, value, traceback_obj):
+        """Muestra errores no controlados de callbacks con un código de soporte."""
+        show_operation_error(
+            "Error inesperado de AXIA",
+            "Ejecutar una acción de la interfaz",
+            value,
+            parent=self,
+        )
 
     def _cargar_vista_inicial(self):
         with measure("app: vista inicial ACO"):

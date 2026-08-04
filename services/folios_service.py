@@ -6,17 +6,16 @@ SERVICIO DE FOLIOS AUTOMÁTICOS - AXIA
 Genera folios consecutivos por módulo sin pedir captura manual.
 
 Formatos actuales:
-- LEV-0001  Levantamientos
+- LEV-00001 Levantamientos (generado centralmente por Supabase RPC)
 - OS-0001   Órdenes de servicio
 - OT-0001   Órdenes de trabajo
 - BIT-0001  Bitácoras operativas
 - OBC-0001  Obras civiles / Proyecto ejecutivo
 
 IMPORTANTE:
-Este servicio calcula el siguiente consecutivo leyendo el último
-folio existente en Supabase. Para producción multiusuario de alto
-volumen, lo ideal será crear una tabla de consecutivos con bloqueo
-transaccional o una función RPC en PostgreSQL.
+Los folios LEV se generan exclusivamente mediante la función RPC
+public.generar_folio_levantamiento() de Supabase. Los demás módulos
+conservan temporalmente el mecanismo heredado hasta su homologación.
 """
 
 import re
@@ -25,6 +24,49 @@ from core.logger import configurar_logger
 from supabase_config import supabase
 
 logger = configurar_logger(__name__)
+
+
+class FolioCentralError(RuntimeError):
+    """Error al solicitar o validar un folio centralizado en Supabase."""
+
+
+def _extraer_valor_rpc(data):
+    """Normaliza la respuesta de supabase-py para una RPC escalar."""
+    if isinstance(data, str):
+        return data
+    if isinstance(data, list) and data:
+        value = data[0]
+        if isinstance(value, str):
+            return value
+        if isinstance(value, dict):
+            for key in ("generar_folio_levantamiento", "folio", "value"):
+                if value.get(key):
+                    return value[key]
+    if isinstance(data, dict):
+        for key in ("generar_folio_levantamiento", "folio", "value"):
+            if data.get(key):
+                return data[key]
+    return None
+
+
+def solicitar_folio_levantamiento():
+    """Solicita a Supabase el siguiente folio único con formato LEV-XXXXX."""
+    try:
+        respuesta = supabase.rpc("generar_folio_levantamiento").execute()
+    except Exception as error:
+        logger.exception("No fue posible solicitar el folio centralizado de levantamiento.")
+        raise FolioCentralError(
+            "No fue posible obtener un folio desde Supabase. "
+            "Verifica que la migración de folios centralizados esté ejecutada y que exista conexión."
+        ) from error
+
+    folio = str(_extraer_valor_rpc(getattr(respuesta, "data", None)) or "").strip().upper()
+    if not re.fullmatch(r"LEV-\d{5,}", folio):
+        raise FolioCentralError(
+            f"Supabase devolvió un folio inválido: {folio or 'VACÍO'}. "
+            "Se esperaba el formato LEV-XXXXX."
+        )
+    return folio
 
 
 CONFIG_FOLIOS = {
@@ -120,6 +162,9 @@ def generar_siguiente_folio(prefijo):
     """
 
     prefijo = prefijo.upper().strip()
+
+    if prefijo == "LEV":
+        return solicitar_folio_levantamiento()
 
     try:
         ultimo_folio = obtener_ultimo_folio(prefijo)

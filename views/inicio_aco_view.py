@@ -1,3 +1,4 @@
+from core.error_reporting import show_operation_error
 """
 =========================================================
 MÓDULO: inicio_aco_view.py
@@ -13,6 +14,7 @@ Permite:
 
 import customtkinter as ctk
 from tkinter import messagebox
+from ui.native_combobox import NativeComboBox
 from core.background_tasks import run_async
 
 from ui.colors import (
@@ -483,7 +485,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             nombres = sorted(clientes_por_nombre.keys()) or ["Sin clientes registrados"]
             variable.set(nombres[0])
 
-            selector = ctk.CTkOptionMenu(
+            selector = NativeComboBox(
                 form,
                 variable=variable,
                 values=nombres,
@@ -559,7 +561,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             var_contacto_correo.set(contacto_db.get("con_correo", "") or "")
 
         def crear_selector_sucursal(variable):
-            selector = ctk.CTkOptionMenu(
+            selector = NativeComboBox(
                 form, variable=variable, values=["Sin sucursales registradas"],
                 width=620, height=38, command=lambda _nombre: cargar_datos_sucursal()
             )
@@ -568,7 +570,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             return selector
 
         def crear_selector_contacto(variable):
-            selector = ctk.CTkOptionMenu(
+            selector = NativeComboBox(
                 form, variable=variable, values=["Sin contactos registrados"],
                 width=620, height=38, command=lambda _nombre: cargar_datos_contacto()
             )
@@ -707,9 +709,9 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
                 mostrar_busqueda_aco()
 
             else:
-                messagebox.showerror(
-                    "Error",
-                    "No se pudo registrar el ACO."
+                show_operation_error(
+                    "Error al guardar",
+                    "Registrar ACO"
                 )
 
         ctk.CTkButton(

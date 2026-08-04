@@ -18,6 +18,7 @@ Deben llamar funciones de esta capa `services/`.
 from datetime import datetime
 
 from core.logger import configurar_logger
+from core.error_reporting import register_error
 from core.cache import ttl_cache, clear_cache
 
 logger = configurar_logger(__name__)
@@ -288,6 +289,7 @@ def crear_aco(datos_aco):
         return respuesta.data
 
     except Exception as error:
+        register_error(error, "Registrar ACO")
         logger.exception("Error al crear ACO.")
         return None
 

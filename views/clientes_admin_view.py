@@ -13,10 +13,12 @@ cli_estado, cli_cp, cli_correo y cli_notas.
 
 import customtkinter as ctk
 from tkinter import messagebox
+from ui.native_combobox import NativeComboBox
 
 from app_context import obtener_usuario_actual
 from security.permissions import puede_administrar_clientes
 from ui.date_picker import abrir_selector_fecha
+from ui.native_table import NativeTreeTable
 from ui.colors import WHITE, TEXT_PRIMARY, TEXT_SECONDARY, SECONDARY, BUTTON_HOVER
 from ui.fonts import TEXT_SM, BUTTON_FONT
 from services.clientes_service import (
@@ -111,8 +113,23 @@ def mostrar_clientes_admin(parent, app):
     cuerpo.grid_columnconfigure(1, weight=2)
     cuerpo.grid_rowconfigure(0, weight=1)
 
-    panel_resultados = ctk.CTkScrollableFrame(cuerpo, fg_color=WHITE, corner_radius=16)
+    panel_resultados = ctk.CTkFrame(cuerpo, fg_color=WHITE, corner_radius=16)
     panel_resultados.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
+    panel_resultados.grid_rowconfigure(1, weight=1)
+    panel_resultados.grid_columnconfigure(0, weight=1)
+    lbl_resultados = ctk.CTkLabel(
+        panel_resultados, text="Resultados (0)", font=("Montserrat", 16, "bold"),
+        text_color=TEXT_PRIMARY, anchor="w",
+    )
+    lbl_resultados.grid(row=0, column=0, sticky="ew", padx=9, pady=(8, 4))
+    tabla_resultados = NativeTreeTable(
+        panel_resultados,
+        columns=(("razon", "Razón social", 190), ("contacto", "Contacto", 140), ("telefono", "Teléfono", 105), ("municipio", "Municipio", 130)),
+        on_select=lambda cliente: cargar_en_formulario(cliente),
+        on_open=lambda cliente: cargar_en_formulario(cliente),
+        height=18,
+    )
+    tabla_resultados.grid(row=1, column=0, sticky="nsew", padx=8, pady=(0, 8))
 
     panel_formulario = ctk.CTkScrollableFrame(cuerpo, fg_color=WHITE, corner_radius=16)
     panel_formulario.grid(row=0, column=1, sticky="nsew")
@@ -268,7 +285,7 @@ def mostrar_clientes_admin(parent, app):
     input_operativo(panel_suc, "Teléfono", var_suc_telefono, 8)
 
     ctk.CTkLabel(panel_con, text="Sucursal *", font=TEXT_SM, text_color=TEXT_PRIMARY).grid(row=0, column=0, sticky="w", pady=(2, 1))
-    selector_contacto_sucursal = ctk.CTkOptionMenu(
+    selector_contacto_sucursal = NativeComboBox(
         panel_con,
         variable=var_contacto_sucursal,
         values=["Selecciona sucursal"],
@@ -490,35 +507,16 @@ def mostrar_clientes_admin(parent, app):
         label.bind("<Button-1>", lambda _event, seleccionado=cliente: cargar_en_formulario(seleccionado))
 
     def pintar_resultados():
-        for widget in panel_resultados.winfo_children():
-            widget.destroy()
-
-        ctk.CTkLabel(
-            panel_resultados,
-            text=f"Resultados ({len(estado['resultados'])})",
-            font=("Montserrat", 16, "bold"),
-            text_color=TEXT_PRIMARY,
-        ).pack(anchor="w", padx=9, pady=(8, 4))
-
-        if not estado["resultados"]:
-            ctk.CTkLabel(
-                panel_resultados,
-                text="Ingresa un dato de búsqueda para consultar clientes.",
-                font=TEXT_SM,
-                text_color=TEXT_SECONDARY,
-            ).pack(anchor="w", padx=9, pady=4)
-            return
-
-        for cliente in estado["resultados"]:
-            razon_social = cliente.get("cli_razonsocial", "-")
-            contacto = cliente.get("cli_contacto", "")
-            telefono = cliente.get("cli_telefono", "")
-            direccion = construir_direccion_cliente(cliente)
-            texto = f"{razon_social}\n{contacto} {telefono}".strip()
-            if direccion:
-                texto = f"{texto}\n{direccion}"
-
-            crear_item_resultado(cliente, texto)
+        lbl_resultados.configure(text=f"Resultados ({len(estado['resultados'])})")
+        tabla_resultados.set_rows(
+            estado["resultados"],
+            value_factory=lambda cliente: (
+                cliente.get("cli_razonsocial", "-"),
+                cliente.get("cli_contacto", ""),
+                cliente.get("cli_telefono", ""),
+                cliente.get("cli_municipio", ""),
+            ),
+        )
 
     def cargar_resultados(termino=""):
         termino = (termino or "").strip()

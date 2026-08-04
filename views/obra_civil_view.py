@@ -1,3 +1,4 @@
+from core.error_reporting import show_operation_error
 """Formulario Obra Civil / Proyecto Ejecutivo AXIA."""
 
 from core.logger import configurar_logger
@@ -7,6 +8,7 @@ logger = configurar_logger(__name__)
 import json
 import customtkinter as ctk
 from tkinter import messagebox, filedialog
+from ui.native_combobox import NativeComboBox
 
 from app_context import obtener_usuario_actual
 from security.permissions import puede_generar_levantamiento
@@ -25,7 +27,7 @@ from services.obras_civiles_service import crear_obra_civil, buscar_obra_civil_p
 from ui.colors import SECONDARY, WHITE, TEXT_PRIMARY, TEXT_SECONDARY, BUTTON_HOVER
 from ui.date_picker import abrir_selector_fecha
 from ui.fonts import BUTTON_FONT
-from views.formato_helpers import ENTRY_H, OPTION_H, LABEL_FONT, SMALL_FONT, SECTION_FONT, firmar_en_popup, generar_pdf_preview, generar_pdf_archivo, obtener_textbox, enfocar_inicio_formulario
+from views.formato_helpers import ENTRY_H, OPTION_H, LABEL_FONT, SMALL_FONT, SECTION_FONT, generar_pdf_preview, generar_pdf_archivo, obtener_textbox, enfocar_inicio_formulario
 
 SI_NO = ["Sí", "No"]
 ESTADOS = ["Pendiente", "En proceso", "Terminado"]
@@ -82,16 +84,10 @@ def mostrar_obra_civil(parent, app, aco=None):
         "Telefonía": ctk.StringVar(value="Pendiente"),
         "Datos y redes": ctk.StringVar(value="Pendiente"),
     }
-    var_pruebas = ctk.StringVar(value="Pendiente")
     var_planos_acabados = ctk.StringVar(value="Sí")
     var_generacion_planos = ctk.StringVar(value="No aplica")
     var_etapa_acabados = ctk.StringVar(value="Pendiente")
     var_obra_blanca = ctk.StringVar(value="Pendiente")
-    var_preentrega = ctk.StringVar(value="Pendiente")
-    var_entrega_formal = ctk.StringVar(value="No")
-    var_fecha_entrega = ctk.StringVar()
-    var_firma_cliente = ctk.StringVar()
-    var_firma_tecnico = ctk.StringVar()
 
     # En el flujo sin ACO, Obra Civil selecciona al cliente directamente de Supabase.
     clientes_disponibles = []
@@ -160,7 +156,7 @@ def mostrar_obra_civil(parent, app, aco=None):
     def option(texto, var, opciones, fila, col, required=True, colspan=1):
         c = celda(fila, col, colspan)
         label(c, texto)
-        o = ctk.CTkOptionMenu(c, variable=var, values=opciones, height=OPTION_H, corner_radius=8, font=SMALL_FONT)
+        o = NativeComboBox(c, variable=var, values=opciones, height=OPTION_H, corner_radius=8, font=SMALL_FONT)
         o.pack(fill="x")
         if required:
             campos_validables.append(var)
@@ -171,7 +167,7 @@ def mostrar_obra_civil(parent, app, aco=None):
         c = celda(fila, col, colspan)
         label(c, texto)
         nombres = sorted(clientes_por_nombre.keys())
-        o = ctk.CTkOptionMenu(
+        o = NativeComboBox(
             c,
             variable=var_cliente_selector,
             values=nombres or ["Sin clientes registrados"],
@@ -273,10 +269,6 @@ def mostrar_obra_civil(parent, app, aco=None):
             col = 0
             fila += 1
 
-    seccion("Pruebas de funcionamiento", 12)
-    option("Resultado de pruebas", var_pruebas, RESULTADOS, 13, 0)
-    txt_observaciones_pruebas = textbox("Observaciones / hallazgos / acciones correctivas", 14, 0, 4, height=80)
-
     seccion("Acabados", 15)
     option("¿Planos de detalles y acabados?", var_planos_acabados, SI_NO, 16, 0)
     option("Generación de planos", var_generacion_planos, ["Sí", "No", "No aplica"], 16, 1)
@@ -297,10 +289,10 @@ def mostrar_obra_civil(parent, app, aco=None):
         subs = obtener_subfamilias("Obra Civil", familia_inicial)
         vf=ctk.StringVar(value=familia_inicial); vs=ctk.StringVar(value=subs[0]); vc=ctk.StringVar(value="1")
         vm=ctk.StringVar(value="Por definir"); vmo=ctk.StringVar(); vcar=ctk.StringVar()
-        of=ctk.CTkOptionMenu(panel_equipos, variable=vf, values=familias, height=30); of.grid(row=fila_eq,column=0,sticky="ew",padx=3,pady=2)
-        osub=ctk.CTkOptionMenu(panel_equipos, variable=vs, values=subs, height=30); osub.grid(row=fila_eq,column=1,sticky="ew",padx=3,pady=2)
+        of=NativeComboBox(panel_equipos, variable=vf, values=familias, height=30); of.grid(row=fila_eq,column=0,sticky="ew",padx=3,pady=2)
+        osub=NativeComboBox(panel_equipos, variable=vs, values=subs, height=30); osub.grid(row=fila_eq,column=1,sticky="ew",padx=3,pady=2)
         ctk.CTkEntry(panel_equipos,textvariable=vc,width=80,height=30).grid(row=fila_eq,column=2,sticky="w",padx=3,pady=2)
-        ctk.CTkOptionMenu(panel_equipos,variable=vm,values=MARCAS_COMUNES,height=30).grid(row=fila_eq,column=3,sticky="ew",padx=3,pady=2)
+        NativeComboBox(panel_equipos,variable=vm,values=MARCAS_COMUNES,height=30).grid(row=fila_eq,column=3,sticky="ew",padx=3,pady=2)
         ctk.CTkEntry(panel_equipos,textvariable=vmo,height=30,placeholder_text="Modelo vigente o por definir").grid(row=fila_eq,column=4,sticky="ew",padx=3,pady=2)
         ecar=ctk.CTkEntry(panel_equipos,textvariable=vcar,height=30,placeholder_text=obtener_sugerencia_caracteristicas("Obra Civil",familia_inicial)); ecar.grid(row=fila_eq,column=5,sticky="ew",padx=3,pady=2)
         def cambio(valor):
@@ -360,7 +352,7 @@ def mostrar_obra_civil(parent, app, aco=None):
             em.configure(state="readonly")
         ec = ctk.CTkEntry(panel_misc, textvariable=vc, width=90, height=30, placeholder_text="Ej. 20", state="disabled")
         ec.grid(row=fila_misc, column=2, sticky="w", padx=3, pady=2)
-        ou = ctk.CTkOptionMenu(panel_misc, variable=vu, values=UNIDADES_MATERIAL, width=120, height=30, state="disabled")
+        ou = NativeComboBox(panel_misc, variable=vu, values=UNIDADES_MATERIAL, width=120, height=30, state="disabled")
         ou.grid(row=fila_misc, column=3, sticky="w", padx=3, pady=2)
         ee = ctk.CTkEntry(
             panel_misc, textvariable=ve, height=30,
@@ -374,7 +366,7 @@ def mostrar_obra_civil(parent, app, aco=None):
             if estado == "disabled":
                 vc.set(""); ve.set("")
             validar_preview()
-        om = ctk.CTkOptionMenu(panel_misc, variable=vr, values=["No", "Sí"], width=100, height=30, command=toggle)
+        om = NativeComboBox(panel_misc, variable=vr, values=["No", "Sí"], width=100, height=30, command=toggle)
         om.grid(row=fila_misc, column=1, sticky="w", padx=3, pady=2)
         item_material={
             "material": vm, "categoria": vcat, "requerido": vr,
@@ -428,30 +420,13 @@ def mostrar_obra_civil(parent, app, aco=None):
         validar_preview()
     ctk.CTkButton(acciones_evidencias, text="Eliminar última", width=135, height=30, fg_color="#DC2626", hover_color="#B91C1C", command=eliminar_ultima_evidencia).pack(side="left")
 
-    seccion("Pre-entrega", 23)
-    option("Resultado de pre-entrega", var_preentrega, ["Aprobadas", "Reprobadas", "Pendiente"], 24, 0)
-    txt_preentrega = textbox("Recorrido de validación / correcciones pendientes", 25, 0, 4)
-
-    seccion("Entrega formal", 24)
-    option("Entrega formal", var_entrega_formal, SI_NO, 25, 0)
-    entry("Fecha de entrega", var_fecha_entrega, 25, 1, "YYYY-MM-DD", date=True, required=False)
-    txt_finales = textbox("Observaciones finales", 26, 0, 4)
-
-    seccion("Firmas", 27)
-    firmas_frame = celda(28, 0, 4)
-    lbl_firma_cliente = ctk.CTkLabel(firmas_frame, text="Cliente: Sin firma", font=SMALL_FONT, text_color=TEXT_SECONDARY)
-    lbl_firma_cliente.grid(row=0, column=0, padx=(0, 5), sticky="w")
-    ctk.CTkButton(firmas_frame, text="✍ Capturar firma cliente", width=190, height=32, fg_color=SECONDARY, hover_color=BUTTON_HOVER,
-                  command=lambda: firmar_en_popup(parent, var_firma_cliente, lambda: (lbl_firma_cliente.configure(text="Cliente: Firma capturada" if var_firma_cliente.get() else "Cliente: Sin firma"), validar_preview()), "Firma del cliente")).grid(row=0, column=1, padx=(0, 9), sticky="w")
-    lbl_firma_tecnico = ctk.CTkLabel(firmas_frame, text="Técnico: Sin firma", font=SMALL_FONT, text_color=TEXT_SECONDARY)
-    lbl_firma_tecnico.grid(row=0, column=2, padx=(0, 5), sticky="w")
-    ctk.CTkButton(firmas_frame, text="✍ Capturar firma técnico", width=190, height=32, fg_color="#1F4E79", hover_color="#173B5C",
-                  command=lambda: firmar_en_popup(parent, var_firma_tecnico, lambda: (lbl_firma_tecnico.configure(text="Técnico: Firma capturada" if var_firma_tecnico.get() else "Técnico: Sin firma"), validar_preview()), "Firma del técnico")).grid(row=0, column=3, sticky="w")
+    seccion("Observaciones finales", 23)
+    txt_finales = textbox("Observaciones finales", 24, 0, 4, height=90)
 
     bloquear_autollenados()
 
     def formulario_completo():
-        return all(v.get().strip() for v in campos_validables) and bool(var_firma_cliente.get().strip()) and bool(var_firma_tecnico.get().strip())
+        return all(v.get().strip() for v in campos_validables)
 
     def datos_pdf():
         datos = {
@@ -459,11 +434,9 @@ def mostrar_obra_civil(parent, app, aco=None):
             "Sucursal": var_sucursal.get(), "Dirección": var_direccion.get(), "Responsable AXIA": var_responsable.get(), "Supervisor": var_supervisor.get(),
             "Tipo de giro": var_tipo_giro.get(), "Nombre del proyecto": var_nombre_proyecto.get(), "Superficie disponible": var_superficie.get(),
             "Superficie adecuada": var_superficie_ok.get(), "Planos arquitectónicos": var_planos_arq.get(), "Requiere maquinaria": var_maquinaria.get(),
-            "Permisos disponibles": var_permisos.get(), "Resultado de pruebas": var_pruebas.get(), "Planos de acabados": var_planos_acabados.get(),
+            "Permisos disponibles": var_permisos.get(), "Planos de acabados": var_planos_acabados.get(),
             "Generación de planos": var_generacion_planos.get(), "Etapa de acabados": var_etapa_acabados.get(), "Obra blanca": var_obra_blanca.get(),
-            "Pre-entrega": var_preentrega.get(), "Entrega formal": var_entrega_formal.get(), "Fecha de entrega": var_fecha_entrega.get(),
-            "Observaciones iniciales": obtener_textbox(txt_observaciones_iniciales), "Observaciones pruebas": obtener_textbox(txt_observaciones_pruebas),
-            "Observaciones pre-entrega": obtener_textbox(txt_preentrega), "Observaciones finales": obtener_textbox(txt_finales),
+            "Observaciones iniciales": obtener_textbox(txt_observaciones_iniciales), "Observaciones finales": obtener_textbox(txt_finales),
             "Evidencias": str(len(evidencias)),
             "Materiales misceláneos": "; ".join(
                 f"{m['material']}: {m['cantidad'] or 'Por definir'} {m['unidad']}" + (f" ({m['especificacion']})" if m['especificacion'] else "")
@@ -483,16 +456,16 @@ def mostrar_obra_civil(parent, app, aco=None):
 
     def preview_pdf():
         if not formulario_completo():
-            messagebox.showwarning("Preview", "El preview se activa cuando los campos obligatorios y firmas estén completos.")
+            messagebox.showwarning("Preview", "El preview se activa cuando los campos obligatorios estén completos.")
             return
         generar_pdf_preview("Obra Civil", datos_pdf(), [
             ("Ejecución", ["Actividad", "Estado"], seccion_ejecucion_pdf()),
             ("Materiales misceláneos", ["Material", "Cantidad", "Unidad", "Especificación"], seccion_materiales_pdf()),
-        ], var_firma_cliente.get(), var_firma_tecnico.get())
+        ])
 
     def guardar_obra():
         if not formulario_completo():
-            messagebox.showwarning("Campos obligatorios", "Debes llenar los campos obligatorios y capturar ambas firmas.")
+            messagebox.showwarning("Campos obligatorios", "Debes llenar los campos obligatorios.")
             return
         folio = var_folio.get().strip()
         if buscar_obra_civil_por_folio(folio):
@@ -510,12 +483,10 @@ def mostrar_obra_civil(parent, app, aco=None):
                 "_equipos_principales": obtener_equipos_obra(),
                 "_materiales_miscelaneos": obtener_materiales_misc_obra(),
             }, ensure_ascii=False),
-            "obc_pruebas_resultado": var_pruebas.get(), "obc_pruebas_observaciones": obtener_textbox(txt_observaciones_pruebas),
             "obc_planos_acabados": var_planos_acabados.get(), "obc_generacion_planos": var_generacion_planos.get(), "obc_etapa_acabados": var_etapa_acabados.get(),
             "obc_obra_blanca": var_obra_blanca.get(), "obc_evidencias_json": json.dumps(evidencias, ensure_ascii=False),
-            "obc_preentrega_resultado": var_preentrega.get(), "obc_preentrega_observaciones": obtener_textbox(txt_preentrega),
-            "obc_entrega_formal": var_entrega_formal.get(), "obc_fecha_entrega": var_fecha_entrega.get().strip() or None, "obc_observaciones_finales": obtener_textbox(txt_finales),
-            "obc_firma_cliente_base64": var_firma_cliente.get(), "obc_firma_tecnico_base64": var_firma_tecnico.get(), "obc_estatus": 1, "creado_por": usuario_activo.get("usuario"),
+            "obc_observaciones_finales": obtener_textbox(txt_finales),
+            "obc_estatus": 1, "creado_por": usuario_activo.get("usuario"),
         }
         resultado = crear_obra_civil(datos)
         if resultado:
@@ -523,12 +494,12 @@ def mostrar_obra_civil(parent, app, aco=None):
             ruta_pdf = generar_pdf_archivo("Obra Civil", datos_pdf(), nombre_archivo=folio, subcarpeta="obras_civiles", secciones_tabla=[
                 ("Ejecución", ["Actividad", "Estado"], seccion_ejecucion_pdf()),
                 ("Materiales misceláneos", ["Material", "Cantidad", "Unidad", "Especificación"], seccion_materiales_pdf()),
-            ], firma_base64=var_firma_cliente.get(), firma_tecnico_base64=var_firma_tecnico.get())
+            ])
             mensaje_pdf = f"\n\nPDF guardado en:\n{ruta_pdf}" if ruta_pdf else "\n\nNo se pudo guardar el PDF local."
             messagebox.showinfo("Registro correcto", "La obra civil fue registrada correctamente." + mensaje_pdf)
             app.mostrar_vista_inicio_aco()
         else:
-            messagebox.showerror("Error", "No se pudo registrar la obra civil. Revisa que exista la tabla db_obras_civiles en Supabase.")
+            show_operation_error("Error al guardar", "Registrar obra civil")
 
     botones = ctk.CTkFrame(contenedor, fg_color="#F4F4F4", height=58, corner_radius=0)
     botones.grid(row=1, column=0, sticky="ew")

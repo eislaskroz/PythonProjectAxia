@@ -6,7 +6,8 @@ import re
 from pathlib import Path
 from tkinter import filedialog, messagebox
 
-from views.formato_helpers import generar_pdf_preview
+from services.axia_pdf_engine import AxiaPdfEngine
+from services.axia_pdf_artifacts import AxiaPdfArtifactStore, PDF_RENDERER_VERSION
 
 PREFIJOS = re.compile(r"^(lev|os|ot|bit|obc|aco|usu|cli|suc)_", re.I)
 VACIOS = (None, "", [], {})
@@ -229,14 +230,24 @@ def _construir_datos(registro: dict, configuracion: dict | None = None) -> tuple
         if _texto(registro.get(campo)):
             datos[etiqueta] = _texto(registro.get(campo))
             break
-    for campo in ("lev_fecha", "lev_fecha_programada", "os_fecha", "os_fecha_programada", "ot_fecha", "ot_fecha_programada", "bit_fecha", "obc_fecha", "created_at"):
+    for campo in ("lev_fecha", "lev_fecha_programada", "os_fecha", "os_fecha_programada", "ot_fecha", "ot_fecha_programada", "bit_fecha", "obc_fecha", "fecha_registro", "created_at"):
         if _texto(registro.get(campo)):
             datos["Fecha"] = _texto(registro.get(campo))
             break
 
     if secciones:
+        # El mismo bloque puede existir dentro del JSON técnico y en una columna
+        # auxiliar (por ejemplo equipos dañados). Se conserva una sola copia.
+        unicas = []
+        firmas = set()
+        for titulo_seccion, lineas in secciones:
+            firma = (str(titulo_seccion).strip().casefold(), tuple(str(x).strip().casefold() for x in lineas))
+            if firma in firmas:
+                continue
+            firmas.add(firma)
+            unicas.append((titulo_seccion, lineas))
         datos["Detalle técnico"] = "\n".join(
-            [f"--- {titulo.upper()} ---\n" + "\n".join(lineas) for titulo, lineas in secciones]
+            [f"--- {titulo.upper()} ---\n" + "\n".join(lineas) for titulo, lineas in unicas]
         )
 
     mostrar_firmas = tipo != "levantamiento"
@@ -256,32 +267,89 @@ def _titulo_y_folio(registro: dict, configuracion: dict | None = None):
     return titulo, folio or "registro_AXIA"
 
 
+def generar_pdf_registro(
+    registro: dict,
+    configuracion: dict | None = None,
+    *,
+    ruta_salida: str | Path | None = None,
+    abrir: bool = True,
+):
+    """Genera un registro con el formato definitivo de AXIA.
+
+    Es el punto común para preview, descarga administrativa y PDF local
+    posterior al guardado.
+    """
+    if not registro:
+        return False
+    titulo, folio = _titulo_y_folio(registro, configuracion)
+    datos, mostrar_firmas = _construir_datos(registro, configuracion)
+    profile_data = dict(datos)
+    profile_data.update({
+        "_titulo_pdf": titulo,
+        "_folio": folio,
+        "_mostrar_firmas": mostrar_firmas,
+    })
+    request = AxiaPdfEngine.prepare_profile(
+        profile_key="registro_generico",
+        data=profile_data,
+    )
+    if ruta_salida is None and abrir:
+        artifact = AxiaPdfArtifactStore.find(
+            folio, min_renderer_version=PDF_RENDERER_VERSION
+        ) if folio != "registro_AXIA" else None
+        if artifact is not None:
+            AxiaPdfArtifactStore.open(artifact.path)
+            return str(artifact.path)
+        return AxiaPdfEngine.preview_request(request)
+    if ruta_salida is None:
+        ruta_salida = AxiaPdfEngine._preview_path(titulo)
+    if abrir:
+        from dataclasses import replace
+        resultado = AxiaPdfEngine.render(
+            replace(request, ruta_salida=Path(ruta_salida), abrir=True)
+        )
+    else:
+        resultado = AxiaPdfEngine.save_request(request, ruta_salida)
+    if isinstance(resultado, (str, Path)) and Path(resultado).is_file():
+        AxiaPdfArtifactStore.register(folio, resultado)
+    return resultado
+
+
 def previsualizar_pdf_registro(registro: dict, configuracion: dict | None = None) -> bool:
     if not registro:
         messagebox.showwarning("Vista previa PDF", "No hay un registro seleccionado.")
         return False
-    titulo, _folio = _titulo_y_folio(registro, configuracion)
-    datos, mostrar_firmas = _construir_datos(registro, configuracion)
-    return bool(generar_pdf_preview(titulo, datos, mostrar_firmas=mostrar_firmas, abrir=True))
+    return bool(generar_pdf_registro(registro, configuracion, abrir=True))
 
 
 def guardar_pdf_registro(registro: dict, configuracion: dict | None = None) -> bool:
     if not registro:
         messagebox.showwarning("Guardar PDF", "No hay un registro seleccionado.")
         return False
-    titulo, folio = _titulo_y_folio(registro, configuracion)
+    _titulo, folio = _titulo_y_folio(registro, configuracion)
     ruta = filedialog.asksaveasfilename(
-        title="Guardar PDF regenerado", defaultextension=".pdf",
+        title="Guardar PDF definitivo", defaultextension=".pdf",
         initialfile=f"AXIA_{folio}.pdf", filetypes=[("Documento PDF", "*.pdf")],
     )
     if not ruta:
         return False
-    datos, mostrar_firmas = _construir_datos(registro, configuracion)
-    resultado = generar_pdf_preview(
-        titulo, datos, mostrar_firmas=mostrar_firmas,
-        ruta_salida=Path(ruta), abrir=False,
+    exacto = AxiaPdfArtifactStore.export_exact(
+        folio, Path(ruta), min_renderer_version=PDF_RENDERER_VERSION
+    )
+    if exacto:
+        messagebox.showinfo(
+            "Guardar PDF",
+            f"PDF definitivo copiado sin regeneración:\n{exacto}",
+        )
+        return True
+
+    resultado = generar_pdf_registro(
+        registro, configuracion, ruta_salida=Path(ruta), abrir=False
     )
     if resultado:
-        messagebox.showinfo("Guardar PDF", f"PDF regenerado correctamente:\n{ruta}")
+        messagebox.showinfo(
+            "Guardar PDF",
+            f"No existía una copia canónica local. El PDF fue regenerado, registrado y guardado en:\n{ruta}",
+        )
         return True
     return False

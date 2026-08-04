@@ -1,3 +1,4 @@
+from core.error_reporting import show_operation_error
 # =====================================================
 # IMPORTACIÓN DE LIBRERÍAS
 # =====================================================
@@ -348,9 +349,11 @@ def abrir_registro_usuario(app):
             ventana.destroy()
 
         def registro_error(error):
-            messagebox.showerror(
-                "Error de conexión",
-                "No fue posible registrar el usuario. Revisa la conexión e intenta de nuevo."
+            show_operation_error(
+                "Error al registrar usuario",
+                "Registrar usuario",
+                error,
+                parent=ventana,
             )
 
         run_async(

@@ -1,3 +1,4 @@
+from core.error_reporting import show_operation_error
 """
 Formulario Orden de Trabajo AXIA.
 Actualizado: campos compactos, partidas dinámicas y preview PDF.
@@ -10,6 +11,7 @@ logger = configurar_logger(__name__)
 import json
 import customtkinter as ctk
 from tkinter import messagebox
+from ui.native_combobox import NativeComboBox
 
 from ui.colors import SECONDARY, WHITE, TEXT_PRIMARY, BUTTON_HOVER
 from ui.date_picker import abrir_selector_fecha
@@ -99,7 +101,7 @@ def mostrar_orden_trabajo(parent, app, aco=None):
     def option(texto, var, values, fila=0, col=0, required=True):
         c = celda(fila, col)
         label(c, texto)
-        menu = ctk.CTkOptionMenu(
+        menu = NativeComboBox(
             c,
             variable=var,
             values=values,
@@ -231,7 +233,7 @@ def mostrar_orden_trabajo(parent, app, aco=None):
             messagebox.showinfo("Registro correcto", "La orden de trabajo fue registrada correctamente." + mensaje_pdf)
             app.mostrar_vista_inicio_aco()
         else:
-            messagebox.showerror("Error", "No se pudo registrar la orden de trabajo. Revisa que las columnas existan en Supabase.")
+            show_operation_error("Error al guardar", "Registrar orden de trabajo")
 
 
     def volver_a_selector_aco():

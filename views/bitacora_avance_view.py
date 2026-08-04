@@ -1,3 +1,4 @@
+from core.error_reporting import show_operation_error
 """
 =========================================================
 MÓDULO: bitacora_avance_view.py
@@ -12,6 +13,7 @@ logger = configurar_logger(__name__)
 
 import customtkinter as ctk
 from tkinter import messagebox
+from ui.native_combobox import NativeComboBox
 
 from ui.colors import SECONDARY, WHITE, TEXT_PRIMARY, TEXT_SECONDARY, BUTTON_HOVER
 from ui.date_picker import abrir_selector_fecha
@@ -108,7 +110,7 @@ def mostrar_bitacora_avance(parent, app, aco=None):
     def option(texto, var, values, fila=0, col=0):
         c = celda(fila, col)
         label(c, texto)
-        ctk.CTkOptionMenu(c, variable=var, values=values, height=OPTION_H, font=SMALL_FONT).pack(fill="x")
+        NativeComboBox(c, variable=var, values=values, height=OPTION_H, font=SMALL_FONT).pack(fill="x")
 
     def texto_largo(texto, fila, alto=110):
         c = celda(fila, 0, 3)
@@ -227,7 +229,7 @@ def mostrar_bitacora_avance(parent, app, aco=None):
             messagebox.showinfo("Registro correcto", "La bitácora fue registrada correctamente." + mensaje_pdf)
             app.mostrar_vista_inicio_aco()
         else:
-            messagebox.showerror("Error", "No se pudo registrar la bitácora. Revisa que las columnas existan en Supabase.")
+            show_operation_error("Error al guardar", "Registrar bitácora operativa")
 
 
     def volver_a_selector_aco():

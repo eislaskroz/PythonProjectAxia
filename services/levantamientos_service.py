@@ -16,6 +16,8 @@ Deben llamar funciones de esta capa `services/`.
 """
 
 from core.logger import configurar_logger
+import re
+from core.error_reporting import register_error
 from core.date_utils import normalizar_campos_fecha
 from core.performance import page_range
 from core.search_utils import normalizar_termino_busqueda, puntaje_coincidencia
@@ -29,59 +31,75 @@ from services.search_service import buscar_parcial_supabase
 # =====================================================
 
 from supabase_config import supabase
-from services.folios_service import asegurar_folio
+from services.folios_service import solicitar_folio_levantamiento
 from services.query_compat import execute_select_compatible
+from services.levantamientos_schema import (
+    TABLA_LEVANTAMIENTOS,
+    COLUMNAS_LEVANTAMIENTOS,
+    filtrar_payload_levantamiento,
+)
 
 
 # =====================================================
 # CONSTANTE DE TABLA
 # =====================================================
 
-TABLA_LEVANTAMIENTOS = "db_levantamientos"
-COLUMNAS_LEVANTAMIENTOS = "id_levantamiento,lev_aco_numero,lev_cliente,lev_contacto,lev_correo,lev_descripcion,lev_descripcion_fallas,lev_detalle_tecnico_json,lev_direccion,lev_equipos_danados_json,lev_estatus,lev_fecha,lev_fecha_programada,lev_fecha_realizacion,lev_firma,lev_firma_tecnico,lev_folio,lev_modalidad_operativa,lev_motivo,lev_observaciones,lev_prioridad,lev_requerimientos,lev_supervisor,lev_tecnico,lev_telefono,lev_tipo,lev_ubicacion,fecha_registro"
 
 
 # =====================================================
 # FUNCIÓN: crear_levantamiento()
 # =====================================================
+def _es_colision_folio(error):
+    """Detecta la restricción única de lev_folio reportada por PostgreSQL/PostgREST."""
+    contenido = str(getattr(error, "args", "")) + " " + str(error)
+    code = getattr(error, "code", None)
+    if isinstance(getattr(error, "args", None), tuple) and error.args and isinstance(error.args[0], dict):
+        code = code or error.args[0].get("code")
+        contenido += " " + str(error.args[0])
+    return str(code or "") == "23505" and "lev_folio" in contenido.lower()
+
+
 def crear_levantamiento(datos_levantamiento):
-    """
-    Crea un nuevo levantamiento en Supabase.
-
-    PARÁMETROS:
-        datos_levantamiento:
-            Diccionario con los campos de la tabla
-            db_levantamientos.
-
-    RETORNA:
-        list | None:
-            Datos insertados si el registro fue exitoso.
-            None si ocurrió un error.
-    """
+    """Crea un levantamiento usando exclusivamente el folio central de Supabase."""
+    datos = filtrar_payload_levantamiento(datos_levantamiento)
 
     try:
-        datos_levantamiento = asegurar_folio(datos_levantamiento, "lev_folio", "LEV")
-        datos_levantamiento = normalizar_campos_fecha(datos_levantamiento)
+        folio_actual = str(datos.get("lev_folio") or "").strip().upper()
+        if not re.fullmatch(r"LEV-\d{5,}", folio_actual):
+            datos["lev_folio"] = solicitar_folio_levantamiento()
 
-        respuesta = (
-            supabase
-            .table(TABLA_LEVANTAMIENTOS)
-            .insert(datos_levantamiento)
-            .execute()
-        )
+        datos = normalizar_campos_fecha(datos)
+
+        try:
+            respuesta = supabase.table(TABLA_LEVANTAMIENTOS).insert(datos).execute()
+        except Exception as error:
+            if not _es_colision_folio(error):
+                raise
+            folio_rechazado = datos["lev_folio"]
+            datos["lev_folio"] = solicitar_folio_levantamiento()
+            logger.warning(
+                "Colisión excepcional de folio. Rechazado=%s | Reintento=%s",
+                folio_rechazado, datos["lev_folio"],
+            )
+            registrar_movimiento_seguro(
+                modulo="LEVANTAMIENTOS", accion="COLISION_FOLIO",
+                descripcion=f"Folio rechazado {folio_rechazado}; reasignado {datos['lev_folio']}",
+                registro_afectado=datos["lev_folio"],
+            )
+            respuesta = supabase.table(TABLA_LEVANTAMIENTOS).insert(datos).execute()
 
         registrar_movimiento_seguro(
             modulo="LEVANTAMIENTOS",
             accion="CREAR",
             descripcion="Creación de levantamiento",
-            registro_afectado=datos_levantamiento.get("lev_folio") or datos_levantamiento.get("folio_levantamiento") or respuesta.data,
+            registro_afectado=datos.get("lev_folio") or respuesta.data,
         )
         return respuesta.data
 
     except Exception as error:
+        register_error(error, "Registrar levantamiento")
         logger.exception("Error al crear levantamiento.")
         return None
-
 
 # =====================================================
 # FUNCIÓN: obtener_levantamientos()
@@ -247,7 +265,10 @@ def actualizar_levantamiento(id_levantamiento, datos_levantamiento):
     """
 
     try:
+        datos_levantamiento = filtrar_payload_levantamiento(datos_levantamiento)
         datos_levantamiento = normalizar_campos_fecha(datos_levantamiento)
+        if not datos_levantamiento:
+            raise ValueError("No hay campos válidos para actualizar el levantamiento.")
 
         respuesta = (
             supabase

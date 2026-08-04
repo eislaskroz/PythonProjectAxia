@@ -32,6 +32,7 @@ from security.permissions import (
     puede_administrar_clientes,
     puede_administrar_usuarios,
     puede_consultar_procesos,
+    puede_convertir_levantamiento_a_orden,
     puede_entrar_inicio_aco,
     puede_generar_levantamiento,
     puede_ver_auditoria,
@@ -380,6 +381,15 @@ class NavigationController:
         self._registrar_vista("mostrar_admin_levantamientos")
         logger.info("Cargando vista administrativa: Levantamientos")
         self.limpiar_contenido()
+        if puede_convertir_levantamiento_a_orden(obtener_usuario_actual()):
+            self.cambiar_titulo(
+                "Levantamientos",
+                "Busca, edita y convierte levantamientos aceptados en órdenes de servicio."
+            )
+            from views.orden_servicio_conversion_view import mostrar_conversion_orden_servicio
+            mostrar_conversion_orden_servicio(parent=self.content, app=self.app)
+            return
+
         self.cambiar_titulo(
             "Levantamientos",
             "Busca y consulta levantamientos registrados."
@@ -420,6 +430,15 @@ class NavigationController:
         self._registrar_vista("mostrar_admin_ordenes_servicio")
         logger.info("Cargando vista administrativa: Órdenes de Servicio")
         self.limpiar_contenido()
+        if puede_convertir_levantamiento_a_orden(obtener_usuario_actual()):
+            self.cambiar_titulo(
+                "Órdenes de Servicio",
+                "Busca, edita, visualiza y convierte órdenes de servicio en órdenes de trabajo."
+            )
+            from views.orden_trabajo_conversion_view import mostrar_conversion_orden_trabajo
+            mostrar_conversion_orden_trabajo(parent=self.content, app=self.app)
+            return
+
         self.cambiar_titulo(
             "Órdenes de Servicio",
             "Busca y consulta órdenes de servicio registradas."
@@ -478,7 +497,7 @@ class NavigationController:
                 "campos_cliente": ["ot_cliente", "aco_cliente", "cliente"],
                 "campos_estatus": ["ot_estatus", "estatus"],
                 "campos_fecha": ["fecha_registro", "created_at"],
-                "campos_descripcion": ["ot_descripcion", "ot_actividad", "descripcion"],
+                "campos_descripcion": ["ot_descripcion", "ot_asunto", "descripcion"],
                 "obtener_todos": obtener_ordenes_trabajo,
                 "buscar": buscar_ordenes_trabajo,
                 "buscar_por_folio": buscar_orden_trabajo_por_folio,

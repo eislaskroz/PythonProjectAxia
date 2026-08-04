@@ -10,6 +10,7 @@ from ui.theme import aplicar_tema_global
 
 from core.logger import configurar_logger
 from core.performance import mark, measure
+from core.error_reporting import show_operation_error
 
 logger = configurar_logger(__name__)
 
@@ -164,9 +165,9 @@ def main():
             if not volver_a_login:
                 break
 
-    except Exception:
+    except Exception as error:
         logger.exception("Error crítico al iniciar AXIA.")
-        raise
+        show_operation_error("Error crítico de AXIA", "Iniciar o ejecutar la aplicación", error)
 
 
 # =====================================================

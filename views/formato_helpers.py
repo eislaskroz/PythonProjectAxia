@@ -17,6 +17,7 @@ from pathlib import Path
 from tkinter import Toplevel, Canvas, messagebox
 
 import customtkinter as ctk
+from ui.native_combobox import NativeComboBox
 from PIL import Image, ImageDraw
 
 from ui.colors import SECONDARY, TEXT_PRIMARY, TEXT_SECONDARY, BUTTON_HOVER, WHITE
@@ -159,7 +160,7 @@ def generar_pdf_archivo(titulo, datos, nombre_archivo=None, subcarpeta="document
     )
 
 
-def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, firma_tecnico_base64=None, mostrar_firmas=None, ruta_salida=None, abrir=True):
+def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, firma_tecnico_base64=None, mostrar_firmas=None, ruta_salida=None, abrir=True):
     """Genera PDF temporal y lo abre con el visor predeterminado.
 
     El PDF incluye encabezado operativo, folio, fecha y zona de firmas
@@ -181,7 +182,7 @@ def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, 
                 return str(datos.get(clave) or "").strip()
         return ""
 
-    folio = _valor_por_clave(["Folio OS", "Folio OT", "Folio BIT", "Folio OBC", "Folio LEV", "Folio de Levantamiento", "Folio Bitácora", "Folio de bitácora"])
+    folio = _valor_por_clave(["Folio", "Folio OS", "Folio OT", "Folio BIT", "Folio OBC", "Folio LEV", "Folio de Levantamiento", "Folio Bitácora", "Folio de bitácora"])
     fecha = _valor_por_clave(["Fecha"])
     if ruta_salida:
         ruta = Path(ruta_salida)
@@ -498,6 +499,30 @@ def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, 
 
 
 
+def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, firma_tecnico_base64=None, mostrar_firmas=None, ruta_salida=None, abrir=True):
+    """Compatibilidad de formularios con AXIA PDF ENGINE Fase 4.
+
+    Preview y guardado usan el mismo motor; esta función solo conserva la API
+    histórica de las vistas existentes.
+    """
+    from services.axia_pdf_engine import AxiaPdfEngine
+    kwargs = dict(
+        secciones_tabla=secciones_tabla,
+        firma_base64=firma_base64,
+        firma_tecnico_base64=firma_tecnico_base64,
+        mostrar_firmas=mostrar_firmas,
+    )
+    if ruta_salida is None and abrir:
+        return AxiaPdfEngine.preview(titulo, datos, **kwargs)
+    if ruta_salida is None:
+        ruta_salida = AxiaPdfEngine._preview_path(titulo)
+    request = AxiaPdfEngine.prepare(titulo=titulo, datos=datos, **kwargs)
+    if abrir:
+        from dataclasses import replace
+        return AxiaPdfEngine.render(replace(request, ruta_salida=ruta_salida, abrir=True))
+    return AxiaPdfEngine.save_request(request, ruta_salida)
+
+
 def enfocar_inicio_formulario(scroll_widget=None, primer_widget=None, delay=180):
     """Coloca el scroll al inicio y el foco en el primer campo editable.
 
@@ -521,7 +546,7 @@ def enfocar_inicio_formulario(scroll_widget=None, primer_widget=None, delay=180)
 
     def _buscar_primer(widget):
         for child in widget.winfo_children():
-            if isinstance(child, (ctk.CTkEntry, ctk.CTkTextbox, ctk.CTkOptionMenu)) and _estado_normal(child):
+            if isinstance(child, (ctk.CTkEntry, ctk.CTkTextbox, NativeComboBox)) and _estado_normal(child):
                 return child
             encontrado = _buscar_primer(child)
             if encontrado is not None:

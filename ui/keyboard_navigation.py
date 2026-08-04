@@ -11,6 +11,7 @@ from core.logger import configurar_logger
 logger = configurar_logger(__name__)
 
 import customtkinter as ctk
+from ui.native_combobox import NativeComboBox
 
 _SUPPORTED = tuple(
     cls for cls in (
@@ -18,6 +19,7 @@ _SUPPORTED = tuple(
         getattr(ctk, "CTkTextbox", None),
         getattr(ctk, "CTkComboBox", None),
         getattr(ctk, "CTkOptionMenu", None),
+        NativeComboBox,
         getattr(ctk, "CTkCheckBox", None),
         getattr(ctk, "CTkRadioButton", None),
         getattr(ctk, "CTkSwitch", None),
@@ -29,6 +31,7 @@ _SELECTORS = tuple(
     cls for cls in (
         getattr(ctk, "CTkComboBox", None),
         getattr(ctk, "CTkOptionMenu", None),
+        NativeComboBox,
     ) if cls is not None
 )
 _ACTIONS = tuple(

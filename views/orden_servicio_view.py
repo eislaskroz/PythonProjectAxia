@@ -1,3 +1,4 @@
+from core.error_reporting import show_operation_error
 """
 Formulario Orden de Servicio AXIA.
 Actualizado: campos compactos, renglones dinámicos, firma del cliente y preview PDF.
@@ -10,6 +11,7 @@ logger = configurar_logger(__name__)
 import json
 import customtkinter as ctk
 from tkinter import messagebox
+from ui.native_combobox import NativeComboBox
 
 from ui.colors import SECONDARY, WHITE, TEXT_PRIMARY, TEXT_SECONDARY, BUTTON_HOVER
 from ui.date_picker import abrir_selector_fecha
@@ -118,7 +120,7 @@ def mostrar_orden_servicio(parent, app, aco=None):
     def option(texto, var, values, fila=0, col=0, required=True):
         c = celda(fila, col)
         label(c, texto)
-        ctk.CTkOptionMenu(c, variable=var, values=values, height=OPTION_H, font=SMALL_FONT).pack(fill="x")
+        NativeComboBox(c, variable=var, values=values, height=OPTION_H, font=SMALL_FONT).pack(fill="x")
         if required:
             campos_validables.append(var)
             var.trace_add("write", lambda *_: validar_preview())
@@ -218,7 +220,7 @@ def mostrar_orden_servicio(parent, app, aco=None):
             fila.grid_columnconfigure(j, weight=1)
             ctk.CTkLabel(sub, text=h, font=LABEL_FONT, text_color=TEXT_PRIMARY).pack(anchor="w")
             if h == "Movimiento":
-                ctk.CTkOptionMenu(sub, variable=row_vars[h], values=MOVIMIENTOS_EQUIPO, height=OPTION_H, font=SMALL_FONT, command=lambda _v=None: validar_preview()).pack(fill="x")
+                NativeComboBox(sub, variable=row_vars[h], values=MOVIMIENTOS_EQUIPO, height=OPTION_H, font=SMALL_FONT, command=lambda _v=None: validar_preview()).pack(fill="x")
             else:
                 ctk.CTkEntry(sub, textvariable=row_vars[h], height=ENTRY_H, corner_radius=9, font=SMALL_FONT).pack(fill="x")
                 row_vars[h].trace_add("write", lambda *_: validar_preview())
@@ -318,7 +320,7 @@ def mostrar_orden_servicio(parent, app, aco=None):
             messagebox.showinfo("Registro correcto", "La orden de servicio fue registrada correctamente." + mensaje_pdf)
             app.mostrar_vista_inicio_aco()
         else:
-            messagebox.showerror("Error", "No se pudo registrar la orden. Revisa que las columnas existan en Supabase.")
+            show_operation_error("Error al guardar", "Registrar orden de servicio")
 
 
     def volver_a_selector_aco():

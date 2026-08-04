@@ -1,6 +1,7 @@
 """Servicio para módulo Obra Civil / Proyecto Ejecutivo AXIA."""
 
 from core.logger import configurar_logger
+from core.error_reporting import register_error
 from core.date_utils import normalizar_campos_fecha
 from core.performance import page_range
 from supabase_config import supabase
@@ -26,7 +27,8 @@ def crear_obra_civil(datos_obra):
             registro_afectado=datos_obra.get("obc_folio") or respuesta.data,
         )
         return respuesta.data
-    except Exception:
+    except Exception as error:
+        register_error(error, "Registrar obra civil")
         logger.exception("Error al crear obra civil.")
         return None
 
