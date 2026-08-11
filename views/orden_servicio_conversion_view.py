@@ -9,7 +9,7 @@ from ui.date_picker import asociar_selector_fecha
 from core.background_tasks import run_async
 from core.logger import configurar_logger
 from security.permissions import puede_convertir_levantamiento_a_orden
-from services.levantamientos_service import obtener_levantamientos, buscar_levantamientos
+from services.levantamientos_service import obtener_levantamientos, buscar_levantamientos, actualizar_levantamiento
 from services.ordenes_servicio_service import convertir_levantamiento_a_orden, buscar_orden_por_levantamiento
 from services.pdf_registro_service import generar_pdf_registro
 from ui.colors import WHITE, TEXT_PRIMARY, TEXT_SECONDARY, SECONDARY, BUTTON_HOVER
@@ -52,7 +52,7 @@ def mostrar_conversion_orden_servicio(parent, app):
                  text_color=TEXT_PRIMARY, anchor="w").grid(row=0, column=0, columnspan=4, sticky="ew", padx=12, pady=(10, 2))
     ctk.CTkLabel(
         busqueda,
-        text="Busca un levantamiento, revisa o modifica sus datos y genera la orden cuando el cliente haya aceptado la cotización.",
+        text="Busca un levantamiento, revisa sus datos y habilita la edición solo cuando sea necesario antes de convertirlo.",
         font=TEXT_MD, text_color=TEXT_SECONDARY, anchor="w",
     ).grid(row=1, column=0, columnspan=4, sticky="ew", padx=12, pady=(0, 8))
 
@@ -86,7 +86,8 @@ def mostrar_conversion_orden_servicio(parent, app):
     panel_form.grid_columnconfigure(0, weight=1)
     panel_form.grid_columnconfigure(1, weight=1)
 
-    seleccionado = {"registro": None}
+    seleccionado = {"registro": None, "editando": False}
+    widgets_editables = []
     vars_campos = {
         "lev_folio": ctk.StringVar(), "lev_aco_numero": ctk.StringVar(), "lev_cliente": ctk.StringVar(),
         "lev_contacto": ctk.StringVar(), "lev_correo": ctk.StringVar(), "lev_telefono": ctk.StringVar(),
@@ -103,8 +104,10 @@ def mostrar_conversion_orden_servicio(parent, app):
         ent.pack(fill="x")
         if disabled:
             ent.configure(state="disabled")
-        elif "fecha" in label.lower():
-            asociar_selector_fecha(ent, marco, vars_campos[key])
+        else:
+            widgets_editables.append(ent)
+            if "fecha" in label.lower():
+                asociar_selector_fecha(ent, marco, vars_campos[key])
         return ent
 
     ctk.CTkLabel(panel_form, text="Información editable", font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="w").grid(
@@ -131,6 +134,7 @@ def mostrar_conversion_orden_servicio(parent, app):
         ctk.CTkLabel(marco, text=label, font=TEXT_SM, text_color=TEXT_PRIMARY, anchor="w").pack(fill="x")
         box = ctk.CTkTextbox(marco, height=height)
         box.pack(fill="x")
+        widgets_editables.append(box)
         return box
 
     txt_descripcion = textbox("Descripción del levantamiento", 9, 105)
@@ -142,9 +146,38 @@ def mostrar_conversion_orden_servicio(parent, app):
                               text_color=TEXT_SECONDARY, anchor="w", justify="left")
     lbl_estado.grid(row=13, column=0, columnspan=2, sticky="ew", padx=6, pady=(6, 2))
 
+    def _set_modo_edicion(habilitado):
+        seleccionado["editando"] = bool(habilitado)
+        estado = "normal" if habilitado else "disabled"
+        for widget in widgets_editables:
+            try:
+                widget.configure(state=estado)
+            except Exception:
+                pass
+        # El folio siempre es de solo lectura.
+        btn_editar.configure(state="disabled" if habilitado else ("normal" if seleccionado.get("registro") else "disabled"))
+        btn_guardar.configure(state="normal" if habilitado else "disabled")
+        if seleccionado.get("registro"):
+            lbl_estado.configure(
+                text=("Modo edición habilitado. Guarda los cambios antes de continuar." if habilitado
+                      else "Modo consulta. Usa Editar si necesitas modificar información."),
+                text_color=TEXT_SECONDARY,
+            )
+
     def poner_texto(box, valor):
+        # CTkTextbox no permite modificar contenido mientras está deshabilitado.
+        estado_anterior = str(box.cget("state")) if hasattr(box, "cget") else "normal"
+        try:
+            box.configure(state="normal")
+        except Exception:
+            pass
         box.delete("1.0", "end")
         box.insert("1.0", valor or "")
+        if estado_anterior == "disabled":
+            try:
+                box.configure(state="disabled")
+            except Exception:
+                pass
 
     def cargar_seleccion():
         registro = tabla.selected_payload()
@@ -152,6 +185,12 @@ def mostrar_conversion_orden_servicio(parent, app):
             messagebox.showinfo("Selecciona un levantamiento", "Selecciona una fila de la tabla.")
             return
         seleccionado["registro"] = dict(registro)
+        # Habilita temporalmente para cargar los valores y vuelve a bloquear al final.
+        for widget in widgets_editables:
+            try:
+                widget.configure(state="normal")
+            except Exception:
+                pass
         for key, var in vars_campos.items():
             var.set(_valor(registro, key))
         poner_texto(txt_descripcion, _valor(registro, "lev_descripcion"))
@@ -164,12 +203,14 @@ def mostrar_conversion_orden_servicio(parent, app):
         existente = buscar_orden_por_levantamiento(
             registro.get("lev_folio"), registro.get("id_levantamiento")
         )
+        btn_preview.configure(state="normal")
+        _set_modo_edicion(False)
         if existente:
             lbl_estado.configure(text=f"Este levantamiento ya fue convertido en {existente.get('os_folio', 'una OS')}.", text_color="#B45309")
             btn_convertir.configure(state="disabled")
-        btn_preview.configure(state="normal")
-        if not existente:
-            lbl_estado.configure(text="Revisa los datos. Al convertir se creará una OS y el levantamiento pasará a estatus En proceso.", text_color=TEXT_SECONDARY)
+            btn_editar.configure(state="disabled")
+        else:
+            lbl_estado.configure(text="Modo consulta. Revisa los datos; usa Editar solo si necesitas realizar cambios.", text_color=TEXT_SECONDARY)
             btn_convertir.configure(state="normal")
 
     def filas(registros):
@@ -188,39 +229,85 @@ def mostrar_conversion_orden_servicio(parent, app):
         run_async(parent.winfo_toplevel(), tarea, lambda r: filas((r or [])[:100]),
                   lambda e: messagebox.showerror("Error", f"No fue posible consultar levantamientos.\n\n{e}"))
 
-    def validar_y_convertir():
-        original = seleccionado.get("registro")
-        if not original:
-            messagebox.showwarning("Selecciona un levantamiento", "Primero carga un levantamiento de la tabla.")
-            return
+    def _capturar_cambios():
         obligatorios = ("lev_cliente", "lev_contacto", "lev_direccion", "lev_supervisor", "lev_tecnico", "lev_tipo")
         faltantes = [k for k in obligatorios if not vars_campos[k].get().strip()]
         if not txt_descripcion.get("1.0", "end").strip():
             faltantes.append("lev_descripcion")
         if faltantes:
-            messagebox.showwarning("Información incompleta", "Completa cliente, contacto, dirección, supervisor, técnico, tipo y descripción.")
-            return
+            raise ValueError("Completa cliente, contacto, dirección, supervisor, técnico, tipo y descripción.")
         detalle_texto = txt_detalle.get("1.0", "end").strip()
         if detalle_texto:
             try:
                 detalle = json.loads(detalle_texto)
             except json.JSONDecodeError as exc:
-                messagebox.showerror("JSON inválido", f"Corrige el detalle técnico antes de continuar.\n\n{exc}")
-                return
+                raise ValueError(f"El detalle técnico contiene JSON inválido: {exc}") from exc
         else:
             detalle = {}
         cambios = {k: v.get().strip() for k, v in vars_campos.items() if k != "lev_folio"}
         try:
             cambios["lev_prioridad"] = int(cambios.get("lev_prioridad") or 2)
-        except ValueError:
-            messagebox.showwarning("Prioridad inválida", "La prioridad debe ser un número entero.")
-            return
+        except ValueError as exc:
+            raise ValueError("La prioridad debe ser un número entero.") from exc
         cambios.update({
             "lev_descripcion": txt_descripcion.get("1.0", "end").strip(),
             "lev_requerimientos": txt_requerimientos.get("1.0", "end").strip(),
             "lev_observaciones": txt_observaciones.get("1.0", "end").strip(),
             "lev_detalle_tecnico_json": detalle,
         })
+        return cambios
+
+    def guardar_cambios():
+        original = seleccionado.get("registro")
+        if not original:
+            messagebox.showwarning("Selecciona un levantamiento", "Primero carga un levantamiento de la tabla.")
+            return
+        if not seleccionado.get("editando"):
+            return
+        try:
+            cambios = _capturar_cambios()
+        except ValueError as exc:
+            messagebox.showwarning("Información inválida", str(exc))
+            return
+        id_levantamiento = original.get("id_levantamiento")
+        if not id_levantamiento:
+            messagebox.showerror("No se pudo guardar", "El levantamiento seleccionado no contiene id_levantamiento.")
+            return
+        btn_guardar.configure(state="disabled")
+        lbl_estado.configure(text="Guardando cambios del levantamiento...", text_color=TEXT_SECONDARY)
+
+        def ok(resultado):
+            if not resultado:
+                btn_guardar.configure(state="normal")
+                lbl_estado.configure(text="Supabase no confirmó la actualización.", text_color="#B91C1C")
+                messagebox.showerror("No se pudo guardar", "Supabase no confirmó la actualización del levantamiento.")
+                return
+            original.update(cambios)
+            seleccionado["registro"] = original
+            _set_modo_edicion(False)
+            lbl_estado.configure(text="Cambios guardados correctamente. Ya puedes previsualizar o convertir.", text_color="#15803D")
+            messagebox.showinfo("Cambios guardados", "La información del levantamiento se actualizó correctamente.")
+
+        run_async(
+            parent.winfo_toplevel(),
+            lambda: actualizar_levantamiento(id_levantamiento, cambios),
+            ok,
+            lambda e: (btn_guardar.configure(state="normal"), lbl_estado.configure(text="No se pudieron guardar los cambios.", text_color="#B91C1C"), messagebox.showerror("Error al guardar", str(e))),
+        )
+
+    def validar_y_convertir():
+        original = seleccionado.get("registro")
+        if not original:
+            messagebox.showwarning("Selecciona un levantamiento", "Primero carga un levantamiento de la tabla.")
+            return
+        if seleccionado.get("editando"):
+            messagebox.showwarning("Edición pendiente", "Guarda o finaliza la edición antes de convertir el levantamiento.")
+            return
+        try:
+            cambios = _capturar_cambios()
+        except ValueError as exc:
+            messagebox.showwarning("Información inválida", str(exc))
+            return
         if not messagebox.askyesno(
             "Confirmar conversión",
             f"Se creará una Orden de Servicio desde {original.get('lev_folio')}.\n\n"
@@ -318,12 +405,24 @@ def mostrar_conversion_orden_servicio(parent, app):
     entrada.bind("<Return>", lambda _e: ejecutar_busqueda())
 
     acciones = ctk.CTkFrame(panel_form, fg_color="transparent")
-    acciones.grid(row=14, column=0, columnspan=2, sticky="e", padx=5, pady=(6, 10))
-    ctk.CTkButton(acciones, text="📥 Cargar seleccionado", width=175, command=cargar_seleccion).pack(side="left", padx=4)
-    btn_preview = ctk.CTkButton(acciones, text="👁 PDF Levantamiento", width=170, command=previsualizar_levantamiento, state="disabled")
+    acciones.grid(row=14, column=0, columnspan=2, sticky="ew", padx=5, pady=(6, 10))
+    acciones.grid_columnconfigure(0, weight=1)
+
+    fila_consulta = ctk.CTkFrame(acciones, fg_color="transparent")
+    fila_consulta.grid(row=0, column=0, sticky="e", pady=(0, 5))
+    ctk.CTkButton(fila_consulta, text="📥 Cargar seleccionado", width=180, command=cargar_seleccion).pack(side="left", padx=4)
+    btn_preview = ctk.CTkButton(fila_consulta, text="👁 PDF Levantamiento", width=180, command=previsualizar_levantamiento, state="disabled")
     btn_preview.pack(side="left", padx=4)
-    btn_convertir = ctk.CTkButton(acciones, text="✓ Guardar y convertir a OS", width=210, fg_color=SECONDARY,
+
+    fila_edicion = ctk.CTkFrame(acciones, fg_color="transparent")
+    fila_edicion.grid(row=1, column=0, sticky="e")
+    btn_editar = ctk.CTkButton(fila_edicion, text="✎ Editar", width=125, command=lambda: _set_modo_edicion(True), state="disabled")
+    btn_editar.pack(side="left", padx=4)
+    btn_guardar = ctk.CTkButton(fila_edicion, text="💾 Guardar", width=125, command=guardar_cambios, state="disabled")
+    btn_guardar.pack(side="left", padx=4)
+    btn_convertir = ctk.CTkButton(fila_edicion, text="✓ Convertir a OS", width=170, fg_color=SECONDARY,
                                   hover_color=BUTTON_HOVER, command=validar_y_convertir, state="disabled")
     btn_convertir.pack(side="left", padx=4)
 
+    _set_modo_edicion(False)
     ejecutar_busqueda()
