@@ -165,19 +165,17 @@ def mostrar_conversion_orden_servicio(parent, app):
             )
 
     def poner_texto(box, valor):
-        # CTkTextbox no permite modificar contenido mientras está deshabilitado.
-        estado_anterior = str(box.cget("state")) if hasattr(box, "cget") else "normal"
+        # CTkTextbox acepta ``state`` en configure(), pero algunas versiones de
+        # CustomTkinter no lo exponen mediante cget(). Consultarlo provocaba:
+        # ValueError: 'state' is not a supported argument.
+        # Durante la carga siempre habilitamos temporalmente el textbox;
+        # _set_modo_edicion(False) se encarga de bloquearlo al terminar.
         try:
             box.configure(state="normal")
         except Exception:
             pass
         box.delete("1.0", "end")
         box.insert("1.0", valor or "")
-        if estado_anterior == "disabled":
-            try:
-                box.configure(state="disabled")
-            except Exception:
-                pass
 
     def cargar_seleccion():
         registro = tabla.selected_payload()
