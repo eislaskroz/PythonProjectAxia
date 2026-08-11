@@ -5,13 +5,18 @@ La marca y el modelo se capturan de forma dinámica para evitar que AXIA dependa
 cada vez que los fabricantes renuevan sus líneas de producto.
 """
 
-MARCAS_COMUNES = [
-    "Por definir", "Hikvision", "Dahua", "Axis", "Hanwha", "Bosch", "ZKTeco",
+# Catálogo visible homologado. Las marcas reales se presentan en orden alfabético;
+# las opciones de control permanecen en los extremos para facilitar la captura.
+_MARCAS_BASE = [
+    "Hikvision", "Dahua", "Axis", "Hanwha", "Bosch", "ZKTeco",
     "Ubiquiti", "MikroTik", "Cisco", "Aruba", "TP-Link", "Panduit", "Tripp Lite",
     "APC", "Schneider Electric", "Siemens", "ABB", "Eaton", "Generac", "Cummins",
     "Carrier", "York", "Daikin", "Midea", "LG", "Samsung", "Sungrow", "Huawei",
-    "Canadian Solar", "Jinko Solar", "HP", "Dell", "Lenovo", "Acer", "Asus", "Epson", "Brother", "Canon", "Logitech", "Kingston", "Western Digital", "Seagate", "Synology", "QNAP", "Otra"
+    "Canadian Solar", "Jinko Solar", "HP", "Dell", "Lenovo", "Acer", "Asus", "Epson",
+    "Brother", "Canon", "Logitech", "Kingston", "Western Digital", "Seagate",
+    "Synology", "QNAP"
 ]
+MARCAS_COMUNES = ["Por definir", *sorted(_MARCAS_BASE, key=str.casefold), "Otra"]
 
 CATALOGO_EQUIPOS = {
     "Seguridad y Monitoreo": [

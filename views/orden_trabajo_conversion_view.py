@@ -6,6 +6,7 @@ import customtkinter as ctk
 from tkinter import messagebox
 
 from app_context import obtener_usuario_actual
+from ui.date_picker import asociar_selector_fecha
 from core.background_tasks import run_async
 from security.permissions import puede_convertir_levantamiento_a_orden
 from services.ordenes_servicio_service import obtener_ordenes_servicio, buscar_ordenes_servicio
@@ -88,6 +89,8 @@ def mostrar_conversion_orden_trabajo(parent, app):
         ent.pack(fill="x")
         if disabled:
             ent.configure(state="disabled")
+        elif "fecha" in label.lower():
+            asociar_selector_fecha(ent, frame, vars_[key])
         return ent
 
     ctk.CTkLabel(form, text="Información para la Orden de Trabajo", font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="w").grid(row=0, column=0, columnspan=2, sticky="ew", padx=6, pady=(4, 7))

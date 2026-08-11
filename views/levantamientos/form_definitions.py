@@ -48,7 +48,7 @@ FORMULARIOS_DETALLADOS_EXTRA = {
                 ("presupuesto_referencia", "entry", "Presupuesto de referencia", "Opcional", ""),
                 ("incluye_accesorios", "entry", "Accesorios requeridos", "Cables, adaptadores, consumibles, etc.", ""),
                 ("licenciamiento", "entry", "Licenciamiento o software requerido", "Sistema operativo, antivirus, suite, etc.", ""),
-                ("fecha_requerida", "entry", "Fecha requerida de entrega", "DD/MM/AAAA", ""),
+                ("fecha_requerida", "date", "Fecha requerida de entrega", "YYYY-MM-DD", ""),
             ]),
             ("✅ 6. Instalación, configuración, pruebas y entrega", [
                 ("instalacion_fisica", "option", "¿Requiere instalación física?", ["Sí", "No", "No aplica"], "No"),

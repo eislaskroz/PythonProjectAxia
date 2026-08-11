@@ -29,7 +29,7 @@ from ui.colors import (
     BUTTON_HOVER
 )
 
-from ui.date_picker import abrir_selector_fecha
+from ui.date_picker import abrir_selector_fecha, asociar_selector_fecha
 from ui.fonts import (
     TITLE_MD,
     TEXT_MD,
@@ -825,7 +825,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             entry.bind("<Return>", lambda _event: cargar_aco_desde_campo())
 
         if "fecha" in texto.lower() and state != "disabled":
-            entry.bind("<Button-1>", lambda _event, var=variable: abrir_selector_fecha(contenedor_campo, var))
+            asociar_selector_fecha(entry, contenedor_campo, variable)
 
     def campo_option(texto, variable, values, columna=0, fila=None):
         """
@@ -1232,9 +1232,12 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             es_mantenimiento = modalidad == "Mantenimiento"
             valor = var_infra_existe.get()
 
+            # Acceso/alturas/riesgos aplica tanto para instalación como para
+            # mantenimiento. El resto de los bloques de infraestructura de CCTV
+            # pertenecen únicamente al levantamiento de instalación.
             secciones_instalacion = [
                 "existente",
-                "rack_energia", "seguridad", "datos_cctv"
+                "rack_energia", "datos_cctv"
             ]
             secciones_reparacion = [
                 "rep_selector", "rep_sintomas", "rep_infraestructura",
@@ -1249,6 +1252,17 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                         frame.grid()
                     else:
                         frame.grid_remove()
+
+            # Riesgos de acceso sí se evalúan durante mantenimiento, pero no
+            # durante reparación (la reparación tiene su propio campo Acceso).
+            frame_seguridad = secciones_dinamicas.get("seguridad")
+            if frame_seguridad:
+                if es_instalacion or es_mantenimiento:
+                    frame_seguridad.grid()
+                    configurar_estado_seccion(frame_seguridad, True)
+                    actualizar_acceso_altura()
+                else:
+                    frame_seguridad.grid_remove()
 
             for nombre in secciones_reparacion:
                 frame = secciones_dinamicas.get(nombre)
@@ -1272,6 +1286,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 actualizar_acceso_altura()
             elif es_reparacion:
                 actualizar_formulario_reparacion()
+            elif es_mantenimiento:
+                actualizar_acceso_altura()
 
             try:
                 actualizar_estado_preview()
@@ -2102,6 +2118,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 entry.grid(row=fila * 2 + 2, column=columna, sticky="w", padx=6, pady=(0, 3))
             else:
                 entry.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=6, pady=(0, 3))
+            if "fecha" in texto.lower():
+                asociar_selector_fecha(entry, parent_frame, variable)
             return entry
 
         def option_extra(parent_frame, texto, variable, values, fila, columna):
@@ -2168,6 +2186,14 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         return ["No aplica", "Por definir"]
 
     def obtener_canalizacion_materiales_json():
+        # En Seguridad y Monitoreo la canalización es parte exclusiva de
+        # Instalación. Reparación y Mantenimiento no deben guardar partidas
+        # ocultas ni heredarlas hacia Supabase/PDF.
+        if (
+            tipo_levantamiento == "Seguridad y Monitoreo"
+            and var_modalidad_levantamiento.get().strip() != "Instalación"
+        ):
+            return []
         if tipo_levantamiento in tipos_con_canalizacion and var_requiere_canalizacion.get() == "No":
             return []
         filas = []
@@ -2188,6 +2214,11 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
 
     def canalizacion_materiales_completa():
         if tipo_levantamiento not in tipos_con_canalizacion:
+            return True
+        if (
+            tipo_levantamiento == "Seguridad y Monitoreo"
+            and var_modalidad_levantamiento.get().strip() != "Instalación"
+        ):
             return True
         if var_requiere_canalizacion.get() == "No":
             return True
@@ -2570,6 +2601,15 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
     if tipo_levantamiento == "Seguridad y Monitoreo":
         def actualizar_secciones_comunes_seguridad(*_args):
             modalidad = var_modalidad_levantamiento.get()
+
+            # La captura dinámica de canalización/materiales de infraestructura
+            # corresponde únicamente a Instalación en Seguridad y Monitoreo.
+            if seccion_canalizacion_dinamica is not None:
+                if modalidad == "Instalación":
+                    seccion_canalizacion_dinamica.grid()
+                else:
+                    seccion_canalizacion_dinamica.grid_remove()
+
             if modalidad == "Instalación":
                 seccion_equipos.grid()
                 seccion_misc.grid()
@@ -2864,27 +2904,17 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                     "horario_falla": var_rep_horario_falla.get().strip() if var_rep_objetivo.get() in ("Cámaras", "NVRs y/o DVRs") else "",
                     "descripcion_infraestructura": txt_rep_infraestructura.get("1.0", "end").strip() if var_rep_objetivo.get() == "Infraestructura" else "",
                 },
-                "alimentacion_energia": {
-                    "voltaje_correcto": var_rep_voltaje_correcto.get().strip(),
-                    "amperaje_suficiente": var_rep_amperaje_suficiente.get().strip(),
-                    "sulfatacion_falsos_humedad": var_rep_conectores_danados.get().strip(),
-                },
-                "conectividad_transmision_video": {
-                    "tipo_cableado": var_rep_tipo_cableado.get().strip(),
-                    "cable_danado": var_rep_cable_danado.get().strip(),
-                    "rj45_switch_correcto": var_rep_rj45_correcto.get().strip(),
-                },
-                "configuracion_grabador": {
-                    "disco_operativo": var_rep_disco_operativo.get().strip(),
-                    "software_firmware": var_rep_firmware_software.get().strip(),
-                    "actualizacion_corte_energia": var_rep_actualizacion_corte.get().strip(),
-                },
                 "equipos_danados": obtener_equipos_danados_json(),
                 "descripcion_general_fallas": txt_rep_descripcion_fallas.get("1.0", "end").strip(),
             })
             return detalle
 
         if modalidad == "Mantenimiento":
+            detalle["acceso_alturas_riesgos"] = {
+                "escalera_andamio": var_escalera_requerida.get().strip(),
+                "altura_trabajo": var_altura_trabajo.get().strip() if var_escalera_requerida.get() == "Sí" else "",
+                "riesgo_instalacion": var_riesgo_instalacion.get().strip() if var_escalera_requerida.get() == "Sí" else "",
+            }
             detalle["mantenimiento"] = {
                 "descripcion_detallada_servicio": txt_observaciones.get("1.0", "end").strip(),
             }
@@ -3113,21 +3143,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                     *([f"Horario de la falla: {var_rep_horario_falla.get().strip() or 'No definido'}"] if var_rep_objetivo.get() == "NVRs y/o DVRs" else []),
                 ]),
                 "",
-                "--- ALIMENTACIÓN Y ENERGÍA ---",
-                f"Voltaje correcto: {var_rep_voltaje_correcto.get().strip() or 'No definido'}",
-                f"Amperaje suficiente: {var_rep_amperaje_suficiente.get().strip() or 'No definido'}",
-                f"Sulfatación/falsos contactos/humedad: {var_rep_conectores_danados.get().strip() or 'No definido'}",
-                "",
-                "--- CONECTIVIDAD Y TRANSMISIÓN DE VIDEO ---",
-                f"Tipo de cableado: {var_rep_tipo_cableado.get().strip() or 'No definido'}",
-                f"Cable dañado o expuesto: {var_rep_cable_danado.get().strip() or 'No definido'}",
-                f"RJ45/switch correcto en cámaras IP: {var_rep_rj45_correcto.get().strip() or 'No definido'}",
-                "",
-                "--- CONFIGURACIÓN Y GRABADOR ---",
-                f"Disco duro operativo: {var_rep_disco_operativo.get().strip() or 'No definido'}",
-                f"Software/firmware/cámara desactivada: {var_rep_firmware_software.get().strip() or 'No definido'}",
-                f"Actualización reciente o corte de energía: {var_rep_actualizacion_corte.get().strip() or 'No definido'}",
-                "",
                 "--- EQUIPOS DAÑADOS ---",
                 f"Cantidad de equipos dañados: {len(equipos_danados_items)}",
                 *(equipos_lineas or ["Sin equipos dañados capturados"]),
@@ -3227,7 +3242,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                     return False
                 return True
             if modalidad == "Mantenimiento":
-                return bool(txt_observaciones.get("1.0", "end").strip())
+                if not txt_observaciones.get("1.0", "end").strip():
+                    return False
+                if var_escalera_requerida.get() == "Sí" and not (
+                    var_altura_trabajo.get().strip() and var_riesgo_instalacion.get().strip()
+                ):
+                    return False
+                return True
             if modalidad == "Reparación":
                 objetivo = var_rep_objetivo.get().strip()
                 if not objetivo:
@@ -3256,6 +3277,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         if tipo_levantamiento == "Redes Voz y Datos":
             tipo_servicio = var_rvd_tipo_servicio.get().strip()
             requeridos = [
+                var_rvd_necesidad.get().strip(),
+                tipo_servicio,
                 var_rvd_area_instalacion.get().strip(),
                 var_rvd_horario_trabajo.get().strip(),
                 var_rvd_altura_trabajo.get().strip(),
@@ -3265,8 +3288,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 requeridos.append(var_rvd_cantidad_nodos.get().strip())
             if tipo_servicio in ("Voz", "Voz y datos", "Mixto"):
                 requeridos.append(var_rvd_cantidad_telefonia.get().strip())
-            if var_rvd_patch_panel.get() == "Sí":
-                requeridos.extend([var_rvd_tipo_patch_panel.get().strip(), var_rvd_cantidad_patch_panel.get().strip()])
+            # Patch panel, jacks, plugs, faceplates y patch cords ya se capturan
+            # en la tabla dinámica de canalización. Los campos antiguos están
+            # ocultos y no deben bloquear Preview/Guardar.
             if var_rvd_requiere_rack.get() == "Sí":
                 requeridos.append(var_rvd_tipo_rack.get().strip())
             if var_rvd_requiere_gabinete.get() == "Sí":

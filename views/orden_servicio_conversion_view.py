@@ -5,6 +5,7 @@ import customtkinter as ctk
 from tkinter import messagebox
 
 from app_context import obtener_usuario_actual
+from ui.date_picker import asociar_selector_fecha
 from core.background_tasks import run_async
 from core.logger import configurar_logger
 from security.permissions import puede_convertir_levantamiento_a_orden
@@ -102,6 +103,8 @@ def mostrar_conversion_orden_servicio(parent, app):
         ent.pack(fill="x")
         if disabled:
             ent.configure(state="disabled")
+        elif "fecha" in label.lower():
+            asociar_selector_fecha(ent, marco, vars_campos[key])
         return ent
 
     ctk.CTkLabel(panel_form, text="Información editable", font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="w").grid(

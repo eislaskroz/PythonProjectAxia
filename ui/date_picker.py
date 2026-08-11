@@ -123,3 +123,28 @@ def abrir_selector_fecha(parent, variable):
     y = root.winfo_rooty() + max(20, (root.winfo_height() - ventana.winfo_reqheight()) // 3)
     ventana.geometry(f"+{x}+{y}")
     ventana.focus_force()
+
+def asociar_selector_fecha(entry, parent, variable, *, abrir_con_foco=False):
+    """Homologa el comportamiento de campos fecha en AXIA.
+
+    Al hacer clic abre el selector y conserva el valor en formato ISO YYYY-MM-DD.
+    Devuelve el entry para permitir uso encadenado desde helpers de formulario.
+    """
+    if entry is None:
+        return entry
+
+    def _abrir(_event=None):
+        try:
+            estado = str(entry.cget("state"))
+            if estado == "disabled":
+                return None
+        except Exception:
+            pass
+        abrir_selector_fecha(parent, variable)
+        return "break"
+
+    entry.bind("<Button-1>", _abrir, add="+")
+    if abrir_con_foco:
+        entry.bind("<FocusIn>", _abrir, add="+")
+    return entry
+

@@ -8,7 +8,10 @@ from tkinter import filedialog, messagebox
 
 from services.axia_pdf_engine import AxiaPdfEngine
 from services.axia_pdf_artifacts import AxiaPdfArtifactStore, PDF_RENDERER_VERSION
-from services.levantamiento_seguridad_pdf import es_seguridad_instalacion, generar_pdf_seguridad_instalacion
+from services.levantamiento_seguridad_pdf import (
+    es_levantamiento,
+    generar_pdf_levantamiento_maestro,
+)
 
 PREFIJOS = re.compile(r"^(lev|os|ot|bit|obc|aco|usu|cli|suc)_", re.I)
 VACIOS = (None, "", [], {})
@@ -400,13 +403,14 @@ def generar_pdf_registro(
         return False
     titulo, folio = _titulo_y_folio(registro, configuracion)
 
-    # Nueva plantilla maestra: primer formulario migrado. Preview, PDF definitivo
-    # y descarga administrativa pasan por este mismo punto, por lo que no existe
-    # divergencia visual entre versiones.
-    if es_seguridad_instalacion(registro):
+    # Plantilla maestra de levantamientos: todos los tipos y modalidades pasan
+    # por el mismo generador estructurado. Preview, PDF definitivo y descarga
+    # administrativa comparten exactamente la misma lógica visual.
+    if es_levantamiento(registro):
         if ruta_salida is None:
-            ruta_salida = AxiaPdfEngine._preview_path("Levantamiento_Seguridad_Monitoreo_Instalacion")
-        resultado = generar_pdf_seguridad_instalacion(
+            safe = "_".join(str(registro.get("lev_tipo_levantamiento") or "Levantamiento").split())
+            ruta_salida = AxiaPdfEngine._preview_path(f"Levantamiento_{safe}")
+        resultado = generar_pdf_levantamiento_maestro(
             registro, ruta_salida=Path(ruta_salida), abrir=abrir
         )
         if isinstance(resultado, (str, Path)) and Path(resultado).is_file():

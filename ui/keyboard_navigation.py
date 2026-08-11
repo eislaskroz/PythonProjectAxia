@@ -139,7 +139,19 @@ def install_keyboard_navigation(root) -> None:
         return list(_walk(root))
 
     def current_wrapper(items):
-        focused = root.focus_get()
+        # ttk.Combobox crea el desplegable como una ventana Tcl interna
+        # (``...popdown...``). Mientras esa lista tiene el foco,
+        # ``root.focus_get()`` intenta resolverla como un widget Tkinter y
+        # puede lanzar ``KeyError: 'popdown'``. Es un foco temporal válido,
+        # no un error de la interfaz; simplemente dejamos que ttk gestione
+        # el teclado hasta que el desplegable se cierre.
+        try:
+            focused = root.focus_get()
+        except Exception as exc:
+            if isinstance(exc, KeyError) or "popdown" in str(exc).lower():
+                return None
+            logger.debug("No fue posible resolver el widget con foco.", exc_info=True)
+            return None
         if focused is None:
             return None
         for item in items:

@@ -1,8 +1,9 @@
-"""Plantilla maestra PDF para Seguridad y Monitoreo / Instalación.
+"""Plantilla maestra PDF para levantamientos AXIA.
 
-Primera migración del nuevo esquema visual de levantamientos AXIA. La plantilla
-trabaja directamente con el mismo registro que se persiste en Supabase y usa
-bloques/tablas dinámicas que crecen y paginan sin recortar información.
+La plantilla trabaja directamente con el registro persistido en Supabase y
+renderiza cada tipo de levantamiento con bloques compactos y tablas dinámicas.
+Seguridad y Monitoreo / Instalación conserva su distribución validada; el resto
+de levantamientos reutiliza la misma lógica visual y de paginación.
 """
 from __future__ import annotations
 
@@ -261,14 +262,13 @@ def generar_pdf_seguridad_instalacion(
         ["DIRECCIÓN", registro.get("lev_direccion"), "CONTACTO", registro.get("lev_contacto")],
         ["TÉCNICO AXIA", registro.get("lev_tecnico"), "SUPERVISOR", registro.get("lev_supervisor")],
         ["CORREO", registro.get("lev_correo"), "TIPO DE TRABAJO", registro.get("lev_modalidad_operativa") or "Instalación"],
+        ["DÍAS DE TRABAJO", cctv.get("dias_trabajo") or "No definido",
+         "PERSONAS A CONSIDERAR", cctv.get("personas_considerar") or "No definido"],
     ]
+    # Días y personas forman parte del mismo bloque de datos generales para mantener
+    # exactamente las mismas columnas, bordes y proporciones. Personas queda debajo
+    # de Tipo de trabajo.
     story.append(_key_value_table(general_rows, [1.35*inch, 2.75*inch, 1.18*inch, 1.62*inch], normal, label))
-
-    # Recursos estimados: inmediatamente debajo de los datos generales.
-    resource_table = _key_value_table([
-        ["Días de trabajo", cctv.get("dias_trabajo"), "Personas a considerar", cctv.get("personas_considerar")],
-    ], [1.35*inch, 1.0*inch, 1.75*inch, 2.80*inch], normal, label)
-    story.append(resource_table)
     story.append(Spacer(1, 7))
 
     # 2) Infraestructura existente y rack/energía en paralelo.
@@ -398,6 +398,407 @@ def generar_pdf_seguridad_instalacion(
         onFirstPage=_page,
         onLaterPages=_page,
     )
+    if abrir:
+        if os.name == "nt":
+            os.startfile(str(ruta))
+        else:
+            os.system(f'xdg-open "{ruta}" >/dev/null 2>&1 &')
+    return str(ruta)
+
+
+# ---------------------------------------------------------------------------
+# Plantilla maestra general para TODOS los levantamientos
+# ---------------------------------------------------------------------------
+
+SECTION_TITLES = {
+    "necesidad_inicial": "Necesidad inicial y alcance",
+    "necesidad_alcance": "Necesidad inicial y alcance",
+    "necesidad_respaldo": "Necesidad inicial y respaldo",
+    "condiciones_sitio": "Condiciones del sitio",
+    "equipo_requerido": "Equipo requerido",
+    "ubicacion_instalacion": "Ubicación de instalación",
+    "infraestructura_necesaria": "Infraestructura necesaria",
+    "materiales_consumibles": "Materiales y consumibles estimados",
+    "preparativos_riesgos": "Preparativos, permisos y riesgos",
+    "instalacion_entrega_pruebas": "Instalación, pruebas y entrega",
+    "datos_electricos_carga": "Datos eléctricos y carga",
+    "ubicacion_sitio_maniobras": "Ubicación, sitio y maniobras",
+    "combustible_escape_seguridad": "Combustible, escape y seguridad",
+    "datos_electricos_tablero_protecciones": "Datos eléctricos, tablero y protecciones",
+    "canalizacion_cableado_materiales": "Canalización, cableado y materiales",
+    "cableado_canalizacion_consumibles": "Cableado, canalización y consumibles",
+    "rack_equipo_activo_energia": "Rack, gabinete, equipo activo y energía",
+    "seguridad_operacion": "Seguridad y operación",
+    "estimacion_recursos": "Estimación de recursos",
+    "infraestructura_existente": "Infraestructura existente",
+    "rack_gabinete_energia": "Rack, gabinete y energía",
+    "acceso_alturas_riesgos": "Acceso, alturas y riesgos",
+    "datos_tecnicos_cctv": "Datos técnicos",
+    "consumibles_conectividad": "Conectividad y consumibles",
+    "ubicacion_estado_sintomas": "Ubicación, acceso, estado y síntomas",
+    "alimentacion_energia": "Alimentación y energía",
+    "conectividad_transmision_video": "Conectividad y transmisión de video",
+    "configuracion_grabador": "Configuración y grabador",
+    "mantenimiento": "Mantenimiento",
+}
+
+FIELD_LABELS = {
+    "dias_trabajo": "Días de trabajo",
+    "personas_trabajo": "Personas a considerar",
+    "personas_considerar": "Personas a considerar",
+    "cantidad_equipos": "Cantidad de equipos",
+    "cantidad_camaras": "Cantidad de cámaras",
+    "tipo_camaras": "Tipo de cámaras",
+    "ubicacion_nvr_dvr": "Ubicación NVR/DVR",
+    "punto_red": "Punto de red",
+    "punto_energia": "Punto de energía",
+    "tipo_servicio": "Tipo de servicio",
+    "tipo_levantamiento": "Tipo de levantamiento",
+    "modalidad_operativa": "Tipo de trabajo",
+    "requiere": "¿Se requiere?",
+    "partidas": "Partidas",
+    "descripcion_detallada_servicio": "Descripción detallada del servicio",
+    "descripcion_general_fallas": "Descripción general de fallas",
+    "elemento_a_reparar": "¿Qué se desea reparar?",
+    "codigo_error_dvr_nvr": "Código de error",
+    "horario_falla": "Horario de la falla",
+}
+
+RESOURCE_KEYS_DAYS = {"dias_trabajo", "dias_trabajo_proyectados"}
+RESOURCE_KEYS_PEOPLE = {"personas_trabajo", "personas_considerar", "personas_consideradas"}
+SPECIAL_ROOT_KEYS = {
+    "tipo_levantamiento", "modalidad_operativa", "canalizacion_materiales",
+    "equipos_principales", "materiales_miscelaneos", "equipos_danados",
+    "descripcion_general_fallas", "mantenimiento",
+}
+
+
+def es_levantamiento(registro: Mapping[str, Any]) -> bool:
+    """True cuando el registro corresponde a un levantamiento AXIA."""
+    return bool(
+        str(registro.get("lev_tipo_levantamiento") or "").strip()
+        or str(registro.get("lev_folio") or "").strip()
+        or "lev_detalle_tecnico_json" in registro
+    )
+
+
+def _humanize(key: str) -> str:
+    if key in FIELD_LABELS:
+        return FIELD_LABELS[key]
+    text = str(key or "").replace("_", " ").strip()
+    replacements = {
+        "nvr dvr": "NVR/DVR", "rj45": "RJ45", "ups": "UPS", "cfe": "CFE",
+        "ip": "IP", "poe": "PoE", "esi": "ESI", "cctv": "CCTV",
+    }
+    low = text.casefold()
+    if low in replacements:
+        return replacements[low]
+    return text[:1].upper() + text[1:]
+
+
+def _section_name(key: str) -> str:
+    return SECTION_TITLES.get(key, _humanize(key))
+
+
+def _visible_declarative_sections(tipo: str, sections: Mapping[str, Any]) -> list[tuple[str, Mapping[str, Any]]]:
+    """Devuelve únicamente los bloques que corresponden al flujo seleccionado.
+
+    Los formularios declarativos guardan todos sus campos en ``lev_detalle_tecnico_json``
+    aunque algunos estén ocultos en la interfaz. El PDF debe reproducir lo que el usuario
+    vio/capturó, no imprimir bloques ocultos con valores por defecto como "No aplica".
+    """
+    items = [(str(k), v) for k, v in sections.items() if isinstance(v, Mapping)]
+    if tipo.casefold() != "tecnología, equipos y periféricos".casefold():
+        return items
+
+    # La acción detonante vive en la primera sección del formulario TI.
+    accion = ""
+    for key, value in items:
+        if "tipo_de_solicitud_y_alcance" in key.casefold():
+            accion = _text(value.get("accion_ti"), "")
+            break
+    accion_cf = accion.casefold()
+
+    # Debe ser idéntico a la visibilidad de la interfaz (levantamiento_view.py).
+    # 0 Tipo solicitud, 1 Identificación, 2 Revisión, 3 Mant./Reparación,
+    # 4 Requerimientos suministro, 5 Instalación/configuración.
+    if accion_cf == "suministro":
+        allowed = {
+            "tipo_de_solicitud_y_alcance",
+            "identificación_y_características_generales",
+            "requerimientos_para_suministro",
+        }
+    elif accion_cf in {"suministro e instalación", "suministro e instalacion", "instalación", "instalacion"}:
+        allowed = {
+            "tipo_de_solicitud_y_alcance",
+            "identificación_y_características_generales",
+            "requerimientos_para_suministro",
+            "instalación_configuración_pruebas_y_entrega",
+        }
+    elif accion_cf in {"revisión", "revision"}:
+        allowed = {
+            "tipo_de_solicitud_y_alcance",
+            "identificación_y_características_generales",
+            "revisión_y_diagnóstico",
+            "instalación_configuración_pruebas_y_entrega",
+        }
+    elif accion_cf in {"mantenimiento", "reparación", "reparacion"}:
+        allowed = {
+            "tipo_de_solicitud_y_alcance",
+            "identificación_y_características_generales",
+            "revisión_y_diagnóstico",
+            "mantenimiento_o_reparación",
+            "instalación_configuración_pruebas_y_entrega",
+        }
+    else:
+        # Compatibilidad con registros antiguos: si no hay acción reconocible, no ocultamos datos.
+        return items
+
+    return [(key, value) for key, value in items if key.casefold() in {x.casefold() for x in allowed}]
+
+
+def _find_resources(value: Any) -> tuple[str, str]:
+    days = ""
+    people = ""
+    def walk(node: Any):
+        nonlocal days, people
+        if isinstance(node, Mapping):
+            for key, val in node.items():
+                k = str(key).casefold()
+                if not days and k in RESOURCE_KEYS_DAYS and _text(val, ""):
+                    days = _text(val, "")
+                elif not people and k in RESOURCE_KEYS_PEOPLE and _text(val, ""):
+                    people = _text(val, "")
+                if isinstance(val, (Mapping, list, tuple)):
+                    walk(val)
+        elif isinstance(node, (list, tuple)):
+            for item in node:
+                walk(item)
+    walk(value)
+    return days, people
+
+
+def _is_resource_key(key: str) -> bool:
+    k = str(key).casefold()
+    return k in RESOURCE_KEYS_DAYS or k in RESOURCE_KEYS_PEOPLE
+
+
+def _mapping_rows(mapping: Mapping[str, Any]) -> list[list[Any]]:
+    """Convierte un bloque técnico en filas etiqueta/valor de dos pares por fila."""
+    pairs: list[tuple[str, Any]] = []
+    for key, value in mapping.items():
+        if _is_resource_key(key) or key in {"partidas"}:
+            continue
+        if isinstance(value, (Mapping, list, tuple)):
+            continue
+        if value in (None, ""):
+            value = "No aplica"
+        pairs.append((_humanize(key), value))
+    rows: list[list[Any]] = []
+    for i in range(0, len(pairs), 2):
+        first = pairs[i]
+        second = pairs[i + 1] if i + 1 < len(pairs) else ("", "")
+        rows.append([first[0], first[1], second[0], second[1]])
+    return rows
+
+
+def _append_mapping_section(story: list, title: str, mapping: Mapping[str, Any], width: float, normal, label, header):
+    rows = _mapping_rows(mapping)
+    if rows:
+        story.append(_section_title(title, width, header))
+        story.append(_key_value_table(rows, [1.55*inch, 1.90*inch, 1.55*inch, 1.90*inch], normal, label))
+        story.append(Spacer(1, 6))
+
+
+def _dynamic_rows(detail: Mapping[str, Any], key: str) -> list[Mapping[str, Any]]:
+    value = detail.get(key) or []
+    if isinstance(value, str):
+        value = _json(value, [])
+    return [dict(x) for x in value if isinstance(x, Mapping)] if isinstance(value, (list, tuple)) else []
+
+
+def _equipment_rows(detail: Mapping[str, Any]) -> list[list[Any]]:
+    return [[
+        x.get("familia"), x.get("subfamilia"), x.get("cantidad"), x.get("marca"),
+        x.get("modelo"), x.get("caracteristicas") or x.get("caracteristicas_tecnicas")
+    ] for x in _dynamic_rows(detail, "equipos_principales")]
+
+
+def _material_rows(detail: Mapping[str, Any]) -> list[list[Any]]:
+    return [[x.get("material"), x.get("cantidad"), x.get("unidad"), x.get("especificacion") or x.get("medida")]
+            for x in _dynamic_rows(detail, "materiales_miscelaneos")]
+
+
+def _canal_rows(detail: Mapping[str, Any]) -> list[list[Any]]:
+    entries = _dynamic_rows(detail, "canalizacion_materiales")
+    if not entries:
+        # Compatibilidad con los bloques que almacenan las partidas dentro de la sección.
+        for value in detail.values():
+            if isinstance(value, Mapping) and isinstance(value.get("partidas"), (list, tuple)):
+                entries = [dict(x) for x in value.get("partidas", []) if isinstance(x, Mapping)]
+                if entries:
+                    break
+    return [[
+        x.get("categoria"), x.get("tipo"),
+        x.get("tamano_calibre_especificacion") or x.get("tamano") or x.get("calibre") or "No aplica",
+        x.get("cantidad"), x.get("unidad")
+    ] for x in entries]
+
+
+def _damaged_rows(registro: Mapping[str, Any], detail: Mapping[str, Any]) -> list[list[Any]]:
+    entries = detail.get("equipos_danados") or _json(registro.get("lev_equipos_danados_json"), []) or []
+    if not isinstance(entries, (list, tuple)):
+        return []
+    rows=[]
+    for x in entries:
+        if isinstance(x, Mapping):
+            rows.append([x.get("tipo"), x.get("marca"), x.get("modelo"), x.get("serie") or x.get("numero_serie")])
+    return rows
+
+
+def _general_story(registro: Mapping[str, Any], detail: Mapping[str, Any], story: list, normal, label, header):
+    general_rows = [
+        ["NOMBRE DE LEVANTAMIENTO", registro.get("lev_tipo_levantamiento"),
+         "FOLIO LEVANTAMIENTO", registro.get("lev_folio") or "Pendiente"],
+        ["CLIENTE", registro.get("lev_cliente"), "FECHA", registro.get("lev_fecha_programada") or registro.get("fecha_registro")],
+        ["DIRECCIÓN", registro.get("lev_direccion"), "CONTACTO", registro.get("lev_contacto")],
+        ["TÉCNICO AXIA", registro.get("lev_tecnico"), "SUPERVISOR", registro.get("lev_supervisor")],
+        ["CORREO", registro.get("lev_correo"), "TIPO DE TRABAJO", registro.get("lev_modalidad_operativa") or "Instalación"],
+    ]
+    days, people = _find_resources(detail)
+    # Todos los levantamientos comparten una sexta fila homogénea dentro de Datos
+    # generales. Así "Personas a considerar" queda exactamente debajo de
+    # "Tipo de trabajo", con las mismas columnas y estilo que el resto del bloque.
+    general_rows.append([
+        "DÍAS DE TRABAJO", days or "No definido",
+        "PERSONAS A CONSIDERAR", people or "No definido",
+    ])
+    story.append(_key_value_table(general_rows, [1.35*inch, 2.75*inch, 1.18*inch, 1.62*inch], normal, label))
+    story.append(Spacer(1, 7))
+
+
+def _description_for(registro: Mapping[str, Any], detail: Mapping[str, Any]) -> str:
+    # Reparación tiene una descripción propia; mantenimiento también.
+    if _text(registro.get("lev_descripcion_fallas"), ""):
+        return _text(registro.get("lev_descripcion_fallas"), "")
+    maint = detail.get("mantenimiento")
+    if isinstance(maint, Mapping) and _text(maint.get("descripcion_detallada_servicio"), ""):
+        return _text(maint.get("descripcion_detallada_servicio"), "")
+    return _text(registro.get("lev_observaciones") or registro.get("lev_descripcion"), "Sin descripción capturada.")
+
+
+def generar_pdf_levantamiento_maestro(
+    registro: Mapping[str, Any], *, ruta_salida: str | Path, abrir: bool = False,
+) -> str:
+    """Genera la estructura maestra para cualquier tipo de levantamiento AXIA."""
+    # Conserva 1:1 la plantilla ya aprobada para Seguridad / Instalación.
+    if es_seguridad_instalacion(registro):
+        return generar_pdf_seguridad_instalacion(registro, ruta_salida=ruta_salida, abrir=abrir)
+
+    import os
+    from reportlab.lib.styles import ParagraphStyle
+
+    ruta = Path(ruta_salida)
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    styles = BasePdfGenerator.styles()
+    normal = styles["normal"]
+    header = styles["table_header"]
+    label = ParagraphStyle(
+        "AxiaMasterLabelGeneral", parent=normal, fontName="Helvetica-Bold",
+        fontSize=7.0, leading=8.4, textColor=BasePdfGenerator.PRIMARY,
+    )
+    detail = _detail(registro)
+    width = 6.90 * inch
+    doc = SimpleDocTemplate(
+        str(ruta), pagesize=(612, 792), rightMargin=BasePdfGenerator.RIGHT_MARGIN,
+        leftMargin=BasePdfGenerator.LEFT_MARGIN, topMargin=BasePdfGenerator.TOP_MARGIN,
+        bottomMargin=BasePdfGenerator.BOTTOM_MARGIN,
+    )
+    story: list = []
+    _general_story(registro, detail, story, normal, label, header)
+
+    tipo = _text(registro.get("lev_tipo_levantamiento"), "Levantamiento")
+    modalidad = _text(registro.get("lev_modalidad_operativa"), "")
+
+    # Seguridad / Reparación tiene una estructura propia derivada del formulario.
+    if tipo.casefold() == "seguridad y monitoreo" and modalidad.casefold() in {"reparación", "reparacion"}:
+        if detail.get("elemento_a_reparar"):
+            _append_mapping_section(story, "Reparación: selección del elemento", {"elemento_a_reparar": detail.get("elemento_a_reparar")}, width, normal, label, header)
+        # Reparación solo debe imprimir los bloques que realmente están visibles
+        # en el formulario actual. Las secciones históricas de alimentación,
+        # conectividad y grabador se ignoran incluso si existen en registros viejos.
+        value = detail.get("ubicacion_estado_sintomas")
+        if isinstance(value, Mapping):
+            _append_mapping_section(story, _section_name("ubicacion_estado_sintomas"), value, width, normal, label, header)
+        damaged = _damaged_rows(registro, detail)
+        if damaged:
+            story.append(_section_matrix_table(
+                "Información de equipos dañados", ["Tipo de equipo", "Marca", "Modelo", "Número de serie"],
+                damaged, [1.35*inch,1.55*inch,1.55*inch,2.45*inch], normal, header
+            ))
+            story.append(Spacer(1, 7))
+    elif tipo.casefold() == "seguridad y monitoreo" and modalidad.casefold() == "mantenimiento":
+        # Mantenimiento comparte con Instalación la evaluación de acceso,
+        # alturas y riesgos. Es el único bloque técnico adicional aplicable.
+        value = detail.get("acceso_alturas_riesgos")
+        if isinstance(value, Mapping):
+            _append_mapping_section(story, _section_name("acceso_alturas_riesgos"), value, width, normal, label, header)
+    else:
+        # Formularios declarativos almacenan sus bloques bajo `secciones`.
+        sections = detail.get("secciones")
+        if isinstance(sections, Mapping):
+            for key, value in _visible_declarative_sections(tipo, sections):
+                _append_mapping_section(story, _section_name(str(key)), value, width, normal, label, header)
+        else:
+            # Formularios especializados clásicos: un bloque por clave raíz.
+            for key, value in detail.items():
+                if key in SPECIAL_ROOT_KEYS:
+                    continue
+                if isinstance(value, Mapping):
+                    _append_mapping_section(story, _section_name(str(key)), value, width, normal, label, header)
+
+    # Partidas dinámicas comunes. En Seguridad y Monitoreo solo aplican
+    # a Instalación; Reparación/Mantenimiento deben ignorar incluso datos
+    # históricos que pudieran existir en registros anteriores.
+    canal = _canal_rows(detail)
+    if tipo.casefold() == "seguridad y monitoreo" and modalidad.casefold() not in {"instalación", "instalacion"}:
+        canal = []
+    if canal:
+        story.append(_section_matrix_table(
+            "Canalización, cableado y materiales",
+            ["Categoría", "Tipo", "Tamaño/Calibre", "Cantidad", "Unidad"], canal,
+            [1.05*inch,2.35*inch,1.55*inch,.88*inch,1.07*inch], normal, header
+        ))
+        story.append(Spacer(1, 7))
+
+    equipment = _equipment_rows(detail)
+    if equipment:
+        story.append(_section_matrix_table(
+            "Equipos principales requeridos",
+            ["Familia", "Subfamilia", "Cantidad", "Marca", "Modelo", "Características técnicas"], equipment,
+            [1.05*inch,1.15*inch,.65*inch,.95*inch,.95*inch,2.15*inch], normal, header
+        ))
+        story.append(Spacer(1, 7))
+
+    materials = _material_rows(detail)
+    if materials:
+        story.append(_section_matrix_table(
+            "Materiales misceláneos y consumibles",
+            ["Material", "Cantidad", "Unidad", "Especificación/Medida"], materials,
+            [2.15*inch,.9*inch,1.0*inch,2.85*inch], normal, header
+        ))
+        story.append(Spacer(1, 7))
+
+    story.append(_description_table(_description_for(registro, detail), width, normal, header))
+
+    title = f"Levantamiento {tipo}" + (f" - {modalidad}" if modalidad else "")
+    doc.title = f"AXIA - {title}"
+    doc.author = "AXIA Comunicaciones S.A. de C.V."
+    doc.subject = title
+    doc.creator = "Sistema AXIA"
+    def _page(canvas, document):
+        BasePdfGenerator.draw_page(canvas, document, title=title)
+    doc.build(story, canvasmaker=BasePdfGenerator.canvas_factory(title), onFirstPage=_page, onLaterPages=_page)
     if abrir:
         if os.name == "nt":
             os.startfile(str(ruta))
