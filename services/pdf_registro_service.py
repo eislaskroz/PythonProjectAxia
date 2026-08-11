@@ -8,6 +8,7 @@ from tkinter import filedialog, messagebox
 
 from services.axia_pdf_engine import AxiaPdfEngine
 from services.axia_pdf_artifacts import AxiaPdfArtifactStore, PDF_RENDERER_VERSION
+from services.levantamiento_seguridad_pdf import es_seguridad_instalacion, generar_pdf_seguridad_instalacion
 
 PREFIJOS = re.compile(r"^(lev|os|ot|bit|obc|aco|usu|cli|suc)_", re.I)
 VACIOS = (None, "", [], {})
@@ -398,6 +399,20 @@ def generar_pdf_registro(
     if not registro:
         return False
     titulo, folio = _titulo_y_folio(registro, configuracion)
+
+    # Nueva plantilla maestra: primer formulario migrado. Preview, PDF definitivo
+    # y descarga administrativa pasan por este mismo punto, por lo que no existe
+    # divergencia visual entre versiones.
+    if es_seguridad_instalacion(registro):
+        if ruta_salida is None:
+            ruta_salida = AxiaPdfEngine._preview_path("Levantamiento_Seguridad_Monitoreo_Instalacion")
+        resultado = generar_pdf_seguridad_instalacion(
+            registro, ruta_salida=Path(ruta_salida), abrir=abrir
+        )
+        if isinstance(resultado, (str, Path)) and Path(resultado).is_file():
+            AxiaPdfArtifactStore.register(folio, resultado)
+        return resultado
+
     datos, mostrar_firmas = _construir_datos(registro, configuracion)
     profile_data = dict(datos)
     profile_data.update({

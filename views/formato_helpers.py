@@ -202,6 +202,7 @@ def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, fi
         estilo_normal = estilos_axia["normal"]
         estilo_titulo = estilos_axia["title"]
         estilo_sub = estilos_axia["subtitle"]
+        estilo_encabezado_tabla = estilos_axia["table_header"]
 
         contenido = []
 
@@ -463,7 +464,10 @@ def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, fi
                         fila_continuacion[columna] = partes[indice] if indice < len(partes) else ""
                     filas_seguras.append(fila_continuacion)
 
-            data = [[Paragraph(f"<b>{c}</b>", estilo_normal) for c in columnas]]
+            # El color de un Paragraph se define en su propio estilo; TableStyle(TEXTCOLOR)
+            # no sobreescribe de forma fiable el textColor interno del Paragraph.
+            # Usamos un estilo blanco explícito para asegurar contraste sobre el fondo azul.
+            data = [[Paragraph(str(c), estilo_encabezado_tabla) for c in columnas]]
             for r in filas_seguras:
                 data.append([Paragraph(str(r.get(c, "") or ""), estilo_normal) for c in columnas])
 

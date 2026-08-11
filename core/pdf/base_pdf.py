@@ -111,4 +111,12 @@ class BasePdfGenerator:
                 leading=10.5,
                 textColor=cls.PRIMARY,
             ),
+            "table_header": ParagraphStyle(
+                "AxiaPdfTableHeader",
+                parent=base["Normal"],
+                fontName="Helvetica-Bold",
+                fontSize=7.0,
+                leading=8.4,
+                textColor=colors.white,
+            ),
         }

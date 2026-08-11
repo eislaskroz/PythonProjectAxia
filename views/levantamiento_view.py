@@ -1233,7 +1233,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             valor = var_infra_existe.get()
 
             secciones_instalacion = [
-                "existente", "infraestructura_requerida",
+                "existente",
                 "rack_energia", "seguridad", "datos_cctv"
             ]
             secciones_reparacion = [
@@ -1265,7 +1265,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
 
             if es_instalacion:
                 configurar_estado_seccion(secciones_dinamicas["existente"], True)
-                configurar_estado_seccion(secciones_dinamicas["infraestructura_requerida"], valor in ("No", "Parcial"))
                 configurar_estado_seccion(secciones_dinamicas["rack_energia"], valor in ("No", "Parcial"))
                 configurar_estado_seccion(secciones_dinamicas["seguridad"], valor in ("No", "Parcial"))
                 actualizar_campos_infra_existente()
@@ -1314,28 +1313,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             justify="left"
         ).grid(row=3, column=0, columnspan=5, sticky="w", padx=6, pady=(0, 2))
 
-        # Infraestructura requerida en orden: Tubos, Coples, Registros,
-        # Conectores, Abrazaderas y Cable. Cada partida conserva variante y cantidad.
-        seccion_infra_req = crear_seccion("🧱 Infraestructura requerida", fila_textos + 2)
-        registrar_seccion("infraestructura_requerida", seccion_infra_req)
-        TIPOS_CABLE_INFRA = TIPOS_CABLE_DATOS_CONTROL
-
-        option_en(seccion_infra_req, "Tubos / tipo", var_infra_tubos_tipo, TIPOS_TUBOS, 0, 0)
-        option_en(seccion_infra_req, "Tubos / tamaño", var_infra_tubos_tamano, TAMANOS_TUBOS, 0, 1)
-        entry_en(seccion_infra_req, "Tubos / cantidad o metros", var_infra_tubos_cantidad, "Ej. 20 m", 0, 2)
-        option_en(seccion_infra_req, "Coples / tipo", var_infra_coples_tipo, TIPOS_COPLES, 0, 3)
-        entry_en(seccion_infra_req, "Coples / cantidad", var_infra_coples_cantidad, "Ej. 10", 0, 4)
-
-        option_en(seccion_infra_req, "Registros / tipo", var_infra_registros_tipo, TIPOS_REGISTROS, 1, 0)
-        entry_en(seccion_infra_req, "Registros / cantidad", var_infra_registros_cantidad, "Ej. 4", 1, 1)
-        option_en(seccion_infra_req, "Conectores / tipo", var_infra_conectores_tipo, TIPOS_CONECTORES, 1, 2)
-        entry_en(seccion_infra_req, "Conectores / cantidad", var_infra_conectores_cantidad, "Ej. 12", 1, 3)
-
-        option_en(seccion_infra_req, "Abrazaderas / tipo", var_infra_abrazaderas_tipo, TIPOS_ABRAZADERAS, 2, 0)
-        entry_en(seccion_infra_req, "Abrazaderas / cantidad", var_infra_abrazaderas_cantidad, "Ej. 30", 2, 1)
-        option_en(seccion_infra_req, "Cable / tipo", var_infra_cable_tipo, TIPOS_CABLE_INFRA, 2, 2)
-        entry_en(seccion_infra_req, "Cable / cantidad o metros", var_infra_cable_cantidad, "Ej. 150 m", 2, 3)
-        seccion_infra_req.grid_remove()  # Sustituida por captura dinámica común.
+        # La captura de infraestructura requerida se realiza exclusivamente
+        # mediante la sección dinámica común de canalización y materiales.
 
         # Consumibles de Conectividad
         seccion_conectividad = crear_seccion("🔌 Consumibles de Conectividad", fila_textos + 3)
@@ -2917,14 +2896,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 "tipo_infraestructura_existente": var_infra_tipo_existente.get().strip(),
                 "estado_general": var_infra_estado.get().strip(),
             },
-            "infraestructura_requerida": {
-                "tubos": {"tipo": var_infra_tubos_tipo.get().strip(), "tamano": var_infra_tubos_tamano.get().strip(), "cantidad": var_infra_tubos_cantidad.get().strip()},
-                "coples": {"tipo": var_infra_coples_tipo.get().strip(), "cantidad": var_infra_coples_cantidad.get().strip()},
-                "registros": {"tipo": var_infra_registros_tipo.get().strip(), "cantidad": var_infra_registros_cantidad.get().strip()},
-                "conectores": {"tipo": var_infra_conectores_tipo.get().strip(), "cantidad": var_infra_conectores_cantidad.get().strip()},
-                "abrazaderas": {"tipo": var_infra_abrazaderas_tipo.get().strip(), "cantidad": var_infra_abrazaderas_cantidad.get().strip()},
-                "cable": {"tipo": var_infra_cable_tipo.get().strip(), "cantidad": var_infra_cable_cantidad.get().strip()},
-            },
             "consumibles_conectividad": {
                 "plugs_rj45": var_plugs_rj45.get().strip(),
                 "jacks_rj45": var_jacks_rj45.get().strip(),
@@ -3191,15 +3162,11 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         ]
 
         if existe_infra in ("No", "Parcial"):
+            resumen_dinamico = construir_resumen_canalizacion_materiales()
             lineas.extend([
                 "",
                 "--- INFRAESTRUCTURA REQUERIDA ---",
-                f"Tubos: {var_infra_tubos_tipo.get().strip()} | Tamaño: {var_infra_tubos_tamano.get().strip()} | Cantidad/metros: {var_infra_tubos_cantidad.get().strip() or '0'}",
-                f"Coples: {var_infra_coples_tipo.get().strip()} - {var_infra_coples_cantidad.get().strip() or '0'}",
-                f"Registros: {var_infra_registros_tipo.get().strip()} - {var_infra_registros_cantidad.get().strip() or '0'}",
-                f"Conectores: {var_infra_conectores_tipo.get().strip()} - {var_infra_conectores_cantidad.get().strip() or '0'}",
-                f"Abrazaderas: {var_infra_abrazaderas_tipo.get().strip()} - {var_infra_abrazaderas_cantidad.get().strip() or '0'}",
-                f"Cable: {var_infra_cable_tipo.get().strip()} - {var_infra_cable_cantidad.get().strip() or '0'}",
+                resumen_dinamico or "Sin partidas de canalización capturadas",
                 "",
                 "--- RACK, GABINETE Y ENERGÍA ---",
                 f"Rack requerido: {var_rack_requerido.get().strip() or 'No'}" + (f" | Tipo: {var_tipo_rack.get().strip()}" if var_rack_requerido.get() == "Sí" and var_tipo_rack.get().strip() else ""),
