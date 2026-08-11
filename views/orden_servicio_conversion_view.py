@@ -11,7 +11,7 @@ from core.logger import configurar_logger
 from security.permissions import puede_convertir_levantamiento_a_orden
 from services.levantamientos_service import obtener_levantamientos, buscar_levantamientos
 from services.ordenes_servicio_service import convertir_levantamiento_a_orden, buscar_orden_por_levantamiento
-from services.operational_document_pdf import preview_orden_servicio
+from services.pdf_registro_service import generar_pdf_registro
 from ui.colors import WHITE, TEXT_PRIMARY, TEXT_SECONDARY, SECONDARY, BUTTON_HOVER
 from ui.fonts import TITLE_MD, TEXT_MD, TEXT_SM, BUTTON_FONT
 from ui.native_table import NativeTreeTable
@@ -243,34 +243,73 @@ def mostrar_conversion_orden_servicio(parent, app):
             lambda e: (btn_convertir.configure(state="normal"), lbl_estado.configure(text="No se completó la conversión.", text_color="#B91C1C"), messagebox.showerror("Error al convertir", str(e))),
         )
 
-    def previsualizar_os():
-        registro = seleccionado.get("registro")
-        if not registro:
+    def _registro_levantamiento_para_pdf():
+        """Reconstruye el levantamiento actual con el mismo contrato del operador.
+
+        La vista administrativa trabaja con el registro persistido, donde ``lev_tipo``
+        es un código general. La plantilla maestra del levantamiento necesita además
+        la especialidad real (p. ej. Redes Voz y Datos), guardada dentro del detalle
+        técnico. Normalizarla aquí garantiza que Operador y Administrativo rendericen
+        exactamente el mismo documento.
+        """
+        original = dict(seleccionado.get("registro") or {})
+        detalle_texto = txt_detalle.get("1.0", "end").strip()
+        try:
+            detalle = json.loads(detalle_texto) if detalle_texto else {}
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"El detalle técnico contiene JSON inválido: {exc}") from exc
+        if not isinstance(detalle, dict):
+            detalle = {}
+
+        especialidad = str(
+            detalle.get("tipo_levantamiento")
+            or original.get("lev_tipo_levantamiento")
+            or ""
+        ).strip()
+        modalidad = str(
+            vars_campos["lev_modalidad_operativa"].get().strip()
+            or detalle.get("modalidad_operativa")
+            or original.get("lev_modalidad_operativa")
+            or ""
+        ).strip()
+
+        original.update({
+            "lev_folio": vars_campos["lev_folio"].get().strip(),
+            "lev_aco_numero": vars_campos["lev_aco_numero"].get().strip(),
+            "lev_cliente": vars_campos["lev_cliente"].get().strip(),
+            "lev_contacto": vars_campos["lev_contacto"].get().strip(),
+            "lev_correo": vars_campos["lev_correo"].get().strip(),
+            "lev_telefono": vars_campos["lev_telefono"].get().strip(),
+            "lev_direccion": vars_campos["lev_direccion"].get().strip(),
+            "lev_ubicacion": vars_campos["lev_ubicacion"].get().strip(),
+            "lev_fecha_realizacion": vars_campos["lev_fecha_realizacion"].get().strip(),
+            "lev_fecha_programada": vars_campos["lev_fecha_programada"].get().strip(),
+            "lev_supervisor": vars_campos["lev_supervisor"].get().strip(),
+            "lev_tecnico": vars_campos["lev_tecnico"].get().strip(),
+            "lev_tipo": vars_campos["lev_tipo"].get().strip(),
+            "lev_tipo_levantamiento": especialidad,
+            "lev_modalidad_operativa": modalidad,
+            "lev_descripcion": txt_descripcion.get("1.0", "end").strip(),
+            "lev_requerimientos": txt_requerimientos.get("1.0", "end").strip(),
+            "lev_observaciones": txt_observaciones.get("1.0", "end").strip(),
+            "lev_detalle_tecnico_json": json.dumps(detalle, ensure_ascii=False),
+        })
+        return original
+
+    def previsualizar_levantamiento():
+        if not seleccionado.get("registro"):
             messagebox.showinfo("Selecciona un levantamiento", "Carga primero un levantamiento.")
             return
-        # El preview muestra la orden resultante con la información editable actual.
-        borrador = dict(registro)
-        borrador.update({
-            "os_folio": "SE ASIGNA AL GUARDAR",
-            "os_folio_levantamiento": vars_campos["lev_folio"].get().strip(),
-            "os_aco_numero": vars_campos["lev_aco_numero"].get().strip(),
-            "os_cliente": vars_campos["lev_cliente"].get().strip(),
-            "os_contacto": vars_campos["lev_contacto"].get().strip(),
-            "os_correo": vars_campos["lev_correo"].get().strip(),
-            "os_telefono": vars_campos["lev_telefono"].get().strip(),
-            "os_direccion": vars_campos["lev_direccion"].get().strip(),
-            "os_ubicacion": vars_campos["lev_ubicacion"].get().strip(),
-            "os_fecha": vars_campos["lev_fecha_realizacion"].get().strip(),
-            "os_fecha_programada": vars_campos["lev_fecha_programada"].get().strip(),
-            "os_supervisor": vars_campos["lev_supervisor"].get().strip(),
-            "os_tecnico": vars_campos["lev_tecnico"].get().strip(),
-            "os_tipo_servicio": " / ".join(filter(None, [vars_campos["lev_tipo"].get().strip(), vars_campos["lev_modalidad_operativa"].get().strip()])),
-            "os_descripcion": txt_descripcion.get("1.0", "end").strip(),
-            "os_actividades": txt_requerimientos.get("1.0", "end").strip(),
-            "os_materiales": txt_requerimientos.get("1.0", "end").strip(),
-            "os_observaciones": txt_observaciones.get("1.0", "end").strip(),
-        })
-        preview_orden_servicio(borrador)
+        try:
+            registro_pdf = _registro_levantamiento_para_pdf()
+            generar_pdf_registro(
+                registro_pdf,
+                {"titulo_pdf": "Levantamientos", "campo_folio": "lev_folio"},
+                abrir=True,
+            )
+        except Exception as exc:
+            logger.exception("No fue posible generar el PDF homologado del levantamiento.")
+            messagebox.showerror("Preview PDF", f"No fue posible generar el PDF del levantamiento.\n\n{exc}")
 
     ctk.CTkButton(busqueda, text="🔎 Buscar", width=130, height=40, fg_color=SECONDARY,
                   hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=ejecutar_busqueda).grid(row=2, column=1, padx=4, pady=(0, 10))
@@ -281,7 +320,7 @@ def mostrar_conversion_orden_servicio(parent, app):
     acciones = ctk.CTkFrame(panel_form, fg_color="transparent")
     acciones.grid(row=14, column=0, columnspan=2, sticky="e", padx=5, pady=(6, 10))
     ctk.CTkButton(acciones, text="📥 Cargar seleccionado", width=175, command=cargar_seleccion).pack(side="left", padx=4)
-    btn_preview = ctk.CTkButton(acciones, text="👁 Preview PDF OS", width=155, command=previsualizar_os, state="disabled")
+    btn_preview = ctk.CTkButton(acciones, text="👁 PDF Levantamiento", width=170, command=previsualizar_levantamiento, state="disabled")
     btn_preview.pack(side="left", padx=4)
     btn_convertir = ctk.CTkButton(acciones, text="✓ Guardar y convertir a OS", width=210, fg_color=SECONDARY,
                                   hover_color=BUTTON_HOVER, command=validar_y_convertir, state="disabled")

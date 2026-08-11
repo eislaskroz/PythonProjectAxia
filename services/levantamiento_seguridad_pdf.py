@@ -61,14 +61,31 @@ def _detail(registro: Mapping[str, Any]) -> dict[str, Any]:
     return dict(value) if isinstance(value, Mapping) else {}
 
 
+def _tipo_y_modalidad(registro: Mapping[str, Any], detail: Mapping[str, Any] | None = None) -> tuple[str, str]:
+    """Resuelve la especialidad/modalidad igual para registros en memoria y Supabase.
+
+    La tabla histórica conserva ``lev_tipo`` como código general, mientras la
+    especialidad real vive en ``lev_detalle_tecnico_json.tipo_levantamiento``.
+    Centralizar esta normalización evita PDFs distintos entre Operador y
+    Administrativo.
+    """
+    detail = dict(detail or _detail(registro))
+    tipo = str(
+        registro.get("lev_tipo_levantamiento")
+        or detail.get("tipo_levantamiento")
+        or "Levantamiento"
+    ).strip()
+    modalidad = str(
+        registro.get("lev_modalidad_operativa")
+        or detail.get("modalidad_operativa")
+        or ""
+    ).strip()
+    return tipo or "Levantamiento", modalidad
+
+
 def es_seguridad_instalacion(registro: Mapping[str, Any]) -> bool:
-    tipo = str(registro.get("lev_tipo_levantamiento") or "").strip().casefold()
-    modalidad = str(registro.get("lev_modalidad_operativa") or "").strip().casefold()
-    if not tipo:
-        detalle = _detail(registro)
-        tipo = str(detalle.get("tipo_levantamiento") or "").strip().casefold()
-        modalidad = modalidad or str(detalle.get("modalidad_operativa") or "").strip().casefold()
-    return tipo == "seguridad y monitoreo" and modalidad in {"instalación", "instalacion"}
+    tipo, modalidad = _tipo_y_modalidad(registro)
+    return tipo.casefold() == "seguridad y monitoreo" and modalidad.casefold() in {"instalación", "instalacion"}
 
 
 def _section_title(title: str, width: float, header_style) -> Table:
@@ -228,6 +245,7 @@ def generar_pdf_seguridad_instalacion(
     )
 
     detail = _detail(registro)
+    tipo_master, modalidad = _tipo_y_modalidad(registro, detail)
     infra = dict(detail.get("infraestructura_existente") or {})
     rack = dict(detail.get("rack_gabinete_energia") or {})
     access = dict(detail.get("acceso_alturas_riesgos") or {})
@@ -256,12 +274,12 @@ def generar_pdf_seguridad_instalacion(
 
     # 1) Datos generales - estructura equivalente al formato de referencia.
     general_rows = [
-        ["NOMBRE DE LEVANTAMIENTO", registro.get("lev_tipo_levantamiento") or "Seguridad y Monitoreo",
+        ["NOMBRE DE LEVANTAMIENTO", tipo_master or "Seguridad y Monitoreo",
          "FOLIO LEVANTAMIENTO", registro.get("lev_folio") or "Pendiente"],
         ["CLIENTE", registro.get("lev_cliente"), "FECHA", registro.get("lev_fecha_programada") or registro.get("fecha_registro")],
         ["DIRECCIÓN", registro.get("lev_direccion"), "CONTACTO", registro.get("lev_contacto")],
         ["TÉCNICO AXIA", registro.get("lev_tecnico"), "SUPERVISOR", registro.get("lev_supervisor")],
-        ["CORREO", registro.get("lev_correo"), "TIPO DE TRABAJO", registro.get("lev_modalidad_operativa") or "Instalación"],
+        ["CORREO", registro.get("lev_correo"), "TIPO DE TRABAJO", modalidad or "Instalación"],
         ["DÍAS DE TRABAJO", cctv.get("dias_trabajo") or "No definido",
          "PERSONAS A CONSIDERAR", cctv.get("personas_considerar") or "No definido"],
     ]
@@ -657,13 +675,14 @@ def _damaged_rows(registro: Mapping[str, Any], detail: Mapping[str, Any]) -> lis
 
 
 def _general_story(registro: Mapping[str, Any], detail: Mapping[str, Any], story: list, normal, label, header):
+    tipo, modalidad = _tipo_y_modalidad(registro, detail)
     general_rows = [
-        ["NOMBRE DE LEVANTAMIENTO", registro.get("lev_tipo_levantamiento"),
+        ["NOMBRE DE LEVANTAMIENTO", tipo,
          "FOLIO LEVANTAMIENTO", registro.get("lev_folio") or "Pendiente"],
         ["CLIENTE", registro.get("lev_cliente"), "FECHA", registro.get("lev_fecha_programada") or registro.get("fecha_registro")],
         ["DIRECCIÓN", registro.get("lev_direccion"), "CONTACTO", registro.get("lev_contacto")],
         ["TÉCNICO AXIA", registro.get("lev_tecnico"), "SUPERVISOR", registro.get("lev_supervisor")],
-        ["CORREO", registro.get("lev_correo"), "TIPO DE TRABAJO", registro.get("lev_modalidad_operativa") or "Instalación"],
+        ["CORREO", registro.get("lev_correo"), "TIPO DE TRABAJO", modalidad or "Instalación"],
     ]
     days, people = _find_resources(detail)
     # Todos los levantamientos comparten una sexta fila homogénea dentro de Datos
@@ -717,8 +736,7 @@ def generar_pdf_levantamiento_maestro(
     story: list = []
     _general_story(registro, detail, story, normal, label, header)
 
-    tipo = _text(registro.get("lev_tipo_levantamiento"), "Levantamiento")
-    modalidad = _text(registro.get("lev_modalidad_operativa"), "")
+    tipo, modalidad = _tipo_y_modalidad(registro, detail)
 
     # Seguridad / Reparación tiene una estructura propia derivada del formulario.
     if tipo.casefold() == "seguridad y monitoreo" and modalidad.casefold() in {"reparación", "reparacion"}:
