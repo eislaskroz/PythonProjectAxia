@@ -8,7 +8,8 @@ from __future__ import annotations
 TABLE = "db_ordenes_trabajo"
 
 COLUMNS = (
-    "ot_id", "id_aco", "id_sucursal", "id_contacto", "ot_folio", "ot_fecha",
+    "ot_id", "id_aco", "id_sucursal", "id_contacto", "id_levantamiento",
+    "ot_folio_levantamiento", "ot_folio", "ot_fecha",
     "ot_aco_numero", "ot_cliente", "ot_contacto", "ot_sucursal",
     "ot_jefe_operacion", "ot_supervisor", "ot_esi", "ot_numero_dias",
     "ot_numero_personas", "ot_asunto", "ot_partidas_json", "ot_descripcion",
@@ -25,12 +26,15 @@ def filter_payload(payload: dict | None) -> dict:
     return {k: v for k, v in dict(payload or {}).items() if k in WRITABLE_COLUMNS}
 
 
-def metadata_item(folio_os: str) -> dict:
-    return {"_axia_meta": {"origen_os": str(folio_os or "").strip().upper()}}
+def metadata_item(folio: str, tipo: str = "os") -> dict:
+    """Crea metadato interno de trazabilidad sin exponerlo en PDF/UI."""
+    tipo = str(tipo or "os").strip().lower()
+    clave = "origen_lev" if tipo in {"lev", "levantamiento"} else "origen_os"
+    return {"_axia_meta": {clave: str(folio or "").strip().upper()}}
 
 
-def extract_origin(value) -> str:
-    """Obtiene el folio OS guardado dentro de ``ot_partidas_json``."""
+def extract_origin(value, tipo: str = "os") -> str:
+    """Obtiene el folio de origen guardado dentro de ``ot_partidas_json``."""
     import json
     data = value
     if isinstance(data, str):
@@ -43,8 +47,11 @@ def extract_origin(value) -> str:
     for item in data:
         if isinstance(item, dict):
             meta = item.get("_axia_meta")
-            if isinstance(meta, dict) and meta.get("origen_os"):
-                return str(meta["origen_os"]).strip().upper()
+            if isinstance(meta, dict):
+                tipo_norm = str(tipo or "os").strip().lower()
+                clave = "origen_lev" if tipo_norm in {"lev", "levantamiento"} else "origen_os"
+                if meta.get(clave):
+                    return str(meta[clave]).strip().upper()
     return ""
 
 

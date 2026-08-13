@@ -29,7 +29,7 @@ from services.folios_service import asegurar_folio
 from services.query_compat import execute_select_compatible
 
 TABLA_BITACORAS = "db_bitacoras"
-COLUMNAS_BITACORAS = "id_bitacora,bit_aco_numero,bit_avance,bit_cliente,bit_descripcion,bit_direccion_sucursal,bit_encargado_proyecto_axia,bit_estatus,bit_fecha,bit_folio,bit_hora_llegada,bit_hora_salida,bit_observaciones,bit_porcentaje_avance,bit_tecnico,bit_tecnico_sitio,fecha_registro"
+COLUMNAS_BITACORAS = "id_bitacora,ot_id,bit_ot_folio,bit_aco_numero,bit_avance,bit_cliente,bit_descripcion,bit_direccion_sucursal,bit_encargado_proyecto_axia,bit_estatus,bit_fecha,bit_folio,bit_hora_llegada,bit_hora_salida,bit_observaciones,bit_porcentaje_avance,bit_tecnico,bit_tecnico_sitio,fecha_registro"
 
 
 # =====================================================
@@ -235,7 +235,7 @@ def obtener_estadisticas_bitacoras(page=1, page_size=100):
 def buscar_bitacoras(termino, limite=100):
     resultados = buscar_parcial_supabase(
         supabase=supabase, tabla=TABLA_BITACORAS, columnas=COLUMNAS_BITACORAS, termino=termino,
-        campos=('bit_folio', 'bit_aco_numero', 'bit_cliente', 'bit_tecnico', 'bit_tecnico_sitio', 'bit_estatus', 'bit_descripcion', 'bit_avance'), id_campos=('id_bitacora', 'bit_folio'), orden='fecha_registro', limite=limite,
+        campos=('bit_folio', 'bit_ot_folio', 'bit_aco_numero', 'bit_cliente', 'bit_tecnico', 'bit_tecnico_sitio', 'bit_estatus', 'bit_descripcion', 'bit_avance'), id_campos=('id_bitacora', 'bit_folio'), orden='fecha_registro', limite=limite,
     )
     registrar_movimiento_seguro(
         modulo='BITACORAS', accion="BUSCAR",
@@ -243,3 +243,61 @@ def buscar_bitacoras(termino, limite=100):
         registro_afectado=f"Coincidencias: {len(resultados)}",
     )
     return resultados
+
+
+# =====================================================
+# RELACIÓN BITÁCORA -> ORDEN DE TRABAJO
+# =====================================================
+def asignar_bitacora_a_ot(id_bitacora, orden_trabajo):
+    """Liga una Bitácora Operativa con una Orden de Trabajo existente."""
+    ot = dict(orden_trabajo or {})
+    ot_id = ot.get("ot_id")
+    folio = str(ot.get("ot_folio") or "").strip().upper()
+    if id_bitacora in (None, "") or not folio:
+        raise ValueError("No fue posible identificar la Bitácora o la Orden de Trabajo.")
+    payload = {"ot_id": ot_id, "bit_ot_folio": folio}
+    respuesta = (
+        supabase.table(TABLA_BITACORAS)
+        .update(payload)
+        .eq("id_bitacora", id_bitacora)
+        .execute()
+    )
+    filas = list(getattr(respuesta, "data", None) or [])
+    if not filas:
+        # Confirmación para configuraciones PostgREST con retorno minimal.
+        check = execute_select_compatible(
+            supabase, TABLA_BITACORAS, COLUMNAS_BITACORAS,
+            lambda q: q.eq("id_bitacora", id_bitacora).limit(1),
+        )
+        filas = list(check.data or [])
+        if not filas or str(filas[0].get("bit_ot_folio") or "").strip().upper() != folio:
+            raise RuntimeError("Supabase no confirmó la relación entre Bitácora y Orden de Trabajo.")
+    registrar_movimiento_seguro(
+        modulo="BITACORAS_OPERATIVAS", accion="ASIGNAR_OT",
+        descripcion=f"Bitácora asignada a {folio}", registro_afectado=id_bitacora,
+    )
+    return filas
+
+
+def obtener_bitacoras_por_ot(folio_ot):
+    """Consulta las bitácoras asociadas a una OT."""
+    folio = str(folio_ot or "").strip().upper()
+    if not folio:
+        return []
+    respuesta = execute_select_compatible(
+        supabase, TABLA_BITACORAS, COLUMNAS_BITACORAS,
+        lambda q: q.eq("bit_ot_folio", folio).order("fecha_registro", desc=True).limit(100),
+    )
+    return list(respuesta.data or [])
+
+
+def avance_orden_trabajo(folio_ot):
+    """Devuelve el mayor porcentaje registrado para las bitácoras de una OT."""
+    bitacoras = obtener_bitacoras_por_ot(folio_ot)
+    porcentajes = []
+    for bit in bitacoras:
+        try:
+            porcentajes.append(int(bit.get("bit_porcentaje_avance") or 0))
+        except (TypeError, ValueError):
+            porcentajes.append(0)
+    return max(porcentajes, default=0), bitacoras

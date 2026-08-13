@@ -51,6 +51,7 @@ COLUMNAS_ORDENES = (
     "os_tecnico,os_supervisor,os_fecha_programada,os_fecha_inicio,"
     "os_fecha_cierre,creado_por,actualizado_por,fecha_registro,"
     "fecha_actualizacion,os_fecha,os_sucursal,os_domicilio,os_encargado,"
+    "ot_id,os_folio_ot,os_folio_bitacora,"
     "os_solicitante,os_celular,os_hora_llegada,os_hora_salida,"
     "os_tipos_servicio_json,os_tipo_servicio,os_encargado_servicio,"
     "os_tecnicos,os_equipos_json,os_eval_trato,os_eval_habilidades,"
@@ -294,7 +295,7 @@ def obtener_estadisticas_ordenes(page=1, page_size=100):
 def buscar_ordenes_servicio(termino, limite=100):
     resultados = buscar_parcial_supabase(
         supabase=supabase, tabla=TABLA_ORDENES, columnas=COLUMNAS_ORDENES, termino=termino,
-        campos=('os_folio', 'os_aco_numero', 'os_cliente', 'os_sucursal', 'os_tecnico', 'os_supervisor', 'os_estatus', 'os_tipo_servicio', 'os_descripcion'), id_campos=('id_orden', 'os_folio'), orden='fecha_registro', limite=limite,
+        campos=('os_folio', 'os_folio_ot', 'os_folio_bitacora', 'os_aco_numero', 'os_cliente', 'os_sucursal', 'os_tecnico', 'os_supervisor', 'os_estatus', 'os_tipo_servicio', 'os_descripcion'), id_campos=('id_orden', 'os_folio'), orden='fecha_registro', limite=limite,
     )
     registrar_movimiento_seguro(
         modulo='ORDENES_SERVICIO', accion="BUSCAR",
@@ -606,3 +607,135 @@ def convertir_levantamiento_a_orden(levantamiento_original, cambios, usuario_act
     )
     return resultado_os
 
+
+
+# =====================================================
+# FLUJO VIGENTE: ORDEN DE TRABAJO -> ORDEN DE SERVICIO
+# =====================================================
+def buscar_orden_servicio_por_ot(folio_ot=None, ot_id=None):
+    """Devuelve la OS vinculada a una OT, si ya existe."""
+    folio = str(folio_ot or "").strip().upper()
+    try:
+        if ot_id not in (None, ""):
+            resp = execute_select_compatible(
+                supabase, TABLA_ORDENES, COLUMNAS_ORDENES,
+                lambda q: q.eq("ot_id", ot_id).limit(1),
+            )
+            if resp.data:
+                return resp.data[0]
+        if folio:
+            resp = execute_select_compatible(
+                supabase, TABLA_ORDENES, COLUMNAS_ORDENES,
+                lambda q: q.eq("os_folio_ot", folio).limit(1),
+            )
+            if resp.data:
+                return resp.data[0]
+        return None
+    except Exception as error:
+        logger.exception("No fue posible comprobar OS previa de la OT %s", folio)
+        raise RuntimeError("No fue posible comprobar si la Orden de Trabajo ya tiene una Orden de Servicio.") from error
+
+
+def convertir_orden_trabajo_a_servicio(orden_trabajo, usuario_activo=None):
+    """Crea la OS final desde una OT que ya cuenta con Bitácora al 100%."""
+    ot = dict(orden_trabajo or {})
+    folio_ot = str(ot.get("ot_folio") or "").strip().upper()
+    ot_id = ot.get("ot_id")
+    if not folio_ot:
+        raise ValueError("La Orden de Trabajo seleccionada no tiene folio válido.")
+    existente = buscar_orden_servicio_por_ot(folio_ot, ot_id)
+    if existente:
+        raise ValueError(f"La {folio_ot} ya tiene la Orden de Servicio {existente.get('os_folio', '')}.")
+
+    from services.bitacoras_service import avance_orden_trabajo
+    avance, bitacoras = avance_orden_trabajo(folio_ot)
+    if not bitacoras:
+        raise ValueError("La Orden de Trabajo debe tener al menos una Bitácora Operativa asignada antes de generar la Orden de Servicio.")
+    if avance < 100:
+        raise ValueError(f"La Bitácora asociada registra {avance}% de avance. La Orden de Servicio solo puede generarse al llegar al 100%.")
+
+    usuario = str((usuario_activo or {}).get("usu_nickname") or (usuario_activo or {}).get("usuario") or "Administrativo")
+    bit = max(bitacoras, key=lambda b: int(b.get("bit_porcentaje_avance") or 0))
+    payload = {
+        "id_aco": ot.get("id_aco"),
+        "ot_id": ot_id,
+        "os_folio_ot": folio_ot,
+        "os_folio_bitacora": bit.get("bit_folio"),
+        "os_aco_numero": ot.get("ot_aco_numero"),
+        "os_cliente": ot.get("ot_cliente"),
+        "os_tipo": 1,
+        "os_estatus": 2,
+        "os_prioridad": int(ot.get("ot_prioridad") or 2),
+        "os_contacto": ot.get("ot_contacto"),
+        "os_ubicacion": ot.get("ot_sucursal"),
+        "os_sucursal": ot.get("ot_sucursal"),
+        "os_descripcion": ot.get("ot_descripcion") or ot.get("ot_asunto"),
+        "os_actividades": bit.get("bit_descripcion") or bit.get("bit_avance") or ot.get("ot_descripcion"),
+        "os_observaciones": bit.get("bit_observaciones"),
+        "os_tecnico": ot.get("ot_esi"),
+        "os_supervisor": ot.get("ot_supervisor"),
+        "os_fecha": bit.get("bit_fecha") or ot.get("ot_fecha"),
+        "os_fecha_programada": ot.get("ot_fecha"),
+        "os_tipo_servicio": ot.get("ot_asunto") or "Servicio",
+        "os_encargado_servicio": ot.get("ot_jefe_operacion"),
+        "os_tecnicos": ot.get("ot_esi"),
+        "creado_por": usuario,
+        "actualizado_por": usuario,
+    }
+    payload = {k: v for k, v in payload.items() if v not in (None, "")}
+    resultado = _crear_orden_estricta(payload)
+    if not resultado:
+        raise RuntimeError("Supabase no confirmó la creación de la Orden de Servicio.")
+
+    # La OT permanece en proceso hasta que la OS se cierre explícitamente.
+    try:
+        from services.ordenes_trabajo_service import actualizar_orden_trabajo
+        actualizar_orden_trabajo(ot_id, {"ot_estatus": 2})
+    except Exception:
+        logger.exception("La OS fue creada, pero no se pudo actualizar el estado de %s", folio_ot)
+
+    registrar_movimiento_seguro(
+        modulo="ORDENES_SERVICIO", accion="CONVERTIR_OT",
+        descripcion=f"Conversión {folio_ot} a Orden de Servicio",
+        registro_afectado=resultado[0].get("os_folio") if resultado else folio_ot,
+    )
+    return resultado
+
+
+def finalizar_servicio_desde_os(orden_servicio, usuario_activo=None):
+    """Finaliza la OT de origen y la OS cuando el avance de Bitácora está en 100%."""
+    os = dict(orden_servicio or {})
+    folio_os = str(os.get("os_folio") or "").strip().upper()
+    folio_ot = str(os.get("os_folio_ot") or "").strip().upper()
+    ot_id = os.get("ot_id")
+    if not folio_ot:
+        raise ValueError("La Orden de Servicio no tiene una Orden de Trabajo de origen asociada.")
+
+    from services.bitacoras_service import avance_orden_trabajo
+    avance, bitacoras = avance_orden_trabajo(folio_ot)
+    if not bitacoras or avance < 100:
+        raise ValueError(f"El servicio no puede finalizarse: la Bitácora asociada registra {avance}% de avance.")
+
+    usuario = str((usuario_activo or {}).get("usu_nickname") or (usuario_activo or {}).get("usuario") or "Administrativo")
+    from services.ordenes_trabajo_service import actualizar_orden_trabajo
+    resultado_ot = actualizar_orden_trabajo(ot_id, {"ot_estatus": 3}) if ot_id not in (None, "") else None
+    if not resultado_ot:
+        # Compatibilidad si solo tenemos el folio.
+        try:
+            resp = supabase.table("db_ordenes_trabajo").update({"ot_estatus": 3}).eq("ot_folio", folio_ot).execute()
+            resultado_ot = list(getattr(resp, "data", None) or []) or [True]
+        except Exception as error:
+            raise RuntimeError(f"No fue posible finalizar la Orden de Trabajo {folio_ot}.") from error
+
+    payload_os = {"os_estatus": 3, "actualizado_por": usuario}
+    try:
+        respuesta = supabase.table(TABLA_ORDENES).update(payload_os).eq("id_orden", os.get("id_orden")).execute()
+        filas = list(getattr(respuesta, "data", None) or [])
+    except Exception as error:
+        raise RuntimeError(f"La OT se finalizó, pero no fue posible cerrar la Orden de Servicio {folio_os}.") from error
+
+    registrar_movimiento_seguro(
+        modulo="ORDENES_SERVICIO", accion="FINALIZAR_SERVICIO",
+        descripcion=f"Finalización de {folio_ot} desde {folio_os}", registro_afectado=folio_os,
+    )
+    return filas or [dict(os, **payload_os)]

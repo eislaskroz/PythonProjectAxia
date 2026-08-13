@@ -84,7 +84,11 @@ def run_async(
                 if on_error:
                     on_error(error)
 
-            root.after(0, handle_error)
+            try:
+                if root is not None and root.winfo_exists():
+                    root.after(0, handle_error)
+            except Exception:
+                logger.debug("Se descartó callback async de error porque la vista ya no existe.")
             return
 
         def handle_success() -> None:
@@ -93,7 +97,11 @@ def run_async(
             if on_success:
                 on_success(result)
 
-        root.after(0, handle_success)
+        try:
+            if root is not None and root.winfo_exists():
+                root.after(0, handle_success)
+        except Exception:
+            logger.debug("Se descartó callback async de éxito porque la vista ya no existe.")
 
     Thread(
         target=worker,

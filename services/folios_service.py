@@ -7,9 +7,9 @@ Genera folios consecutivos por módulo sin pedir captura manual.
 
 Formatos actuales:
 - LEV-00001 Levantamientos (generado centralmente por Supabase RPC)
-- OS-0001   Órdenes de servicio
-- OT-0001   Órdenes de trabajo
-- BIT-0001  Bitácoras operativas
+- OS-00001  Órdenes de servicio
+- OT-00001  Órdenes de trabajo
+- BIT-00001 Bitácoras operativas
 - OBC-0001  Obras civiles / Proyecto ejecutivo
 
 IMPORTANTE:
@@ -115,12 +115,14 @@ def extraer_consecutivo(folio, prefijo):
 
 
 def formatear_folio(prefijo, consecutivo):
-    """
-    Construye un folio con cuatro dígitos mínimos.
-    Ejemplo: formatear_folio("LEV", 1) -> LEV-0001
-    """
+    """Construye el folio con el ancho definido para cada módulo.
 
-    return f"{prefijo.upper()}-{int(consecutivo):04d}"
+    OS, OT y BIT usan cinco dígitos. OBC conserva cuatro.
+    LEV se genera por RPC y ya utiliza cinco dígitos.
+    """
+    prefijo = prefijo.upper().strip()
+    ancho = 5 if prefijo in {"LEV", "OS", "OT", "BIT"} else 4
+    return f"{prefijo}-{int(consecutivo):0{ancho}d}"
 
 
 def obtener_ultimo_folio(prefijo):

@@ -49,6 +49,8 @@ from ui.fonts import (
 )
 
 from security.permissions import (
+    OPERADOR,
+    obtener_tipo_usuario,
     es_admin,
     puede_administrar_clientes,
     puede_administrar_usuarios,
@@ -57,6 +59,7 @@ from security.permissions import (
     puede_generar_levantamiento,
     puede_ver_auditoria,
     puede_ver_reportes,
+    puede_ver_bitacoras_operativas,
 )
 
 
@@ -195,13 +198,8 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
     puede_inicio = puede_entrar_inicio_aco(usuario_activo)
     puede_consulta = puede_consultar_procesos(usuario_activo)
 
-    if puede_inicio:
-        crear_boton_sidebar(
-            sidebar,
-            "🏠 Inicio ACO",
-            callbacks["inicio_aco"]
-        )
-
+    # Orden visual homologado al flujo operativo vigente:
+    # LEVANTAMIENTO -> ACO -> ORDEN DE TRABAJO -> BITÁCORA -> ORDEN DE SERVICIO.
     if puede_generar_levantamiento(usuario_activo):
         crear_boton_sidebar(
             sidebar,
@@ -209,23 +207,42 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
             callbacks["admin_levantamientos"] if puede_consulta else callbacks["levantamiento"]
         )
 
-    if puede_consulta:
+    if puede_inicio:
         crear_boton_sidebar(
             sidebar,
-            "🧾 Órdenes de servicio",
-            callbacks["admin_ordenes_servicio"]
+            "🏠 ACO",
+            callbacks["inicio_aco"]
         )
 
+    if puede_consulta:
         crear_boton_sidebar(
             sidebar,
             "🛠️ Órdenes de trabajo",
             callbacks["admin_ordenes_trabajo"]
         )
 
+    # Las Bitácoras Operativas forman parte del trabajo del Operador (usu_tipo=4).
+    # Para ese rol el menú abre directamente el FORMULARIO OPERATIVO de captura;
+    # los perfiles con permiso de consulta administrativa conservan la vista de
+    # búsqueda/edición de bitácoras registradas.
+    if puede_ver_bitacoras_operativas(usuario_activo):
+        tipo_usuario = obtener_tipo_usuario(usuario_activo)
+        callback_bitacoras = (
+            callbacks["bitacora_avance"]
+            if tipo_usuario == OPERADOR
+            else callbacks["admin_bitacoras"]
+        )
         crear_boton_sidebar(
             sidebar,
             "📊 Bitácoras operativas",
-            callbacks["admin_bitacoras"]
+            callback_bitacoras
+        )
+
+    if puede_consulta:
+        crear_boton_sidebar(
+            sidebar,
+            "🧾 Órdenes de servicio",
+            callbacks["admin_ordenes_servicio"]
         )
 
     if puede_ver_reportes(usuario_activo):

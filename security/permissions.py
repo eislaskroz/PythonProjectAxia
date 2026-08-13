@@ -141,7 +141,12 @@ def puede_generar_levantamiento(usuario_activo) -> bool:
 
 
 def puede_convertir_levantamiento_a_orden(usuario_activo) -> bool:
-    """Solo el personal Administrativo (usu_tipo=5) convierte levantamientos en OS."""
+    """Compatibilidad: solo Administrativo (usu_tipo=5) avanza LEV -> OT."""
+    return _es_rol(usuario_activo, ADMINISTRATIVO)
+
+
+def puede_avanzar_flujo_operativo(usuario_activo) -> bool:
+    """El personal Administrativo controla las transiciones LEV -> OT -> OS."""
     return _es_rol(usuario_activo, ADMINISTRATIVO)
 
 def puede_generar_orden(usuario_activo) -> bool:
@@ -149,9 +154,14 @@ def puede_generar_orden(usuario_activo) -> bool:
     return obtener_tipo_usuario(usuario_activo) in ROLES_GESTION_OPERATIVA
 
 
+def puede_ver_bitacoras_operativas(usuario_activo) -> bool:
+    """Las Bitácoras Operativas están disponibles también para Operador (usu_tipo=4)."""
+    return obtener_tipo_usuario(usuario_activo) in ROLES_TODOS
+
+
 def puede_generar_bitacora(usuario_activo) -> bool:
-    """Todos salvo Operador pueden generar bitácoras operativas."""
-    return obtener_tipo_usuario(usuario_activo) in ROLES_GESTION_OPERATIVA
+    """Los seis roles pueden generar/registrar bitácoras operativas."""
+    return puede_ver_bitacoras_operativas(usuario_activo)
 
 
 def puede_editar_datos_aco_relacionados(usuario_activo) -> bool:
@@ -169,7 +179,7 @@ def matriz_permisos() -> dict[int, dict[str, bool]]:
             "consultar_procesos": tipo in ROLES_GESTION_OPERATIVA,
             "ordenes": tipo in ROLES_GESTION_OPERATIVA,
             "convertir_levantamiento_a_orden": tipo == ADMINISTRATIVO,
-            "bitacoras_operativas": tipo in ROLES_GESTION_OPERATIVA,
+            "bitacoras_operativas": tipo in ROLES_TODOS,
             "reportes_operativos": tipo in ROLES_GESTION_OPERATIVA,
             "usuarios": tipo in {ADMINISTRADOR, JEFE_OPERACIONES},
             "clientes": tipo in {ADMINISTRADOR, JEFE_OPERACIONES},

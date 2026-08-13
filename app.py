@@ -148,7 +148,31 @@ class AxiaApp(ctk.CTk):
         self.after_idle(self._cargar_vista_inicial)
 
     def report_callback_exception(self, exc, value, traceback_obj):
-        """Muestra errores no controlados de callbacks con un código de soporte."""
+        """Muestra errores no controlados de callbacks con un código de soporte.
+
+        Tk/CustomTkinter puede dejar callbacks internos en cola justo cuando una
+        vista dinámica se destruye para construir la siguiente. En Windows esto
+        puede terminar como ``TclError: invalid command name .!ctk...`` aunque
+        la navegación haya sido correcta. Es un callback huérfano sobre un
+        widget que ya no existe, no un fallo funcional de AXIA.
+
+        Se ignora únicamente ese caso muy específico; cualquier otro TclError
+        o excepción continúa pasando por el manejador normal de incidencias.
+        """
+        try:
+            import tkinter as tk
+
+            mensaje = str(value or "")
+            es_widget_destruido = (
+                isinstance(value, tk.TclError)
+                and "invalid command name" in mensaje.lower()
+                and (".!ctk" in mensaje.lower() or ".!label" in mensaje.lower())
+            )
+            if es_widget_destruido:
+                return
+        except Exception:
+            pass
+
         show_operation_error(
             "Error inesperado de AXIA",
             "Ejecutar una acción de la interfaz",

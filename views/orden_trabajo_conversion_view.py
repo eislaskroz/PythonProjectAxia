@@ -9,7 +9,7 @@ from app_context import obtener_usuario_actual
 from ui.date_picker import asociar_selector_fecha
 from core.background_tasks import run_async
 from security.permissions import puede_convertir_levantamiento_a_orden
-from services.ordenes_servicio_service import obtener_ordenes_servicio, buscar_ordenes_servicio
+from services.ordenes_servicio_service import obtener_ordenes_servicio, buscar_ordenes_servicio, actualizar_orden_servicio
 from services.ordenes_trabajo_service import (
     convertir_orden_servicio_a_trabajo,
     buscar_orden_trabajo_por_orden_servicio,
@@ -67,12 +67,20 @@ def mostrar_conversion_orden_trabajo(parent, app):
     table = NativeTreeTable(left, columns=(("folio", "Folio", 105), ("cliente", "Cliente", 190), ("tipo", "Tipo", 150), ("estatus", "Estatus", 75), ("fecha", "Fecha", 105)), height=20)
     table.grid(row=1, column=0, sticky="nsew", padx=8, pady=(0, 8))
 
-    form = ctk.CTkScrollableFrame(body, fg_color=WHITE, corner_radius=16)
-    form.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
+    # Panel derecho: contenido desplazable + barra de acciones fija.
+    # Los botones permanecen visibles mientras se revisa la Orden de Servicio.
+    form_shell = ctk.CTkFrame(body, fg_color=WHITE, corner_radius=16)
+    form_shell.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
+    form_shell.grid_columnconfigure(0, weight=1)
+    form_shell.grid_rowconfigure(0, weight=1)
+
+    form = ctk.CTkScrollableFrame(form_shell, fg_color=WHITE, corner_radius=16)
+    form.grid(row=0, column=0, sticky="nsew", padx=0, pady=(0, 2))
     form.grid_columnconfigure(0, weight=1)
     form.grid_columnconfigure(1, weight=1)
 
-    selected = {"record": None}
+    selected = {"record": None, "editando": False}
+    editable_widgets = []
     vars_ = {
         "os_folio": ctk.StringVar(), "os_aco_numero": ctk.StringVar(), "os_cliente": ctk.StringVar(),
         "os_contacto": ctk.StringVar(), "os_sucursal": ctk.StringVar(), "os_supervisor": ctk.StringVar(),
@@ -89,8 +97,10 @@ def mostrar_conversion_orden_trabajo(parent, app):
         ent.pack(fill="x")
         if disabled:
             ent.configure(state="disabled")
-        elif "fecha" in label.lower():
-            asociar_selector_fecha(ent, frame, vars_[key])
+        else:
+            editable_widgets.append(ent)
+            if "fecha" in label.lower():
+                asociar_selector_fecha(ent, frame, vars_[key])
         return ent
 
     ctk.CTkLabel(form, text="Información para la Orden de Trabajo", font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="w").grid(row=0, column=0, columnspan=2, sticky="ew", padx=6, pady=(4, 7))
@@ -114,12 +124,14 @@ def mostrar_conversion_orden_trabajo(parent, app):
     ctk.CTkLabel(box_frame, text="Descripción operativa", font=TEXT_SM, text_color=TEXT_PRIMARY, anchor="w").pack(fill="x")
     txt_description = ctk.CTkTextbox(box_frame, height=100)
     txt_description.pack(fill="x")
+    editable_widgets.append(txt_description)
 
     part_frame = ctk.CTkFrame(form, fg_color="transparent")
     part_frame.grid(row=9, column=0, columnspan=2, sticky="ew", padx=5, pady=4)
     ctk.CTkLabel(part_frame, text="Partidas / conceptos JSON", font=TEXT_SM, text_color=TEXT_PRIMARY, anchor="w").pack(fill="x")
     txt_parts = ctk.CTkTextbox(part_frame, height=170)
     txt_parts.pack(fill="x")
+    editable_widgets.append(txt_parts)
 
     status = ctk.CTkLabel(form, text="Selecciona una Orden de Servicio.", font=TEXT_SM, text_color=TEXT_SECONDARY, anchor="w", justify="left")
     status.grid(row=10, column=0, columnspan=2, sticky="ew", padx=6, pady=(6, 2))
@@ -128,12 +140,73 @@ def mostrar_conversion_orden_trabajo(parent, app):
         box.delete("1.0", "end")
         box.insert("1.0", value or "")
 
+
+    def set_edit_mode(enabled):
+        selected["editando"] = bool(enabled)
+        state = "normal" if enabled else "disabled"
+        for widget in editable_widgets:
+            try:
+                widget.configure(state=state)
+            except Exception:
+                pass
+        btn_edit.configure(state="disabled" if enabled else ("normal" if selected.get("record") else "disabled"))
+        btn_save.configure(state="normal" if enabled else "disabled")
+        if selected.get("record"):
+            status.configure(
+                text=("Modo edición habilitado. Guarda los cambios antes de convertir." if enabled else "Modo consulta. Usa Editar si necesitas modificar la Orden de Servicio."),
+                text_color=TEXT_SECONDARY,
+            )
+
+    def save_changes():
+        record = selected.get("record")
+        if not record or not selected.get("editando"):
+            return
+        id_orden = record.get("id_orden")
+        if not id_orden:
+            messagebox.showerror("No se pudo guardar", "La Orden de Servicio no contiene id_orden.")
+            return
+        payload = {
+            "os_aco_numero": vars_["os_aco_numero"].get().strip(),
+            "os_cliente": vars_["os_cliente"].get().strip(),
+            "os_contacto": vars_["os_contacto"].get().strip(),
+            "os_sucursal": vars_["os_sucursal"].get().strip(),
+            "os_supervisor": vars_["os_supervisor"].get().strip(),
+            "os_tecnico": vars_["os_tecnico"].get().strip(),
+            "os_fecha": vars_["ot_fecha"].get().strip() or None,
+            "os_fecha_programada": vars_["ot_fecha_programada"].get().strip() or None,
+            "os_encargado_servicio": vars_["ot_jefe_operacion"].get().strip(),
+            "os_descripcion": txt_description.get("1.0", "end").strip(),
+        }
+        btn_save.configure(state="disabled")
+        status.configure(text="Guardando cambios de la Orden de Servicio...", text_color=TEXT_SECONDARY)
+
+        def ok(result):
+            if not result:
+                btn_save.configure(state="normal")
+                status.configure(text="Supabase no confirmó la actualización.", text_color="#B91C1C")
+                messagebox.showerror("No se pudo guardar", "Supabase no confirmó la actualización de la Orden de Servicio.")
+                return
+            record.update(payload)
+            selected["record"] = record
+            set_edit_mode(False)
+            status.configure(text="Cambios guardados correctamente. Ya puedes convertir a OT.", text_color="#15803D")
+            messagebox.showinfo("Cambios guardados", "La Orden de Servicio se actualizó correctamente.")
+            search_records()
+
+        run_async(parent.winfo_toplevel(), lambda: actualizar_orden_servicio(id_orden, payload), ok,
+                  lambda e: (btn_save.configure(state="normal"), status.configure(text="No se pudieron guardar los cambios.", text_color="#B91C1C"), messagebox.showerror("Error al guardar", str(e))))
+
     def load_selected():
         record = table.selected_payload()
         if not record:
             messagebox.showinfo("Selecciona una orden", "Selecciona una fila de la tabla.")
             return
         selected["record"] = dict(record)
+        for widget in editable_widgets:
+            try:
+                widget.configure(state="normal")
+            except Exception:
+                pass
         vars_["os_folio"].set(_valor(record, "os_folio"))
         vars_["os_aco_numero"].set(_valor(record, "os_aco_numero"))
         vars_["os_cliente"].set(_valor(record, "os_cliente"))
@@ -161,7 +234,7 @@ def mostrar_conversion_orden_trabajo(parent, app):
             status.configure(text="Revisa los datos, visualiza el PDF y convierte cuando esté lista para ejecución.", text_color="#15803D")
             btn_convert.configure(state="normal")
         btn_preview_os.configure(state="normal")
-        btn_preview_ot.configure(state="normal")
+        set_edit_mode(False)
 
     def search_records():
         term = var_search.get().strip()
@@ -197,12 +270,6 @@ def mostrar_conversion_orden_trabajo(parent, app):
         if selected["record"]:
             preview_orden_servicio(selected["record"])
 
-    def preview_ot():
-        try:
-            preview_orden_trabajo(draft_ot())
-        except Exception as error:
-            messagebox.showerror("Preview PDF", str(error))
-
     def convert():
         try:
             draft = draft_ot()
@@ -211,6 +278,9 @@ def mostrar_conversion_orden_trabajo(parent, app):
                 raise ValueError("Completa cliente, asunto, número de días y número de personas.")
         except Exception as error:
             messagebox.showwarning("Información incompleta", str(error))
+            return
+        if selected.get("editando"):
+            messagebox.showwarning("Edición pendiente", "Guarda los cambios antes de convertir a Orden de Trabajo.")
             return
         if not messagebox.askyesno("Confirmar conversión", f"¿Convertir {selected['record'].get('os_folio')} en Orden de Trabajo?"):
             return
@@ -230,25 +300,28 @@ def mostrar_conversion_orden_trabajo(parent, app):
     ctk.CTkButton(search, text="↻ Recientes", width=135, height=40, fg_color="#334155", hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=lambda: (var_search.set(""), search_records())).grid(row=2, column=2, padx=(0, 12), pady=(0, 10))
     ent_search.bind("<Return>", lambda _e: search_records())
 
-    actions = ctk.CTkFrame(form, fg_color="transparent")
-    actions.grid(row=11, column=0, columnspan=2, sticky="ew", padx=5, pady=(6, 10))
+    # Barra fija: no forma parte del área desplazable del formulario.
+    actions = ctk.CTkFrame(form_shell, fg_color=WHITE, corner_radius=0)
+    actions.grid(row=1, column=0, sticky="ew", padx=8, pady=(4, 10))
     actions.grid_columnconfigure((0, 1), weight=1)
 
     ctk.CTkButton(actions, text="📥 Cargar seleccionado", command=load_selected).grid(
         row=0, column=0, sticky="ew", padx=4, pady=4
     )
-    btn_preview_os = ctk.CTkButton(actions, text="👁 PDF de OS", command=preview_os, state="disabled")
+    btn_preview_os = ctk.CTkButton(actions, text="👁 PDF Orden de Servicio", command=preview_os, state="disabled")
     btn_preview_os.grid(row=0, column=1, sticky="ew", padx=4, pady=4)
-    btn_preview_ot = ctk.CTkButton(actions, text="👁 Preview OT", command=preview_ot, state="disabled")
-    btn_preview_ot.grid(row=1, column=0, sticky="ew", padx=4, pady=4)
+
+    edit_row = ctk.CTkFrame(actions, fg_color="transparent")
+    edit_row.grid(row=1, column=0, columnspan=2, sticky="ew")
+    edit_row.grid_columnconfigure((0, 1, 2), weight=1)
+    btn_edit = ctk.CTkButton(edit_row, text="✎ Editar", command=lambda: set_edit_mode(True), state="disabled")
+    btn_edit.grid(row=0, column=0, sticky="ew", padx=4, pady=4)
+    btn_save = ctk.CTkButton(edit_row, text="💾 Guardar", command=save_changes, state="disabled")
+    btn_save.grid(row=0, column=1, sticky="ew", padx=4, pady=4)
     btn_convert = ctk.CTkButton(
-        actions,
-        text="✓ Guardar y convertir a OT",
-        fg_color=SECONDARY,
-        hover_color=BUTTON_HOVER,
-        command=convert,
-        state="disabled",
+        edit_row, text="✓ Convertir a OT", fg_color=SECONDARY, hover_color=BUTTON_HOVER,
+        command=convert, state="disabled",
     )
-    btn_convert.grid(row=1, column=1, sticky="ew", padx=4, pady=4)
+    btn_convert.grid(row=0, column=2, sticky="ew", padx=4, pady=4)
 
     search_records()
