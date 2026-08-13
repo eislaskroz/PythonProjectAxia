@@ -5,8 +5,8 @@ DESCRIPCIÓN:
 Vista administrativa para consultar reportes actuales del sistema AXIA.
 
 Esta vista es de solo lectura y está pensada para administradores.
-Incluye búsquedas rápidas por ACO, levantamiento, orden de servicio,
-orden de trabajo y bitácora operativa.
+Incluye búsquedas rápidas siguiendo el flujo vigente: levantamiento, ACO,
+orden de trabajo, bitácora operativa y orden de servicio.
 =========================================================
 """
 
@@ -31,56 +31,38 @@ from ui.detail_popup import mostrar_detalle_registro
 
 REPORTES = [
     {
-        "clave": "acos",
-        "titulo": "ACOs registrados",
-        "icono": "📁",
-        "placeholder": "Buscar por número de ACO...",
-        "obtener": obtener_acos,
-        "buscar": buscar_acos,
-        "campos": ["aco_numero", "aco_cliente", "aco_responsable", "aco_fecha_inicio", "aco_fecha_compromiso"],
-    },
-    {
-        "clave": "levantamientos",
-        "titulo": "Levantamientos",
-        "icono": "📋",
-        "placeholder": "Buscar por folio LEV-0001...",
-        "obtener": obtener_levantamientos,
+        "clave": "levantamientos", "titulo": "Levantamientos", "icono": "📋",
+        "placeholder": "Buscar por folio LEV-00001...", "obtener": obtener_levantamientos,
         "buscar": buscar_levantamientos,
         "campos": ["lev_folio", "lev_aco_numero", "lev_cliente", "lev_tecnico", "lev_fecha_programada"],
     },
     {
-        "clave": "ordenes_servicio",
-        "titulo": "Órdenes de servicio",
-        "icono": "🧾",
-        "placeholder": "Buscar por folio OS-0001...",
-        "obtener": obtener_ordenes_servicio,
-        "buscar": buscar_ordenes_servicio,
-        "campos": ["os_folio", "os_aco_numero", "os_cliente", "os_tecnico", "os_fecha_programada"],
+        "clave": "acos", "titulo": "ACOs registrados", "icono": "📁",
+        "placeholder": "Buscar por número de ACO...", "obtener": obtener_acos,
+        "buscar": buscar_acos,
+        "campos": ["aco_numero", "aco_cliente", "aco_responsable", "aco_fecha_inicio", "aco_fecha_compromiso"],
     },
     {
-        "clave": "ordenes_trabajo",
-        "titulo": "Órdenes de trabajo",
-        "icono": "🛠️",
-        "placeholder": "Buscar por folio OT-0001...",
-        "obtener": obtener_ordenes_trabajo,
+        "clave": "ordenes_trabajo", "titulo": "Órdenes de trabajo", "icono": "🛠️",
+        "placeholder": "Buscar por folio OT-00001...", "obtener": obtener_ordenes_trabajo,
         "buscar": buscar_ordenes_trabajo,
-        "campos": ["ot_folio", "ot_aco_numero", "ot_cliente", "ot_tecnico", "ot_fecha_programada"],
+        "campos": ["ot_folio", "ot_aco_numero", "ot_cliente", "ot_esi", "ot_fecha"],
     },
     {
-        "clave": "bitacoras",
-        "titulo": "Bitácoras operativas",
-        "icono": "📊",
-        "placeholder": "Buscar por folio BIT-0001...",
-        "obtener": obtener_bitacoras,
+        "clave": "bitacoras", "titulo": "Bitácoras operativas", "icono": "📊",
+        "placeholder": "Buscar por folio BIT-00001...", "obtener": obtener_bitacoras,
         "buscar": buscar_bitacoras,
-        "campos": ["bit_folio", "bit_aco_numero", "bit_cliente", "bit_tecnico", "bit_avance"],
+        "campos": ["bit_folio", "bit_ot_folio", "bit_cliente", "bit_tecnico", "bit_porcentaje_avance"],
     },
     {
-        "clave": "obras_civiles",
-        "titulo": "Obras civiles",
-        "icono": "🏗️",
-        "placeholder": "Buscar por folio OBC-0001...",
-        "obtener": obtener_obras_civiles,
+        "clave": "ordenes_servicio", "titulo": "Órdenes de servicio", "icono": "🧾",
+        "placeholder": "Buscar por folio OS-00001...", "obtener": obtener_ordenes_servicio,
+        "buscar": buscar_ordenes_servicio,
+        "campos": ["os_folio", "os_folio_ot", "os_cliente", "os_tecnico", "os_fecha_programada"],
+    },
+    {
+        "clave": "obras_civiles", "titulo": "Obras civiles", "icono": "🏗️",
+        "placeholder": "Buscar por folio OBC-0001...", "obtener": obtener_obras_civiles,
         "buscar": buscar_obras_civiles,
         "campos": ["obc_folio", "obc_aco_numero", "obc_cliente", "obc_nombre_proyecto", "obc_fecha"],
     },

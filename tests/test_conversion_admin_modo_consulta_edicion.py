@@ -9,7 +9,7 @@ def test_conversion_admin_carga_en_modo_consulta_y_edicion_explicita():
     assert '_set_modo_edicion(False)' in src
     assert 'text="✎ Editar"' in src
     assert 'text="💾 Guardar"' in src
-    assert 'text="✓ Convertir a OS"' in src
+    assert 'text="✓ Convertir a OT"' in src
     assert 'text="📥 Cargar seleccionado"' in src
     assert 'text="👁 PDF Levantamiento"' in src
     assert 'actualizar_levantamiento' in src

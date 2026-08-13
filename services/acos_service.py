@@ -1,3 +1,4 @@
+import re
 """
 =========================================================
 SERVICIO DE ACOS - AXIA
@@ -128,6 +129,26 @@ COLUMNAS_ACOS = ",".join([
 ])
 
 
+def normalizar_numero_aco(valor):
+    """Devuelve un folio ACO con un solo prefijo ``ACO-``.
+
+    Protege la interfaz y las consultas contra datos históricos como
+    ``ACO-ACO-AGO-2026-001`` sin alterar el resto del folio.
+    """
+    texto = str(valor or "").strip().upper()
+    if not texto:
+        return ""
+    return re.sub(r"^(?:ACO-)+", "ACO-", texto)
+
+
+def _normalizar_registro_aco(registro):
+    if not registro:
+        return registro
+    limpio = dict(registro)
+    limpio["aco_numero"] = normalizar_numero_aco(limpio.get("aco_numero"))
+    return limpio
+
+
 class AcoServiceError(RuntimeError):
     """Error de comunicación o consulta del servicio de ACOs."""
 
@@ -184,7 +205,7 @@ def buscar_aco_por_numero(aco_numero):
             supabase
             .table(TABLA_ACOS)
             .select(COLUMNAS_ACOS)
-            .eq("aco_numero", aco_numero)
+            .eq("aco_numero", normalizar_numero_aco(aco_numero))
             .execute()
         )
 
@@ -195,7 +216,7 @@ def buscar_aco_por_numero(aco_numero):
                 descripcion=f"Consulta de ACO por número: {aco_numero}",
                 registro_afectado=aco_numero,
             )
-            return enriquecer_aco_con_sucursal_contacto(respuesta.data[0])
+            return enriquecer_aco_con_sucursal_contacto(_normalizar_registro_aco(respuesta.data[0]))
 
         registrar_movimiento_seguro(
             modulo="ACOS",
@@ -242,7 +263,7 @@ def obtener_acos(page=1, page_size=100):
             descripcion="Consulta general de ACOs",
             registro_afectado=f"Total: {len(respuesta.data or [])}",
         )
-        return respuesta.data
+        return [_normalizar_registro_aco(r) for r in (respuesta.data or [])]
 
     except Exception as error:
         logger.exception("Error al consultar ACOs.")
@@ -271,6 +292,12 @@ def crear_aco(datos_aco):
         # por eso normalizamos aquí antes del insert.
         datos_aco = normalizar_fechas_aco(datos_aco)
 
+        # Desde la migración 20260813 el folio ACO lo asigna Supabase mediante
+        # trigger. Un valor vacío impediría que el trigger distinga claramente
+        # entre un folio manual y uno automático, por eso nunca enviamos vacío.
+        if not str(datos_aco.get("aco_numero", "") or "").strip():
+            datos_aco.pop("aco_numero", None)
+
         respuesta = (
             supabase
             .table(TABLA_ACOS)
@@ -286,7 +313,7 @@ def crear_aco(datos_aco):
             descripcion="Creación de ACO",
             registro_afectado=datos_aco.get("aco_numero") or datos_aco.get("aco_folio") or respuesta.data,
         )
-        return respuesta.data
+        return [_normalizar_registro_aco(r) for r in (respuesta.data or [])]
 
     except Exception as error:
         register_error(error, "Registrar ACO")
@@ -356,10 +383,12 @@ def validar_aco_existente(aco_numero):
 
 # Búsqueda parcial unificada
 def buscar_acos(termino, limite=100):
+    termino = normalizar_numero_aco(termino) if str(termino or "").strip().upper().startswith("ACO-") else termino
     resultados = buscar_parcial_supabase(
         supabase=supabase, tabla=TABLA_ACOS, columnas=COLUMNAS_ACOS, termino=termino,
         campos=('aco_numero', 'aco_cliente', 'aco_responsable', 'aco_sucursal', 'aco_estatus'), id_campos=('id_aco', 'aco_numero'), orden='fecha_registro', limite=limite,
     )
+    resultados = [_normalizar_registro_aco(r) for r in resultados]
     registrar_movimiento_seguro(
         modulo='ACOS', accion="BUSCAR",
         descripcion=f"Búsqueda parcial: {str(termino).strip().upper()}",

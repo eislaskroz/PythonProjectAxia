@@ -1,4 +1,4 @@
-"""Conversión administrativa de levantamientos a órdenes de servicio."""
+"""Conversión administrativa de levantamientos a órdenes de trabajo."""
 
 import json
 import customtkinter as ctk
@@ -10,7 +10,7 @@ from core.background_tasks import run_async
 from core.logger import configurar_logger
 from security.permissions import puede_convertir_levantamiento_a_orden
 from services.levantamientos_service import obtener_levantamientos, buscar_levantamientos, actualizar_levantamiento
-from services.ordenes_servicio_service import convertir_levantamiento_a_orden, buscar_orden_por_levantamiento
+from services.ordenes_trabajo_service import convertir_levantamiento_a_trabajo, buscar_orden_trabajo_por_levantamiento
 from services.pdf_registro_service import generar_pdf_registro
 from ui.colors import WHITE, TEXT_PRIMARY, TEXT_SECONDARY, SECONDARY, BUTTON_HOVER
 from ui.fonts import TITLE_MD, TEXT_MD, TEXT_SM, BUTTON_FONT
@@ -48,7 +48,7 @@ def mostrar_conversion_orden_servicio(parent, app):
     busqueda.grid(row=0, column=0, sticky="ew", pady=(0, 8))
     busqueda.grid_columnconfigure(0, weight=1)
 
-    ctk.CTkLabel(busqueda, text="Convertir levantamiento en Orden de Servicio", font=TITLE_MD,
+    ctk.CTkLabel(busqueda, text="Convertir levantamiento en Orden de Trabajo", font=TITLE_MD,
                  text_color=TEXT_PRIMARY, anchor="w").grid(row=0, column=0, columnspan=4, sticky="ew", padx=12, pady=(10, 2))
     ctk.CTkLabel(
         busqueda,
@@ -81,8 +81,15 @@ def mostrar_conversion_orden_servicio(parent, app):
     )
     tabla.grid(row=1, column=0, sticky="nsew", padx=8, pady=(0, 8))
 
-    panel_form = ctk.CTkScrollableFrame(cuerpo, fg_color=WHITE, corner_radius=16)
-    panel_form.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
+    # Panel derecho: contenido desplazable + barra de acciones fija.
+    # Los botones no deben desplazarse junto con el formulario.
+    panel_form_shell = ctk.CTkFrame(cuerpo, fg_color=WHITE, corner_radius=16)
+    panel_form_shell.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
+    panel_form_shell.grid_columnconfigure(0, weight=1)
+    panel_form_shell.grid_rowconfigure(0, weight=1)
+
+    panel_form = ctk.CTkScrollableFrame(panel_form_shell, fg_color=WHITE, corner_radius=16)
+    panel_form.grid(row=0, column=0, sticky="nsew", padx=0, pady=(0, 2))
     panel_form.grid_columnconfigure(0, weight=1)
     panel_form.grid_columnconfigure(1, weight=1)
 
@@ -198,13 +205,13 @@ def mostrar_conversion_orden_servicio(parent, app):
         if isinstance(detalle, (dict, list)):
             detalle = json.dumps(detalle, ensure_ascii=False, indent=2)
         poner_texto(txt_detalle, str(detalle or ""))
-        existente = buscar_orden_por_levantamiento(
+        existente = buscar_orden_trabajo_por_levantamiento(
             registro.get("lev_folio"), registro.get("id_levantamiento")
         )
         btn_preview.configure(state="normal")
         _set_modo_edicion(False)
         if existente:
-            lbl_estado.configure(text=f"Este levantamiento ya fue convertido en {existente.get('os_folio', 'una OS')}.", text_color="#B45309")
+            lbl_estado.configure(text=f"Este levantamiento ya fue convertido en {existente.get('ot_folio', 'una OT')}.", text_color="#B45309")
             btn_convertir.configure(state="disabled")
             btn_editar.configure(state="disabled")
         else:
@@ -308,22 +315,22 @@ def mostrar_conversion_orden_servicio(parent, app):
             return
         if not messagebox.askyesno(
             "Confirmar conversión",
-            f"Se creará una Orden de Servicio desde {original.get('lev_folio')}.\n\n"
+            f"Se creará una Orden de Trabajo desde {original.get('lev_folio')}.\n\n"
             "El levantamiento quedará marcado como En proceso y ya no podrá convertirse de nuevo.\n\n¿Continuar?",
         ):
             return
         btn_convertir.configure(state="disabled")
-        lbl_estado.configure(text="Creando orden de servicio...", text_color=TEXT_SECONDARY)
+        lbl_estado.configure(text="Creando orden de trabajo...", text_color=TEXT_SECONDARY)
 
         def ok(resultado):
-            folio_os = resultado[0].get("os_folio") if isinstance(resultado, list) and resultado else "generada"
-            lbl_estado.configure(text=f"Conversión finalizada: {folio_os}", text_color="#15803D")
-            messagebox.showinfo("Orden creada", f"El levantamiento {original.get('lev_folio')} se convirtió correctamente en {folio_os}.")
+            folio_ot = resultado[0].get("ot_folio") if isinstance(resultado, list) and resultado else "generada"
+            lbl_estado.configure(text=f"Conversión finalizada: {folio_ot}", text_color="#15803D")
+            messagebox.showinfo("Orden de Trabajo creada", f"El levantamiento {original.get('lev_folio')} se convirtió correctamente en {folio_ot}.")
             ejecutar_busqueda()
 
         run_async(
             parent.winfo_toplevel(),
-            lambda: convertir_levantamiento_a_orden(original, cambios, usuario),
+            lambda: convertir_levantamiento_a_trabajo(original, cambios, usuario),
             ok,
             lambda e: (btn_convertir.configure(state="normal"), lbl_estado.configure(text="No se completó la conversión.", text_color="#B91C1C"), messagebox.showerror("Error al convertir", str(e))),
         )
@@ -402,8 +409,9 @@ def mostrar_conversion_orden_servicio(parent, app):
                   hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=lambda: (var_busqueda.set(""), ejecutar_busqueda())).grid(row=2, column=2, padx=(0, 12), pady=(0, 10))
     entrada.bind("<Return>", lambda _e: ejecutar_busqueda())
 
-    acciones = ctk.CTkFrame(panel_form, fg_color="transparent")
-    acciones.grid(row=14, column=0, columnspan=2, sticky="ew", padx=5, pady=(6, 10))
+    # Barra fija: queda visible aunque el usuario haga scroll en el formulario.
+    acciones = ctk.CTkFrame(panel_form_shell, fg_color=WHITE, corner_radius=0)
+    acciones.grid(row=1, column=0, sticky="ew", padx=8, pady=(4, 10))
     acciones.grid_columnconfigure(0, weight=1)
 
     fila_consulta = ctk.CTkFrame(acciones, fg_color="transparent")
@@ -418,7 +426,7 @@ def mostrar_conversion_orden_servicio(parent, app):
     btn_editar.pack(side="left", padx=4)
     btn_guardar = ctk.CTkButton(fila_edicion, text="💾 Guardar", width=125, command=guardar_cambios, state="disabled")
     btn_guardar.pack(side="left", padx=4)
-    btn_convertir = ctk.CTkButton(fila_edicion, text="✓ Convertir a OS", width=170, fg_color=SECONDARY,
+    btn_convertir = ctk.CTkButton(fila_edicion, text="✓ Convertir a OT", width=170, fg_color=SECONDARY,
                                   hover_color=BUTTON_HOVER, command=validar_y_convertir, state="disabled")
     btn_convertir.pack(side="left", padx=4)
 
