@@ -324,13 +324,27 @@ def crear_aco_desde_levantamiento(levantamiento, usuario_activo=None):
     nota_origen = f"Generado automáticamente al autorizar {folio_lev}." if folio_lev else "Generado automáticamente desde levantamiento autorizado."
     observaciones = nota_origen if not observacion_lev else f"{nota_origen}\n{observacion_lev}"
 
+    tipo_levantamiento = str(
+        lev.get("lev_tipo_nombre")
+        or lev.get("lev_tipo_levantamiento")
+        or lev.get("lev_tipo")
+        or "Servicio autorizado"
+    ).strip()
+    descripcion_aco = (
+        f"Servicio autorizado desde {folio_lev} - {tipo_levantamiento}"
+        if folio_lev
+        else f"Servicio autorizado desde levantamiento - {tipo_levantamiento}"
+    )
+
     payload = {
         # aco_numero NO se envía: Supabase lo genera automáticamente.
         "id_cliente": lev.get("id_cliente"),
         "id_sucursal": lev.get("id_sucursal"),
         "id_contacto": lev.get("id_contacto"),
         "aco_cliente": cliente,
-        "aco_descripcion": "",
+        # db_acos.aco_descripcion es NOT NULL. Aunque el formulario manual ya
+        # no muestra este campo, el contrato de base de datos sigue exigiéndolo.
+        "aco_descripcion": descripcion_aco,
         "aco_observaciones": observaciones,
         "aco_responsable": responsable,
         "aco_creado_por": usuario,
@@ -414,6 +428,13 @@ def crear_aco(datos_aco, propagar_error=False):
         # por eso normalizamos aquí antes del insert.
         datos_aco = normalizar_fechas_aco(datos_aco)
 
+        # Compatibilidad con el esquema vigente: aco_descripcion sigue siendo
+        # NOT NULL en Supabase aunque el campo ya no se capture en pantalla.
+        # En creación manual usamos cadena vacía; en creación automática se
+        # genera una descripción de trazabilidad antes de llegar aquí.
+        if datos_aco.get("aco_descripcion") is None:
+            datos_aco["aco_descripcion"] = ""
+
         # Desde la migración 20260813 el folio ACO lo asigna Supabase mediante
         # trigger. Un valor vacío impediría que el trigger distinga claramente
         # entre un folio manual y uno automático, por eso nunca enviamos vacío.
@@ -441,6 +462,14 @@ def crear_aco(datos_aco, propagar_error=False):
         register_error(error, "Registrar ACO")
         logger.exception("Error al crear ACO.")
         if propagar_error:
+            detalle = str(error)
+            if "id_aco" in detalle and "23502" in detalle:
+                raise RuntimeError(
+                    "Supabase rechazó la creación del ACO porque db_acos.id_aco no tiene "
+                    "autogeneración configurada. Ejecuta la migración "
+                    "migrations/20260814_fix_db_acos_id_aco_sequence.sql. "
+                    f"Detalle técnico: {error}"
+                ) from error
             raise RuntimeError(f"Supabase rechazó la creación del ACO. Detalle técnico: {error}") from error
         return None
 

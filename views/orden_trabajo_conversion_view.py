@@ -31,7 +31,7 @@ def _valor(registro, *campos, default=""):
 def mostrar_conversion_orden_trabajo(parent, app):
     usuario = obtener_usuario_actual()
     if not puede_convertir_levantamiento_a_orden(usuario):
-        messagebox.showerror("Acceso denegado", "Esta función está reservada al personal Administrativo (usu_tipo=5).")
+        messagebox.showerror("Acceso denegado", "Esta función está disponible para Administrador y personal Administrativo.")
         return
 
     for widget in parent.winfo_children():

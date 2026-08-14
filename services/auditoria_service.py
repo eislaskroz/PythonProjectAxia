@@ -33,7 +33,7 @@ def buscar_movimientos_auditoria(termino="", limite=200):
             supabase.table(TABLA_BITACORA_MOVIMIENTOS)
             .select(
                 "id_usuario,usuario,modulo,accion,descripcion,registro_afectado,"
-                "ip_local,equipo,ciudad,region,pais,fecha_hora"
+                "ip_local,equipo,latitud,longitud,ciudad,region,pais,fecha_hora"
             )
             .order("fecha_hora", desc=True)
             .limit(ventana)
@@ -41,7 +41,7 @@ def buscar_movimientos_auditoria(termino="", limite=200):
         )
         campos = (
             "fecha_hora", "usuario", "modulo", "accion", "descripcion",
-            "registro_afectado", "ip_local", "equipo", "ciudad", "region", "pais",
+            "registro_afectado", "ip_local", "equipo", "latitud", "longitud", "ciudad", "region", "pais",
         )
         return [r for r in (respuesta.data or []) if _coincide(r, termino, campos)][:limite]
     except Exception:

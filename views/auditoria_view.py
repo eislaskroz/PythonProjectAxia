@@ -27,11 +27,13 @@ COLUMNAS = {
         ("fecha_hora", "Fecha"), ("usuario", "Usuario"), ("modulo", "Módulo"),
         ("accion", "Acción"), ("descripcion", "Descripción"),
         ("equipo", "Equipo"), ("ip_local", "IP local"),
+        ("ciudad", "Ubicación"), ("latitud", "GPS"),
     ],
     "accesos": [
         ("fecha_hora", "Fecha"), ("usu_nickname", "Usuario"), ("estatus", "Estado"),
         ("descripcion", "Descripción"), ("nombre_equipo", "Equipo"),
         ("direccion_ip", "IP local"), ("ciudad", "Ubicación"),
+        ("latitud", "GPS"),
     ],
 }
 
@@ -123,7 +125,7 @@ def mostrar_auditoria(parent, app):
 
     aviso = ctk.CTkLabel(
         acciones,
-        text="La ubicación geográfica solo aparece cuando AXIA_ENABLE_IP_GEOLOCATION=1.",
+        text="AXIA registra ubicación aproximada por IP pública en accesos y movimientos.",
         font=TEXT_SM, text_color=TEXT_SECONDARY,
     )
     aviso.pack(side="right", padx=8)
@@ -201,9 +203,16 @@ def mostrar_auditoria(parent, app):
                 valor = str(registro.get(campo, "") or "-")
                 if campo == "estatus":
                     valor = "CORRECTO" if valor.upper() == "CORRECTO" else valor
-                if campo == "ciudad" and estado["tipo"] == "accesos":
+                if campo == "ciudad":
                     partes = [registro.get("ciudad"), registro.get("region"), registro.get("pais")]
                     valor = ", ".join(str(p) for p in partes if p and p != "No disponible") or "No disponible"
+                elif campo == "latitud":
+                    lat = registro.get("latitud")
+                    lon = registro.get("longitud")
+                    if lat and lon and str(lat) != "No disponible" and str(lon) != "No disponible":
+                        valor = f"{lat}, {lon}"
+                    else:
+                        valor = "No disponible"
                 salida.append(valor)
             return salida
 

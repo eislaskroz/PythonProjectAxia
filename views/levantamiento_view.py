@@ -15,9 +15,10 @@ from core.logger import configurar_logger
 logger = configurar_logger(__name__)
 
 import json
+from datetime import datetime
 
 import customtkinter as ctk
-from tkinter import messagebox, ttk
+from tkinter import messagebox, ttk, filedialog
 from ui.native_combobox import NativeComboBox
 
 from ui.colors import (
@@ -48,12 +49,22 @@ from services.equipos_catalogo_service import (
 from services.aco_context_service import normalizar_datos_aco
 from services.acos_service import buscar_aco_por_numero
 from services.clientes_service import buscar_clientes, construir_direccion_cliente
-from services.levantamientos_service import crear_levantamiento
-from services.usuarios_service import obtener_tecnicos_responsables, obtener_supervisores_formulario
-from views.formato_helpers import generar_pdf_preview, generar_pdf_archivo, enfocar_inicio_formulario, ruta_documentos_axia
+from services.sucursales_service import (
+    obtener_sucursales_por_cliente, obtener_contactos_por_sucursal,
+    construir_domicilio_sucursal,
+)
+from services.levantamientos_service import crear_levantamiento, actualizar_evidencias_levantamiento
+from services.usuarios_service import (
+    obtener_tecnicos_responsables,
+    obtener_supervisores_formulario,
+    obtener_encargados_proyecto_formulario,
+)
+from views.formato_helpers import generar_pdf_preview, generar_pdf_archivo, enfocar_inicio_formulario, ruta_documentos_axia, anotacion_plano_popup
 from services.pdf_registro_service import generar_pdf_registro
+from services.mail_service import enviar_levantamiento_pdf
+from services.bitacora_evidencias_service import subir_evidencias_levantamiento
 
-from security.permissions import puede_generar_levantamiento
+from security.permissions import puede_generar_levantamiento, puede_convertir_levantamiento_a_orden
 
 
 # El catálogo maestro de materiales se carga desde services.materiales_catalogo_service.
@@ -81,7 +92,7 @@ from views.levantamientos.form_definitions import (
 # =====================================================
 # FUNCIÓN: mostrar_levantamiento()
 # =====================================================
-def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
+def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, registro_editar=None, on_saved=None, modal=False):
     """
     Muestra el formulario para generar un levantamiento.
     PARÁMETROS:
@@ -98,12 +109,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
 
     usuario_activo = obtener_usuario_actual()
 
-    if not puede_generar_levantamiento(usuario_activo):
+    if not (puede_generar_levantamiento(usuario_activo) or (registro_editar and puede_convertir_levantamiento_a_orden(usuario_activo))):
         messagebox.showerror(
             "Acceso denegado",
             "No tienes permisos para generar levantamientos."
         )
-        app.mostrar_vista_inicio_aco()
+        if not modal:
+            app.mostrar_vista_inicio_aco()
         return
 
     for widget in parent.winfo_children():
@@ -130,6 +142,20 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
     # Se elimina el título interno para evitar textos duplicados y
     # aprovechar mejor el espacio vertical del formulario.
 
+    # Reservar la botonera ANTES de empaquetar el formulario.
+    # En ventanas modales, si el área expandible se empaqueta primero, Tk puede
+    # consumir toda la altura disponible y dejar la barra de acciones fuera de
+    # la zona visible. Mantener este frame como hijo fijo del contenedor evita
+    # que el botón Guardar Cambios desaparezca al maximizar la ventana.
+    frame_botones = ctk.CTkFrame(
+        contenedor,
+        fg_color="#F4F4F4",
+        height=58,
+        corner_radius=0
+    )
+    frame_botones.pack(side="bottom", fill="x", pady=(0, 0))
+    frame_botones.pack_propagate(False)
+
     # Card principal: queda reservado únicamente para la captura operativa.
     card = ctk.CTkScrollableFrame(
         contenedor,
@@ -148,22 +174,41 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
     var_cliente_selector = ctk.StringVar()
     var_aco = ctk.StringVar()
     var_contacto = ctk.StringVar()
+    var_sucursal = ctk.StringVar()
+    var_encargado_sucursal = ctk.StringVar()
     var_telefono = ctk.StringVar()
     var_correo = ctk.StringVar()
     var_direccion = ctk.StringVar()
     var_ubicacion = ctk.StringVar()
     var_tecnico = ctk.StringVar()
     var_supervisor = ctk.StringVar()
-    var_fecha_programada = ctk.StringVar()
+    var_encargado_proyecto = ctk.StringVar()
+    # Fecha visible del levantamiento: se precarga con la fecha actual en formato mexicano.
+    # La columna histórica lev_fecha_programada se conserva en Supabase por compatibilidad.
+    var_fecha_programada = ctk.StringVar(value=datetime.now().strftime("%d/%m/%Y"))
     var_fecha_realizacion = ctk.StringVar()
+    # Recursos proyectados: obligatorios y comunes a TODOS los levantamientos.
+    # Son la fuente única de verdad para días y personas, independientemente
+    # del tipo/modalidad del formulario.
+    var_dias_trabajo_general = ctk.StringVar()
+    var_personas_considerar_general = ctk.StringVar()
+    # Anotación gráfica opcional común a TODOS los levantamientos.
+    var_desea_anotacion_plano = ctk.StringVar(value="No")
+    var_anotacion_plano_base64 = ctk.StringVar()
+    # Evidencia fotográfica opcional común a TODOS los levantamientos.
+    var_desea_evidencias = ctk.StringVar(value="No")
+    evidencias_levantamiento = []
 
     # Catálogos de asignación obtenidos directamente de db_usuarios.
     tecnicos_disponibles = obtener_tecnicos_responsables()
     supervisores_disponibles = obtener_supervisores_formulario()
+    encargados_proyecto_disponibles = obtener_encargados_proyecto_formulario()
     if tecnicos_disponibles and not var_tecnico.get().strip():
         var_tecnico.set(tecnicos_disponibles[0])
     if supervisores_disponibles and not var_supervisor.get().strip():
         var_supervisor.set(supervisores_disponibles[0])
+    if encargados_proyecto_disponibles and not var_encargado_proyecto.get().strip():
+        var_encargado_proyecto.set(encargados_proyecto_disponibles[0])
 
     materiales_miscelaneos_items = []
     equipos_catalogo_items = []
@@ -462,6 +507,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
     if aco:
         var_aco.set(datos_aco.get("aco_numero", ""))
         var_cliente.set(datos_aco.get("cliente", ""))
+        var_sucursal.set(datos_aco.get("sucursal", ""))
+        var_encargado_sucursal.set(datos_aco.get("contacto", ""))
         var_contacto.set(datos_aco.get("contacto", ""))
         var_telefono.set(datos_aco.get("telefono", ""))
         var_correo.set(datos_aco.get("correo", ""))
@@ -477,28 +524,60 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
     clientes_disponibles = []
     clientes_por_nombre = {}
 
-    if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS and not aco:
-        try:
-            clientes_disponibles = buscar_clientes("", limite=500) or []
-        except Exception:
-            clientes_disponibles = []
+    try:
+        clientes_disponibles = buscar_clientes("", limite=500) or []
+    except Exception:
+        clientes_disponibles = []
 
-        for cliente_db in clientes_disponibles:
-            nombre_cliente = str(cliente_db.get("cli_razonsocial", "") or "").strip()
-            if nombre_cliente:
-                clientes_por_nombre[nombre_cliente] = cliente_db
+    for cliente_db in clientes_disponibles:
+        nombre_cliente = str(cliente_db.get("cli_razonsocial", "") or "").strip()
+        if nombre_cliente:
+            clientes_por_nombre[nombre_cliente] = cliente_db
 
-        if clientes_por_nombre:
-            primer_cliente = sorted(clientes_por_nombre.keys())[0]
-            var_cliente_selector.set(primer_cliente)
-            cliente_inicial = clientes_por_nombre[primer_cliente]
-            var_cliente.set(primer_cliente)
-            var_contacto.set(cliente_inicial.get("cli_contacto", "") or "")
-            var_telefono.set(cliente_inicial.get("cli_telefono", "") or "")
-            var_correo.set(cliente_inicial.get("cli_correo", "") or "")
-            var_direccion.set(construir_direccion_cliente(cliente_inicial))
+    if not aco and clientes_por_nombre:
+        primer_cliente = sorted(clientes_por_nombre.keys())[0]
+        var_cliente_selector.set(primer_cliente)
+        cliente_inicial = clientes_por_nombre[primer_cliente]
+        var_cliente.set(primer_cliente)
+        var_contacto.set("")
+        var_sucursal.set("")
+        var_encargado_sucursal.set("")
+        var_telefono.set("")
+        var_correo.set("")
+        var_direccion.set(construir_direccion_cliente(cliente_inicial))
+    elif aco:
+        cliente_aco = clientes_por_nombre.get(str(var_cliente.get() or "").strip())
+        if cliente_aco:
+            var_direccion.set(construir_direccion_cliente(cliente_aco))
 
     entradas = {}
+    combo_sucursal = {"widget": None}
+    combo_encargado = {"widget": None}
+    sucursales_por_nombre = {}
+    contactos_por_nombre = {}
+    seleccion_catalogo = {"id_cliente": None, "id_sucursal": None, "id_contacto": None}
+
+    def _id_cliente(cliente_db):
+        cliente_db = cliente_db or {}
+        return cliente_db.get("id_cliente") or cliente_db.get("cli_id")
+
+    def _id_sucursal(sucursal):
+        sucursal = sucursal or {}
+        return sucursal.get("suc_id") or sucursal.get("id_sucursal")
+
+    def _id_contacto(contacto):
+        contacto = contacto or {}
+        return contacto.get("con_id") or contacto.get("id_contacto")
+
+    def _nombre_sucursal(sucursal):
+        sucursal = sucursal or {}
+        return str(sucursal.get("suc_nombre") or construir_domicilio_sucursal(sucursal) or "Sucursal sin nombre").strip()
+
+    def _nombre_contacto(contacto):
+        contacto = contacto or {}
+        nombre = str(contacto.get("con_nombre") or "").strip()
+        puesto = str(contacto.get("con_puesto") or "").strip()
+        return f"{nombre} — {puesto}" if nombre and puesto else (nombre or "Contacto sin nombre")
 
     def bloquear_datos_aco_autollenados():
         """Bloquea campos heredados del ACO para que no sean modificados."""
@@ -507,8 +586,68 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             if entry:
                 entry.configure(state="disabled")
 
+    def cargar_contactos_sucursal(nombre_sucursal=None, id_contacto_preferido=None):
+        nombre = str(nombre_sucursal or var_sucursal.get() or "").strip()
+        sucursal = sucursales_por_nombre.get(nombre)
+        contactos_por_nombre.clear()
+        seleccion_catalogo["id_sucursal"] = _id_sucursal(sucursal) if sucursal else None
+        seleccion_catalogo["id_contacto"] = None
+        var_encargado_sucursal.set("")
+        var_contacto.set("")
+        if sucursal:
+            # La dirección mostrada en levantamientos es siempre la fiscal del cliente.
+            # La sucursal se conserva por ID/nombre para trazabilidad, sin reemplazarla.
+            var_ubicacion.set(_nombre_sucursal(sucursal))
+            for contacto in obtener_contactos_por_sucursal(_id_sucursal(sucursal)) or []:
+                contactos_por_nombre[_nombre_contacto(contacto)] = contacto
+        opciones = list(contactos_por_nombre.keys()) or ["Sin encargados registrados"]
+        if combo_encargado["widget"] is not None:
+            combo_encargado["widget"].configure(values=opciones)
+        elegido = None
+        if id_contacto_preferido:
+            for nombre_opcion, contacto in contactos_por_nombre.items():
+                if str(_id_contacto(contacto)) == str(id_contacto_preferido):
+                    elegido = nombre_opcion
+                    break
+        if not elegido and contactos_por_nombre:
+            elegido = next(iter(contactos_por_nombre))
+        var_encargado_sucursal.set(elegido or opciones[0])
+        if elegido:
+            cargar_encargado_sucursal(elegido)
+
+    def cargar_encargado_sucursal(nombre_contacto=None):
+        contacto = contactos_por_nombre.get(str(nombre_contacto or var_encargado_sucursal.get() or "").strip())
+        seleccion_catalogo["id_contacto"] = _id_contacto(contacto) if contacto else None
+        if not contacto:
+            return
+        nombre = str(contacto.get("con_nombre") or "").strip()
+        var_contacto.set(nombre)
+        var_telefono.set(str(contacto.get("con_telefono") or "").strip())
+        var_correo.set(str(contacto.get("con_correo") or "").strip())
+
+    def cargar_sucursales_cliente(id_cliente, id_sucursal_preferida=None, id_contacto_preferido=None):
+        seleccion_catalogo["id_cliente"] = id_cliente
+        seleccion_catalogo["id_sucursal"] = None
+        seleccion_catalogo["id_contacto"] = None
+        sucursales_por_nombre.clear()
+        for sucursal in obtener_sucursales_por_cliente(id_cliente) or []:
+            sucursales_por_nombre[_nombre_sucursal(sucursal)] = sucursal
+        opciones = list(sucursales_por_nombre.keys()) or ["Sin sucursales registradas"]
+        if combo_sucursal["widget"] is not None:
+            combo_sucursal["widget"].configure(values=opciones)
+        elegido = None
+        if id_sucursal_preferida:
+            for nombre_opcion, sucursal in sucursales_por_nombre.items():
+                if str(_id_sucursal(sucursal)) == str(id_sucursal_preferida):
+                    elegido = nombre_opcion
+                    break
+        if not elegido and sucursales_por_nombre:
+            elegido = next(iter(sucursales_por_nombre))
+        var_sucursal.set(elegido or opciones[0])
+        cargar_contactos_sucursal(var_sucursal.get(), id_contacto_preferido=id_contacto_preferido)
+
     def cargar_aco_desde_campo():
-        """Busca el ACO capturado y autollena campos relacionados."""
+        """Busca el ACO capturado y autollena cliente, sucursal y encargado catalogados."""
         numero = var_aco.get().strip()
         if not numero:
             return
@@ -520,23 +659,25 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         var_contacto.set(datos.get("contacto", ""))
         var_telefono.set(datos.get("telefono", ""))
         var_correo.set(datos.get("correo", ""))
-        var_direccion.set(datos.get("direccion", ""))
+        cliente_db = clientes_por_nombre.get(str(datos.get("cliente", "") or "").strip())
+        var_direccion.set(construir_direccion_cliente(cliente_db) if cliente_db else datos.get("direccion", ""))
         var_ubicacion.set(datos.get("ubicacion", ""))
+        cargar_sucursales_cliente(datos.get("id_cliente"), datos.get("id_sucursal"), datos.get("id_contacto"))
         bloquear_datos_aco_autollenados()
 
     def cargar_cliente_desde_selector(nombre_cliente=None):
-        """Autollena datos del cliente seleccionado desde db_clientes y los bloquea."""
+        """Carga cliente y sus sucursales/contactos operativos desde los catálogos maestros."""
         nombre = (nombre_cliente or var_cliente_selector.get() or "").strip()
         cliente_db = clientes_por_nombre.get(nombre)
         if not cliente_db:
             return
-
         var_cliente.set(nombre)
-        var_contacto.set(cliente_db.get("cli_contacto", "") or "")
-        var_telefono.set(cliente_db.get("cli_telefono", "") or "")
-        var_correo.set(cliente_db.get("cli_correo", "") or "")
+        var_contacto.set("")
+        var_telefono.set("")
+        var_correo.set("")
         var_direccion.set(construir_direccion_cliente(cliente_db))
         var_ubicacion.set(cliente_db.get("cli_municipio", "") or "")
+        cargar_sucursales_cliente(_id_cliente(cliente_db))
 
 
     # =================================================
@@ -807,7 +948,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         campos_compactos = {
             "Folio de levantamiento",
             "Teléfono",
-            "Fecha programada",
+            "Fecha de Levantamiento",
         }
         if texto in campos_compactos:
             entry.configure(width=150)
@@ -825,9 +966,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             entry.bind("<Return>", lambda _event: cargar_aco_desde_campo())
 
         if "fecha" in texto.lower() and state != "disabled":
-            asociar_selector_fecha(entry, contenedor_campo, variable)
+            formato_fecha = "dd/mm/yyyy" if texto == "Fecha de Levantamiento" else "iso"
+            asociar_selector_fecha(entry, contenedor_campo, variable, formato_salida=formato_fecha)
 
-    def campo_option(texto, variable, values, columna=0, fila=None):
+    def campo_option(texto, variable, values, columna=0, fila=None, colspan=1):
         """
         Crea un selector dentro de la cuadrícula de dos columnas.
         """
@@ -835,7 +977,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         if fila is None:
             fila = fila_actual["valor"]
 
-        contenedor_campo = _crear_contenedor_campo(fila, columna)
+        contenedor_campo = _crear_contenedor_campo(fila, columna, colspan=colspan)
         _label_campo(contenedor_campo, texto)
 
         NativeComboBox(
@@ -864,6 +1006,21 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         )
         option.pack(fill="x")
         return option
+
+    def campo_catalogo_selector(texto, variable, columna=0, fila=None, colspan=1, tipo="sucursal"):
+        if fila is None:
+            fila = fila_actual["valor"]
+        contenedor_campo = _crear_contenedor_campo(fila, columna, colspan=colspan)
+        _label_campo(contenedor_campo, texto)
+        valores = ["Sin sucursales registradas"] if tipo == "sucursal" else ["Sin encargados registrados"]
+        command = cargar_contactos_sucursal if tipo == "sucursal" else cargar_encargado_sucursal
+        combo = NativeComboBox(contenedor_campo, variable=variable, values=valores, height=34, command=command)
+        combo.pack(fill="x")
+        if tipo == "sucursal":
+            combo_sucursal["widget"] = combo
+        else:
+            combo_encargado["widget"] = combo
+        return combo
 
     def campo_texto(texto, altura=90, fila=None):
         """
@@ -925,34 +1082,53 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         fila=0 + desplazamiento_filas
     )
 
-    if es_especializado and not aco:
+    # Datos del cliente: la dirección visible es siempre la fiscal/principal.
+    if not aco:
         nombres_clientes = sorted(clientes_por_nombre.keys())
-        # Distribución compacta: folio/teléfono/fechas son cortos y no deben dejar huecos grandes.
-        campo_cliente_selector(
-            "Cliente",
-            var_cliente_selector,
-            nombres_clientes,
-            columna=1,
-            fila=0 + desplazamiento_filas
-        )
-        campo_entry("Contacto", var_contacto, "Autollenado desde cliente", state="disabled", columna=2, fila=0 + desplazamiento_filas)
-        campo_entry("Teléfono", var_telefono, "Autollenado desde cliente", state="disabled", columna=3, fila=0 + desplazamiento_filas)
-        campo_entry("Dirección", var_direccion, "Autollenado desde cliente", state="disabled", columna=0, fila=1 + desplazamiento_filas, colspan=5)
-        fila_inicio_operativa = 2 + desplazamiento_filas
-
+        campo_cliente_selector("Cliente", var_cliente_selector, nombres_clientes, columna=1, fila=0 + desplazamiento_filas)
+        campo_entry("Dirección Fiscal", var_direccion, "Dirección fiscal del cliente", state="disabled", columna=2, fila=0 + desplazamiento_filas, colspan=3)
+        campo_catalogo_selector("Sucursal", var_sucursal, columna=0, fila=1 + desplazamiento_filas, tipo="sucursal")
+        campo_catalogo_selector("Encargado de sucursal", var_encargado_sucursal, columna=1, fila=1 + desplazamiento_filas, colspan=2, tipo="contacto")
+        campo_entry("Teléfono", var_telefono, "Autollenado desde encargado", state="disabled", columna=3, fila=1 + desplazamiento_filas)
+        campo_entry("Correo", var_correo, "Autollenado desde encargado", state="disabled", columna=4, fila=1 + desplazamiento_filas)
         if nombres_clientes:
             cargar_cliente_desde_selector(var_cliente_selector.get())
-
-    elif not aco:
-        # Cuando el levantamiento se genera sin ACO, no se muestra ni se solicita
-        # ningún campo relacionado con ACO porque ese dato todavía no existe.
-        campo_entry("Cliente", var_cliente, "Nombre del cliente", columna=1, fila=0 + desplazamiento_filas)
-        campo_entry("Contacto", var_contacto, "Nombre de contacto", columna=2, fila=0 + desplazamiento_filas)
-        campo_entry("Teléfono", var_telefono, "Teléfono de contacto", columna=3, fila=0 + desplazamiento_filas)
-        campo_entry("Correo", var_correo, "Correo electrónico", columna=0, fila=1 + desplazamiento_filas)
-        fila_inicio_operativa = 2 + desplazamiento_filas
     else:
-        fila_inicio_operativa = 1 + desplazamiento_filas
+        campo_entry("Cliente", var_cliente, "Autollenado desde ACO", state="disabled", columna=1, fila=0 + desplazamiento_filas)
+        campo_entry("Dirección Fiscal", var_direccion, "Dirección fiscal del cliente", state="disabled", columna=2, fila=0 + desplazamiento_filas, colspan=3)
+        campo_catalogo_selector("Sucursal", var_sucursal, columna=0, fila=1 + desplazamiento_filas, tipo="sucursal")
+        campo_catalogo_selector("Encargado de sucursal", var_encargado_sucursal, columna=1, fila=1 + desplazamiento_filas, colspan=2, tipo="contacto")
+        campo_entry("Teléfono", var_telefono, "Autollenado desde encargado", state="disabled", columna=3, fila=1 + desplazamiento_filas)
+        campo_entry("Correo", var_correo, "Autollenado desde encargado", state="disabled", columna=4, fila=1 + desplazamiento_filas)
+        cargar_sucursales_cliente(datos_aco.get("id_cliente"), datos_aco.get("id_sucursal"), datos_aco.get("id_contacto"))
+
+    # Asignación interna AXIA según matriz de roles.
+    campo_option("Supervisor", var_supervisor, supervisores_disponibles or ["Sin usuarios tipo 2 o 3 registrados"], columna=0, fila=2 + desplazamiento_filas, colspan=2)
+    campo_option("Encargado de Proyecto", var_encargado_proyecto, encargados_proyecto_disponibles or ["Sin usuarios tipo 3 o 4 registrados"], columna=2, fila=2 + desplazamiento_filas, colspan=2)
+    campo_option("Técnico", var_tecnico, tecnicos_disponibles or ["Sin operadores tipo 4 registrados"], columna=4, fila=2 + desplazamiento_filas)
+
+    # Sección común y obligatoria para todos los tipos de levantamiento.
+    recursos_frame = ctk.CTkFrame(form_body, fg_color="#F8FAFC", corner_radius=12)
+    recursos_frame.grid(row=3 + desplazamiento_filas, column=0, columnspan=5, sticky="ew", pady=(3, 5))
+    recursos_frame.grid_columnconfigure(0, weight=0)
+    recursos_frame.grid_columnconfigure(1, weight=0)
+    recursos_frame.grid_columnconfigure(2, weight=1)
+    ctk.CTkLabel(
+        recursos_frame, text="👥 Recursos proyectados",
+        font=("Montserrat", 13, "bold"), text_color=TEXT_PRIMARY
+    ).grid(row=0, column=0, columnspan=3, sticky="w", padx=8, pady=(5, 2))
+
+    dias_box = ctk.CTkFrame(recursos_frame, fg_color="transparent")
+    dias_box.grid(row=1, column=0, sticky="w", padx=(8, 10), pady=(0, 6))
+    ctk.CTkLabel(dias_box, text="¿Cuántos días de trabajo se proyectan?", font=TEXT_SM, text_color=TEXT_PRIMARY).pack(anchor="w")
+    ctk.CTkEntry(dias_box, textvariable=var_dias_trabajo_general, width=220, height=32, corner_radius=9, placeholder_text="Ej. 2").pack(anchor="w")
+
+    personas_box = ctk.CTkFrame(recursos_frame, fg_color="transparent")
+    personas_box.grid(row=1, column=1, sticky="w", padx=(0, 10), pady=(0, 6))
+    ctk.CTkLabel(personas_box, text="¿Cuántas personas se consideran?", font=TEXT_SM, text_color=TEXT_PRIMARY).pack(anchor="w")
+    ctk.CTkEntry(personas_box, textvariable=var_personas_considerar_general, width=220, height=32, corner_radius=9, placeholder_text="Ej. 3").pack(anchor="w")
+
+    fila_inicio_operativa = 4 + desplazamiento_filas
 
     if not es_especializado:
         campo_option(
@@ -985,46 +1161,18 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         var_estatus.set("Pendiente")
         fila_operativa = fila_inicio_operativa
 
-    campo_option(
-        "Técnico responsable",
-        var_tecnico,
-        tecnicos_disponibles or ["Sin operadores tipo 4 registrados"],
-        columna=0,
-        fila=fila_operativa
-    )
-
-    campo_option(
-        "Supervisor",
-        var_supervisor,
-        supervisores_disponibles or ["Sin usuarios tipo 2 o 3 registrados"],
-        columna=1,
-        fila=fila_operativa
-    )
-
-    if es_especializado:
-        campo_entry(
-            "Correo",
-            var_correo,
-            "Correo electrónico",
-            state="disabled" if not aco else "disabled",
-            columna=2,
-            fila=fila_operativa
-        )
-        fecha_col_programada = 3
-    else:
-        fecha_col_programada = 2
+    fecha_col_programada = 0 if es_especializado else 2
 
     campo_entry(
-        "Fecha programada",
+        "Fecha de Levantamiento",
         var_fecha_programada,
-        "YYYY-MM-DD",
+        "DD/MM/AAAA",
         columna=fecha_col_programada,
         fila=fila_operativa
     )
 
     if not aco and not es_especializado:
-        campo_entry("Dirección", var_direccion, "Dirección del servicio", columna=1, fila=fila_operativa + 1)
-        campo_entry("Ubicación / referencia", var_ubicacion, "Referencia o ubicación específica", columna=2, fila=fila_operativa + 1)
+        campo_entry("Ubicación / referencia", var_ubicacion, "Referencia o ubicación específica", columna=1, fila=fila_operativa + 1, colspan=2)
         fila_textos = fila_operativa + 2
     else:
         fila_textos = fila_operativa + 1
@@ -1390,8 +1538,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
 
         entry_en(seccion_cctv, "¿Dónde estará el punto de enlace de red?", var_cctv_punto_red, "Ej. Rack/SITE", 1, 0)
         entry_en(seccion_cctv, "¿Dónde estará el punto de energía?", var_cctv_punto_energia, "Ej. Contacto regulado", 1, 1)
-        entry_en(seccion_cctv, "¿Cuántos días de trabajo se proyectan?", var_cctv_dias_retencion, "Ej. 3", 1, 2)
-        entry_en(seccion_cctv, "¿Cuántas personas se consideran?", var_cctv_personas_considerar, "Ej. 2", 1, 3)
 
         # =============================================================
         # FORMULARIO DE REPARACIÓN
@@ -1705,8 +1851,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         option_aa(seccion_aa_riesgos, "¿Requiere permiso del sitio?", var_aa_requiere_permiso, ["Sí", "No"], 0, 0)
         option_aa(seccion_aa_riesgos, "¿Requiere escalera/andamio?", var_aa_requiere_escalera, ["Sí", "No"], 0, 1)
         option_aa(seccion_aa_riesgos, "¿Se debe proteger el área?", var_aa_proteccion_area, ["Sí", "No"], 0, 2)
-        entry_aa(seccion_aa_riesgos, "Días de trabajo proyectados", var_aa_dias_trabajo, "Ej. 1", 0, 3, ancho_corto=True)
-        entry_aa(seccion_aa_riesgos, "Personas consideradas", var_aa_personas_trabajo, "Ej. 2", 0, 4, ancho_corto=True)
 
         seccion_aa_pruebas = crear_seccion_aa("✅ 8. Instalación, entrega y pruebas", fila_textos + 7)
         registrar_seccion_aa("pruebas", seccion_aa_pruebas)
@@ -1895,8 +2039,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         actualizar_detalles_rack_rvd()
 
         seccion_rvd_pruebas = crear_seccion_rvd("📋 5. Estimación de recursos para la instalación", fila_textos + 4)
-        entry_rvd(seccion_rvd_pruebas, "Días de trabajo proyectados", var_rvd_dias_trabajo, "Ej. 2", 0, 0, ancho_corto=True)
-        entry_rvd(seccion_rvd_pruebas, "Personas consideradas", var_rvd_personas_trabajo, "Ej. 3", 0, 1, ancho_corto=True)
 
         fila_textos = fila_textos + 5
 
@@ -1969,8 +2111,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         option_pe(seccion_pe_pruebas, "Prueba de transferencia", var_pe_prueba_transferencia, ["Sí", "No", "No aplica"], 0, 1)
         option_pe(seccion_pe_pruebas, "Prueba con carga", var_pe_prueba_carga, ["Sí", "No", "No aplica"], 0, 2)
         option_pe(seccion_pe_pruebas, "Entrega de manual/capacitación", var_pe_entrega_manual, ["Sí", "No"], 0, 3)
-        entry_pe(seccion_pe_pruebas, "Días de trabajo proyectados", var_pe_dias_trabajo, "Ej. 3", 0, 4, ancho_corto=True)
-        entry_pe(seccion_pe_pruebas, "Personas consideradas", var_pe_personas_trabajo, "Ej. 4", 1, 0, ancho_corto=True)
 
         fila_textos = fila_textos + 5
 
@@ -2069,8 +2209,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         option_ele(seccion_ele_pruebas, "Medición de voltaje", var_ele_prueba_voltaje, ["Sí", "No", "No aplica"], 0, 2)
         option_ele(seccion_ele_pruebas, "Etiquetado de circuitos", var_ele_etiquetado, ["Sí", "No"], 0, 3)
         option_ele(seccion_ele_pruebas, "Entrega de diagrama", var_ele_entrega_diagrama, ["Sí", "No", "No aplica"], 0, 4)
-        entry_ele(seccion_ele_pruebas, "Días de trabajo proyectados", var_ele_dias_trabajo, "Ej. 2", 1, 0, ancho_corto=True)
-        entry_ele(seccion_ele_pruebas, "Personas consideradas", var_ele_personas_trabajo, "Ej. 3", 1, 1, ancho_corto=True)
 
         fila_textos = fila_textos + 5
 
@@ -2137,7 +2275,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             seccion_extra = crear_seccion_extra(titulo_sec, fila_textos + indice_visual)
             indice_visual += 1
             secciones_extra_frames.append(seccion_extra)
-            for indice_campo, (clave, tipo_campo, etiqueta, opciones_placeholder, _default) in enumerate(campos_sec):
+            campos_visibles = [campo for campo in campos_sec if campo[0] not in {"dias_trabajo", "personas_trabajo", "personas_considerar"}]
+            for indice_campo, (clave, tipo_campo, etiqueta, opciones_placeholder, _default) in enumerate(campos_visibles):
                 fila_campo = indice_campo // 5
                 columna_campo = indice_campo % 5
                 variable = vars_extra[clave]
@@ -2158,6 +2297,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
     tipos_con_canalizacion = {
         "Seguridad y Monitoreo", "Redes Voz y Datos", "Electricidad",
         "Control de Accesos", "Enlaces Inalámbricos",
+        "Paneles Solares", "Plantas de Energía", "Aires Acondicionados",
     }
     seccion_canalizacion_dinamica = None
     var_requiere_canalizacion = ctk.StringVar(value="Sí")
@@ -2231,6 +2371,12 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             if fila.get("categoria") == "Tubo" and not fila.get("tamano_calibre_especificacion"):
                 return False
             if fila.get("categoria") == "Cable" and tipo_levantamiento == "Electricidad" and not fila.get("tamano_calibre_especificacion"):
+                return False
+            cantidad = str(fila.get("cantidad") or "").strip().replace(",", ".")
+            try:
+                if float(cantidad) <= 0:
+                    return False
+            except (TypeError, ValueError):
                 return False
         return True
 
@@ -2598,6 +2744,90 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         txt_descripcion = campo_texto("Descripción del levantamiento", altura=90, fila=fila_textos)
         txt_observaciones = campo_texto("Observaciones", altura=100, fila=fila_textos + 1)
 
+    # =================================================
+    # ANOTACIONES TIPO PLANO - SECCIÓN COMÚN
+    # =================================================
+    fila_anotacion_plano = fila_textos + (1 if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else 2)
+    frame_anotacion_plano = ctk.CTkFrame(form_body, fg_color="#F8FAFC", corner_radius=12)
+    frame_anotacion_plano.grid(row=fila_anotacion_plano, column=0, columnspan=5, sticky="ew", pady=(6, 6))
+    frame_anotacion_plano.grid_columnconfigure(2, weight=1)
+    ctk.CTkLabel(frame_anotacion_plano, text="🗺 ¿Deseas realizar anotaciones tipo plano?", font=("Montserrat", 13, "bold"), text_color=TEXT_PRIMARY).grid(row=0, column=0, columnspan=3, sticky="w", padx=8, pady=(6, 3))
+    cmb_anotacion_plano = NativeComboBox(frame_anotacion_plano, variable=var_desea_anotacion_plano, values=["No", "Sí"], width=120, height=31)
+    cmb_anotacion_plano.grid(row=1, column=0, sticky="w", padx=8, pady=(0, 7))
+    lbl_estado_anotacion = ctk.CTkLabel(frame_anotacion_plano, text="No se requiere anotación", font=TEXT_SM, text_color=TEXT_SECONDARY)
+    lbl_estado_anotacion.grid(row=1, column=2, sticky="w", padx=8, pady=(0, 7))
+
+    def abrir_editor_anotacion_plano():
+        anotacion_plano_popup(card, var_anotacion_plano_base64, on_change=actualizar_estado_anotacion_plano, titulo="Anotaciones tipo plano - Levantamiento")
+
+    btn_editor_anotacion = ctk.CTkButton(frame_anotacion_plano, text="✎ Abrir editor", width=150, height=31, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=abrir_editor_anotacion_plano, state="disabled")
+    btn_editor_anotacion.grid(row=1, column=1, sticky="w", padx=5, pady=(0, 7))
+
+    def actualizar_estado_anotacion_plano(*_):
+        desea = var_desea_anotacion_plano.get() == "Sí"
+        btn_editor_anotacion.configure(state="normal" if desea else "disabled")
+        if not desea:
+            var_anotacion_plano_base64.set("")
+            lbl_estado_anotacion.configure(text="No se requiere anotación")
+        else:
+            lbl_estado_anotacion.configure(text="Anotación capturada" if var_anotacion_plano_base64.get().strip() else "Pendiente de capturar")
+        try:
+            actualizar_estado_preview()
+        except Exception:
+            pass
+
+    var_desea_anotacion_plano.trace_add("write", actualizar_estado_anotacion_plano)
+
+    # =================================================
+    # EVIDENCIA FOTOGRÁFICA - SECCIÓN COMÚN
+    # =================================================
+    fila_evidencias = fila_anotacion_plano + 1
+    frame_evidencias = ctk.CTkFrame(form_body, fg_color="#F8FAFC", corner_radius=12)
+    frame_evidencias.grid(row=fila_evidencias, column=0, columnspan=5, sticky="ew", pady=(6, 6))
+    frame_evidencias.grid_columnconfigure(3, weight=1)
+    ctk.CTkLabel(frame_evidencias, text="📷 ¿Deseas agregar evidencia fotográfica?", font=("Montserrat", 13, "bold"), text_color=TEXT_PRIMARY).grid(row=0, column=0, columnspan=4, sticky="w", padx=8, pady=(6, 3))
+    cmb_evidencias = NativeComboBox(frame_evidencias, variable=var_desea_evidencias, values=["No", "Sí"], width=120, height=31)
+    cmb_evidencias.grid(row=1, column=0, sticky="w", padx=8, pady=(0, 7))
+    lbl_estado_evidencias = ctk.CTkLabel(frame_evidencias, text="No se requieren fotografías", font=TEXT_SM, text_color=TEXT_SECONDARY)
+    lbl_estado_evidencias.grid(row=1, column=3, sticky="w", padx=8, pady=(0, 7))
+
+    def actualizar_estado_evidencias(*_):
+        desea = var_desea_evidencias.get() == "Sí"
+        btn_agregar_fotos.configure(state="normal" if desea else "disabled")
+        btn_eliminar_foto.configure(state="normal" if desea and evidencias_levantamiento else "disabled")
+        if not desea:
+            evidencias_levantamiento.clear()
+            lbl_estado_evidencias.configure(text="No se requieren fotografías")
+        else:
+            lbl_estado_evidencias.configure(
+                text=f"{len(evidencias_levantamiento)} fotografía(s) seleccionada(s)" if evidencias_levantamiento else "Pendiente de cargar fotografías"
+            )
+        try:
+            actualizar_estado_preview()
+        except Exception:
+            pass
+
+    def agregar_fotos_levantamiento():
+        rutas = filedialog.askopenfilenames(
+            title="Agregar evidencia fotográfica",
+            filetypes=[("Imágenes", "*.jpg *.jpeg *.png *.webp"), ("Todos", "*.*")],
+        )
+        for ruta in rutas:
+            if ruta and ruta not in evidencias_levantamiento:
+                evidencias_levantamiento.append(ruta)
+        actualizar_estado_evidencias()
+
+    def eliminar_ultima_foto_levantamiento():
+        if evidencias_levantamiento:
+            evidencias_levantamiento.pop()
+        actualizar_estado_evidencias()
+
+    btn_agregar_fotos = ctk.CTkButton(frame_evidencias, text="+ Agregar fotos", width=145, height=31, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=agregar_fotos_levantamiento, state="disabled")
+    btn_agregar_fotos.grid(row=1, column=1, sticky="w", padx=5, pady=(0, 7))
+    btn_eliminar_foto = ctk.CTkButton(frame_evidencias, text="Eliminar última", width=135, height=31, fg_color="#DC2626", hover_color="#B91C1C", command=eliminar_ultima_foto_levantamiento, state="disabled")
+    btn_eliminar_foto.grid(row=1, column=2, sticky="w", padx=5, pady=(0, 7))
+    var_desea_evidencias.trace_add("write", actualizar_estado_evidencias)
+
     if tipo_levantamiento == "Seguridad y Monitoreo":
         def actualizar_secciones_comunes_seguridad(*_args):
             modalidad = var_modalidad_levantamiento.get()
@@ -2725,8 +2955,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                     "requiere_permiso_sitio": var_aa_requiere_permiso.get().strip(),
                     "requiere_escalera_andamio": var_aa_requiere_escalera.get().strip(),
                     "proteger_area": var_aa_proteccion_area.get().strip(),
-                    "dias_trabajo": var_aa_dias_trabajo.get().strip(),
-                    "personas_trabajo": var_aa_personas_trabajo.get().strip(),
+                    "dias_trabajo": var_dias_trabajo_general.get().strip(),
+                    "personas_trabajo": var_personas_considerar_general.get().strip(),
                 },
                 "instalacion_entrega_pruebas": {
                     "prueba_vacio": var_aa_prueba_vacio.get().strip(),
@@ -2777,8 +3007,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                     "detalle_tierra_fisica": var_rvd_detalle_tierra.get().strip(),
                 },
                 "estimacion_recursos": {
-                    "dias_trabajo": var_rvd_dias_trabajo.get().strip(),
-                    "personas_trabajo": var_rvd_personas_trabajo.get().strip(),
+                    "dias_trabajo": var_dias_trabajo_general.get().strip(),
+                    "personas_trabajo": var_personas_considerar_general.get().strip(),
                 }
             }
 
@@ -2821,8 +3051,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                     "prueba_transferencia": var_pe_prueba_transferencia.get().strip(),
                     "prueba_carga": var_pe_prueba_carga.get().strip(),
                     "entrega_manual_capacitacion": var_pe_entrega_manual.get().strip(),
-                    "dias_trabajo": var_pe_dias_trabajo.get().strip(),
-                    "personas_trabajo": var_pe_personas_trabajo.get().strip(),
+                    "dias_trabajo": var_dias_trabajo_general.get().strip(),
+                    "personas_trabajo": var_personas_considerar_general.get().strip(),
                 }
             }
 
@@ -2866,8 +3096,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                     "medicion_voltaje": var_ele_prueba_voltaje.get().strip(),
                     "etiquetado_circuitos": var_ele_etiquetado.get().strip(),
                     "entrega_diagrama": var_ele_entrega_diagrama.get().strip(),
-                    "dias_trabajo": var_ele_dias_trabajo.get().strip(),
-                    "personas_trabajo": var_ele_personas_trabajo.get().strip(),
+                    "dias_trabajo": var_dias_trabajo_general.get().strip(),
+                    "personas_trabajo": var_personas_considerar_general.get().strip(),
                 }
             }
 
@@ -2879,7 +3109,11 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             for titulo_sec, campos_sec in FORMULARIOS_DETALLADOS_EXTRA[tipo_levantamiento]["secciones"]:
                 nombre_sec = titulo_sec.split(". ", 1)[-1].lower().replace(" ", "_").replace(",", "").replace("/", "_")
                 detalle["secciones"][nombre_sec] = {
-                    clave: vars_extra[clave].get().strip()
+                    clave: (
+                        var_dias_trabajo_general.get().strip() if clave == "dias_trabajo"
+                        else var_personas_considerar_general.get().strip() if clave in {"personas_trabajo", "personas_considerar"}
+                        else vars_extra[clave].get().strip()
+                    )
                     for clave, _tipo_campo, _etiqueta, _opciones_placeholder, _default in campos_sec
                 }
             return detalle
@@ -2953,8 +3187,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             "datos_tecnicos_cctv": {
                 "cantidad_camaras": var_cctv_cantidad_camaras.get().strip(),
                 "tipo_camaras": var_cctv_tipo_camaras.get().strip(),
-                "dias_trabajo": var_cctv_dias_retencion.get().strip(),
-                "personas_considerar": var_cctv_personas_considerar.get().strip(),
+                "dias_trabajo": var_dias_trabajo_general.get().strip(),
+                "personas_considerar": var_personas_considerar_general.get().strip(),
                 "ubicacion_nvr_dvr": var_cctv_ubicacion_nvr.get().strip(),
                 "punto_red": var_cctv_punto_red.get().strip(),
                 "punto_energia": var_cctv_punto_energia.get().strip(),
@@ -3018,8 +3252,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             f"Requiere permiso del sitio: {var_aa_requiere_permiso.get().strip() or 'No definido'}",
             f"Requiere escalera/andamio: {var_aa_requiere_escalera.get().strip() or 'No definido'}",
             f"Proteger área de trabajo: {var_aa_proteccion_area.get().strip() or 'No definido'}",
-            f"Días de trabajo proyectados: {var_aa_dias_trabajo.get().strip() or 'No definido'}",
-            f"Personas consideradas: {var_aa_personas_trabajo.get().strip() or 'No definido'}",
+            f"Días de trabajo proyectados: {var_dias_trabajo_general.get().strip() or 'No definido'}",
+            f"Personas consideradas: {var_personas_considerar_general.get().strip() or 'No definido'}",
             "",
             "--- 8. INSTALACIÓN, ENTREGA Y PRUEBAS ---",
             f"Prueba de vacío: {var_aa_prueba_vacio.get().strip() or 'No definido'}",
@@ -3075,8 +3309,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             f"Detalle tierra física: {var_rvd_detalle_tierra.get().strip() or 'No aplica'}",
             "",
             "--- 5. ESTIMACIÓN DE RECURSOS ---",
-            f"Días de trabajo proyectados: {var_rvd_dias_trabajo.get().strip() or 'No definido'}",
-            f"Personas consideradas: {var_rvd_personas_trabajo.get().strip() or 'No definido'}",
+            f"Días de trabajo proyectados: {var_dias_trabajo_general.get().strip() or 'No definido'}",
+            f"Personas consideradas: {var_personas_considerar_general.get().strip() or 'No definido'}",
         ]
         return "\n".join(lineas)
 
@@ -3095,7 +3329,12 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 continue
             lineas.append(f"--- {titulo_sec} ---")
             for clave, _tipo_campo, etiqueta, _opciones_placeholder, _default in campos_sec:
-                valor = vars_extra[clave].get().strip() or "No definido"
+                if clave == "dias_trabajo":
+                    valor = var_dias_trabajo_general.get().strip() or "No definido"
+                elif clave in {"personas_trabajo", "personas_considerar"}:
+                    valor = var_personas_considerar_general.get().strip() or "No definido"
+                else:
+                    valor = vars_extra[clave].get().strip() or "No definido"
                 lineas.append(f"{etiqueta}: {valor}")
             lineas.append("")
         resumen_canalizacion = construir_resumen_canalizacion_materiales()
@@ -3201,8 +3440,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             "--- DATOS TÉCNICOS Seguridad y Monitoreo ---",
             f"Cantidad de cámaras: {var_cctv_cantidad_camaras.get().strip() or 'No definido'}",
             f"Tipo de cámaras: {var_cctv_tipo_camaras.get().strip() or 'No definido'}",
-            f"Días de trabajo: {var_cctv_dias_retencion.get().strip() or 'No definido'}",
-            f"Personas a considerar: {var_cctv_personas_considerar.get().strip() or 'No definido'}",
+            f"Días de trabajo: {var_dias_trabajo_general.get().strip() or 'No definido'}",
+            f"Personas a considerar: {var_personas_considerar_general.get().strip() or 'No definido'}",
             f"Ubicación NVR/DVR: {var_cctv_ubicacion_nvr.get().strip() or 'No definido'}",
             f"Punto de red: {var_cctv_punto_red.get().strip() or 'No definido'}",
             f"Punto de energía: {var_cctv_punto_energia.get().strip() or 'No definido'}",
@@ -3223,12 +3462,27 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         """Valida solo campos visibles/aplicables; los deshabilitados no bloquean."""
         if not var_cliente.get().strip():
             return False
+        # La anotación es opcional; si el usuario elige Sí, debe capturarla antes de continuar.
+        if var_desea_anotacion_plano.get() == "Sí" and not var_anotacion_plano_base64.get().strip():
+            return False
+        if var_desea_evidencias.get() == "Sí" and not evidencias_levantamiento:
+            return False
+        # Días y personas son obligatorios en cualquier levantamiento.
+        dias = var_dias_trabajo_general.get().strip()
+        personas = var_personas_considerar_general.get().strip()
+        if not (dias and personas):
+            return False
+        try:
+            if int(dias) <= 0 or int(personas) <= 0:
+                return False
+        except (TypeError, ValueError):
+            return False
         if tipo_levantamiento == "Seguridad y Monitoreo":
             modalidad = var_modalidad_levantamiento.get().strip()
             if modalidad == "Instalación":
                 if not txt_observaciones.get("1.0", "end").strip():
                     return False
-                obligatorios = [var_cctv_cantidad_camaras.get().strip(), var_cctv_tipo_camaras.get().strip(), var_cctv_dias_retencion.get().strip(), var_cctv_personas_considerar.get().strip(), var_cctv_ubicacion_nvr.get().strip(), var_cctv_punto_red.get().strip(), var_cctv_punto_energia.get().strip(), var_infra_existe.get().strip()]
+                obligatorios = [var_cctv_cantidad_camaras.get().strip(), var_cctv_tipo_camaras.get().strip(), var_cctv_ubicacion_nvr.get().strip(), var_cctv_punto_red.get().strip(), var_cctv_punto_energia.get().strip(), var_infra_existe.get().strip()]
                 if not all(obligatorios):
                     return False
                 if var_infra_existe.get() in ("Sí", "Parcial") and not (var_infra_tipo_existente.get().strip() and var_infra_estado.get().strip()):
@@ -3273,7 +3527,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         elif not (descripcion and observaciones):
             return False
         if tipo_levantamiento == "Aires Acondicionados":
-            return all([var_aa_cantidad_equipos.get().strip(), var_aa_area_climatizar.get().strip(), var_aa_ubicacion_evaporadora.get().strip(), var_aa_ubicacion_condensadora.get().strip(), var_aa_dias_trabajo.get().strip(), var_aa_personas_trabajo.get().strip()])
+            return all([var_aa_cantidad_equipos.get().strip(), var_aa_area_climatizar.get().strip(), var_aa_ubicacion_evaporadora.get().strip(), var_aa_ubicacion_condensadora.get().strip()]) and canalizacion_materiales_completa()
         if tipo_levantamiento == "Redes Voz y Datos":
             tipo_servicio = var_rvd_tipo_servicio.get().strip()
             requeridos = [
@@ -3282,7 +3536,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 var_rvd_area_instalacion.get().strip(),
                 var_rvd_horario_trabajo.get().strip(),
                 var_rvd_altura_trabajo.get().strip(),
-                var_rvd_dias_trabajo.get().strip(), var_rvd_personas_trabajo.get().strip(),
             ]
             if tipo_servicio in ("Datos", "Voz y datos", "Fibra óptica", "Mixto"):
                 requeridos.append(var_rvd_cantidad_nodos.get().strip())
@@ -3314,8 +3567,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 var_ele_fases.get().strip(), var_ele_tablero_origen.get().strip(),
                 var_ele_capacidad_tablero.get().strip(), var_ele_breaker_requerido.get().strip(),
                 var_ele_tipo_circuito.get().strip(),
-                var_ele_altura_trabajo.get().strip(), var_ele_dias_trabajo.get().strip(),
-                var_ele_personas_trabajo.get().strip(),
+                var_ele_altura_trabajo.get().strip(),
             ]
             return all(requeridos) and canalizacion_materiales_completa()
         if tipo_levantamiento == "Control de Accesos":
@@ -3325,8 +3577,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 vars_extra["flujo_personas"].get().strip(),
                 vars_extra["cantidad_lectores"].get().strip(),
                 vars_extra["usuarios_iniciales"].get().strip(),
-                vars_extra["dias_trabajo"].get().strip(),
-                vars_extra["personas_trabajo"].get().strip(),
             ]
             return all(requeridos) and canalizacion_materiales_completa()
         if tipo_levantamiento == "Enlaces Inalámbricos":
@@ -3352,10 +3602,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 vars_extra["energia_destino"].get().strip(),
                 vars_extra["metros_cable"].get().strip(),
                 vars_extra["proteccion_tierra"].get().strip(),
-                vars_extra["dias_trabajo"].get().strip(),
-                vars_extra["personas_trabajo"].get().strip(),
             ]
             return all(requeridos) and canalizacion_materiales_completa()
+        if tipo_levantamiento in tipos_con_canalizacion:
+            return canalizacion_materiales_completa()
         return True
 
     def titulo_pdf_levantamiento():
@@ -3372,6 +3622,30 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         }
         return titulos.get(tipo_levantamiento, "Levantamiento")
 
+    def _fecha_levantamiento_iso(valor=None):
+        """Convierte la fecha visible DD/MM/AAAA a ISO para Supabase sin cambiar el esquema."""
+        texto = str(var_fecha_programada.get() if valor is None else valor or "").strip()
+        if not texto:
+            return None
+        for formato in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y"):
+            try:
+                return datetime.strptime(texto, formato).date().isoformat()
+            except ValueError:
+                continue
+        raise ValueError("La Fecha de Levantamiento debe tener formato DD/MM/AAAA.")
+
+    def _fecha_levantamiento_visible(valor):
+        """Convierte fechas persistidas ISO al formato DD/MM/AAAA usado por el formulario."""
+        texto = str(valor or "").strip()
+        if not texto:
+            return datetime.now().strftime("%d/%m/%Y")
+        for formato in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
+            try:
+                return datetime.strptime(texto, formato).strftime("%d/%m/%Y")
+            except ValueError:
+                continue
+        return texto
+
     def datos_pdf_levantamiento():
         resumen = construir_resumen_aires_acondicionados() or construir_resumen_redes_voz_datos() or construir_resumen_formulario_detallado() or construir_resumen_cctv()
         return {
@@ -3381,16 +3655,20 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             "ACO": var_aco.get(),
             "Fecha": var_fecha_programada.get(),
             "Cliente": var_cliente.get(),
+            "Sucursal": var_sucursal.get(),
+            "Encargado de sucursal": var_encargado_sucursal.get(),
             "Dirección": var_direccion.get(),
             "Teléfono": var_telefono.get(),
             "Correo": var_correo.get(),
             "Contacto": var_contacto.get(),
-            "Técnico": var_tecnico.get(),
             "Supervisor": var_supervisor.get(),
-            "Fecha programada": var_fecha_programada.get(),
+            "Encargado de Proyecto": var_encargado_proyecto.get(),
+            "Técnico": var_tecnico.get(),
+            "Fecha de Levantamiento": var_fecha_programada.get(),
             "Descripción": "" if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else txt_descripcion.get("1.0", "end").strip(),
             "Observaciones": txt_observaciones.get("1.0", "end").strip(),
             "Detalle técnico": resumen,
+            "__anotacion_plano_base64": var_anotacion_plano_base64.get().strip() if var_desea_anotacion_plano.get() == "Sí" else "",
         }
 
     def registro_pdf_levantamiento(folio_override=""):
@@ -3401,8 +3679,17 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             else ("Instalación" if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else var_tipo.get().strip())
         )
         detalle = obtener_detalle_tecnico_json() if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else {}
-        if detalle:
-            detalle = dict(detalle)
+        detalle = dict(detalle or {})
+        detalle["datos_generales_axia"] = {
+            "supervisor": var_supervisor.get().strip(),
+            "encargado_proyecto": var_encargado_proyecto.get().strip(),
+            "tecnico": var_tecnico.get().strip(),
+        }
+        detalle["recursos_proyectados"] = {
+            "dias_trabajo": var_dias_trabajo_general.get().strip(),
+            "personas_considerar": var_personas_considerar_general.get().strip(),
+        }
+        if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS:
             detalle["canalizacion_materiales"] = obtener_canalizacion_materiales_json()
             detalle["equipos_principales"] = obtener_equipos_catalogo_json()
             detalle["materiales_miscelaneos"] = obtener_materiales_miscelaneos_json()
@@ -3418,8 +3705,11 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             "lev_tipo_levantamiento": tipo_levantamiento or var_tipo.get().strip(),
             "lev_modalidad_operativa": modalidad,
             "lev_aco_numero": var_aco.get().strip(),
-            "lev_fecha_programada": var_fecha_programada.get().strip() or None,
+            "lev_fecha_programada": _fecha_levantamiento_iso(),
             "lev_cliente": var_cliente.get().strip(),
+            "id_cliente": seleccion_catalogo.get("id_cliente") or (datos_aco.get("id_cliente") if aco else None),
+            "id_sucursal": seleccion_catalogo.get("id_sucursal"),
+            "id_contacto": seleccion_catalogo.get("id_contacto"),
             "lev_contacto": var_contacto.get().strip(),
             "lev_correo": var_correo.get().strip(),
             "lev_telefono": var_telefono.get().strip(),
@@ -3427,6 +3717,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             "lev_ubicacion": var_ubicacion.get().strip(),
             "lev_tecnico": var_tecnico.get().strip(),
             "lev_supervisor": var_supervisor.get().strip(),
+            "lev_dias_trabajo": var_dias_trabajo_general.get().strip(),
+            "lev_personas_considerar": var_personas_considerar_general.get().strip(),
             "lev_estatus": var_estatus.get().strip(),
             "lev_prioridad": var_prioridad.get().strip(),
             "lev_descripcion": txt_descripcion.get("1.0", "end").strip(),
@@ -3434,6 +3726,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             "lev_descripcion_fallas": descripcion_fallas,
             "lev_detalle_tecnico_json": json.dumps(detalle, ensure_ascii=False) if detalle else "",
             "lev_equipos_danados_json": json.dumps(equipos_danados, ensure_ascii=False) if equipos_danados else "",
+            "lev_anotacion_plano_json": json.dumps({"habilitado": var_desea_anotacion_plano.get() == "Sí", "imagen_base64": var_anotacion_plano_base64.get().strip() if var_desea_anotacion_plano.get() == "Sí" else ""}, ensure_ascii=False),
+            "lev_evidencias_json": "[]",
+            "__evidencias_locales": list(evidencias_levantamiento) if var_desea_evidencias.get() == "Sí" else [],
         }
 
     def configuracion_pdf_levantamiento():
@@ -3478,13 +3773,16 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             "ACO": var_aco.get(),
             "Fecha": var_fecha_programada.get(),
             "Cliente": var_cliente.get(),
+            "Sucursal": var_sucursal.get(),
+            "Encargado de sucursal": var_encargado_sucursal.get(),
             "Dirección": var_direccion.get(),
             "Teléfono": var_telefono.get(),
             "Correo": var_correo.get(),
             "Contacto": var_contacto.get(),
-            "Técnico": var_tecnico.get(),
             "Supervisor": var_supervisor.get(),
-            "Fecha programada": var_fecha_programada.get(),
+            "Encargado de Proyecto": var_encargado_proyecto.get(),
+            "Técnico": var_tecnico.get(),
+            "Fecha de Levantamiento": var_fecha_programada.get(),
             "Descripción": "" if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else txt_descripcion.get("1.0", "end").strip(),
             "Observaciones": txt_observaciones.get("1.0", "end").strip(),
             "Detalle técnico": resumen,
@@ -3498,8 +3796,17 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             else ("Instalación" if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else var_tipo.get().strip())
         )
         detalle = obtener_detalle_tecnico_json() if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else {}
-        if detalle:
-            detalle = dict(detalle)
+        detalle = dict(detalle or {})
+        detalle["datos_generales_axia"] = {
+            "supervisor": var_supervisor.get().strip(),
+            "encargado_proyecto": var_encargado_proyecto.get().strip(),
+            "tecnico": var_tecnico.get().strip(),
+        }
+        detalle["recursos_proyectados"] = {
+            "dias_trabajo": var_dias_trabajo_general.get().strip(),
+            "personas_considerar": var_personas_considerar_general.get().strip(),
+        }
+        if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS:
             detalle["canalizacion_materiales"] = obtener_canalizacion_materiales_json()
             detalle["equipos_principales"] = obtener_equipos_catalogo_json()
             detalle["materiales_miscelaneos"] = obtener_materiales_miscelaneos_json()
@@ -3515,8 +3822,11 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             "lev_tipo_levantamiento": tipo_levantamiento or var_tipo.get().strip(),
             "lev_modalidad_operativa": modalidad,
             "lev_aco_numero": var_aco.get().strip(),
-            "lev_fecha_programada": var_fecha_programada.get().strip() or None,
+            "lev_fecha_programada": _fecha_levantamiento_iso(),
             "lev_cliente": var_cliente.get().strip(),
+            "id_cliente": seleccion_catalogo.get("id_cliente") or (datos_aco.get("id_cliente") if aco else None),
+            "id_sucursal": seleccion_catalogo.get("id_sucursal"),
+            "id_contacto": seleccion_catalogo.get("id_contacto"),
             "lev_contacto": var_contacto.get().strip(),
             "lev_correo": var_correo.get().strip(),
             "lev_telefono": var_telefono.get().strip(),
@@ -3524,6 +3834,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             "lev_ubicacion": var_ubicacion.get().strip(),
             "lev_tecnico": var_tecnico.get().strip(),
             "lev_supervisor": var_supervisor.get().strip(),
+            "lev_dias_trabajo": var_dias_trabajo_general.get().strip(),
+            "lev_personas_considerar": var_personas_considerar_general.get().strip(),
             "lev_estatus": var_estatus.get().strip(),
             "lev_prioridad": var_prioridad.get().strip(),
             "lev_descripcion": txt_descripcion.get("1.0", "end").strip(),
@@ -3531,6 +3843,16 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             "lev_descripcion_fallas": descripcion_fallas,
             "lev_detalle_tecnico_json": json.dumps(detalle, ensure_ascii=False) if detalle else "",
             "lev_equipos_danados_json": json.dumps(equipos_danados, ensure_ascii=False) if equipos_danados else "",
+            # El preview usa esta misma estructura que el PDF definitivo.
+            # Sin este campo el renderer maestro no recibe el croquis capturado
+            # antes de guardar en Supabase.
+            "lev_anotacion_plano_json": json.dumps({
+                "habilitado": var_desea_anotacion_plano.get() == "Sí",
+                "imagen_base64": var_anotacion_plano_base64.get().strip()
+                if var_desea_anotacion_plano.get() == "Sí" else "",
+            }, ensure_ascii=False),
+            "lev_evidencias_json": "[]",
+            "__evidencias_locales": list(evidencias_levantamiento) if var_desea_evidencias.get() == "Sí" else [],
         }
 
     def configuracion_pdf_levantamiento():
@@ -3550,6 +3872,183 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         )
 
     # =================================================
+    # MODO EDICIÓN: RECARGAR EL FORMULARIO ORIGINAL
+    # =================================================
+    def _json_dict(valor):
+        if isinstance(valor, dict):
+            return valor
+        if isinstance(valor, str) and valor.strip():
+            try:
+                dato = json.loads(valor)
+                return dato if isinstance(dato, dict) else {}
+            except Exception:
+                return {}
+        return {}
+
+    def _json_list(valor):
+        if isinstance(valor, list):
+            return valor
+        if isinstance(valor, str) and valor.strip():
+            try:
+                dato = json.loads(valor)
+                return dato if isinstance(dato, list) else []
+            except Exception:
+                return []
+        return []
+
+    def _cargar_registro_edicion():
+        """Rellena el mismo formulario de captura con el registro persistido."""
+        if not registro_editar:
+            return
+        import inspect
+        registro = dict(registro_editar or {})
+        detalle = _json_dict(registro.get("lev_detalle_tecnico_json"))
+
+        # Datos generales.
+        reversa_tipo = {1:"Técnico", 2:"Comercial", 3:"Infraestructura", 4:"Seguridad", 5:"Energía", 6:"Otro"}
+        reversa_estatus = {1:"Pendiente", 2:"En proceso", 3:"Realizado", 4:"Cancelado"}
+        reversa_prioridad = {1:"Baja", 2:"Media", 3:"Alta", 4:"Urgente"}
+        # Tkinter Variable (StringVar/IntVar/etc.) no es hashable, por lo que
+        # no puede utilizarse como llave de un dict. Usamos pares (variable, valor).
+        comunes = [
+            (var_folio, registro.get("lev_folio")), (var_aco, registro.get("lev_aco_numero")),
+            (var_cliente, registro.get("lev_cliente")), (var_cliente_selector, registro.get("lev_cliente")),
+            (var_sucursal, registro.get("lev_ubicacion")), (var_encargado_sucursal, registro.get("lev_contacto")),
+            (var_contacto, registro.get("lev_contacto")), (var_telefono, registro.get("lev_telefono")),
+            (var_correo, registro.get("lev_correo")), (var_direccion, registro.get("lev_direccion")),
+            (var_ubicacion, registro.get("lev_ubicacion")), (var_tecnico, registro.get("lev_tecnico")),
+            (var_supervisor, registro.get("lev_supervisor")), (var_fecha_programada, _fecha_levantamiento_visible(registro.get("lev_fecha_programada"))),
+            (var_fecha_realizacion, registro.get("lev_fecha_realizacion")),
+            (var_dias_trabajo_general, registro.get("lev_dias_trabajo")),
+            (var_personas_considerar_general, registro.get("lev_personas_considerar")),
+            (var_tipo, reversa_tipo.get(registro.get("lev_tipo"), registro.get("lev_tipo") or var_tipo.get())),
+            (var_estatus, reversa_estatus.get(registro.get("lev_estatus"), registro.get("lev_estatus") or var_estatus.get())),
+            (var_prioridad, reversa_prioridad.get(registro.get("lev_prioridad"), registro.get("lev_prioridad") or var_prioridad.get())),
+            (var_modalidad_levantamiento, registro.get("lev_modalidad_operativa") or detalle.get("modalidad_operativa") or var_modalidad_levantamiento.get()),
+        ]
+        generales_axia = detalle.get("datos_generales_axia") if isinstance(detalle.get("datos_generales_axia"), dict) else {}
+        comunes.append((var_encargado_proyecto, generales_axia.get("encargado_proyecto") or registro.get("lev_encargado_proyecto")))
+        for variable, valor in comunes:
+            if valor not in (None, ""):
+                variable.set(str(valor))
+
+        # Textos generales.
+        for box, valor in ((txt_descripcion, registro.get("lev_descripcion")), (txt_observaciones, registro.get("lev_observaciones"))):
+            box.delete("1.0", "end")
+            box.insert("1.0", str(valor or ""))
+
+        # Anotación y evidencias existentes.
+        anotacion = _json_dict(registro.get("lev_anotacion_plano_json"))
+        if anotacion.get("habilitado") or anotacion.get("imagen_base64"):
+            var_desea_anotacion_plano.set("Sí")
+            var_anotacion_plano_base64.set(str(anotacion.get("imagen_base64") or ""))
+        evidencias_existentes = _json_list(registro.get("lev_evidencias_json"))
+        if evidencias_existentes:
+            var_desea_evidencias.set("Sí")
+
+        # Aplana el detalle técnico y usa los nombres de las variables del formulario
+        # para restaurar todos los campos especializados sin duplicar cada formulario.
+        hojas = {}
+        def recorrer(obj):
+            if isinstance(obj, dict):
+                for k, v in obj.items():
+                    if isinstance(v, (dict, list)):
+                        recorrer(v)
+                    elif v not in (None, ""):
+                        hojas.setdefault(str(k), v)
+        recorrer(detalle)
+        alias = {
+            "requiere_calculo":"requiere_calculo_termico", "marca_modelo":"marca_modelo_sugerido",
+            "alimentacion_disponible":"alimentacion_electrica_disponible", "breaker_disponible":"breaker_proteccion_disponible",
+            "perforaciones":"requiere_perforaciones", "ruta_tuberia":"ruta_tuberia_canaleta",
+            "tuberia_cobre_m":"tuberia_cobre_metros", "cableado_m":"cableado_electrico_metros",
+            "drenaje_m":"drenaje_metros", "canaleta_m":"canaleta_metros", "requiere_permiso":"requiere_permiso_sitio",
+            "requiere_escalera":"requiere_escalera_andamio", "proteccion_area":"proteger_area",
+            "limpieza_entrega":"entrega_limpia", "cantidad_nodos":"cantidad_nodos_datos",
+            "cantidad_telefonia":"cantidad_puntos_voz", "acceso":"acceso_instalacion", "riesgo":"nivel_riesgo",
+            "ubicacion_rack":"ubicacion_rack_gabinete", "contacto_regulado":"contacto_regulado",
+            "detalle_contacto":"detalle_contacto_regulado", "detalle_tierra":"detalle_tierra_fisica",
+            "capacidad":"capacidad_estimada", "maniobra":"requiere_maniobra_grua", "permisos":"requiere_permisos",
+            "tanque":"tipo_tanque", "autonomia":"autonomia_estimada", "ruta_escape":"ruta_escape_gases",
+            "protecciones":"protecciones_electricas", "entrega_manual":"entrega_manual_capacitacion",
+            "area":"area_trabajo", "carga_estimacion":"carga_estimada", "desenergizar":"requiere_desenergizar",
+            "prueba_voltaje":"medicion_voltaje", "etiquetado":"etiquetado_circuitos",
+        }
+        marco_local = inspect.currentframe().f_back.f_locals
+        prefijos = ("var_aa_", "var_rvd_", "var_pe_", "var_ele_", "var_cctv_", "var_infra_", "var_rep_")
+        for nombre, variable in list(marco_local.items()):
+            if not nombre.startswith(prefijos) or not hasattr(variable, "set"):
+                continue
+            clave = next((nombre[len(p):] for p in prefijos if nombre.startswith(p)), nombre[4:])
+            clave = alias.get(clave, clave)
+            if clave in hojas:
+                variable.set(str(hojas[clave]))
+        for clave, variable in vars_extra.items():
+            if clave in hojas:
+                variable.set(str(hojas[clave]))
+
+        # Listas dinámicas que forman parte del formulario original.
+        for fila in detalle.get("canalizacion_materiales", []) if isinstance(detalle.get("canalizacion_materiales"), list) else []:
+            try:
+                agregar_partida_canalizacion(str(fila.get("categoria") or "Tubo"))
+                item = canalizacion_materiales_items[-1]
+                for k, destino in (("categoria","categoria"),("tipo","tipo"),("tamano_calibre_especificacion","extra"),("cantidad","cantidad"),("unidad","unidad")):
+                    if k in fila and destino in item:
+                        item[destino].set(str(fila.get(k) or ""))
+            except Exception:
+                logger.debug("No fue posible restaurar una partida de canalización.", exc_info=True)
+        for fila in detalle.get("equipos_principales", []) if isinstance(detalle.get("equipos_principales"), list) else []:
+            try:
+                agregar_equipo_catalogo(); item = equipos_catalogo_items[-1]
+                for k in ("familia","subfamilia","cantidad","marca","modelo","caracteristicas"):
+                    if k in fila and k in item: item[k].set(str(fila.get(k) or ""))
+            except Exception:
+                logger.debug("No fue posible restaurar un equipo principal.", exc_info=True)
+        for fila in detalle.get("materiales_miscelaneos", []) if isinstance(detalle.get("materiales_miscelaneos"), list) else []:
+            try:
+                agregar_material_miscelaneo({"nombre": fila.get("material", ""), "categoria": fila.get("categoria", "Otro"), "unidad": fila.get("unidad", "Pieza(s)")})
+                item = materiales_miscelaneos_items[-1]
+                for k in ("material","categoria","cantidad","unidad","especificacion"):
+                    if k in fila and k in item: item[k].set(str(fila.get(k) or ""))
+            except Exception:
+                logger.debug("No fue posible restaurar un material misceláneo.", exc_info=True)
+
+        # Equipos dañados de Seguridad/Reparación.
+        equipos_danados_guardados = _json_list(registro.get("lev_equipos_danados_json"))
+        if equipos_danados_guardados:
+            try:
+                marco_local = inspect.currentframe().f_back.f_locals
+                agregar_danado = marco_local.get("agregar_equipo_danado")
+                frame_danados = marco_local.get("frame_equipos_danados") or marco_local.get("seccion_rep_equipos")
+                coleccion_danados = marco_local.get("equipos_danados_items")
+                if callable(agregar_danado) and frame_danados is not None and isinstance(coleccion_danados, list):
+                    # Si el formulario creó una fila vacía por defecto, reutilízala primero.
+                    while len(coleccion_danados) < len(equipos_danados_guardados):
+                        agregar_danado(frame_danados, coleccion_danados)
+                    for item, fila in zip(coleccion_danados, equipos_danados_guardados):
+                        item["tipo"].set(str(fila.get("tipo_equipo") or fila.get("tipo") or "Cámara"))
+                        item["marca"].set(str(fila.get("marca") or ""))
+                        item["modelo"].set(str(fila.get("modelo") or ""))
+                        item["serie"].set(str(fila.get("numero_serie") or fila.get("serie") or ""))
+            except Exception:
+                logger.debug("No fue posible restaurar los equipos dañados.", exc_info=True)
+
+        # Campos de reparación que viven fuera del detalle principal.
+        if registro.get("lev_descripcion_fallas"):
+            try:
+                txt_rep_descripcion_fallas.delete("1.0", "end")
+                txt_rep_descripcion_fallas.insert("1.0", str(registro.get("lev_descripcion_fallas") or ""))
+            except Exception:
+                pass
+        try:
+            actualizar_estado_anotacion_plano()
+            actualizar_estado_evidencias()
+        except Exception:
+            pass
+
+    _cargar_registro_edicion()
+
+    # =================================================
     # FUNCIÓN: guardar_levantamiento()
     # =================================================
 
@@ -3559,6 +4058,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         """
 
         folio = ""
+        evidencias_previas = _json_list((registro_editar or {}).get("lev_evidencias_json")) if registro_editar else []
+        if var_desea_evidencias.get() == "Sí" and not evidencias_levantamiento and not evidencias_previas:
+            messagebox.showwarning("Evidencia fotográfica", "Seleccionaste Sí. Agrega al menos una fotografía antes de guardar.")
+            return
         cliente = var_cliente.get().strip()
         aco_numero = var_aco.get().strip()
         descripcion = txt_descripcion.get("1.0", "end").strip()
@@ -3609,9 +4112,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
 
         datos = {
             "id_aco": datos_aco.get("id_aco") if aco else None,
-            "id_sucursal": datos_aco.get("id_sucursal") if aco else None,
-            "id_contacto": datos_aco.get("id_contacto") if aco else None,
+            "id_sucursal": seleccion_catalogo.get("id_sucursal") or (datos_aco.get("id_sucursal") if aco else None),
+            "id_contacto": seleccion_catalogo.get("id_contacto") or (datos_aco.get("id_contacto") if aco else None),
             "lev_aco_numero": aco_numero,
+            "id_cliente": seleccion_catalogo.get("id_cliente") or (datos_aco.get("id_cliente") if aco else None),
             "lev_cliente": cliente,
             "lev_folio": folio,
             "lev_tipo": convertir_tipo(var_tipo.get()),
@@ -3627,14 +4131,25 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             "lev_observaciones": observaciones,
             "lev_tecnico": var_tecnico.get().strip(),
             "lev_supervisor": var_supervisor.get().strip(),
-            "lev_fecha_programada": var_fecha_programada.get().strip() or None,
+            "lev_dias_trabajo": int(var_dias_trabajo_general.get().strip()),
+            "lev_personas_considerar": int(var_personas_considerar_general.get().strip()),
+            "lev_fecha_programada": _fecha_levantamiento_iso(),
             "lev_fecha_realizacion": None,
+            "lev_anotacion_plano_json": json.dumps({
+                "habilitado": var_desea_anotacion_plano.get() == "Sí",
+                "imagen_base64": var_anotacion_plano_base64.get().strip() if var_desea_anotacion_plano.get() == "Sí" else "",
+            }, ensure_ascii=False),
+            "lev_evidencias_json": "[]",
             "creado_por": usuario_activo.get("usuario")
         }
 
         if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS:
             modalidad_operativa = (var_modalidad_levantamiento.get().strip() or "Instalación") if tipo_levantamiento == "Seguridad y Monitoreo" else "Instalación"
             detalle_tecnico = obtener_detalle_tecnico_json()
+            detalle_tecnico["recursos_proyectados"] = {
+                "dias_trabajo": var_dias_trabajo_general.get().strip(),
+                "personas_considerar": var_personas_considerar_general.get().strip(),
+            }
             detalle_tecnico["canalizacion_materiales"] = obtener_canalizacion_materiales_json()
             detalle_tecnico["equipos_principales"] = obtener_equipos_catalogo_json()
             detalle_tecnico["materiales_miscelaneos"] = obtener_materiales_miscelaneos_json()
@@ -3651,24 +4166,67 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
                 "lev_descripcion_fallas": descripcion_fallas,
             })
 
-        resultado = crear_levantamiento(datos)
+        folio_origen_revision = ""
+        if registro_editar:
+            # Una modificación genera una NUEVA VERSIÓN del levantamiento.
+            # El registro y folio originales permanecen intactos para conservar
+            # trazabilidad histórica y permitir comparar propuestas/versiones.
+            id_levantamiento_edicion = registro_editar.get("id_levantamiento")
+            if not id_levantamiento_edicion:
+                messagebox.showerror("No se pudo guardar", "El levantamiento no contiene id_levantamiento.")
+                return
+            folio_origen_revision = str(registro_editar.get("lev_folio") or "").strip().upper()
+
+            # Forzamos a crear_levantamiento() a solicitar un LEV nuevo mediante
+            # la RPC centralizada de Supabase. Nunca reutilizamos el folio origen.
+            datos["lev_folio"] = ""
+            for campo_id in ("id_aco", "id_cliente", "id_sucursal", "id_contacto"):
+                if datos.get(campo_id) in (None, ""):
+                    datos[campo_id] = registro_editar.get(campo_id)
+            datos["lev_fecha_realizacion"] = registro_editar.get("lev_fecha_realizacion")
+            datos["lev_evidencias_json"] = registro_editar.get("lev_evidencias_json") or "[]"
+            datos["creado_por"] = usuario_activo.get("usuario")
+            datos.pop("actualizado_por", None)
+            resultado = crear_levantamiento(datos)
+        else:
+            resultado = crear_levantamiento(datos)
 
         if resultado:
-            registro_creado = resultado[0] if isinstance(resultado, list) and resultado else {}
+            registro_creado = resultado[0] if isinstance(resultado, list) and resultado else dict(registro_editar or {})
             folio = str(registro_creado.get("lev_folio") or "").strip().upper()
             if not folio:
                 show_operation_error("Error al guardar", "Recuperar folio del levantamiento guardado")
                 return
             var_folio.set(folio)
 
+            evidencias_subidas = []
+            if var_desea_evidencias.get() == "Sí" and evidencias_levantamiento:
+                try:
+                    evidencias_subidas = subir_evidencias_levantamiento(folio, evidencias_levantamiento)
+                    if not evidencias_subidas:
+                        raise RuntimeError("Supabase no confirmó la carga de las fotografías.")
+                    id_levantamiento = registro_creado.get("id_levantamiento")
+                    if not id_levantamiento or actualizar_evidencias_levantamiento(id_levantamiento, evidencias_subidas) is None:
+                        raise RuntimeError("No fue posible asociar las fotografías al levantamiento.")
+                    registro_creado["lev_evidencias_json"] = json.dumps(evidencias_subidas, ensure_ascii=False)
+                except Exception as error:
+                    show_operation_error("Error al guardar evidencias", "Subir evidencia fotográfica del levantamiento", error)
+                    return
+
             registrar_movimiento(
                 modulo="Levantamientos",
-                accion="CREAR",
-                descripcion=f"El usuario creó el levantamiento {folio}",
+                accion="CREAR_REVISION" if registro_editar else "CREAR",
+                descripcion=(
+                    f"El usuario creó la revisión {folio} a partir de {folio_origen_revision}"
+                    if registro_editar else f"El usuario creó el levantamiento {folio}"
+                ),
                 registro_afectado=folio
             )
 
             registro_pdf = {**registro_pdf_levantamiento(folio), **datos, **registro_creado}
+            registro_pdf["__evidencias_locales"] = list(evidencias_levantamiento) if var_desea_evidencias.get() == "Sí" else []
+            if evidencias_subidas:
+                registro_pdf["lev_evidencias_json"] = json.dumps(evidencias_subidas, ensure_ascii=False)
             ruta_pdf_destino = ruta_documentos_axia("levantamientos") / f"AXIA_{folio}.pdf"
             ruta_pdf = generar_pdf_registro(
                 registro_pdf,
@@ -3678,12 +4236,45 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
             )
             mensaje_pdf = f"\n\nPDF guardado en:\n{ruta_pdf}" if ruta_pdf else "\n\nNo se pudo guardar el PDF local."
 
+            # El correo es una notificación secundaria: una falla SMTP nunca
+            # revierte ni invalida el levantamiento ya guardado en Supabase.
+            if ruta_pdf:
+                resultado_correo = enviar_levantamiento_pdf(
+                    registro_pdf,
+                    ruta_pdf,
+                    actualizado=bool(registro_editar),
+                    usuario=str(usuario_activo.get("usuario") or "").strip(),
+                    folio_origen=folio_origen_revision,
+                )
+                if resultado_correo.sent:
+                    mensaje_correo = "\n\nCorreo: ✓ PDF enviado correctamente."
+                elif resultado_correo.status == "NOT_CONFIGURED":
+                    mensaje_correo = f"\n\nCorreo: ⚠ pendiente de configuración.\n{resultado_correo.detail}"
+                else:
+                    mensaje_correo = f"\n\nCorreo: ⚠ no fue posible enviarlo.\n{resultado_correo.detail}"
+            else:
+                mensaje_correo = "\n\nCorreo: ⚠ no se intentó enviar porque el PDF no pudo generarse."
+
             messagebox.showinfo(
-                "Registro correcto",
-                "El levantamiento fue registrado correctamente." + mensaje_pdf
+                "Nueva versión guardada" if registro_editar else "Registro correcto",
+                (
+                    f"Se conservó {folio_origen_revision} y se creó la nueva versión {folio}."
+                    if registro_editar else "El levantamiento fue registrado correctamente."
+                ) + mensaje_pdf + mensaje_correo
             )
 
-            app.mostrar_vista_inicio_aco()
+            if callable(on_saved):
+                try:
+                    on_saved({**dict(registro_editar or {}), **datos, **registro_creado, "lev_folio": folio})
+                except Exception:
+                    logger.exception("No fue posible ejecutar on_saved después de editar el levantamiento.")
+            if modal:
+                try:
+                    parent.winfo_toplevel().destroy()
+                except Exception:
+                    pass
+            else:
+                app.mostrar_vista_inicio_aco()
 
         else:
             show_operation_error(
@@ -3695,27 +4286,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
     # BOTONES FIJOS
     # =================================================
 
-    # Reordenamos el pack para que la botonera quede siempre reservada
-    # al pie, incluso cuando existe panel ACO superior y el formulario crece.
-    try:
-        card.pack_forget()
-    except Exception:
-        logger.debug("Excepción recuperable controlada.", exc_info=True)
-
-    frame_botones = ctk.CTkFrame(
-        contenedor,
-        fg_color="#F4F4F4",
-        height=58,
-        corner_radius=0
-    )
-    frame_botones.pack(side="bottom", fill="x", pady=(0, 0))
-
-    card.pack(
-        side="top",
-        fill="both",
-        expand=True,
-        pady=(0, 4)
-    )
+    # La barra inferior ya fue reservada antes de empaquetar el área
+    # desplazable; aquí solamente agregamos sus controles.
 
     barra_botones = ctk.CTkFrame(frame_botones, fg_color="transparent")
     barra_botones.pack(anchor="center", pady=4)
@@ -3729,12 +4301,12 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         fg_color="#64748B",
         hover_color="#475569",
         font=BUTTON_FONT,
-        command=app.volver_atras
+        command=(parent.winfo_toplevel().destroy if modal else app.volver_atras)
     ).grid(row=0, column=0, padx=4)
 
     btn_guardar_levantamiento = ctk.CTkButton(
         barra_botones,
-        text="💾 Guardar Levantamiento",
+        text="💾 Guardar Nueva Versión" if registro_editar else "💾 Guardar Levantamiento",
         width=210,
         height=38,
         corner_radius=10,
@@ -3775,6 +4347,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
 
     variables_preview = [
         var_folio, var_cliente, var_modalidad_levantamiento,
+        var_dias_trabajo_general, var_personas_considerar_general,
+        var_desea_anotacion_plano, var_anotacion_plano_base64, var_desea_evidencias,
         var_cctv_cantidad_camaras, var_cctv_dias_retencion,
         var_cctv_personas_considerar, var_cctv_ubicacion_nvr, var_cctv_punto_red,
         var_cctv_punto_energia, var_escalera_requerida, var_altura_trabajo,
@@ -3834,7 +4408,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None):
         corner_radius=10,
         fg_color="gray",
         font=BUTTON_FONT,
-        command=app.mostrar_vista_inicio_aco
+        command=(parent.winfo_toplevel().destroy if modal else app.mostrar_vista_inicio_aco)
     ).grid(row=0, column=3, padx=4)
 
     enfocar_inicio_formulario(card)

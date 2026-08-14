@@ -29,3 +29,10 @@ def test_matriz_de_permisos_acordada():
 def test_tipo_invalido_falla_cerrado():
     assert obtener_tipo_usuario({"usu_tipo": 99}) is None
     assert not puede_generar_levantamiento({"usu_tipo": 99})
+
+
+def test_administrador_tiene_acceso_total_en_matriz():
+    """El rol 1 es superusuario funcional: no debe quedar excluido de ninguna capacidad."""
+    permisos_admin = matriz_permisos()[1]
+    assert permisos_admin
+    assert all(permisos_admin.values()), permisos_admin

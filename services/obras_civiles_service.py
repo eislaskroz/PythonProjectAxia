@@ -12,7 +12,7 @@ from services.search_service import buscar_parcial_supabase
 
 logger = configurar_logger(__name__)
 TABLA_OBRAS_CIVILES = "db_obras_civiles"
-COLUMNAS_OBRAS_CIVILES = "id_obra_civil,obc_aco_numero,obc_cliente,obc_contacto,obc_direccion,obc_ejecucion_json,obc_entrega_formal,obc_estatus,obc_etapa_acabados,obc_evidencias_json,obc_fecha,obc_fecha_entrega,obc_firma_cliente_base64,obc_firma_tecnico_base64,obc_folio,obc_generacion_planos,obc_nombre_proyecto,obc_obra_blanca,obc_observaciones_finales,obc_observaciones_iniciales,obc_permisos,obc_planos_acabados,obc_planos_arquitectonicos,obc_preentrega_observaciones,obc_preentrega_resultado,obc_pruebas_observaciones,obc_pruebas_resultado,obc_requiere_maquinaria,obc_responsable_axia,obc_sucursal,obc_superficie_adecuada,obc_superficie_disponible,obc_supervisor,obc_tipo_giro,fecha_registro"
+COLUMNAS_OBRAS_CIVILES = "id_obra_civil,obc_aco_numero,obc_anotacion_plano_json,obc_cliente,obc_contacto,obc_direccion,obc_ejecucion_json,obc_entrega_formal,obc_estatus,obc_etapa_acabados,obc_evidencias_json,obc_fecha,obc_fecha_entrega,obc_firma_cliente_base64,obc_firma_tecnico_base64,obc_folio,obc_generacion_planos,obc_nombre_proyecto,obc_obra_blanca,obc_observaciones_finales,obc_observaciones_iniciales,obc_permisos,obc_planos_acabados,obc_planos_arquitectonicos,obc_preentrega_observaciones,obc_preentrega_resultado,obc_pruebas_observaciones,obc_pruebas_resultado,obc_requiere_maquinaria,obc_responsable_axia,obc_sucursal,obc_dias_trabajo,obc_personas_considerar,obc_superficie_adecuada,obc_superficie_disponible,obc_supervisor,obc_tipo_giro,fecha_registro"
 
 
 def crear_obra_civil(datos_obra):
@@ -89,3 +89,25 @@ def buscar_obras_civiles(termino, limite=100):
         registro_afectado=f"Coincidencias: {len(resultados)}",
     )
     return resultados
+
+
+def actualizar_evidencias_obra_civil(id_obra_civil, evidencias) -> list | None:
+    """Asocia metadatos de fotografías de Supabase Storage a la obra civil."""
+    try:
+        import json
+        respuesta = (
+            supabase.table(TABLA_OBRAS_CIVILES)
+            .update({"obc_evidencias_json": json.dumps(evidencias or [], ensure_ascii=False)})
+            .eq("id_obra_civil", id_obra_civil)
+            .execute()
+        )
+        registrar_movimiento_seguro(
+            modulo="OBRAS_CIVILES", accion="ACTUALIZAR_EVIDENCIAS",
+            descripcion=f"Se asociaron {len(evidencias or [])} evidencia(s) fotográficas",
+            registro_afectado=id_obra_civil,
+        )
+        return respuesta.data
+    except Exception as error:
+        register_error(error, "Actualizar evidencias de obra civil")
+        logger.exception("No fue posible asociar evidencias a obra civil.")
+        return None

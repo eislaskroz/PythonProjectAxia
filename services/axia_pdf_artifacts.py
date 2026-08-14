@@ -23,7 +23,7 @@ from core.logger import configurar_logger
 
 logger = configurar_logger(__name__)
 
-PDF_RENDERER_VERSION = 15
+PDF_RENDERER_VERSION = 19
 
 
 def _base_dir() -> Path:

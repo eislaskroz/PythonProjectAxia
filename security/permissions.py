@@ -141,17 +141,27 @@ def puede_generar_levantamiento(usuario_activo) -> bool:
 
 
 def puede_convertir_levantamiento_a_orden(usuario_activo) -> bool:
-    """Compatibilidad: solo Administrativo (usu_tipo=5) avanza LEV -> OT."""
+    """Administrador y Administrativo pueden avanzar LEV -> OT."""
+    return _es_rol(usuario_activo, ADMINISTRADOR, ADMINISTRATIVO)
+
+
+def puede_validar_levantamiento_ventas(usuario_activo) -> bool:
+    """La validación previa a Ventas corresponde exclusivamente al rol 5."""
     return _es_rol(usuario_activo, ADMINISTRATIVO)
 
 
 def puede_avanzar_flujo_operativo(usuario_activo) -> bool:
-    """El personal Administrativo controla las transiciones LEV -> OT -> OS."""
-    return _es_rol(usuario_activo, ADMINISTRATIVO)
+    """Administrador y Administrativo controlan las transiciones LEV -> OT -> OS."""
+    return _es_rol(usuario_activo, ADMINISTRADOR, ADMINISTRATIVO)
 
 def puede_generar_orden(usuario_activo) -> bool:
-    """Todos salvo Operador pueden generar órdenes."""
+    """Órdenes de Trabajo administrativas/operativas: todos salvo Operador."""
     return obtener_tipo_usuario(usuario_activo) in ROLES_GESTION_OPERATIVA
+
+
+def puede_generar_orden_servicio(usuario_activo) -> bool:
+    """La Orden de Servicio operativa también puede ser capturada por Operador (usu_tipo=4)."""
+    return obtener_tipo_usuario(usuario_activo) in ROLES_TODOS
 
 
 def puede_ver_bitacoras_operativas(usuario_activo) -> bool:
@@ -178,7 +188,8 @@ def matriz_permisos() -> dict[int, dict[str, bool]]:
             "agregar_levantamiento": tipo in ROLES_TODOS,
             "consultar_procesos": tipo in ROLES_GESTION_OPERATIVA,
             "ordenes": tipo in ROLES_GESTION_OPERATIVA,
-            "convertir_levantamiento_a_orden": tipo == ADMINISTRATIVO,
+            "orden_servicio_operativa": tipo in ROLES_TODOS,
+            "convertir_levantamiento_a_orden": tipo in {ADMINISTRADOR, ADMINISTRATIVO},
             "bitacoras_operativas": tipo in ROLES_TODOS,
             "reportes_operativos": tipo in ROLES_GESTION_OPERATIVA,
             "usuarios": tipo in {ADMINISTRADOR, JEFE_OPERACIONES},

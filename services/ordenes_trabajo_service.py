@@ -16,7 +16,7 @@ from services.folios_service import asegurar_folio
 from services.query_compat import execute_select_compatible
 from services.ordenes_trabajo_schema import (
     TABLE as TABLA_ORDENES_TRABAJO, SELECT_COLUMNS as COLUMNAS_ORDENES_TRABAJO,
-    filter_payload, metadata_item, extract_origin,
+    filter_payload, metadata_item, extract_origin, partidas_desde_detalle_levantamiento,
 )
 
 logger = configurar_logger(__name__)
@@ -512,15 +512,16 @@ def convertir_levantamiento_a_trabajo(levantamiento_original, cambios, usuario_a
             detalle = json.loads(detalle) if detalle else {}
         except Exception:
             detalle = {}
-    partidas = [{
-        "partida": "1", "unidad": "Servicio", "cantidad": "1",
-        "modelo": "", "marca": "", "concepto": descripcion,
-    }]
-    if requerimientos:
-        partidas.append({
-            "partida": "2", "unidad": "Lote", "cantidad": "1",
-            "modelo": "", "marca": "", "concepto": requerimientos,
-        })
+    # La OT conserva las partidas operativas reales del levantamiento para que
+    # su PDF pueda mostrar materiales, equipos y misceláneos en tabla. El texto
+    # descriptivo del LEV permanece en ot_asunto/ot_descripcion y no se duplica
+    # como una fila gigantesca dentro de la tabla.
+    partidas = partidas_desde_detalle_levantamiento(detalle)
+    if not partidas:
+        partidas = [{
+            "partida": "1", "unidad": "Servicio", "cantidad": "1",
+            "modelo": "", "marca": "", "concepto": descripcion,
+        }]
     partidas.append(metadata_item(folio_lev, "lev"))
 
     payload = {
@@ -564,6 +565,20 @@ def convertir_levantamiento_a_trabajo(levantamiento_original, cambios, usuario_a
         descripcion=f"Conversión {folio_lev} -> {numero_aco} -> Orden de Trabajo",
         registro_afectado=(resultado[0].get("ot_folio") if resultado else folio_lev),
     )
+
+    # Conserva automáticamente la Orden de Trabajo en su carpeta dedicada:
+    # Documents/AXIA/ordenes_trabajo.
+    try:
+        from services.operational_document_pdf import guardar_pdf_orden_trabajo
+        registro_ot = dict(payload)
+        if isinstance(resultado, list) and resultado and isinstance(resultado[0], dict):
+            registro_ot.update(resultado[0])
+        guardar_pdf_orden_trabajo(registro_ot)
+    except Exception:
+        # El registro en Supabase ya fue confirmado; una incidencia local de PDF
+        # no debe revertir ni duplicar la conversión. Queda registrada en log.
+        logger.exception("La OT fue creada, pero no se pudo guardar automáticamente su PDF local.")
+
     return resultado
 
 

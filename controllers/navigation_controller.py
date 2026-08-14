@@ -448,7 +448,7 @@ class NavigationController:
 
         def finalizar_ot(record, status, refresh):
             if not puede_convertir_levantamiento_a_orden(obtener_usuario_actual()):
-                messagebox.showerror("Acceso denegado", "Solo el personal Administrativo puede finalizar el servicio desde la Orden de Servicio.")
+                messagebox.showerror("Acceso denegado", "Solo Administrador o personal Administrativo puede finalizar el servicio desde la Orden de Servicio.")
                 return
             if int(record.get("os_estatus") or 0) == 3:
                 messagebox.showinfo("Servicio finalizado", "La Orden de Servicio seleccionada ya se encuentra finalizada.")
@@ -531,7 +531,7 @@ class NavigationController:
 
         def convertir_ot_a_os(record, status, refresh):
             if not puede_convertir_levantamiento_a_orden(obtener_usuario_actual()):
-                messagebox.showerror("Acceso denegado", "Solo el personal Administrativo puede convertir una OT en Orden de Servicio.")
+                messagebox.showerror("Acceso denegado", "Solo Administrador o personal Administrativo puede convertir una OT en Orden de Servicio.")
                 return
             try:
                 resultado = convertir_orden_trabajo_a_servicio(record, obtener_usuario_actual())
@@ -598,7 +598,7 @@ class NavigationController:
             "campos_cliente": ["bit_cliente", "aco_cliente", "cliente"],
             "campos_estatus": ["bit_estatus", "estatus"],
             "campos_fecha": ["bit_fecha", "fecha_registro", "created_at"],
-            "campos_descripcion": ["bit_descripcion", "bit_avance", "descripcion"],
+            "campos_descripcion": ["bit_descripcion", "descripcion"],
         }
 
         from services.ordenes_trabajo_service import buscar_ordenes_trabajo_por_aco

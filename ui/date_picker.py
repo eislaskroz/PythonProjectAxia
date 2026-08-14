@@ -24,8 +24,8 @@ def _ventana_existe(ventana) -> bool:
         return False
 
 
-def abrir_selector_fecha(parent, variable):
-    """Abre un calendario ttk y guarda la selección como YYYY-MM-DD."""
+def abrir_selector_fecha(parent, variable, *, formato_salida="iso"):
+    """Abre un calendario ttk. Por defecto guarda YYYY-MM-DD; opcionalmente DD/MM/YYYY."""
     global _calendario_activo
     if _ventana_existe(_calendario_activo):
         _calendario_activo.lift()
@@ -55,10 +55,13 @@ def abrir_selector_fecha(parent, variable):
     contenedor.pack(fill="both", expand=True)
 
     inicial = date.today()
-    try:
-        inicial = datetime.strptime(variable.get(), "%Y-%m-%d").date()
-    except Exception:
-        pass
+    valor_actual = str(variable.get() or "").strip()
+    for formato in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
+        try:
+            inicial = datetime.strptime(valor_actual, formato).date()
+            break
+        except Exception:
+            continue
 
     if TkCalendar is not None:
         calendario_widget = TkCalendar(
@@ -67,7 +70,7 @@ def abrir_selector_fecha(parent, variable):
             year=inicial.year,
             month=inicial.month,
             day=inicial.day,
-            date_pattern="yyyy-mm-dd",
+            date_pattern="dd/mm/yyyy" if formato_salida == "dd/mm/yyyy" else "yyyy-mm-dd",
             locale="es_MX",
         )
         calendario_widget.pack(fill="both", expand=True)
@@ -103,7 +106,8 @@ def abrir_selector_fecha(parent, variable):
                         ttk.Button(cuerpo, text=str(dia), width=4, command=lambda d=dia: elegir(d)).grid(row=fila, column=col, padx=1, pady=1)
 
         def elegir(dia):
-            variable.set(date(estado["year"], estado["month"], dia).isoformat())
+            seleccion = date(estado["year"], estado["month"], dia)
+            variable.set(seleccion.strftime("%d/%m/%Y") if formato_salida == "dd/mm/yyyy" else seleccion.isoformat())
             cerrar()
 
         def mover(delta):
@@ -124,12 +128,8 @@ def abrir_selector_fecha(parent, variable):
     ventana.geometry(f"+{x}+{y}")
     ventana.focus_force()
 
-def asociar_selector_fecha(entry, parent, variable, *, abrir_con_foco=False):
-    """Homologa el comportamiento de campos fecha en AXIA.
-
-    Al hacer clic abre el selector y conserva el valor en formato ISO YYYY-MM-DD.
-    Devuelve el entry para permitir uso encadenado desde helpers de formulario.
-    """
+def asociar_selector_fecha(entry, parent, variable, *, abrir_con_foco=False, formato_salida="iso"):
+    """Homologa campos fecha. El formato por defecto sigue siendo ISO para compatibilidad."""
     if entry is None:
         return entry
 
@@ -140,7 +140,7 @@ def asociar_selector_fecha(entry, parent, variable, *, abrir_con_foco=False):
                 return None
         except Exception:
             pass
-        abrir_selector_fecha(parent, variable)
+        abrir_selector_fecha(parent, variable, formato_salida=formato_salida)
         return "break"
 
     entry.bind("<Button-1>", _abrir, add="+")

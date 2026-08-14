@@ -58,6 +58,7 @@ from security.permissions import (
     puede_crear_aco,
     puede_generar_levantamiento,
     puede_generar_orden,
+    puede_generar_orden_servicio,
     puede_generar_bitacora
 )
 
@@ -97,16 +98,14 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     )
 
     # =================================================
-    # PANEL SUPERIOR DERECHO
+    # PANEL SUPERIOR: ACCESO ACO + VALIDACIÓN + LEVANTAMIENTO
     # =================================================
 
     panel_superior = ctk.CTkFrame(
         parent,
-        height=112,
+        height=150,
         fg_color="transparent"
     )
-    # Se integra al flujo normal del layout para que no desaparezca al usar
-    # otras resoluciones o escalas de Windows.
     panel_superior.pack(
         fill="x",
         padx=18,
@@ -114,30 +113,106 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     )
     panel_superior.pack_propagate(False)
 
+    # Tres zonas equilibradas en una sola franja superior.
+    panel_superior.grid_columnconfigure(0, weight=4)
+    panel_superior.grid_columnconfigure(1, weight=3)
+    panel_superior.grid_columnconfigure(2, weight=3)
+    panel_superior.grid_rowconfigure(0, weight=1)
+
+    panel_aco_opciones = ctk.CTkFrame(panel_superior, fg_color="transparent")
+    panel_aco_opciones.grid(row=0, column=0, sticky="nsew", padx=(0, 14))
+
     ctk.CTkLabel(
-        panel_superior,
+        panel_aco_opciones,
         text="¿Tienes ACO asignado?",
         font=TITLE_MD,
         text_color=TEXT_PRIMARY
-    ).pack(
-        pady=(0, 1)
-    )
+    ).pack(pady=(2, 1))
 
     ctk.CTkLabel(
-        panel_superior,
+        panel_aco_opciones,
         text="El ACO conecta levantamientos, órdenes de servicio y bitácoras operativas.",
         font=TEXT_MD,
         text_color=TEXT_SECONDARY,
         justify="center"
-    ).pack(
-        pady=(0, 4)
+    ).pack(pady=(0, 7))
+
+    frame_botones = ctk.CTkFrame(panel_aco_opciones, fg_color="transparent")
+    frame_botones.pack()
+
+    # Centro: validación del ACO siempre visible para evitar un segundo bloque
+    # vertical y aprovechar mejor el ancho disponible.
+    panel_validar_aco = ctk.CTkFrame(panel_superior, fg_color="transparent")
+    panel_validar_aco.grid(row=0, column=1, sticky="nsew", padx=14)
+
+    ctk.CTkLabel(
+        panel_validar_aco,
+        text="Captura el número de ACO",
+        font=TITLE_MD,
+        text_color=TEXT_PRIMARY
+    ).pack(pady=(2, 7))
+
+    var_aco_superior = ctk.StringVar()
+    var_aco_superior.trace_add(
+        "write", lambda *_: normalizar_aco_visual(var_aco_superior)
     )
 
-    frame_botones = ctk.CTkFrame(
-        panel_superior,
-        fg_color="transparent"
+    entry_aco_top = ctk.CTkEntry(
+        panel_validar_aco,
+        textvariable=var_aco_superior,
+        width=360,
+        height=42,
+        corner_radius=12,
+        placeholder_text="Ejemplo: ACO-0001"
     )
-    frame_botones.pack()
+    entry_aco_top.pack(pady=(0, 7))
+
+    btn_validar_aco_top = ctk.CTkButton(
+        panel_validar_aco,
+        text="Validar ACO",
+        width=180,
+        height=40,
+        corner_radius=12,
+        fg_color=SECONDARY,
+        hover_color=BUTTON_HOVER,
+        font=BUTTON_FONT,
+        command=lambda: validar_aco_superior()
+    )
+    btn_validar_aco_top.pack()
+
+    # Derecha: levantamiento independiente de permisos/estado del ACO.
+    acceso_levantamiento = ctk.CTkFrame(panel_superior, fg_color="transparent")
+    acceso_levantamiento.grid(row=0, column=2, sticky="nsew", padx=(14, 0))
+
+    ctk.CTkLabel(
+        acceso_levantamiento,
+        text="Generar levantamiento",
+        font=TITLE_MD,
+        text_color=TEXT_PRIMARY
+    ).pack(pady=(10, 7))
+
+    def abrir_selector_levantamiento_directo():
+        registrar_movimiento(
+            modulo="Levantamientos",
+            accion="INICIAR_SIN_ACO",
+            descripcion=(
+                "El usuario inició un levantamiento desde la pantalla ACO "
+                "sin requerir un ACO previamente validado"
+            )
+        )
+        app.mostrar_vista_selector_levantamiento(aco=None)
+
+    ctk.CTkButton(
+        acceso_levantamiento,
+        text="Generar levantamiento",
+        width=220,
+        height=40,
+        corner_radius=12,
+        fg_color=SECONDARY,
+        hover_color=BUTTON_HOVER,
+        font=BUTTON_FONT,
+        command=abrir_selector_levantamiento_directo
+    ).pack()
 
     # =================================================
     # PANEL DINÁMICO PRINCIPAL
@@ -180,101 +255,8 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     # =================================================
 
     def mostrar_busqueda_aco():
-        """
-        Muestra formulario para validar un ACO existente.
-        """
-
-        limpiar_frame(panel_dinamico)
-
-        ctk.CTkLabel(
-            panel_dinamico,
-            text="Captura el número de ACO",
-            font=TITLE_MD,
-            text_color=TEXT_PRIMARY
-        ).pack(
-            pady=(18, 4)
-        )
-
-        var_aco = ctk.StringVar()
-
-        var_aco.trace_add("write", lambda *_: normalizar_aco_visual(var_aco))
-
-        seleccion_operativa = {
-            "clientes_por_nombre": {},
-            "sucursales_por_nombre": {},
-            "contactos_por_nombre": {},
-            "selector_sucursal": None,
-            "selector_contacto": None,
-            "selector_cliente": None,
-        }
-
-        entry_aco = ctk.CTkEntry(
-            panel_dinamico,
-            textvariable=var_aco,
-            width=360,
-            height=42,
-            corner_radius=12,
-            placeholder_text="Ejemplo: ACO-0001"
-        )
-        entry_aco.pack(
-            pady=(2, 8)
-        )
-
-        def validar_aco():
-            """
-            Valida el ACO capturado contra Supabase.
-            """
-
-            numero_aco = var_aco.get().strip().upper()
-            var_aco.set(numero_aco)
-
-            if not numero_aco:
-                messagebox.showwarning(
-                    "Campo requerido",
-                    "Debes capturar el número de ACO."
-                )
-                return
-
-            def manejar_resultado(aco):
-                if not aco:
-                    messagebox.showerror(
-                        "ACO no encontrado",
-                        "No se encontró ningún ACO con ese número."
-                    )
-                    return
-
-                registrar_movimiento(
-                    modulo="ACO",
-                    accion="VALIDAR",
-                    descripcion=f"El usuario validó el ACO {numero_aco}",
-                    registro_afectado=numero_aco
-                )
-
-                mostrar_opciones_con_aco(aco)
-
-            run_async(
-                root=panel_dinamico.winfo_toplevel(),
-                task=lambda: buscar_aco_por_numero(numero_aco),
-                on_success=manejar_resultado,
-                on_error=lambda error: messagebox.showerror("Error", f"No fue posible validar el ACO.\n\n{error}")
-            )
-
-        entry_aco.bind("<Return>", lambda _event: validar_aco())
-        entry_aco.focus_set()
-
-        ctk.CTkButton(
-            panel_dinamico,
-            text="Validar ACO",
-            width=180,
-            height=42,
-            corner_radius=12,
-            fg_color=SECONDARY,
-            hover_color=BUTTON_HOVER,
-            font=BUTTON_FONT,
-            command=validar_aco
-        ).pack(
-            pady=4
-        )
+        """Lleva el foco al buscador ACO de la franja superior."""
+        entry_aco_top.focus_set()
 
     # =================================================
     # OPCIONES CON ACO VALIDADO
@@ -358,7 +340,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
                 )
             )
 
-        if puede_generar_orden(usuario_activo):
+        if puede_generar_orden_servicio(usuario_activo):
             opciones.append(
                 (
                     "Generar Orden de Servicio",
@@ -366,6 +348,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
                 )
             )
 
+        if puede_generar_orden(usuario_activo):
             opciones.append(
                 (
                     "Generar Orden de Trabajo",
@@ -958,6 +941,47 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             command=mostrar_mensaje_inicial
         ).pack()
 
+    def validar_aco_superior():
+        """Valida el ACO capturado en el panel superior."""
+        numero_aco = var_aco_superior.get().strip().upper()
+        var_aco_superior.set(numero_aco)
+
+        if not numero_aco:
+            messagebox.showwarning(
+                "Campo requerido",
+                "Debes capturar el número de ACO."
+            )
+            entry_aco_top.focus_set()
+            return
+
+        def manejar_resultado(aco):
+            if not aco:
+                messagebox.showerror(
+                    "ACO no encontrado",
+                    "No se encontró ningún ACO con ese número."
+                )
+                return
+
+            registrar_movimiento(
+                modulo="ACO",
+                accion="VALIDAR",
+                descripcion=f"El usuario validó el ACO {numero_aco}",
+                registro_afectado=numero_aco
+            )
+            mostrar_opciones_con_aco(aco)
+
+        run_async(
+            root=panel_dinamico.winfo_toplevel(),
+            task=lambda: buscar_aco_por_numero(numero_aco),
+            on_success=manejar_resultado,
+            on_error=lambda error: messagebox.showerror(
+                "Error",
+                f"No fue posible validar el ACO.\n\n{error}"
+            )
+        )
+
+    entry_aco_top.bind("<Return>", lambda _event: validar_aco_superior())
+
     # =================================================
     # BOTONES SUPERIORES
     # =================================================
@@ -1001,5 +1025,5 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     if aco_validado:
         mostrar_opciones_con_aco(aco_validado)
     else:
-        # El buscador vuelve a mostrarse de forma inmediata al entrar a ACO.
-        mostrar_busqueda_aco()
+        # El buscador ACO ya permanece visible en la franja superior.
+        mostrar_mensaje_inicial()

@@ -373,22 +373,39 @@ class AxiaApp(ctk.CTk):
     # directamente sobre app. Estos wrappers mantienen
     # compatibilidad mientras se migra todo al controlador.
 
+    def _auditar_navegacion(self, destino):
+        try:
+            from services.movimientos_service import registrar_movimiento_seguro
+            registrar_movimiento_seguro(
+                modulo="NAVEGACION", accion="ABRIR_VISTA",
+                descripcion=f"El usuario abrió la vista {destino}",
+                registro_afectado=destino,
+            )
+        except Exception:
+            pass
+
     def volver_atras(self):
+        self._auditar_navegacion("VOLVER_ATRAS")
         self.navigation.volver_atras()
 
     def mostrar_vista_inicio_aco(self):
+        self._auditar_navegacion("Inicio ACO")
         self.navigation.mostrar_inicio_aco()
 
     def mostrar_vista_inicio_aco_validado(self, aco=None):
+        self._auditar_navegacion("Inicio ACO validado")
         self.navigation.mostrar_inicio_aco_validado(aco)
 
     def mostrar_vista_en_construccion(self):
+        self._auditar_navegacion("En construcción")
         self.navigation.mostrar_en_construccion()
 
     def mostrar_vista_selector_levantamiento(self, aco=None):
+        self._auditar_navegacion("Selector de Levantamiento")
         self.navigation.mostrar_selector_levantamiento(aco=aco)
 
     def mostrar_vista_levantamiento(self, aco=None, tipo_levantamiento=None):
+        self._auditar_navegacion(f"Levantamiento: {tipo_levantamiento or 'Selector'}")
         # Si no llega tipo, primero se muestra el selector operativo.
         if tipo_levantamiento is None:
             self.navigation.mostrar_selector_levantamiento(aco=aco)
@@ -396,48 +413,63 @@ class AxiaApp(ctk.CTk):
             self.navigation.mostrar_levantamiento(aco=aco, tipo_levantamiento=tipo_levantamiento)
 
     def mostrar_vista_orden_servicio(self, aco=None):
+        self._auditar_navegacion("Orden de Servicio")
         self.navigation.mostrar_orden_servicio(aco=aco)
 
     def mostrar_vista_orden_trabajo(self, aco=None):
+        self._auditar_navegacion("Orden de Trabajo")
         self.navigation.mostrar_orden_trabajo(aco=aco)
 
     def mostrar_vista_reportes(self):
+        self._auditar_navegacion("Reportes")
         self.navigation.mostrar_reportes()
 
     def mostrar_vista_admin_levantamientos(self):
+        self._auditar_navegacion("Administración Levantamientos")
         self.navigation.mostrar_admin_levantamientos()
 
     def mostrar_vista_admin_ordenes_servicio(self):
+        self._auditar_navegacion("Administración Órdenes de Servicio")
         self.navigation.mostrar_admin_ordenes_servicio()
 
     def mostrar_vista_admin_ordenes_trabajo(self):
+        self._auditar_navegacion("Administración Órdenes de Trabajo")
         self.navigation.mostrar_admin_ordenes_trabajo()
 
     def mostrar_vista_admin_bitacoras(self):
+        self._auditar_navegacion("Administración Bitácoras")
         self.navigation.mostrar_admin_bitacoras()
 
     def mostrar_vista_usuarios(self):
+        self._auditar_navegacion("Usuarios")
         self.navigation.mostrar_usuarios()
 
     def mostrar_vista_clientes(self):
+        self._auditar_navegacion("Clientes")
         self.navigation.mostrar_clientes()
 
     def mostrar_vista_auditoria(self):
+        self._auditar_navegacion("Auditoría")
         self.navigation.mostrar_auditoria()
 
     def mostrar_vista_bitacora_avance(self, aco=None):
+        self._auditar_navegacion("Bitácora de Avance")
         self.navigation.mostrar_bitacora_avance(aco=aco)
 
     def mostrar_vista_obra_civil(self, aco=None):
+        self._auditar_navegacion("Obra Civil")
         self.navigation.mostrar_obra_civil(aco=aco)
 
     def mostrar_vista_admin_obras_civiles(self):
+        self._auditar_navegacion("Administración Obra Civil")
         self.navigation.mostrar_admin_obras_civiles()
 
     def mostrar_vista_mi_bitacora(self):
+        self._auditar_navegacion("Mi Bitácora")
         self.navigation.mostrar_mi_usuario()
 
     def mostrar_vista_mi_usuario(self):
+        self._auditar_navegacion("Mi Usuario")
         self.navigation.mostrar_mi_usuario()
 
     def cerrar_sesion(self):

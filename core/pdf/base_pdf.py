@@ -67,6 +67,24 @@ class BasePdfGenerator:
             except Exception:
                 logger.debug("Excepción recuperable controlada.", exc_info=True)
 
+        # Título documental centrado en la parte superior. Solo se aplica a
+        # Levantamientos y Órdenes de Trabajo para conservar intactos los demás
+        # formatos corporativos. El texto visible es homogéneo aunque el título
+        # interno incluya el tipo/modalidad del levantamiento.
+        title_key = str(title or "").strip().casefold()
+        visible_title = None
+        if title_key.startswith("levantamiento"):
+            visible_title = "LEVANTAMIENTOS"
+        elif title_key in {"orden de trabajo", "órden de trabajo", "ordenes de trabajo", "órdenes de trabajo"}:
+            visible_title = "ÓRDENES DE TRABAJO"
+        elif title_key in {"bitácora de avance", "bitacora de avance", "bitácoras de avance", "bitacoras de avance"}:
+            visible_title = "BITÁCORA DE AVANCE"
+
+        if visible_title:
+            canvas.setFillColor(cls.PRIMARY)
+            canvas.setFont("Helvetica-Bold", 13)
+            canvas.drawCentredString(width / 2, height - 88, visible_title)
+
         # Número de página sobre la franja inferior, sin duplicar datos del fondo.
         canvas.setFillColor(cls.TEXT)
         canvas.setFont("Helvetica", 6.5)

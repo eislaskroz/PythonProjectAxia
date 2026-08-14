@@ -8,10 +8,12 @@ from app_context import obtener_usuario_actual
 from ui.date_picker import asociar_selector_fecha
 from core.background_tasks import run_async
 from core.logger import configurar_logger
-from security.permissions import puede_convertir_levantamiento_a_orden
+from security.permissions import puede_convertir_levantamiento_a_orden, puede_validar_levantamiento_ventas
 from services.levantamientos_service import obtener_levantamientos, buscar_levantamientos, actualizar_levantamiento
 from services.ordenes_trabajo_service import convertir_levantamiento_a_trabajo, buscar_orden_trabajo_por_levantamiento
 from services.pdf_registro_service import generar_pdf_registro
+from services.mail_service import enviar_levantamiento_validacion_ventas
+from views.formato_helpers import ruta_documentos_axia
 from ui.colors import WHITE, TEXT_PRIMARY, TEXT_SECONDARY, SECONDARY, BUTTON_HOVER
 from ui.fonts import TITLE_MD, TEXT_MD, TEXT_SM, BUTTON_FONT
 from ui.native_table import NativeTreeTable
@@ -27,12 +29,36 @@ def _valor(registro, *campos, default=""):
     return default
 
 
+
+
+def _tipo_levantamiento_origen(registro):
+    """Obtiene la especialidad original para reabrir exactamente su formulario."""
+    detalle = registro.get("lev_detalle_tecnico_json")
+    if isinstance(detalle, str) and detalle.strip():
+        try:
+            detalle = json.loads(detalle)
+        except Exception:
+            detalle = {}
+    if not isinstance(detalle, dict):
+        detalle = {}
+    tipo = str(detalle.get("tipo_levantamiento") or registro.get("lev_tipo_levantamiento") or "").strip()
+    if tipo:
+        return tipo
+    observaciones = str(registro.get("lev_observaciones") or "")
+    prefijo = "Tipo específico de levantamiento:"
+    if prefijo.lower() in observaciones.lower():
+        linea = next((x for x in observaciones.splitlines() if prefijo.lower() in x.lower()), "")
+        valor = linea.split(":", 1)[-1].split("/", 1)[0].strip()
+        if valor:
+            return valor
+    return None
+
 def mostrar_conversion_orden_servicio(parent, app):
     usuario = obtener_usuario_actual()
     if not puede_convertir_levantamiento_a_orden(usuario):
         messagebox.showerror(
             "Acceso denegado",
-            "Esta función está reservada al personal Administrativo (usu_tipo=5).",
+            "Esta función está disponible para Administrador y personal Administrativo.",
         )
         return
 
@@ -128,7 +154,7 @@ def mostrar_conversion_orden_servicio(parent, app):
     campo("Dirección", "lev_direccion", 4, 0)
     campo("Ubicación", "lev_ubicacion", 4, 1)
     campo("Fecha de realización", "lev_fecha_realizacion", 5, 0)
-    campo("Fecha programada", "lev_fecha_programada", 5, 1)
+    campo("Fecha de Levantamiento", "lev_fecha_programada", 5, 1)
     campo("Supervisor", "lev_supervisor", 6, 0)
     campo("Técnico", "lev_tecnico", 6, 1)
     campo("Tipo de levantamiento", "lev_tipo", 7, 0)
@@ -164,6 +190,10 @@ def mostrar_conversion_orden_servicio(parent, app):
         # El folio siempre es de solo lectura.
         btn_editar.configure(state="disabled" if habilitado else ("normal" if seleccionado.get("registro") else "disabled"))
         btn_guardar.configure(state="normal" if habilitado else "disabled")
+        if habilitado:
+            btn_validar.configure(state="disabled")
+        elif seleccionado.get("registro") and puede_validar_levantamiento_ventas(usuario):
+            btn_validar.configure(state="normal")
         if seleccionado.get("registro"):
             lbl_estado.configure(
                 text=("Modo edición habilitado. Guarda los cambios antes de continuar." if habilitado
@@ -209,14 +239,16 @@ def mostrar_conversion_orden_servicio(parent, app):
             registro.get("lev_folio"), registro.get("id_levantamiento")
         )
         btn_preview.configure(state="normal")
+        btn_validar.configure(state="normal" if puede_validar_levantamiento_ventas(usuario) else "disabled")
         _set_modo_edicion(False)
         if existente:
             lbl_estado.configure(text=f"Este levantamiento ya fue convertido en {existente.get('ot_folio', 'una OT')}.", text_color="#B45309")
             btn_convertir.configure(state="disabled")
+            btn_validar.configure(state="disabled")
             btn_editar.configure(state="disabled")
         else:
             lbl_estado.configure(text="Modo consulta. Revisa los datos; usa Editar solo si necesitas realizar cambios.", text_color=TEXT_SECONDARY)
-            btn_convertir.configure(state="normal")
+            btn_convertir.configure(state="disabled")
 
     def filas(registros):
         registros = registros or []
@@ -261,6 +293,58 @@ def mostrar_conversion_orden_servicio(parent, app):
             "lev_detalle_tecnico_json": detalle,
         })
         return cambios
+
+    def abrir_editor_origen():
+        original = seleccionado.get("registro")
+        if not original:
+            messagebox.showwarning("Selecciona un levantamiento", "Primero carga un levantamiento de la tabla.")
+            return
+        existente = buscar_orden_trabajo_por_levantamiento(original.get("lev_folio"), original.get("id_levantamiento"))
+        if existente:
+            messagebox.showinfo("Levantamiento convertido", f"Este levantamiento ya fue convertido en {existente.get('ot_folio', 'una OT')} y ya no puede editarse desde esta etapa.")
+            return
+        tipo_origen = _tipo_levantamiento_origen(original)
+        if not tipo_origen:
+            messagebox.showerror("Formulario no identificado", "No fue posible identificar el tipo original del levantamiento. Revisa el detalle técnico del registro.")
+            return
+
+        ventana = ctk.CTkToplevel(parent.winfo_toplevel())
+        ventana.title(f"Editar {original.get('lev_folio', 'levantamiento')} · {tipo_origen}")
+
+        # El editor se abre al 90 % del área útil de la pantalla. No se maximiza:
+        # así dejamos un margen visual alrededor de la ventana y, sobre todo,
+        # conservamos siempre visible la barra inferior con Guardar Cambios.
+        # El formulario de levantamiento ya usa CTkScrollableFrame, por lo que
+        # cualquier contenido que exceda la altura disponible se recorre con scroll.
+        ventana.update_idletasks()
+        screen_w = max(1, ventana.winfo_screenwidth())
+        screen_h = max(1, ventana.winfo_screenheight())
+        modal_w = max(980, int(screen_w * 0.90))
+        modal_h = max(620, int(screen_h * 0.90))
+        modal_w = min(modal_w, screen_w)
+        modal_h = min(modal_h, screen_h)
+        pos_x = max(0, (screen_w - modal_w) // 2)
+        pos_y = max(0, (screen_h - modal_h) // 2)
+        ventana.geometry(f"{modal_w}x{modal_h}+{pos_x}+{pos_y}")
+        ventana.minsize(min(980, modal_w), min(620, modal_h))
+        ventana.transient(parent.winfo_toplevel())
+        ventana.grab_set()
+        host = ctk.CTkFrame(ventana, fg_color="transparent")
+        host.pack(fill="both", expand=True)
+
+        def al_guardar(registro_actualizado):
+            seleccionado["registro"] = dict(registro_actualizado or original)
+            ejecutar_busqueda()
+
+        from views.levantamiento_view import mostrar_levantamiento
+        mostrar_levantamiento(
+            parent=host,
+            app=app,
+            tipo_levantamiento=tipo_origen,
+            registro_editar=original,
+            on_saved=al_guardar,
+            modal=True,
+        )
 
     def guardar_cambios():
         original = seleccionado.get("registro")
@@ -345,7 +429,7 @@ def mostrar_conversion_orden_servicio(parent, app):
             parent.winfo_toplevel(),
             lambda: convertir_levantamiento_a_trabajo(original, cambios, usuario),
             ok,
-            lambda e: (btn_convertir.configure(state="normal"), lbl_estado.configure(text="No se completó la conversión.", text_color="#B91C1C"), messagebox.showerror("Error al convertir", str(e))),
+            lambda e: (btn_convertir.configure(state="disabled"), lbl_estado.configure(text="No se completó la conversión.", text_color="#B91C1C"), messagebox.showerror("Error al convertir", str(e))),
         )
 
     def _registro_levantamiento_para_pdf():
@@ -401,6 +485,78 @@ def mostrar_conversion_orden_servicio(parent, app):
         })
         return original
 
+    def validar_levantamiento_ventas():
+        if not puede_validar_levantamiento_ventas(usuario):
+            messagebox.showerror(
+                "Acceso denegado",
+                "Solo el usuario con rol autorizado (id=5) puede validar levantamientos para Ventas.",
+            )
+            return
+        if not seleccionado.get("registro"):
+            messagebox.showinfo("Selecciona un levantamiento", "Carga primero un levantamiento de la tabla.")
+            return
+        if seleccionado.get("editando"):
+            messagebox.showwarning(
+                "Edición pendiente",
+                "Guarda o finaliza la edición antes de validar el levantamiento.",
+            )
+            return
+        try:
+            registro_pdf = _registro_levantamiento_para_pdf()
+        except Exception as exc:
+            messagebox.showerror("Validar levantamiento", f"No fue posible preparar el levantamiento.\n\n{exc}")
+            return
+
+        folio = str(registro_pdf.get("lev_folio") or "SIN-FOLIO").strip().upper()
+        if not messagebox.askyesno(
+            "Validar levantamiento",
+            f"Se enviará el PDF de {folio} a gte.ventas@axiacomunicaciones.mx para revisión/cotización.\n\n¿Continuar?",
+        ):
+            return
+
+        btn_validar.configure(state="disabled")
+        lbl_estado.configure(text="Generando PDF y enviando levantamiento a Ventas...", text_color=TEXT_SECONDARY)
+
+        def tarea():
+            ruta_pdf_destino = ruta_documentos_axia("levantamientos") / f"AXIA_{folio}.pdf"
+            ruta_pdf = generar_pdf_registro(
+                registro_pdf,
+                {"titulo_pdf": "Levantamientos", "campo_folio": "lev_folio"},
+                ruta_salida=ruta_pdf_destino,
+                abrir=False,
+            )
+            if not ruta_pdf:
+                raise RuntimeError("No fue posible generar el PDF del levantamiento.")
+            resultado = enviar_levantamiento_validacion_ventas(
+                registro_pdf,
+                ruta_pdf,
+                usuario=str(usuario.get("usuario") or usuario.get("nombre") or "").strip(),
+            )
+            if not resultado.sent:
+                raise RuntimeError(resultado.detail or "El servidor de correo no confirmó el envío.")
+            return ruta_pdf
+
+        def ok(_ruta_pdf):
+            btn_validar.configure(state="normal")
+            lbl_estado.configure(
+                text=f"{folio} enviado correctamente a Ventas para validación/cotización.",
+                text_color="#15803D",
+            )
+            messagebox.showinfo(
+                "Levantamiento enviado",
+                f"El levantamiento {folio} fue enviado correctamente a:\n\ngte.ventas@axiacomunicaciones.mx",
+            )
+
+        def error(exc):
+            btn_validar.configure(state="normal")
+            lbl_estado.configure(text="No fue posible enviar el levantamiento a Ventas.", text_color="#B91C1C")
+            messagebox.showerror(
+                "Error al validar levantamiento",
+                f"No fue posible enviar el levantamiento.\n\n{exc}",
+            )
+
+        run_async(parent.winfo_toplevel(), tarea, ok, error)
+
     def previsualizar_levantamiento():
         if not seleccionado.get("registro"):
             messagebox.showinfo("Selecciona un levantamiento", "Carga primero un levantamiento.")
@@ -435,10 +591,22 @@ def mostrar_conversion_orden_servicio(parent, app):
 
     fila_edicion = ctk.CTkFrame(acciones, fg_color="transparent")
     fila_edicion.grid(row=1, column=0, sticky="e")
-    btn_editar = ctk.CTkButton(fila_edicion, text="✎ Editar", width=125, command=lambda: _set_modo_edicion(True), state="disabled")
+    btn_editar = ctk.CTkButton(fila_edicion, text="✎ Editar", width=125, command=abrir_editor_origen, state="disabled")
     btn_editar.pack(side="left", padx=4)
     btn_guardar = ctk.CTkButton(fila_edicion, text="💾 Guardar", width=125, command=guardar_cambios, state="disabled")
     btn_guardar.pack(side="left", padx=4)
+    btn_validar = ctk.CTkButton(
+        fila_edicion,
+        text="✓ Validar Levantamiento",
+        width=180,
+        fg_color=SECONDARY,
+        hover_color=BUTTON_HOVER,
+        command=validar_levantamiento_ventas,
+        state="disabled",
+    )
+    btn_validar.pack(side="left", padx=4)
+    # La conversión LEV -> OT queda visible como referencia del flujo, pero
+    # temporalmente deshabilitada: la siguiente etapa corresponde a Ventas.
     btn_convertir = ctk.CTkButton(fila_edicion, text="✓ Convertir a OT", width=170, fg_color=SECONDARY,
                                   hover_color=BUTTON_HOVER, command=validar_y_convertir, state="disabled")
     btn_convertir.pack(side="left", padx=4)

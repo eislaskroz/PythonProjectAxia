@@ -316,3 +316,24 @@ def obtener_estadisticas_levantamientos(page=1, page_size=100):
     except Exception as error:
         logger.exception("Error al obtener estadísticas de levantamientos.")
         return 0, 0, 0, 0
+
+def actualizar_evidencias_levantamiento(id_levantamiento, evidencias) -> list | None:
+    """Actualiza únicamente las evidencias fotográficas del levantamiento recién creado."""
+    try:
+        import json
+        respuesta = (
+            supabase.table(TABLA_LEVANTAMIENTOS)
+            .update({"lev_evidencias_json": json.dumps(evidencias or [], ensure_ascii=False)})
+            .eq("id_levantamiento", id_levantamiento)
+            .execute()
+        )
+        registrar_movimiento_seguro(
+            modulo="LEVANTAMIENTOS", accion="ACTUALIZAR_EVIDENCIAS",
+            descripcion=f"Se asociaron {len(evidencias or [])} evidencia(s) fotográficas",
+            registro_afectado=id_levantamiento,
+        )
+        return respuesta.data
+    except Exception as error:
+        register_error(error, "Actualizar evidencias del levantamiento")
+        logger.exception("No fue posible asociar evidencias al levantamiento.")
+        return None

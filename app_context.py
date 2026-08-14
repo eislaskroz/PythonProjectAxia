@@ -9,6 +9,7 @@ usuario_actual = {
     "apellido": "",
     "usu_tipo": SUPERVISOR,
     "rol": NOMBRES_ROL[SUPERVISOR],
+    "ubicacion": {"latitud": "No disponible", "longitud": "No disponible", "ciudad": "No disponible", "region": "No disponible", "pais": "No disponible"},
 }
 
 
@@ -27,6 +28,7 @@ def establecer_usuario_actual(
     nombre="",
     apellido="",
     usu_tipo=SUPERVISOR,
+    ubicacion=None,
 ):
     """Guarda en memoria los datos del usuario autenticado."""
     try:
@@ -44,6 +46,14 @@ def establecer_usuario_actual(
     usuario_actual["apellido"] = apellido
     usuario_actual["usu_tipo"] = tipo
     usuario_actual["rol"] = obtener_rol_por_tipo(tipo)
+    if isinstance(ubicacion, dict):
+        usuario_actual["ubicacion"] = {
+            "latitud": ubicacion.get("latitud", "No disponible"),
+            "longitud": ubicacion.get("longitud", "No disponible"),
+            "ciudad": ubicacion.get("ciudad", "No disponible"),
+            "region": ubicacion.get("region", "No disponible"),
+            "pais": ubicacion.get("pais", "No disponible"),
+        }
 
 
 def obtener_usuario_actual():

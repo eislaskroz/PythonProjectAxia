@@ -549,10 +549,15 @@ def obtener_nombres_usuarios_por_tipos(tipos, limite=500):
 
 
 def obtener_tecnicos_responsables(limite=500):
-    """Todos los empleados activos (usu_tipo 1 a 6) disponibles como técnicos responsables."""
-    return obtener_nombres_usuarios_por_tipos([1, 2, 3, 4, 5, 6], limite=limite)
+    """Operadores activos (usu_tipo 4) disponibles como técnicos de levantamiento."""
+    return obtener_nombres_usuarios_por_tipos([4], limite=limite)
 
 
 def obtener_supervisores_formulario(limite=500):
     """Jefes de Operaciones y Supervisores (usu_tipo 2 y 3)."""
     return obtener_nombres_usuarios_por_tipos([2, 3], limite=limite)
+
+
+def obtener_encargados_proyecto_formulario(limite=500):
+    """Encargados de proyecto AXIA disponibles (usu_tipo 3 y 4)."""
+    return obtener_nombres_usuarios_por_tipos([3, 4], limite=limite)

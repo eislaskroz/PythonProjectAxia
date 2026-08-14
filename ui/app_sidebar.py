@@ -57,6 +57,7 @@ from security.permissions import (
     puede_consultar_procesos,
     puede_entrar_inicio_aco,
     puede_generar_levantamiento,
+    puede_generar_orden_servicio,
     puede_ver_auditoria,
     puede_ver_reportes,
     puede_ver_bitacoras_operativas,
@@ -238,11 +239,21 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
             callback_bitacoras
         )
 
-    if puede_consulta:
+    # La captura operativa de Orden de Servicio también está disponible para
+    # Operador (usu_tipo=4). Los roles de gestión conservan la vista administrativa.
+    if puede_generar_orden_servicio(usuario_activo):
+        tipo_usuario = obtener_tipo_usuario(usuario_activo)
+        callback_os = (
+            callbacks["orden_servicio"]
+            if tipo_usuario == OPERADOR
+            else callbacks["admin_ordenes_servicio"]
+            if puede_consulta
+            else callbacks["orden_servicio"]
+        )
         crear_boton_sidebar(
             sidebar,
             "🧾 Órdenes de servicio",
-            callbacks["admin_ordenes_servicio"]
+            callback_os
         )
 
     if puede_ver_reportes(usuario_activo):

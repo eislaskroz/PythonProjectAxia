@@ -7,7 +7,9 @@ de levantamientos reutiliza la misma lógica visual y de paginación.
 """
 from __future__ import annotations
 
+import base64
 import json
+from io import BytesIO
 from html import escape
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -15,6 +17,8 @@ from typing import Any, Mapping, Sequence
 from reportlab.lib import colors
 from reportlab.lib.units import inch
 from reportlab.platypus import (
+    Image as RLImage,
+    KeepTogether,
     LongTable,
     Paragraph,
     SimpleDocTemplate,
@@ -60,6 +64,134 @@ def _detail(registro: Mapping[str, Any]) -> dict[str, Any]:
     value = _json(registro.get("lev_detalle_tecnico_json"), {})
     return dict(value) if isinstance(value, Mapping) else {}
 
+
+
+
+def _anotacion_plano_base64(registro: Mapping[str, Any]) -> str:
+    """Extrae la imagen persistida de la anotación tipo plano, si existe."""
+    payload = _json(registro.get("lev_anotacion_plano_json"), {})
+    if not isinstance(payload, Mapping):
+        return ""
+    habilitado = payload.get("habilitado", True)
+    if habilitado in (False, 0, "0", "false", "False", "No", "no"):
+        return ""
+    value = str(payload.get("imagen_base64") or "").strip()
+    if value.startswith("data:image") and "," in value:
+        value = value.split(",", 1)[1].strip()
+    return value
+
+
+def _append_anotacion_plano(story: list, registro: Mapping[str, Any], width: float, header) -> None:
+    """Añade al PDF final el croquis/anotación gráfica conservando proporción."""
+    encoded = _anotacion_plano_base64(registro)
+    if not encoded:
+        return
+    try:
+        raw = base64.b64decode(encoded, validate=False)
+        stream = BytesIO(raw)
+        image = RLImage(stream)
+        iw = float(getattr(image, "imageWidth", 0) or 1)
+        ih = float(getattr(image, "imageHeight", 0) or 1)
+        max_w = min(width, 6.75 * inch)
+        max_h = 4.55 * inch
+        scale = min(max_w / iw, max_h / ih, 1.0)
+        image.drawWidth = iw * scale
+        image.drawHeight = ih * scale
+        title = _section_title("Anotaciones tipo plano", width, header)
+        story.append(Spacer(1, 7))
+        story.append(KeepTogether([title, Spacer(1, 4), image]))
+    except Exception:
+        # Una anotación corrupta nunca debe impedir generar el levantamiento.
+        return
+
+
+
+def _evidencias_levantamiento(registro: Mapping[str, Any]) -> list:
+    """Resuelve evidencias locales de preview o metadatos persistidos en Supabase."""
+    locales = registro.get("__evidencias_locales") or []
+    if locales:
+        return list(locales) if isinstance(locales, (list, tuple)) else [locales]
+    value = _json(registro.get("lev_evidencias_json"), [])
+    if isinstance(value, Mapping):
+        return [dict(value)]
+    return list(value) if isinstance(value, (list, tuple)) else []
+
+
+def _cargar_imagen_evidencia(item):
+    """Devuelve bytes de una fotografía desde ruta local, URL o Storage."""
+    try:
+        origen = ""
+        storage_path = ""
+        if isinstance(item, Mapping):
+            origen = str(item.get("url") or item.get("public_url") or item.get("ruta") or item.get("path") or "").strip()
+            storage_path = str(item.get("storage_path") or "").strip()
+        else:
+            origen = str(item or "").strip()
+        if origen and Path(origen).is_file():
+            return Path(origen).read_bytes()
+        if origen.lower().startswith(("http://", "https://")):
+            try:
+                import requests
+                r = requests.get(origen, timeout=12)
+                r.raise_for_status()
+                return r.content
+            except Exception:
+                pass
+        if storage_path:
+            from supabase_config import supabase
+            return supabase.storage.from_("bitacoras-evidencias").download(storage_path)
+    except Exception:
+        return None
+    return None
+
+
+def _append_evidencias_fotograficas(story: list, registro: Mapping[str, Any], width: float, header) -> None:
+    """Añade evidencias fotográficas en cuadrícula de dos columnas."""
+    items = _evidencias_levantamiento(registro)
+    if not items:
+        return
+    try:
+        from PIL import Image as PILImage, ImageOps
+        cards = []
+        for item in items:
+            raw = _cargar_imagen_evidencia(item)
+            if not raw:
+                continue
+            with PILImage.open(BytesIO(raw)) as im0:
+                im = ImageOps.exif_transpose(im0)
+                if im.mode not in ("RGB", "RGBA"):
+                    im = im.convert("RGB")
+                buf = BytesIO()
+                im.save(buf, format="PNG")
+                buf.seek(0)
+                iw, ih = im.size
+            max_w, max_h = 3.18 * inch, 2.18 * inch
+            scale = min(max_w / max(iw, 1), max_h / max(ih, 1))
+            img = RLImage(buf, width=max(1, iw * scale), height=max(1, ih * scale))
+            card = Table([[img]], colWidths=[3.28 * inch])
+            card.setStyle(TableStyle([
+                ("BOX", (0,0), (-1,-1), 0.4, BORDER),
+                ("ALIGN", (0,0), (-1,-1), "CENTER"),
+                ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+                ("LEFTPADDING", (0,0), (-1,-1), 4),
+                ("RIGHTPADDING", (0,0), (-1,-1), 4),
+                ("TOPPADDING", (0,0), (-1,-1), 4),
+                ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+            ]))
+            cards.append(card)
+        if not cards:
+            return
+        rows = []
+        for i in range(0, len(cards), 2):
+            rows.append([cards[i], cards[i+1] if i+1 < len(cards) else ""])
+        grid = Table(rows, colWidths=[width/2, width/2], hAlign="LEFT")
+        grid.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "TOP")]))
+        story.append(Spacer(1, 7))
+        story.append(_section_title("Evidencia fotográfica", width, header))
+        story.append(Spacer(1, 4))
+        story.append(grid)
+    except Exception:
+        return
 
 def _tipo_y_modalidad(registro: Mapping[str, Any], detail: Mapping[str, Any] | None = None) -> tuple[str, str]:
     """Resuelve la especialidad/modalidad igual para registros en memoria y Supabase.
@@ -400,6 +532,8 @@ def generar_pdf_seguridad_instalacion(
     # 8) Descripción final dinámica.
     description = registro.get("lev_observaciones") or registro.get("lev_descripcion") or ""
     story.append(_description_table(str(description), width, normal, header))
+    _append_anotacion_plano(story, registro, width, header)
+    _append_evidencias_fotograficas(story, registro, width, header)
 
     title = "Levantamiento Seguridad y Monitoreo - Instalación"
     doc.title = f"AXIA - {title}"
@@ -685,6 +819,10 @@ def _general_story(registro: Mapping[str, Any], detail: Mapping[str, Any], story
         ["CORREO", registro.get("lev_correo"), "TIPO DE TRABAJO", modalidad or "Instalación"],
     ]
     days, people = _find_resources(detail)
+    # Los recursos comunes también existen como columnas directas en db_levantamientos.
+    # Esto hace al PDF independiente de la modalidad o del JSON técnico.
+    days = days or _text(registro.get("lev_dias_trabajo"), "")
+    people = people or _text(registro.get("lev_personas_considerar"), "")
     # Todos los levantamientos comparten una sexta fila homogénea dentro de Datos
     # generales. Así "Personas a considerar" queda exactamente debajo de
     # "Tipo de trabajo", con las mismas columnas y estilo que el resto del bloque.
@@ -808,6 +946,8 @@ def generar_pdf_levantamiento_maestro(
         story.append(Spacer(1, 7))
 
     story.append(_description_table(_description_for(registro, detail), width, normal, header))
+    _append_anotacion_plano(story, registro, width, header)
+    _append_evidencias_fotograficas(story, registro, width, header)
 
     title = f"Levantamiento {tipo}" + (f" - {modalidad}" if modalidad else "")
     doc.title = f"AXIA - {title}"

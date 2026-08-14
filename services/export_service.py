@@ -21,6 +21,7 @@ import json
 from pathlib import Path
 from tkinter import filedialog, messagebox
 from core.pdf import BasePdfGenerator
+from services.movimientos_service import registrar_movimiento_seguro
 
 
 def _normalizar_registros(registros):
@@ -149,8 +150,10 @@ def exportar_registros_dialogo(registros, nombre_sugerido="exportacion_axia"):
                 for registro in registros:
                     writer.writerow({campo: registro.get(campo, "") for campo in columnas})
 
+        registrar_movimiento_seguro(modulo="EXPORTACIONES", accion="EXPORTAR", descripcion=f"Exportación de {len(registros)} registro(s) a {ruta.suffix.lower()}", registro_afectado=str(ruta))
         messagebox.showinfo("Exportar", f"Información exportada correctamente:\n{ruta}")
         return True
     except Exception as error:
+        registrar_movimiento_seguro(modulo="EXPORTACIONES", accion="ERROR_EXPORTAR", descripcion=f"Falló exportación: {error}", registro_afectado=str(ruta) if "ruta" in locals() else None)
         messagebox.showerror("Exportar", f"No se pudo exportar la información.\n\n{error}")
         return False

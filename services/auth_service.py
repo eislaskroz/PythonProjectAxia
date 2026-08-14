@@ -53,7 +53,7 @@ def obtener_geolocalizacion():
     Esta función no debe detener el login si la consulta externa falla.
     """
 
-    if os.getenv("AXIA_ENABLE_IP_GEOLOCATION", "0").strip().lower() not in {"1", "true", "yes"}:
+    if os.getenv("AXIA_ENABLE_IP_GEOLOCATION", "1").strip().lower() not in {"1", "true", "yes"}:
         return {"latitud": "No disponible", "longitud": "No disponible", "ciudad": "No disponible", "region": "No disponible", "pais": "No disponible"}
 
     try:

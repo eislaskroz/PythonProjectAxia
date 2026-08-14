@@ -417,6 +417,92 @@ def generar_pdf_registro(
             AxiaPdfArtifactStore.register(folio, resultado)
         return resultado
 
+    # Las Bitácoras Operativas deben usar siempre el renderer maestro de
+    # Bitácora de Avance. La vista administrativa históricamente enviaba el
+    # título "Bitácoras Operativas" y caía en el perfil genérico, mostrando
+    # fotos como URLs y firmas que no pertenecen a este formato.
+    if _clasificar_registro(registro, configuracion) == "bitacora":
+        from views.formato_helpers import generar_pdf_preview
+
+        # Enriquecer la trazabilidad LEV <- OT cuando la bitácora ya está ligada.
+        levantamiento = str(registro.get("bit_lev_folio") or registro.get("lev_folio") or "").strip()
+        ot_folio = str(registro.get("bit_ot_folio") or registro.get("ot_folio") or "").strip()
+        if not levantamiento and ot_folio:
+            try:
+                from services.ordenes_trabajo_service import buscar_orden_trabajo_por_folio
+                ot = buscar_orden_trabajo_por_folio(ot_folio) or {}
+                levantamiento = str(ot.get("ot_folio_levantamiento") or "").strip()
+            except Exception:
+                levantamiento = ""
+
+        porcentaje = registro.get("bit_porcentaje_avance")
+        try:
+            porcentaje_txt = f"{int(porcentaje)}%" if porcentaje not in (None, "") else ""
+        except (TypeError, ValueError):
+            porcentaje_txt = str(porcentaje or "").strip()
+            if porcentaje_txt and not porcentaje_txt.endswith("%"):
+                porcentaje_txt += "%"
+
+        datos_bit = {
+            "Folio Bitácora": registro.get("bit_folio") or "",
+            "Fecha": registro.get("bit_fecha") or registro.get("fecha_registro") or "",
+            "Número de ACO": registro.get("bit_aco_numero") or registro.get("aco_numero") or "",
+            "Levantamiento": levantamiento,
+            "OT": ot_folio,
+            "Cliente": registro.get("bit_cliente") or registro.get("cliente") or "",
+            "Dirección de Servicio": registro.get("bit_direccion_sucursal") or registro.get("direccion") or "",
+            "Nombre del Encargado": registro.get("bit_encargado_proyecto_axia") or registro.get("encargado") or "",
+            "Hora de Llegada": registro.get("bit_hora_llegada") or "",
+            "Hora de Salida": registro.get("bit_hora_salida") or "",
+            "Técnico(s)": registro.get("bit_tecnico_sitio") or registro.get("bit_tecnico") or "",
+            "Descripción del Servicio": registro.get("bit_descripcion") or "",
+            "Porcentaje de Avance": porcentaje_txt,
+            "Evidencia Fotográfica": registro.get("bit_fotos") or [],
+        }
+        if ruta_salida is None:
+            ruta_salida = AxiaPdfEngine._preview_path("Bitacora_de_Avance")
+        resultado = generar_pdf_preview(
+            "Bitácora de Avance", datos_bit, mostrar_firmas=False,
+            ruta_salida=Path(ruta_salida), abrir=abrir,
+        )
+        if isinstance(resultado, (str, Path)) and Path(resultado).is_file():
+            AxiaPdfArtifactStore.register(folio, resultado)
+        return resultado
+
+    # Las Órdenes de Servicio usan siempre su renderer operativo oficial.
+    if _clasificar_registro(registro, configuracion) == "orden_servicio":
+        from services.operational_document_pdf import contrato_orden_servicio
+        from views.formato_helpers import generar_pdf_preview
+        datos_os, secciones_os = contrato_orden_servicio(registro)
+        if ruta_salida is None:
+            ruta_salida = AxiaPdfEngine._preview_path("Orden_de_Servicio")
+        resultado = generar_pdf_preview(
+            "Orden de Servicio", datos_os, secciones_tabla=secciones_os,
+            firma_base64=registro.get("os_firma_cliente"), mostrar_firmas=True,
+            ruta_salida=Path(ruta_salida), abrir=abrir,
+        )
+        if isinstance(resultado, (str, Path)) and Path(resultado).is_file():
+            AxiaPdfArtifactStore.register(folio, resultado)
+        return resultado
+
+    # Las Órdenes de Trabajo NO deben pasar por el perfil genérico. El formato
+    # operativo oficial tiene una estructura fija distinta y una tabla dinámica
+    # de partidas/materiales/equipos. Esta ruta también evita reutilizar un PDF
+    # genérico antiguo que pudiera existir en el almacén local de artefactos.
+    if _clasificar_registro(registro, configuracion) == "orden_trabajo":
+        from services.operational_document_pdf import contrato_orden_trabajo
+        from views.formato_helpers import generar_pdf_preview
+        datos_ot, secciones_ot = contrato_orden_trabajo(registro)
+        if ruta_salida is None:
+            ruta_salida = AxiaPdfEngine._preview_path("Orden_de_Trabajo")
+        resultado = generar_pdf_preview(
+            "Orden de Trabajo", datos_ot, secciones_tabla=secciones_ot,
+            mostrar_firmas=False, ruta_salida=Path(ruta_salida), abrir=abrir,
+        )
+        if isinstance(resultado, (str, Path)) and Path(resultado).is_file():
+            AxiaPdfArtifactStore.register(folio, resultado)
+        return resultado
+
     datos, mostrar_firmas = _construir_datos(registro, configuracion)
     profile_data = dict(datos)
     profile_data.update({

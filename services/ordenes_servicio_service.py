@@ -55,7 +55,7 @@ COLUMNAS_ORDENES = (
     "os_solicitante,os_celular,os_hora_llegada,os_hora_salida,"
     "os_tipos_servicio_json,os_tipo_servicio,os_encargado_servicio,"
     "os_tecnicos,os_equipos_json,os_eval_trato,os_eval_habilidades,"
-    "os_eval_velocidad,os_eval_otro,os_firma_cliente,id_sucursal,id_contacto"
+    "os_eval_velocidad,os_eval_otro,os_firma_cliente,os_fotos,id_sucursal,id_contacto"
 )
 
 
@@ -303,6 +303,62 @@ def buscar_ordenes_servicio(termino, limite=100):
         registro_afectado=f"Coincidencias: {len(resultados)}",
     )
     return resultados
+
+
+
+
+def obtener_contextos_aco_disponibles_cierre(limite=1000):
+    """ACOs con OT aún no finalizada, disponibles para captura/cierre de OS.
+
+    Si ya existe una OS abierta para la OT, se devuelve también para que el
+    formulario operativo la actualice en lugar de duplicarla.
+    """
+    try:
+        ots_resp = execute_select_compatible(
+            supabase, "db_ordenes_trabajo",
+            "ot_id,ot_folio,ot_folio_levantamiento,ot_aco_numero,ot_estatus,ot_cliente,ot_contacto,ot_sucursal,ot_supervisor,ot_esi,ot_asunto,ot_descripcion,fecha_registro",
+            lambda q: q.order("fecha_registro", desc=True).limit(limite),
+        )
+        os_resp = execute_select_compatible(
+            supabase, TABLA_ORDENES, COLUMNAS_ORDENES,
+            lambda q: q.order("fecha_registro", desc=True).limit(max(limite * 2, 1000)),
+        )
+        os_por_ot = {}
+        for os in os_resp.data or []:
+            key = str(os.get("os_folio_ot") or "").strip().upper()
+            if key and key not in os_por_ot:
+                os_por_ot[key] = os
+
+        salida, vistos = [], set()
+        for ot in ots_resp.data or []:
+            aco = str(ot.get("ot_aco_numero") or "").strip().upper()
+            folio_ot = str(ot.get("ot_folio") or "").strip().upper()
+            if not aco or not folio_ot or aco in vistos:
+                continue
+            try:
+                estatus_ot = int(ot.get("ot_estatus") or 0)
+            except (TypeError, ValueError):
+                estatus_ot = 0
+            if estatus_ot == 3:
+                continue
+            os_existente = os_por_ot.get(folio_ot) or {}
+            try:
+                estatus_os = int(os_existente.get("os_estatus") or 0)
+            except (TypeError, ValueError):
+                estatus_os = 0
+            if estatus_os == 3:
+                continue
+            vistos.add(aco)
+            salida.append({
+                "aco_numero": aco, "ot_id": ot.get("ot_id"), "ot_folio": folio_ot,
+                "ot_folio_levantamiento": str(ot.get("ot_folio_levantamiento") or "").strip().upper(),
+                "cliente": ot.get("ot_cliente") or "", "ot": ot, "os": os_existente,
+            })
+        salida.sort(key=lambda x: x["aco_numero"])
+        return salida
+    except Exception:
+        logger.exception("Error al obtener ACOs disponibles para cierre de Orden de Servicio.")
+        return []
 
 
 def buscar_orden_por_levantamiento(folio_levantamiento=None, id_levantamiento=None):
@@ -637,7 +693,7 @@ def buscar_orden_servicio_por_ot(folio_ot=None, ot_id=None):
 
 
 def convertir_orden_trabajo_a_servicio(orden_trabajo, usuario_activo=None):
-    """Crea la OS final desde una OT que ya cuenta con Bitácora al 100%."""
+    """Crea la OS final desde una OT. La Bitácora Operativa es opcional."""
     ot = dict(orden_trabajo or {})
     folio_ot = str(ot.get("ot_folio") or "").strip().upper()
     ot_id = ot.get("ot_id")
@@ -647,15 +703,16 @@ def convertir_orden_trabajo_a_servicio(orden_trabajo, usuario_activo=None):
     if existente:
         raise ValueError(f"La {folio_ot} ya tiene la Orden de Servicio {existente.get('os_folio', '')}.")
 
-    from services.bitacoras_service import avance_orden_trabajo
-    avance, bitacoras = avance_orden_trabajo(folio_ot)
-    if not bitacoras:
-        raise ValueError("La Orden de Trabajo debe tener al menos una Bitácora Operativa asignada antes de generar la Orden de Servicio.")
-    if avance < 100:
-        raise ValueError(f"La Bitácora asociada registra {avance}% de avance. La Orden de Servicio solo puede generarse al llegar al 100%.")
+    # La Bitácora Operativa es opcional. Si existe, se usa para enriquecer la OS.
+    bitacoras = []
+    try:
+        from services.bitacoras_service import avance_orden_trabajo
+        _avance, bitacoras = avance_orden_trabajo(folio_ot)
+    except Exception:
+        logger.exception("No fue posible consultar bitácoras de %s; se continuará sin ellas.", folio_ot)
+    bit = max(bitacoras, key=lambda b: int(b.get("bit_porcentaje_avance") or 0)) if bitacoras else {}
 
     usuario = str((usuario_activo or {}).get("usu_nickname") or (usuario_activo or {}).get("usuario") or "Administrativo")
-    bit = max(bitacoras, key=lambda b: int(b.get("bit_porcentaje_avance") or 0))
     payload = {
         "id_aco": ot.get("id_aco"),
         "ot_id": ot_id,
@@ -670,7 +727,7 @@ def convertir_orden_trabajo_a_servicio(orden_trabajo, usuario_activo=None):
         "os_ubicacion": ot.get("ot_sucursal"),
         "os_sucursal": ot.get("ot_sucursal"),
         "os_descripcion": ot.get("ot_descripcion") or ot.get("ot_asunto"),
-        "os_actividades": bit.get("bit_descripcion") or bit.get("bit_avance") or ot.get("ot_descripcion"),
+        "os_actividades": bit.get("bit_descripcion") or ot.get("ot_descripcion"),
         "os_observaciones": bit.get("bit_observaciones"),
         "os_tecnico": ot.get("ot_esi"),
         "os_supervisor": ot.get("ot_supervisor"),
@@ -699,33 +756,43 @@ def convertir_orden_trabajo_a_servicio(orden_trabajo, usuario_activo=None):
         descripcion=f"Conversión {folio_ot} a Orden de Servicio",
         registro_afectado=resultado[0].get("os_folio") if resultado else folio_ot,
     )
+
+    # Al convertir OT -> OS se conserva automáticamente el PDF en su carpeta dedicada:
+    # Documents/AXIA/ordenes_servicio.
+    try:
+        from services.operational_document_pdf import guardar_pdf_orden_servicio
+        registro_os = dict(payload)
+        if isinstance(resultado, list) and resultado and isinstance(resultado[0], dict):
+            registro_os.update(resultado[0])
+        guardar_pdf_orden_servicio(registro_os)
+    except Exception:
+        logger.exception("La OS fue creada, pero no se pudo guardar automáticamente su PDF local.")
+
     return resultado
 
 
 def finalizar_servicio_desde_os(orden_servicio, usuario_activo=None):
-    """Finaliza la OT de origen y la OS cuando el avance de Bitácora está en 100%."""
+    """Finaliza el servicio desde la OS. La Bitácora Operativa es opcional."""
     os = dict(orden_servicio or {})
     folio_os = str(os.get("os_folio") or "").strip().upper()
     folio_ot = str(os.get("os_folio_ot") or "").strip().upper()
     ot_id = os.get("ot_id")
-    if not folio_ot:
-        raise ValueError("La Orden de Servicio no tiene una Orden de Trabajo de origen asociada.")
-
-    from services.bitacoras_service import avance_orden_trabajo
-    avance, bitacoras = avance_orden_trabajo(folio_ot)
-    if not bitacoras or avance < 100:
-        raise ValueError(f"El servicio no puede finalizarse: la Bitácora asociada registra {avance}% de avance.")
-
+    # La Bitácora no es obligatoria para cerrar el servicio. La confirmación del
+    # usuario desde la OS representa que el trabajo llegó al 100%.
     usuario = str((usuario_activo or {}).get("usu_nickname") or (usuario_activo or {}).get("usuario") or "Administrativo")
-    from services.ordenes_trabajo_service import actualizar_orden_trabajo
-    resultado_ot = actualizar_orden_trabajo(ot_id, {"ot_estatus": 3}) if ot_id not in (None, "") else None
-    if not resultado_ot:
-        # Compatibilidad si solo tenemos el folio.
-        try:
-            resp = supabase.table("db_ordenes_trabajo").update({"ot_estatus": 3}).eq("ot_folio", folio_ot).execute()
-            resultado_ot = list(getattr(resp, "data", None) or []) or [True]
-        except Exception as error:
-            raise RuntimeError(f"No fue posible finalizar la Orden de Trabajo {folio_ot}.") from error
+    resultado_ot = None
+    if folio_ot or ot_id not in (None, ""):
+        from services.ordenes_trabajo_service import actualizar_orden_trabajo
+        resultado_ot = actualizar_orden_trabajo(ot_id, {"ot_estatus": 3}) if ot_id not in (None, "") else None
+        if not resultado_ot and folio_ot:
+            try:
+                resp = supabase.table("db_ordenes_trabajo").update({"ot_estatus": 3}).eq("ot_folio", folio_ot).execute()
+                resultado_ot = list(getattr(resp, "data", None) or []) or [True]
+            except Exception as error:
+                raise RuntimeError(f"No fue posible finalizar la Orden de Trabajo {folio_ot}.") from error
+    else:
+        # Compatibilidad con OS históricas sin vínculo de OT: se cierra la OS sin bloquear.
+        logger.warning("La OS %s no tiene OT de origen; se cerrará únicamente la OS.", folio_os)
 
     payload_os = {"os_estatus": 3, "actualizado_por": usuario}
     try:

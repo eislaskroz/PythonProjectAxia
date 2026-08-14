@@ -12,13 +12,14 @@ Estructura real usada en Supabase:
 
 from core.logger import configurar_logger
 from core.cache import ttl_cache, clear_cache
+from core.performance import page_range
 from supabase_config import supabase, TABLA_SUCURSALES, TABLA_CONTACTOS_SUCURSAL
 from services.movimientos_service import registrar_movimiento_seguro
 
 logger = configurar_logger(__name__)
 
 
-COLUMNAS_SUCURSALES = "suc_id,id_cliente,suc_nombre,suc_domicilio,suc_telefono,suc_correo,suc_estado,suc_municipio,suc_estatus,fecha_registro"
+COLUMNAS_SUCURSALES = "*"
 COLUMNAS_CONTACTOS = "con_id,suc_id,con_nombre,con_puesto,con_correo,con_telefono,con_estatus,fecha_registro"
 
 def _suc_id(sucursal):
@@ -50,9 +51,33 @@ def obtener_sucursales_por_cliente(id_cliente, page=1, page_size=100):
             .execute()
         )
         return respuesta.data or []
-    except Exception:
-        logger.exception("Error al consultar sucursales del cliente.")
-        return []
+    except Exception as error:
+        # Compatibilidad con esquemas históricos: algunas instalaciones de AXIA
+        # tienen variaciones de columnas en db_clientes_sucursales. Un SELECT
+        # explícito con una columna inexistente hacía que la vista interpretara
+        # erróneamente que el cliente no tenía sucursales. Reintentamos leyendo
+        # la fila completa y, como último recurso, sin filtrar suc_estatus.
+        logger.warning("Consulta principal de sucursales falló; se intentará fallback: %s", error)
+        try:
+            respuesta = (
+                supabase
+                .table(TABLA_SUCURSALES)
+                .select("*")
+                .eq("id_cliente", id_cliente)
+                .order("suc_nombre")
+                .range(*page_range(page, page_size))
+                .execute()
+            )
+            filas = respuesta.data or []
+            # Si existe suc_estatus, conserva solo registros activos; si no,
+            # acepta la fila para compatibilidad con esquemas anteriores.
+            return [
+                fila for fila in filas
+                if "suc_estatus" not in fila or str(fila.get("suc_estatus")) in {"1", "True", "true"}
+            ]
+        except Exception:
+            logger.exception("Error al consultar sucursales del cliente incluso con fallback.")
+            return []
 
 
 @ttl_cache(ttl_seconds=180)
@@ -77,9 +102,29 @@ def obtener_sucursal_por_id(id_sucursal):
 
 @ttl_cache(ttl_seconds=180)
 def obtener_contactos_por_sucursal(id_sucursal, page=1, page_size=100):
-    """Devuelve contactos activos ligados a una sucursal usando suc_id."""
+    """Devuelve contactos ligados a una sucursal usando suc_id.
+
+    Algunas instalaciones históricas de AXIA manejan ``con_estatus`` como
+    entero, booleano, texto o incluso no lo tienen. Un filtro rígido
+    ``con_estatus = 1`` podía devolver cero filas aunque el contacto existiera.
+    Por eso primero intentamos la consulta normal y, si no devuelve resultados
+    (o falla por esquema), hacemos una lectura completa por ``suc_id`` y
+    filtramos el estatus en Python de forma tolerante.
+    """
     if not id_sucursal:
         return []
+
+    def _activo(contacto):
+        if "con_estatus" not in contacto:
+            return True
+        valor = contacto.get("con_estatus")
+        if valor is None or valor == "":
+            return True
+        if isinstance(valor, bool):
+            return valor
+        texto = str(valor).strip().lower()
+        return texto in {"1", "true", "t", "activo", "active", "si", "sí"}
+
     try:
         respuesta = (
             supabase
@@ -91,9 +136,25 @@ def obtener_contactos_por_sucursal(id_sucursal, page=1, page_size=100):
             .range(*page_range(page, page_size))
             .execute()
         )
-        return respuesta.data or []
+        filas = respuesta.data or []
+        if filas:
+            return filas
+    except Exception as error:
+        logger.warning("Consulta principal de contactos falló; se intentará fallback: %s", error)
+
+    try:
+        respuesta = (
+            supabase
+            .table(TABLA_CONTACTOS_SUCURSAL)
+            .select("*")
+            .eq("suc_id", id_sucursal)
+            .order("con_nombre")
+            .range(*page_range(page, page_size))
+            .execute()
+        )
+        return [fila for fila in (respuesta.data or []) if _activo(fila)]
     except Exception:
-        logger.exception("Error al consultar contactos de la sucursal.")
+        logger.exception("Error al consultar contactos de la sucursal incluso con fallback.")
         return []
 
 
@@ -132,6 +193,8 @@ def normalizar_sucursal(datos):
         "suc_domicilio": str(datos.get("suc_domicilio", "") or "").strip(),
         "suc_telefono": str(datos.get("suc_telefono", "") or "").strip(),
         "suc_correo": str(datos.get("suc_correo", "") or "").strip(),
+        "suc_municipio": str(datos.get("suc_municipio", "") or "").strip(),
+        "suc_estado": str(datos.get("suc_estado", "") or "").strip(),
         "suc_estatus": int(datos.get("suc_estatus") or 1),
     }
 
@@ -197,3 +260,56 @@ def crear_contacto_sucursal(datos):
     except Exception as error:
         logger.exception("Error al crear contacto de sucursal.")
         return False, f"No fue posible registrar el contacto.\n\n{error}", None
+
+
+
+def actualizar_sucursal(id_sucursal, datos):
+    """Actualiza una sucursal operativa existente."""
+    try:
+        if not id_sucursal:
+            return False, "Selecciona una sucursal válida.", None
+        datos_guardar = normalizar_sucursal(datos)
+        datos_guardar.pop("id_cliente", None)
+        respuesta = (
+            supabase.table(TABLA_SUCURSALES)
+            .update(datos_guardar)
+            .eq("suc_id", id_sucursal)
+            .execute()
+        )
+        registro = (respuesta.data or [None])[0]
+        clear_cache("services.sucursales_service")
+        registrar_movimiento_seguro(
+            modulo="SUCURSALES", accion="ACTUALIZAR",
+            descripcion="Actualización de sucursal operativa",
+            registro_afectado=id_sucursal,
+        )
+        return True, "Sucursal actualizada correctamente.", registro
+    except Exception as error:
+        logger.exception("Error al actualizar sucursal.")
+        return False, f"No fue posible actualizar la sucursal.\n\n{error}", None
+
+
+def actualizar_contacto_sucursal(id_contacto, datos):
+    """Actualiza un contacto operativo existente."""
+    try:
+        if not id_contacto:
+            return False, "Selecciona un contacto válido.", None
+        datos_guardar = normalizar_contacto(datos)
+        datos_guardar.pop("suc_id", None)
+        respuesta = (
+            supabase.table(TABLA_CONTACTOS_SUCURSAL)
+            .update(datos_guardar)
+            .eq("con_id", id_contacto)
+            .execute()
+        )
+        registro = (respuesta.data or [None])[0]
+        clear_cache("services.sucursales_service")
+        registrar_movimiento_seguro(
+            modulo="CONTACTOS_SUCURSAL", accion="ACTUALIZAR",
+            descripcion="Actualización de contacto operativo",
+            registro_afectado=id_contacto,
+        )
+        return True, "Contacto actualizado correctamente.", registro
+    except Exception as error:
+        logger.exception("Error al actualizar contacto de sucursal.")
+        return False, f"No fue posible actualizar el contacto.\n\n{error}", None

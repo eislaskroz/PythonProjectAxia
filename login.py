@@ -167,7 +167,7 @@ def abrir_login():
                     region=ubicacion["region"],
                     pais=ubicacion["pais"],
                 )
-                return {"acceso": True, "usuario": usuario}
+                return {"acceso": True, "usuario": usuario, "ubicacion": ubicacion}
 
             servicios["registrar_bitacora_login"](
                 id_usuario=None,
@@ -182,7 +182,7 @@ def abrir_login():
                 region=ubicacion["region"],
                 pais=ubicacion["pais"],
             )
-            return {"acceso": False, "usuario": None}
+            return {"acceso": False, "usuario": None, "ubicacion": ubicacion}
 
         def login_correcto(resultado):
             from security.login_guard import registrar_exito, registrar_fallo
@@ -202,6 +202,7 @@ def abrir_login():
                 nombre=usuario.get("usu_nombre"),
                 apellido=usuario.get("usu_apellido"),
                 usu_tipo=usuario.get("usu_tipo", 3),
+                ubicacion=resultado.get("ubicacion") or {},
             )
             _cargar_servicios_auth()["registrar_movimiento"](
                 modulo="Login",
@@ -245,7 +246,7 @@ def abrir_login():
 
     ctk.CTkLabel(
         card,
-        text="Sistema AXIA · v2.0",
+        text="Sistema AXIA · v2.01.4",
         font=TEXT_SM,
         text_color=TEXT_SECONDARY,
     ).pack(pady=(14, 2))

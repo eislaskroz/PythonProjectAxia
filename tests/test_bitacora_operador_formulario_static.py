@@ -19,7 +19,7 @@ def test_formulario_bitacora_contiene_campos_del_formato_operativo():
     for texto in [
         "Folio de bitácora", "Fecha", "Número de ACO",
         "Dirección de la sucursal", "Nombre del Cliente",
-        "Nombre del encargado del proyecto (AXIA)",
+        "Nombre del encargado del proyecto",
         "Hora de Llegada", "Hora de Salida", "Técnico en sitio",
         "Observaciones", "Descripción",
     ]:

@@ -29,6 +29,8 @@ COLUMNAS_LEVANTAMIENTOS_TUPLE = (
     "lev_observaciones",
     "lev_tecnico",
     "lev_supervisor",
+    "lev_dias_trabajo",
+    "lev_personas_considerar",
     "lev_fecha_programada",
     "lev_fecha_realizacion",
     "creado_por",
@@ -45,6 +47,8 @@ COLUMNAS_LEVANTAMIENTOS_TUPLE = (
     "lev_detalle_tecnico_json",
     "lev_equipos_danados_json",
     "lev_descripcion_fallas",
+    "lev_anotacion_plano_json",
+    "lev_evidencias_json",
 )
 
 COLUMNAS_LEVANTAMIENTOS = ",".join(COLUMNAS_LEVANTAMIENTOS_TUPLE)
@@ -85,6 +89,8 @@ CAMPOS_CONVERSION_EDITABLES = frozenset({
     "lev_fecha_realizacion",
     "lev_supervisor",
     "lev_tecnico",
+    "lev_dias_trabajo",
+    "lev_personas_considerar",
     "lev_tipo",
     "lev_modalidad_operativa",
     "lev_descripcion",
@@ -93,6 +99,8 @@ CAMPOS_CONVERSION_EDITABLES = frozenset({
     "lev_detalle_tecnico_json",
     "lev_equipos_danados_json",
     "lev_descripcion_fallas",
+    "lev_anotacion_plano_json",
+    "lev_evidencias_json",
     "lev_prioridad",
 })
 

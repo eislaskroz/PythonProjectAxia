@@ -19,7 +19,7 @@ from core.logger import configurar_logger
 
 logger = configurar_logger(__name__)
 
-COLUMNAS_MOVIMIENTOS = "id_usuario,fecha_hora,usuario,modulo,accion,descripcion,equipo,ip_local,registro_afectado,ciudad,region,pais"
+COLUMNAS_MOVIMIENTOS = "id_usuario,fecha_hora,usuario,modulo,accion,descripcion,equipo,ip_local,registro_afectado,latitud,longitud,ciudad,region,pais"
 
 # =====================================================
 # IMPORTACIÓN DE LIBRERÍAS
@@ -106,6 +106,8 @@ def registrar_movimiento(
     accion="SIN_ACCION",
     descripcion="Movimiento sin descripción",
     registro_afectado=None,
+    latitud=None,
+    longitud=None,
     ciudad=None,
     region=None,
     pais=None
@@ -164,6 +166,18 @@ def registrar_movimiento(
         if usuario == "DESCONOCIDO":
             usuario = usuario_activo.get("usuario", "DESCONOCIDO")
 
+        ubicacion = usuario_activo.get("ubicacion") or {}
+        if latitud is None:
+            latitud = ubicacion.get("latitud")
+        if longitud is None:
+            longitud = ubicacion.get("longitud")
+        if ciudad is None:
+            ciudad = ubicacion.get("ciudad")
+        if region is None:
+            region = ubicacion.get("region")
+        if pais is None:
+            pais = ubicacion.get("pais")
+
         # =================================================
         # DATOS A INSERTAR EN SUPABASE
         # =================================================
@@ -177,6 +191,8 @@ def registrar_movimiento(
             "registro_afectado": registro_afectado,
             "ip_local": obtener_ip_local(),
             "equipo": obtener_equipo_local(),
+            "latitud": latitud,
+            "longitud": longitud,
             "ciudad": ciudad,
             "region": region,
             "pais": pais
@@ -344,6 +360,8 @@ def _coincide_movimiento(movimiento, termino):
         "registro_afectado",
         "equipo",
         "ip_local",
+        "latitud",
+        "longitud",
         "ciudad",
         "region",
         "pais",

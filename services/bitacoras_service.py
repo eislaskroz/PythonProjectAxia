@@ -29,7 +29,7 @@ from services.folios_service import asegurar_folio
 from services.query_compat import execute_select_compatible
 
 TABLA_BITACORAS = "db_bitacoras"
-COLUMNAS_BITACORAS = "id_bitacora,ot_id,bit_ot_folio,bit_aco_numero,bit_avance,bit_cliente,bit_descripcion,bit_direccion_sucursal,bit_encargado_proyecto_axia,bit_estatus,bit_fecha,bit_folio,bit_hora_llegada,bit_hora_salida,bit_observaciones,bit_porcentaje_avance,bit_tecnico,bit_tecnico_sitio,fecha_registro"
+COLUMNAS_BITACORAS = "id_bitacora,id_sucursal,ot_id,bit_ot_folio,bit_aco_numero,bit_cliente,bit_descripcion,bit_direccion_sucursal,bit_encargado_proyecto_axia,bit_estatus,bit_fecha,bit_folio,bit_hora_llegada,bit_hora_salida,bit_observaciones,bit_porcentaje_avance,bit_tecnico,bit_tecnico_sitio,bit_fotos,fecha_registro"
 
 
 # =====================================================
@@ -235,7 +235,7 @@ def obtener_estadisticas_bitacoras(page=1, page_size=100):
 def buscar_bitacoras(termino, limite=100):
     resultados = buscar_parcial_supabase(
         supabase=supabase, tabla=TABLA_BITACORAS, columnas=COLUMNAS_BITACORAS, termino=termino,
-        campos=('bit_folio', 'bit_ot_folio', 'bit_aco_numero', 'bit_cliente', 'bit_tecnico', 'bit_tecnico_sitio', 'bit_estatus', 'bit_descripcion', 'bit_avance'), id_campos=('id_bitacora', 'bit_folio'), orden='fecha_registro', limite=limite,
+        campos=('bit_folio', 'bit_ot_folio', 'bit_aco_numero', 'bit_cliente', 'bit_tecnico', 'bit_tecnico_sitio', 'bit_estatus', 'bit_descripcion'), id_campos=('id_bitacora', 'bit_folio'), orden='fecha_registro', limite=limite,
     )
     registrar_movimiento_seguro(
         modulo='BITACORAS', accion="BUSCAR",
@@ -301,3 +301,64 @@ def avance_orden_trabajo(folio_ot):
         except (TypeError, ValueError):
             porcentajes.append(0)
     return max(porcentajes, default=0), bitacoras
+
+
+# =====================================================
+# ACOS DISPONIBLES PARA CAPTURA DE BITÁCORA
+# =====================================================
+def obtener_contextos_aco_disponibles_bitacora(limite=1000):
+    """Devuelve ACOs con una OT abierta cuyo avance máximo aún sea menor a 100%.
+
+    Cada elemento contiene ``aco_numero``, ``ot_id``, ``ot_folio`` y el avance
+    actualmente registrado. El ACO sirve como selector operativo y la OT se
+    conserva internamente para que la bitácora nazca ya ligada al trabajo.
+    """
+    try:
+        ots_resp = execute_select_compatible(
+            supabase, "db_ordenes_trabajo",
+            "ot_id,ot_folio,ot_folio_levantamiento,ot_aco_numero,ot_estatus,ot_cliente,fecha_registro",
+            lambda q: q.order("fecha_registro", desc=True).limit(limite),
+        )
+        bits_resp = execute_select_compatible(
+            supabase, TABLA_BITACORAS,
+            "id_bitacora,ot_id,bit_ot_folio,bit_aco_numero,bit_porcentaje_avance,fecha_registro",
+            lambda q: q.order("fecha_registro", desc=True).limit(max(limite * 2, 1000)),
+        )
+        avance_por_aco = {}
+        for bit in bits_resp.data or []:
+            aco = str(bit.get("bit_aco_numero") or "").strip().upper()
+            if not aco:
+                continue
+            try:
+                avance = int(float(bit.get("bit_porcentaje_avance") or 0))
+            except (TypeError, ValueError):
+                avance = 0
+            avance_por_aco[aco] = max(avance_por_aco.get(aco, 0), avance)
+
+        resultado = []
+        vistos = set()
+        for ot in ots_resp.data or []:
+            aco = str(ot.get("ot_aco_numero") or "").strip().upper()
+            if not aco or aco in vistos:
+                continue
+            try:
+                estatus = int(ot.get("ot_estatus") or 0)
+            except (TypeError, ValueError):
+                estatus = 0
+            avance = avance_por_aco.get(aco, 0)
+            if estatus == 3 or avance >= 100:
+                continue
+            vistos.add(aco)
+            resultado.append({
+                "aco_numero": aco,
+                "ot_id": ot.get("ot_id"),
+                "ot_folio": str(ot.get("ot_folio") or "").strip().upper(),
+                "ot_folio_levantamiento": str(ot.get("ot_folio_levantamiento") or "").strip().upper(),
+                "avance": avance,
+                "cliente": ot.get("ot_cliente") or "",
+            })
+        resultado.sort(key=lambda x: x["aco_numero"])
+        return resultado
+    except Exception:
+        logger.exception("Error al obtener ACOs disponibles para Bitácoras Operativas.")
+        return []
