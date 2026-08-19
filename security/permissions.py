@@ -146,8 +146,13 @@ def puede_convertir_levantamiento_a_orden(usuario_activo) -> bool:
 
 
 def puede_validar_levantamiento_ventas(usuario_activo) -> bool:
-    """La validación previa a Ventas corresponde exclusivamente al rol 5."""
+    """La preautorización operativa corresponde exclusivamente al rol 5."""
     return _es_rol(usuario_activo, ADMINISTRATIVO)
+
+
+def puede_cotizar_levantamientos(usuario_activo) -> bool:
+    """Cotización de levantamientos: Ventas (rol 6) y Administrador como superusuario."""
+    return _es_rol(usuario_activo, ADMINISTRADOR, ESPECIAL)
 
 
 def puede_avanzar_flujo_operativo(usuario_activo) -> bool:
@@ -190,6 +195,7 @@ def matriz_permisos() -> dict[int, dict[str, bool]]:
             "ordenes": tipo in ROLES_GESTION_OPERATIVA,
             "orden_servicio_operativa": tipo in ROLES_TODOS,
             "convertir_levantamiento_a_orden": tipo in {ADMINISTRADOR, ADMINISTRATIVO},
+            "cotizar_levantamientos": tipo in {ADMINISTRADOR, ESPECIAL},
             "bitacoras_operativas": tipo in ROLES_TODOS,
             "reportes_operativos": tipo in ROLES_GESTION_OPERATIVA,
             "usuarios": tipo in {ADMINISTRADOR, JEFE_OPERACIONES},

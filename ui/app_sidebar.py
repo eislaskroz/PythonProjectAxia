@@ -57,6 +57,7 @@ from security.permissions import (
     puede_consultar_procesos,
     puede_entrar_inicio_aco,
     puede_generar_levantamiento,
+    puede_cotizar_levantamientos,
     puede_generar_orden_servicio,
     puede_ver_auditoria,
     puede_ver_reportes,
@@ -206,6 +207,14 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
             sidebar,
             "📋 Levantamientos",
             callbacks["admin_levantamientos"] if puede_consulta else callbacks["levantamiento"]
+        )
+
+    # Etapa comercial: después de la preautorización del levantamiento y antes de ACO.
+    if puede_cotizar_levantamientos(usuario_activo):
+        crear_boton_sidebar(
+            sidebar,
+            "💲 Cotizaciones",
+            callbacks["cotizaciones"]
         )
 
     if puede_inicio:

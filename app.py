@@ -343,6 +343,7 @@ class AxiaApp(ctk.CTk):
             # botones laterales de procesos abren búsqueda y administración,
             # no formularios de generación.
             "admin_levantamientos": self.navigation.mostrar_admin_levantamientos,
+            "cotizaciones": self.navigation.mostrar_cotizaciones,
             "admin_ordenes_servicio": self.navigation.mostrar_admin_ordenes_servicio,
             "admin_ordenes_trabajo": self.navigation.mostrar_admin_ordenes_trabajo,
             "admin_bitacoras": self.navigation.mostrar_admin_bitacoras,
@@ -427,6 +428,10 @@ class AxiaApp(ctk.CTk):
     def mostrar_vista_admin_levantamientos(self):
         self._auditar_navegacion("Administración Levantamientos")
         self.navigation.mostrar_admin_levantamientos()
+
+    def mostrar_vista_cotizaciones(self):
+        self._auditar_navegacion("Cotizaciones")
+        self.navigation.mostrar_cotizaciones()
 
     def mostrar_vista_admin_ordenes_servicio(self):
         self._auditar_navegacion("Administración Órdenes de Servicio")

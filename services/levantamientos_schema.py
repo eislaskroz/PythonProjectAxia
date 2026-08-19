@@ -49,6 +49,10 @@ COLUMNAS_LEVANTAMIENTOS_TUPLE = (
     "lev_descripcion_fallas",
     "lev_anotacion_plano_json",
     "lev_evidencias_json",
+    "lev_validado_ventas",
+    "lev_validado_por",
+    "lev_fecha_validacion",
+    "lev_cotizacion_json",
 )
 
 COLUMNAS_LEVANTAMIENTOS = ",".join(COLUMNAS_LEVANTAMIENTOS_TUPLE)

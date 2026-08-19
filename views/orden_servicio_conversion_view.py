@@ -1,6 +1,7 @@
 """Conversión administrativa de levantamientos a órdenes de trabajo."""
 
 import json
+from datetime import datetime, timezone
 import customtkinter as ctk
 from tkinter import messagebox
 
@@ -193,7 +194,8 @@ def mostrar_conversion_orden_servicio(parent, app):
         if habilitado:
             btn_validar.configure(state="disabled")
         elif seleccionado.get("registro") and puede_validar_levantamiento_ventas(usuario):
-            btn_validar.configure(state="normal")
+            ya_validado = bool((seleccionado.get("registro") or {}).get("lev_validado_ventas"))
+            btn_validar.configure(state="disabled" if ya_validado else "normal")
         if seleccionado.get("registro"):
             lbl_estado.configure(
                 text=("Modo edición habilitado. Guarda los cambios antes de continuar." if habilitado
@@ -239,7 +241,9 @@ def mostrar_conversion_orden_servicio(parent, app):
             registro.get("lev_folio"), registro.get("id_levantamiento")
         )
         btn_preview.configure(state="normal")
-        btn_validar.configure(state="normal" if puede_validar_levantamiento_ventas(usuario) else "disabled")
+        btn_validar.configure(
+            state=("normal" if puede_validar_levantamiento_ventas(usuario) and not bool(registro.get("lev_validado_ventas")) else "disabled")
+        )
         _set_modo_edicion(False)
         if existente:
             lbl_estado.configure(text=f"Este levantamiento ya fue convertido en {existente.get('ot_folio', 'una OT')}.", text_color="#B45309")
@@ -247,7 +251,11 @@ def mostrar_conversion_orden_servicio(parent, app):
             btn_validar.configure(state="disabled")
             btn_editar.configure(state="disabled")
         else:
-            lbl_estado.configure(text="Modo consulta. Revisa los datos; usa Editar solo si necesitas realizar cambios.", text_color=TEXT_SECONDARY)
+            if bool(registro.get("lev_validado_ventas")):
+                lbl_estado.configure(text="Levantamiento preautorizado y enviado a Ventas para cotización.", text_color="#15803D")
+                btn_validar.configure(state="disabled")
+            else:
+                lbl_estado.configure(text="Modo consulta. Revisa los datos; usa Editar solo si necesitas realizar cambios.", text_color=TEXT_SECONDARY)
             btn_convertir.configure(state="disabled")
 
     def filas(registros):
@@ -534,12 +542,32 @@ def mostrar_conversion_orden_servicio(parent, app):
             )
             if not resultado.sent:
                 raise RuntimeError(resultado.detail or "El servidor de correo no confirmó el envío.")
+            id_levantamiento = registro_pdf.get("id_levantamiento") or (seleccionado.get("registro") or {}).get("id_levantamiento")
+            if not id_levantamiento:
+                raise RuntimeError("El levantamiento no contiene id_levantamiento para registrar la preautorización.")
+            usuario_validacion = str(usuario.get("usuario") or usuario.get("usu_nickname") or usuario.get("nombre") or "").strip()
+            actualizado = actualizar_levantamiento(
+                id_levantamiento,
+                {
+                    "lev_validado_ventas": True,
+                    "lev_validado_por": usuario_validacion,
+                    "lev_fecha_validacion": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+            if not actualizado:
+                raise RuntimeError(
+                    "El correo fue enviado, pero Supabase no confirmó el registro de la preautorización. "
+                    "Verifica que la migración de Cotizaciones esté aplicada."
+                )
             return ruta_pdf
 
         def ok(_ruta_pdf):
-            btn_validar.configure(state="normal")
+            btn_validar.configure(state="disabled")
+            if seleccionado.get("registro"):
+                seleccionado["registro"]["lev_validado_ventas"] = True
+                seleccionado["registro"]["lev_validado_por"] = str(usuario.get("usuario") or usuario.get("usu_nickname") or usuario.get("nombre") or "").strip()
             lbl_estado.configure(
-                text=f"{folio} enviado correctamente a Ventas para validación/cotización.",
+                text=f"{folio} preautorizado y enviado correctamente a Ventas para cotización.",
                 text_color="#15803D",
             )
             messagebox.showinfo(

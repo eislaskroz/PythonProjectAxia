@@ -33,6 +33,7 @@ from security.permissions import (
     puede_administrar_usuarios,
     puede_consultar_procesos,
     puede_convertir_levantamiento_a_orden,
+    puede_cotizar_levantamientos,
     puede_entrar_inicio_aco,
     puede_generar_levantamiento,
     puede_generar_bitacora,
@@ -416,6 +417,23 @@ class NavigationController:
                 "buscar_por_folio": buscar_levantamiento_por_folio,
             }
         )
+
+    def mostrar_cotizaciones(self):
+        """Muestra la etapa comercial de costeo de levantamientos preautorizados."""
+        if not self._verificar_permiso(
+            puede_cotizar_levantamientos,
+            "Tu nivel de usuario no tiene permiso para cotizar levantamientos.",
+        ):
+            return
+        self._registrar_vista("mostrar_cotizaciones")
+        logger.info("Cargando módulo comercial: Cotizaciones")
+        self.limpiar_contenido()
+        self.cambiar_titulo(
+            "Cotizaciones",
+            "Captura costos de materiales, insumos y equipos de levantamientos preautorizados.",
+        )
+        from views.cotizaciones_view import mostrar_cotizaciones
+        mostrar_cotizaciones(parent=self.content, app=self.app)
 
     def mostrar_admin_ordenes_servicio(self):
         """Administra Órdenes de Servicio y permite cerrar la OT de origen."""
