@@ -241,9 +241,11 @@ def mostrar_clientes_admin(parent, app):
     sucursales_estado = {"lista": [], "por_nombre": {}, "contactos": [], "contactos_por_nombre": {}, "sucursal_edicion": None, "contacto_edicion": None}
 
     var_suc_nombre = ctk.StringVar()
-    var_suc_domicilio = ctk.StringVar()
+    var_suc_calle_numero = ctk.StringVar()
+    var_suc_colonia = ctk.StringVar()
     var_suc_municipio = ctk.StringVar()
     var_suc_estado = ctk.StringVar()
+    var_suc_codigo_postal = ctk.StringVar()
     var_suc_telefono = ctk.StringVar()
 
     var_contacto_sucursal = ctk.StringVar(value="Selecciona sucursal")
@@ -284,11 +286,34 @@ def mostrar_clientes_admin(parent, app):
     var_sucursal_editar = ctk.StringVar(value="Selecciona sucursal")
     selector_sucursal_editar = NativeComboBox(panel_suc, variable=var_sucursal_editar, values=["Selecciona sucursal"], height=32)
     selector_sucursal_editar.grid(row=1, column=0, sticky="ew", pady=(0, 4))
-    input_operativo(panel_suc, "Nombre de sucursal *", var_suc_nombre, 2, "Ej. Sucursal Centro")
-    input_operativo(panel_suc, "Domicilio operativo", var_suc_domicilio, 4)
-    input_operativo(panel_suc, "Municipio", var_suc_municipio, 6)
-    input_operativo(panel_suc, "Estado", var_suc_estado, 8)
-    input_operativo(panel_suc, "Teléfono", var_suc_telefono, 10)
+
+    # Formulario compacto de sucursal: conserva legibilidad sin crecer demasiado
+    # en vertical al incorporar colonia y código postal.
+    campos_suc = ctk.CTkFrame(panel_suc, fg_color="transparent")
+    campos_suc.grid(row=2, column=0, sticky="ew", pady=(0, 2))
+    campos_suc.grid_columnconfigure((0, 1), weight=1, uniform="suc_campos")
+
+    def input_sucursal(texto, variable, fila, columna=0, columnspan=1, placeholder=""):
+        ctk.CTkLabel(campos_suc, text=texto, font=TEXT_SM, text_color=TEXT_PRIMARY).grid(
+            row=fila, column=columna, columnspan=columnspan, sticky="w",
+            padx=(0, 4) if columna == 0 and columnspan == 1 else (4, 0) if columna == 1 else 0,
+            pady=(2, 1),
+        )
+        entry = ctk.CTkEntry(campos_suc, textvariable=variable, height=32, placeholder_text=placeholder)
+        entry.grid(
+            row=fila + 1, column=columna, columnspan=columnspan, sticky="ew",
+            padx=(0, 4) if columna == 0 and columnspan == 1 else (4, 0) if columna == 1 else 0,
+            pady=(0, 2),
+        )
+        return entry
+
+    input_sucursal("Nombre de sucursal *", var_suc_nombre, 0, columnspan=2, placeholder="Ej. Sucursal Centro")
+    input_sucursal("Calle y Número", var_suc_calle_numero, 2, columnspan=2)
+    input_sucursal("Colonia", var_suc_colonia, 4, 0)
+    input_sucursal("Municipio", var_suc_municipio, 4, 1)
+    input_sucursal("Estado", var_suc_estado, 6, 0)
+    input_sucursal("Código Postal", var_suc_codigo_postal, 6, 1)
+    input_sucursal("Teléfono", var_suc_telefono, 8, columnspan=2)
 
     ctk.CTkLabel(panel_con, text="Sucursal *", font=TEXT_SM, text_color=TEXT_PRIMARY).grid(row=0, column=0, sticky="w", pady=(2, 1))
     selector_contacto_sucursal = NativeComboBox(panel_con, variable=var_contacto_sucursal, values=["Selecciona sucursal"], height=32)
@@ -311,7 +336,7 @@ def mostrar_clientes_admin(parent, app):
         anchor="w",
         wraplength=360,
     )
-    lista_sucursales.grid(row=15, column=0, sticky="ew", pady=(3, 0))
+    lista_sucursales.grid(row=5, column=0, sticky="ew", pady=(3, 0))
 
     lista_contactos = ctk.CTkLabel(
         panel_con,
@@ -325,7 +350,7 @@ def mostrar_clientes_admin(parent, app):
     lista_contactos.grid(row=15, column=0, sticky="ew", pady=(3, 0))
 
     def limpiar_sucursal_form():
-        for variable in (var_suc_nombre, var_suc_domicilio, var_suc_municipio, var_suc_estado, var_suc_telefono):
+        for variable in (var_suc_nombre, var_suc_calle_numero, var_suc_colonia, var_suc_municipio, var_suc_estado, var_suc_codigo_postal, var_suc_telefono):
             variable.set("")
 
     def limpiar_contacto_form():
@@ -359,13 +384,9 @@ def mostrar_clientes_admin(parent, app):
         limpiar_sucursal_form()
 
         if sucursales:
-            texto = "\n".join(
-                f"• {s.get('suc_nombre', '-')} | {construir_domicilio_sucursal(s) or 'Sin domicilio'}"
-                for s in sucursales[:6]
-            )
-            lista_sucursales.configure(text=texto)
+            lista_sucursales.configure(text=f"Cantidad de Sucursales Registradas: {len(sucursales)}")
         else:
-            lista_sucursales.configure(text="Este cliente aún no tiene sucursales operativas registradas.")
+            lista_sucursales.configure(text="Cantidad de Sucursales Registradas: 0")
         refrescar_contactos()
 
     def refrescar_contactos():
@@ -396,9 +417,11 @@ def mostrar_clientes_admin(parent, app):
             limpiar_sucursal_form()
             return
         var_suc_nombre.set(str(sucursal.get("suc_nombre", "") or ""))
-        var_suc_domicilio.set(str(sucursal.get("suc_domicilio", "") or ""))
+        var_suc_calle_numero.set(str(sucursal.get("suc_calle_numero") or sucursal.get("suc_domicilio") or ""))
+        var_suc_colonia.set(str(sucursal.get("suc_colonia", "") or ""))
         var_suc_municipio.set(str(sucursal.get("suc_municipio", "") or ""))
         var_suc_estado.set(str(sucursal.get("suc_estado", "") or ""))
+        var_suc_codigo_postal.set(str(sucursal.get("suc_codigo_postal", "") or ""))
         var_suc_telefono.set(str(sucursal.get("suc_telefono", "") or ""))
 
     def cargar_contacto_para_editar(_valor=None):
@@ -425,9 +448,11 @@ def mostrar_clientes_admin(parent, app):
         exito, mensaje, registro = crear_sucursal({
             "id_cliente": seleccionado.get("id_cliente"),
             "suc_nombre": nombre_nuevo,
-            "suc_domicilio": var_suc_domicilio.get(),
+            "suc_calle_numero": var_suc_calle_numero.get(),
+            "suc_colonia": var_suc_colonia.get(),
             "suc_municipio": var_suc_municipio.get(),
             "suc_estado": var_suc_estado.get(),
+            "suc_codigo_postal": var_suc_codigo_postal.get(),
             "suc_telefono": var_suc_telefono.get(),
         })
         if exito:
@@ -471,8 +496,9 @@ def mostrar_clientes_admin(parent, app):
         if not messagebox.askyesno("Confirmar", "¿Actualizar los datos de esta sucursal?"):
             return
         exito, mensaje, _ = actualizar_sucursal(sucursal.get("suc_id"), {
-            "suc_nombre": var_suc_nombre.get(), "suc_domicilio": var_suc_domicilio.get(),
-            "suc_municipio": var_suc_municipio.get(), "suc_estado": var_suc_estado.get(),
+            "suc_nombre": var_suc_nombre.get(), "suc_calle_numero": var_suc_calle_numero.get(),
+            "suc_colonia": var_suc_colonia.get(), "suc_municipio": var_suc_municipio.get(),
+            "suc_estado": var_suc_estado.get(), "suc_codigo_postal": var_suc_codigo_postal.get(),
             "suc_telefono": var_suc_telefono.get(), "suc_estatus": sucursal.get("suc_estatus", 1),
         })
         (messagebox.showinfo if exito else messagebox.showerror)("Sucursales", mensaje)
@@ -498,7 +524,7 @@ def mostrar_clientes_admin(parent, app):
             refrescar_contactos()
 
     botones_suc = ctk.CTkFrame(panel_suc, fg_color="transparent")
-    botones_suc.grid(row=14, column=0, sticky="ew", pady=(3, 2))
+    botones_suc.grid(row=4, column=0, sticky="ew", pady=(3, 2))
     botones_suc.grid_columnconfigure((0,1), weight=1)
     ctk.CTkButton(botones_suc, text="+ Nueva / Guardar", height=34, fg_color=SECONDARY, hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=guardar_sucursal_operativa).grid(row=0,column=0,sticky="ew",padx=(0,3))
     ctk.CTkButton(botones_suc, text="✏ Editar seleccionada", height=34, fg_color=SECONDARY, hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=actualizar_sucursal_operativa).grid(row=0,column=1,sticky="ew",padx=(3,0))

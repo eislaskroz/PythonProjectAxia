@@ -63,6 +63,10 @@ def normalizar_datos_usuario(datos):
     for campo in ("usu_rfc", "usu_curp", "usu_imss", "usu_ine"):
         datos_normalizados[campo] = str(datos_normalizados.get(campo, "") or "").upper()
 
+    # El correo corporativo se conserva en una sola columna histórica (usu_correo)
+    # y se normaliza para evitar duplicidades por mayúsculas/minúsculas.
+    datos_normalizados["usu_correo"] = str(datos_normalizados.get("usu_correo", "") or "").strip().lower()
+
     return datos_normalizados
 
 
@@ -91,13 +95,17 @@ def validar_datos_usuario(datos):
     if not datos.get("usu_apellido"):
         return False, "El apellido es obligatorio."
 
+    correo = str(datos.get("usu_correo", "") or "").strip()
+    if correo and ("@" not in correo or "." not in correo.rsplit("@", 1)[-1]):
+        return False, "El correo electrónico de empresa no tiene un formato válido."
+
     try:
         usu_tipo = int(datos.get("usu_tipo", OPERADOR))
     except (TypeError, ValueError):
-        return False, "El tipo de usuario debe ser un número entre 1 y 6."
+        return False, "El tipo de usuario debe ser un número entre 1 y 8."
 
     if usu_tipo not in TIPOS_VALIDOS:
-        return False, "El tipo de usuario debe estar entre 1 y 6."
+        return False, "El tipo de usuario debe estar entre 1 y 8."
 
     datos["usu_tipo"] = usu_tipo
     return True, "Datos válidos"
@@ -192,6 +200,7 @@ def _coincide_usuario(usuario, termino):
         "usu_apellido",
         "usu_rfc",
         "usu_telefono",
+        "usu_correo",
         "usu_depto",
         "usu_puesto",
     ]
@@ -293,9 +302,9 @@ def actualizar_usuario_admin(id_usuario, datos):
             try:
                 datos_guardar["usu_tipo"] = int(datos_guardar["usu_tipo"])
             except (TypeError, ValueError):
-                return False, "El tipo de usuario debe ser un número entre 1 y 6.", None
+                return False, "El tipo de usuario debe ser un número entre 1 y 8.", None
             if datos_guardar["usu_tipo"] not in TIPOS_VALIDOS:
-                return False, "El tipo de usuario debe estar entre 1 y 6.", None
+                return False, "El tipo de usuario debe estar entre 1 y 8.", None
 
         password = datos_guardar.get("usu_password", "")
         if password:

@@ -8,6 +8,8 @@ La base de datos almacena el nivel en ``db_usuarios.usu_tipo``:
 4 = Operador
 5 = Administrativo
 6 = Especial
+7 = Compras
+8 = Almacén
 
 Los permisos se validan tanto al construir la navegación como al abrir cada
 vista sensible. Ocultar un botón no se considera una medida de seguridad por sí
@@ -24,6 +26,8 @@ SUPERVISOR = 3
 OPERADOR = 4
 ADMINISTRATIVO = 5
 ESPECIAL = 6
+COMPRAS = 7
+ALMACEN = 8
 
 # Alias conservado para compatibilidad con módulos anteriores.
 ADMIN = ADMINISTRADOR
@@ -35,6 +39,8 @@ NOMBRES_ROL = {
     OPERADOR: "Operador",
     ADMINISTRATIVO: "Administrativo",
     ESPECIAL: "Especial",
+    COMPRAS: "Compras",
+    ALMACEN: "Almacén",
 }
 
 TIPOS_VALIDOS = frozenset(NOMBRES_ROL)
@@ -44,7 +50,8 @@ ROLES_SUPERVISION = frozenset({SUPERVISOR, ADMINISTRATIVO, ESPECIAL})
 ROLES_GESTION_OPERATIVA = frozenset(
     {ADMINISTRADOR, JEFE_OPERACIONES, SUPERVISOR, ADMINISTRATIVO, ESPECIAL}
 )
-ROLES_TODOS = frozenset(TIPOS_VALIDOS)
+ROLES_OPERATIVOS_LEGACY = frozenset({ADMINISTRADOR, JEFE_OPERACIONES, SUPERVISOR, OPERADOR, ADMINISTRATIVO, ESPECIAL})
+ROLES_TODOS = ROLES_OPERATIVOS_LEGACY
 
 
 def obtener_tipo_usuario(usuario_activo: Mapping[str, Any] | None) -> int | None:
@@ -135,7 +142,7 @@ def puede_consultar_procesos(usuario_activo) -> bool:
 
 
 def puede_generar_levantamiento(usuario_activo) -> bool:
-    """Los seis roles pueden agregar levantamientos."""
+    """Los roles operativos/comerciales 1-6 pueden agregar levantamientos."""
     return obtener_tipo_usuario(usuario_activo) in ROLES_TODOS
 
 
@@ -154,6 +161,17 @@ def puede_cotizar_levantamientos(usuario_activo) -> bool:
     """Cotización de levantamientos: Ventas (rol 6) y Administrador como superusuario."""
     return _es_rol(usuario_activo, ADMINISTRADOR, ESPECIAL)
 
+
+
+
+def puede_ver_compras(usuario_activo) -> bool:
+    """Bandeja de Compras: rol 7 y Administrador como superusuario."""
+    return _es_rol(usuario_activo, ADMINISTRADOR, COMPRAS)
+
+
+def puede_ver_almacen(usuario_activo) -> bool:
+    """Reserva de permiso para el futuro módulo de Almacén (rol 8)."""
+    return _es_rol(usuario_activo, ADMINISTRADOR, ALMACEN)
 
 def puede_avanzar_flujo_operativo(usuario_activo) -> bool:
     """Administrador y Administrativo controlan las transiciones LEV -> OT -> OS."""
@@ -175,7 +193,7 @@ def puede_ver_bitacoras_operativas(usuario_activo) -> bool:
 
 
 def puede_generar_bitacora(usuario_activo) -> bool:
-    """Los seis roles pueden generar/registrar bitácoras operativas."""
+    """Los roles operativos/comerciales 1-6 pueden generar/registrar bitácoras operativas."""
     return puede_ver_bitacoras_operativas(usuario_activo)
 
 
@@ -196,6 +214,8 @@ def matriz_permisos() -> dict[int, dict[str, bool]]:
             "orden_servicio_operativa": tipo in ROLES_TODOS,
             "convertir_levantamiento_a_orden": tipo in {ADMINISTRADOR, ADMINISTRATIVO},
             "cotizar_levantamientos": tipo in {ADMINISTRADOR, ESPECIAL},
+            "compras": tipo in {ADMINISTRADOR, COMPRAS},
+            "almacen": tipo in {ADMINISTRADOR, ALMACEN},
             "bitacoras_operativas": tipo in ROLES_TODOS,
             "reportes_operativos": tipo in ROLES_GESTION_OPERATIVA,
             "usuarios": tipo in {ADMINISTRADOR, JEFE_OPERACIONES},

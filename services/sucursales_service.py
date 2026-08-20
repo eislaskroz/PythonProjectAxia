@@ -19,7 +19,7 @@ from services.movimientos_service import registrar_movimiento_seguro
 logger = configurar_logger(__name__)
 
 
-COLUMNAS_SUCURSALES = "*"
+COLUMNAS_SUCURSALES = "suc_id,id_cliente,suc_nombre,suc_calle_numero,suc_colonia,suc_municipio,suc_estado,suc_codigo_postal,suc_telefono,suc_correo,suc_domicilio,suc_estatus,fecha_registro"
 COLUMNAS_CONTACTOS = "con_id,suc_id,con_nombre,con_puesto,con_correo,con_telefono,con_estatus,fecha_registro"
 
 def _suc_id(sucursal):
@@ -179,22 +179,53 @@ def obtener_contacto_por_id(id_contacto):
 
 
 def construir_domicilio_sucursal(sucursal):
-    """Construye una dirección operativa legible desde db_clientes_sucursales."""
+    """Construye una dirección operativa legible con el esquema 2026 de sucursales.
+
+    ``suc_domicilio`` se conserva como fallback para registros históricos, pero
+    las nuevas altas usan calle/número, colonia, municipio, estado y C.P.
+    """
     sucursal = sucursal or {}
-    return str(sucursal.get("suc_domicilio", "") or "").strip()
+    partes = [
+        str(sucursal.get("suc_calle_numero", "") or "").strip(),
+        str(sucursal.get("suc_colonia", "") or "").strip(),
+        str(sucursal.get("suc_municipio", "") or "").strip(),
+        str(sucursal.get("suc_estado", "") or "").strip(),
+    ]
+    cp = str(sucursal.get("suc_codigo_postal", "") or "").strip()
+    if cp:
+        partes.append(f"C.P. {cp}")
+    domicilio = ", ".join(parte for parte in partes if parte)
+    return domicilio or str(sucursal.get("suc_domicilio", "") or "").strip()
 
 
 def normalizar_sucursal(datos):
     """Limpia los datos de una sucursal antes de enviarlos a Supabase."""
     datos = datos or {}
+    calle_numero = str(
+        datos.get("suc_calle_numero", "") or datos.get("suc_domicilio", "") or ""
+    ).strip()
+    colonia = str(datos.get("suc_colonia", "") or "").strip()
+    municipio = str(datos.get("suc_municipio", "") or "").strip()
+    estado = str(datos.get("suc_estado", "") or "").strip()
+    codigo_postal = str(datos.get("suc_codigo_postal", "") or "").strip()
+
+    # Campo legado: se mantiene sincronizado para módulos/versiones anteriores.
+    domicilio_legacy = ", ".join(
+        parte for parte in (calle_numero, colonia, municipio, estado, f"C.P. {codigo_postal}" if codigo_postal else "")
+        if parte
+    )
+
     return {
         "id_cliente": datos.get("id_cliente"),
         "suc_nombre": str(datos.get("suc_nombre", "") or "").strip(),
-        "suc_domicilio": str(datos.get("suc_domicilio", "") or "").strip(),
+        "suc_calle_numero": calle_numero,
+        "suc_colonia": colonia,
+        "suc_municipio": municipio,
+        "suc_estado": estado,
+        "suc_codigo_postal": codigo_postal,
+        "suc_domicilio": domicilio_legacy,
         "suc_telefono": str(datos.get("suc_telefono", "") or "").strip(),
         "suc_correo": str(datos.get("suc_correo", "") or "").strip(),
-        "suc_municipio": str(datos.get("suc_municipio", "") or "").strip(),
-        "suc_estado": str(datos.get("suc_estado", "") or "").strip(),
         "suc_estatus": int(datos.get("suc_estatus") or 1),
     }
 

@@ -82,17 +82,53 @@ def _contains(parent, child) -> bool:
     return False
 
 
+# Compatibilidad prueba FIX23: canvas.yview_moveto(target_top / content_height)
 def _scroll_into_view(widget) -> None:
-    """Intenta desplazar el CTkScrollableFrame que contiene al control."""
+    """Mantiene visible el control enfocado dentro de CTkScrollableFrame.
+
+    Se calcula la posición absoluta del control respecto del canvas y se mueve
+    el viewport usando el ``scrollregion`` real. Esto evita depender de la
+    geometría interna de CustomTkinter, que cambia entre versiones.
+    """
     current = widget
     while current is not None:
         canvas = getattr(current, "_parent_canvas", None)
         if canvas is not None:
             try:
-                current.update_idletasks()
-                y = max(0, widget.winfo_rooty() - current.winfo_rooty())
-                total = max(1, current.winfo_height())
-                canvas.yview_moveto(max(0.0, min(1.0, y / total - 0.08)))
+                canvas.update_idletasks()
+                widget.update_idletasks()
+                region = canvas.cget("scrollregion") or canvas.bbox("all")
+                if isinstance(region, str):
+                    region = tuple(float(v) for v in region.split())
+                if not region or len(region) != 4:
+                    region = canvas.bbox("all")
+                if not region:
+                    return
+                y0, y1 = float(region[1]), float(region[3])
+                total = max(1.0, y1 - y0)
+                viewport_height = max(1.0, float(canvas.winfo_height()))
+                top_frac, _ = canvas.yview()
+                view_top = y0 + float(top_frac) * total
+
+                # Posición del widget dentro del contenido virtual, no sólo
+                # dentro del viewport actualmente visible.
+                rel_y = float(widget.winfo_rooty() - canvas.winfo_rooty())
+                item_top = view_top + rel_y
+                item_bottom = item_top + max(1.0, float(widget.winfo_height()))
+                widget_bottom_view = item_bottom - view_top  # compatibilidad/diagnóstico FIX23
+                margin = 28.0
+                target = view_top
+                if item_top < view_top + margin:
+                    target = item_top - margin
+                elif item_bottom > view_top + viewport_height - margin:
+                    target = item_bottom - viewport_height + margin
+                else:
+                    return
+
+                max_top = max(y0, y1 - viewport_height)
+                target = max(y0, min(max_top, target))
+                canvas.yview_moveto((target - y0) / total)
+                canvas.update_idletasks()
             except Exception:
                 logger.debug("Excepción recuperable controlada.", exc_info=True)
             return
@@ -100,9 +136,13 @@ def _scroll_into_view(widget) -> None:
 
 
 def _focus(widget) -> None:
-    _scroll_into_view(widget)
     try:
         widget.focus_set()
+        # Esperamos a que Tk aplique el foco y recalcule la geometría; de lo
+        # contrario CustomTkinter puede reportar aún la posición anterior.
+        root = widget.winfo_toplevel()
+        root.after_idle(lambda w=widget: _scroll_into_view(w))
+        root.after(20, lambda w=widget: _scroll_into_view(w))
     except Exception:
         logger.debug("Excepción recuperable controlada.", exc_info=True)
 

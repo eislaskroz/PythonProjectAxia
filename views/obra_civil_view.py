@@ -12,6 +12,7 @@ from ui.native_combobox import NativeComboBox
 from views.levantamientos.catalogos_canalizacion import (
     TIPOS_ABRAZADERAS, TIPOS_CABLE_DATOS_CONTROL, TIPOS_CANALIZACION,
     TIPOS_CONECTORES, TIPOS_COPLES, TIPOS_REGISTROS, TIPOS_TUBOS, TAMANOS_TUBOS,
+    especificaciones_por_categoria,
 )
 
 from app_context import obtener_usuario_actual
@@ -634,9 +635,8 @@ def mostrar_obra_civil(parent, app, aco=None):
         if categoria == "Cable": return list(TIPOS_CABLE_DATOS_CONTROL)
         return ["Otro"]
 
-    def catalogo_especificacion_canalizacion(categoria):
-        if categoria == "Tubo": return list(TAMANOS_TUBOS)
-        return ["No aplica", "Por definir"]
+    def catalogo_especificacion_canalizacion(categoria, tipo=""):
+        return especificaciones_por_categoria(categoria, tipo)
 
     def obtener_canalizacion_materiales_obra():
         if var_requiere_canalizacion.get() == "No":
@@ -696,7 +696,7 @@ def mostrar_obra_civil(parent, app, aco=None):
         def actualizar_catalogos(_=None):
             categoria = vcategoria.get().strip()
             tipos = catalogo_tipos_canalizacion(categoria)
-            especificaciones = catalogo_especificacion_canalizacion(categoria)
+            especificaciones = catalogo_especificacion_canalizacion(categoria, vtipo.get())
             otipo.configure(values=tipos)
             oespecificacion.configure(values=especificaciones)
             if vtipo.get() not in tipos:
@@ -710,6 +710,7 @@ def mostrar_obra_civil(parent, app, aco=None):
             validar_preview()
 
         ocategoria.configure(command=actualizar_catalogos)
+        vtipo.trace_add("write", lambda *_: actualizar_catalogos())
         actualizar_catalogos()
         vcantidad.trace_add("write", lambda *_: validar_preview())
 

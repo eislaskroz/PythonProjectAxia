@@ -82,6 +82,8 @@ from views.levantamientos.catalogos_canalizacion import (
     TIPOS_CABLE_DATOS_CONTROL,
     TIPOS_CABLE_EXTERIOR,
     TIPOS_CANALIZACION,
+    especificaciones_por_categoria,
+    normalizar_tipo_canalizacion,
 )
 
 from views.levantamientos.form_definitions import (
@@ -92,7 +94,7 @@ from views.levantamientos.form_definitions import (
 # =====================================================
 # FUNCIÓN: mostrar_levantamiento()
 # =====================================================
-def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, registro_editar=None, on_saved=None, modal=False):
+def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, registro_editar=None, on_saved=None, modal=False, borrador=None):
     """
     Muestra el formulario para generar un levantamiento.
     PARÁMETROS:
@@ -2320,10 +2322,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         if categoria == "Patch panel": return ["12 puertos Cat6", "24 puertos Cat6", "48 puertos Cat6", "Cat6A", "Fibra óptica"]
         return ["Otro"]
 
-    def catalogo_especificacion_por_categoria(categoria):
-        if categoria == "Tubo": return list(TAMANOS_TUBOS)
-        if categoria == "Cable" and tipo_levantamiento == "Electricidad": return list(CALIBRES_CABLE_ELECTRICO)
-        return ["No aplica", "Por definir"]
+    def catalogo_especificacion_por_categoria(categoria, tipo=""):
+        return especificaciones_por_categoria(categoria, tipo)
 
     def obtener_canalizacion_materiales_json():
         # En Seguridad y Monitoreo la canalización es parte exclusiva de
@@ -2438,7 +2438,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             def actualizar_catalogos(*_):
                 categoria = var_categoria.get().strip()
                 tipos = catalogo_tipos_por_categoria(categoria)
-                especificaciones = catalogo_especificacion_por_categoria(categoria)
+                especificaciones = catalogo_especificacion_por_categoria(categoria, var_tipo_item.get())
                 combo_tipo.configure(values=tipos)
                 combo_especificacion.configure(values=especificaciones)
                 if var_tipo_item.get() not in tipos: var_tipo_item.set(tipos[0] if tipos else "")
@@ -2446,6 +2446,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 if categoria in ("Tubo", "Canalización", "Cable") and not var_unidad_item.get(): var_unidad_item.set("Metro(s)")
                 elif categoria not in ("Tubo", "Canalización", "Cable") and var_unidad_item.get() == "Metro(s)": var_unidad_item.set("Pieza(s)")
             var_categoria.trace_add("write", actualizar_catalogos)
+            var_tipo_item.trace_add("write", actualizar_catalogos)
             actualizar_catalogos()
 
             def eliminar():
@@ -3897,11 +3898,12 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         return []
 
     def _cargar_registro_edicion():
-        """Rellena el mismo formulario de captura con el registro persistido."""
-        if not registro_editar:
+        """Rellena el formulario desde un registro persistido o un borrador local."""
+        fuente_restauracion = registro_editar or borrador
+        if not fuente_restauracion:
             return
         import inspect
-        registro = dict(registro_editar or {})
+        registro = dict(fuente_restauracion or {})
         detalle = _json_dict(registro.get("lev_detalle_tecnico_json"))
 
         # Datos generales.
@@ -3992,9 +3994,12 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             try:
                 agregar_partida_canalizacion(str(fila.get("categoria") or "Tubo"))
                 item = canalizacion_materiales_items[-1]
-                for k, destino in (("categoria","categoria"),("tipo","tipo"),("tamano_calibre_especificacion","extra"),("cantidad","cantidad"),("unidad","unidad")):
+                for k, destino in (("categoria","categoria"),("tipo","tipo"),("tamano_calibre_especificacion","especificacion"),("cantidad","cantidad"),("unidad","unidad")):
                     if k in fila and destino in item:
-                        item[destino].set(str(fila.get(k) or ""))
+                        valor = fila.get(k) or ""
+                        if k == "tipo":
+                            valor = normalizar_tipo_canalizacion(valor)
+                        item[destino].set(str(valor))
             except Exception:
                 logger.debug("No fue posible restaurar una partida de canalización.", exc_info=True)
         for fila in detalle.get("equipos_principales", []) if isinstance(detalle.get("equipos_principales"), list) else []:
@@ -4047,6 +4052,17 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             pass
 
     _cargar_registro_edicion()
+
+    # Expone al contenedor principal una captura segura del formulario actual.
+    # Se usa para autoguardado local antes de cerrar la sesión por inactividad.
+    try:
+        if hasattr(app, "registrar_proveedor_borrador_levantamiento"):
+            app.registrar_proveedor_borrador_levantamiento(
+                tipo_levantamiento or var_tipo.get(),
+                lambda: registro_pdf_levantamiento(),
+            )
+    except Exception:
+        logger.debug("No fue posible registrar el proveedor de borrador.", exc_info=True)
 
     # =================================================
     # FUNCIÓN: guardar_levantamiento()
@@ -4262,6 +4278,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     if registro_editar else "El levantamiento fue registrado correctamente."
                 ) + mensaje_pdf + mensaje_correo
             )
+
+            # Un guardado definitivo invalida cualquier borrador local del mismo usuario.
+            try:
+                from services.levantamiento_borradores_service import eliminar_borrador
+                eliminar_borrador(usuario_activo)
+            except Exception:
+                logger.debug("No fue posible eliminar el borrador temporal ya guardado.", exc_info=True)
 
             if callable(on_saved):
                 try:

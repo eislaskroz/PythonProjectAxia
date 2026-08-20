@@ -11,6 +11,7 @@ Formatos actuales:
 - OT-00001  Órdenes de trabajo
 - BIT-00001 Bitácoras operativas
 - OBC-0001  Obras civiles / Proyecto ejecutivo
+- COT-00001 Cotizaciones comerciales
 
 IMPORTANTE:
 Los folios LEV se generan exclusivamente mediante la función RPC
@@ -39,11 +40,11 @@ def _extraer_valor_rpc(data):
         if isinstance(value, str):
             return value
         if isinstance(value, dict):
-            for key in ("generar_folio_levantamiento", "folio", "value"):
+            for key in ("generar_folio_levantamiento", "generar_folio_cotizacion", "folio", "value"):
                 if value.get(key):
                     return value[key]
     if isinstance(data, dict):
-        for key in ("generar_folio_levantamiento", "folio", "value"):
+        for key in ("generar_folio_levantamiento", "generar_folio_cotizacion", "folio", "value"):
             if data.get(key):
                 return data[key]
     return None
@@ -69,6 +70,26 @@ def solicitar_folio_levantamiento():
     return folio
 
 
+def solicitar_folio_cotizacion():
+    """Solicita a Supabase el siguiente folio único con formato COT-XXXXX."""
+    try:
+        respuesta = supabase.rpc("generar_folio_cotizacion").execute()
+    except Exception as error:
+        logger.exception("No fue posible solicitar el folio centralizado de cotización.")
+        raise FolioCentralError(
+            "No fue posible obtener el folio de cotización desde Supabase. "
+            "Ejecuta la migración 20260820_cotizaciones_formales.sql."
+        ) from error
+
+    folio = str(_extraer_valor_rpc(getattr(respuesta, "data", None)) or "").strip().upper()
+    if not re.fullmatch(r"COT-\d{5,}", folio):
+        raise FolioCentralError(
+            f"Supabase devolvió un folio de cotización inválido: {folio or 'VACÍO'}. "
+            "Se esperaba COT-XXXXX."
+        )
+    return folio
+
+
 CONFIG_FOLIOS = {
     "LEV": {
         "tabla": "db_levantamientos",
@@ -89,6 +110,10 @@ CONFIG_FOLIOS = {
     "OBC": {
         "tabla": "db_obras_civiles",
         "campo": "obc_folio",
+    },
+    "COT": {
+        "tabla": "db_cotizaciones",
+        "campo": "cot_folio",
     },
 }
 
@@ -121,7 +146,7 @@ def formatear_folio(prefijo, consecutivo):
     LEV se genera por RPC y ya utiliza cinco dígitos.
     """
     prefijo = prefijo.upper().strip()
-    ancho = 5 if prefijo in {"LEV", "OS", "OT", "BIT"} else 4
+    ancho = 5 if prefijo in {"LEV", "OS", "OT", "BIT", "COT"} else 4
     return f"{prefijo}-{int(consecutivo):0{ancho}d}"
 
 
@@ -167,6 +192,8 @@ def generar_siguiente_folio(prefijo):
 
     if prefijo == "LEV":
         return solicitar_folio_levantamiento()
+    if prefijo == "COT":
+        return solicitar_folio_cotizacion()
 
     try:
         ultimo_folio = obtener_ultimo_folio(prefijo)

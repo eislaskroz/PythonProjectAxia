@@ -156,7 +156,7 @@ def preparar(
 
             usu_tipo = int(fila["usu_tipo"])
             if usu_tipo not in TIPOS_VALIDOS:
-                raise ValueError("usu_tipo debe estar entre 1 y 6")
+                raise ValueError("usu_tipo debe estar entre 1 y 8")
 
             if not fila["usu_nickname"]:
                 raise ValueError("usu_nickname está vacío")

@@ -58,6 +58,7 @@ from security.permissions import (
     puede_entrar_inicio_aco,
     puede_generar_levantamiento,
     puede_cotizar_levantamientos,
+    puede_ver_compras,
     puede_generar_orden_servicio,
     puede_ver_auditoria,
     puede_ver_reportes,
@@ -215,6 +216,13 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
             sidebar,
             "💲 Cotizaciones",
             callbacks["cotizaciones"]
+        )
+
+    if puede_ver_compras(usuario_activo):
+        crear_boton_sidebar(
+            sidebar,
+            "🛒 Compras",
+            callbacks["compras"]
         )
 
     if puede_inicio:

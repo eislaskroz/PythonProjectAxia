@@ -28,13 +28,14 @@ CAMPOS_USUARIO = [
     ("usu_password", "Nueva contraseña", False),
     ("usu_nombre", "Nombre", True),
     ("usu_apellido", "Apellido", True),
-    ("usu_tipo", "Tipo de usuario (1-6)", True),
+    ("usu_tipo", "Tipo de usuario (1-8)", True),
     ("usu_rfc", "RFC", False),
     ("usu_curp", "CURP", False),
     ("usu_imss", "IMSS", False),
     ("usu_ine", "INE", False),
     ("usu_fechanac", "Fecha nacimiento", False),
     ("usu_telefono", "Teléfono", False),
+    ("usu_correo", "Correo electrónico de empresa", False),
     ("usu_depto", "Departamento", False),
     ("usu_puesto", "Puesto", False),
     ("usu_calle", "Calle", False),
@@ -80,7 +81,7 @@ def mostrar_usuarios_admin(parent, app):
     entry_busqueda = ctk.CTkEntry(
         barra,
         textvariable=var_busqueda,
-        placeholder_text="Buscar usuario por nickname, nombre o apellido...",
+        placeholder_text="Buscar usuario por nickname, nombre, apellido o correo empresarial...",
         height=38,
     )
     entry_busqueda.grid(row=0, column=0, sticky="ew", padx=(0, 5))
@@ -145,7 +146,7 @@ def mostrar_usuarios_admin(parent, app):
         wrapper.grid_columnconfigure(0, weight=1)
 
         texto = f"{etiqueta}{' *' if obligatorio else ''}"
-        icono = "🔐" if campo == "usu_password" else ("👤" if campo in ("usu_nickname", "usu_nombre", "usu_apellido") else ("📄" if campo in ("usu_rfc", "usu_curp", "usu_imss", "usu_ine") else ("📍" if campo in ("usu_calle", "usu_numero", "usu_colonia", "usu_municipio", "usu_estado", "usu_cp") else "•")))
+        icono = "🔐" if campo == "usu_password" else ("👤" if campo in ("usu_nickname", "usu_nombre", "usu_apellido") else ("📄" if campo in ("usu_rfc", "usu_curp", "usu_imss", "usu_ine") else ("✉️" if campo == "usu_correo" else ("📍" if campo in ("usu_calle", "usu_numero", "usu_colonia", "usu_municipio", "usu_estado", "usu_cp") else "•"))))
         ctk.CTkLabel(wrapper, text=f"{icono} {texto}", font=TEXT_SM, text_color=TEXT_PRIMARY).grid(row=0, column=0, sticky="w")
 
         var = ctk.StringVar()

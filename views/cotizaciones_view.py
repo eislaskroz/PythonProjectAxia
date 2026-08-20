@@ -1,8 +1,8 @@
-"""Módulo comercial de cotizaciones de levantamientos para Ventas."""
+"""Módulo comercial de cotizaciones formales para Ventas."""
 from __future__ import annotations
 
 import customtkinter as ctk
-from tkinter import messagebox
+from tkinter import messagebox, filedialog
 
 from app_context import obtener_usuario_actual
 from core.background_tasks import run_async
@@ -10,10 +10,16 @@ from core.logger import configurar_logger
 from security.permissions import puede_cotizar_levantamientos
 from services.cotizaciones_service import (
     obtener_levantamientos_para_cotizar,
-    partidas_cotizables,
     cargar_cotizacion,
-    guardar_cotizacion_levantamiento,
+    datos_generales_cotizacion,
+    construir_partidas_comerciales,
+    guardar_cotizacion_comercial,
+    finalizar_cotizacion_para_compras,
+    ESTATUS_BORRADOR,
+    ESTATUS_EN_COMPRA,
 )
+from services.axia_pdf_engine import AxiaPdfEngine
+from services.usuarios_service import obtener_nombres_usuarios_por_tipos
 from ui.colors import WHITE, TEXT_PRIMARY, TEXT_SECONDARY, SECONDARY, BUTTON_HOVER
 from ui.fonts import TITLE_MD, TEXT_MD, TEXT_SM, BUTTON_FONT
 from ui.native_table import NativeTreeTable
@@ -25,25 +31,23 @@ def _texto(registro, clave):
     return str((registro or {}).get(clave) or "").strip()
 
 
+def _num(value):
+    try:
+        return float(str(value or "0").replace(",", "").strip() or 0)
+    except ValueError:
+        return 0.0
+
+
 def mostrar_cotizaciones(parent, app=None):
     usuario = obtener_usuario_actual()
     if not puede_cotizar_levantamientos(usuario):
-        messagebox.showerror(
-            "Acceso denegado",
-            "Este módulo está disponible únicamente para Ventas (id=6) y Administrador.",
-        )
+        messagebox.showerror("Acceso denegado", "Este módulo está disponible para Ventas (id=6) y Administrador.")
         return
 
     for widget in parent.winfo_children():
         widget.destroy()
 
-    seleccion = {
-        "registro": None,
-        "partidas": [],
-        "entries": [],
-        "servicio_concepto": None,
-        "servicio_costo": None,
-    }
+    estado = {"registro": None, "cotizacion": {}, "vars": {}, "partidas": [], "partida_vars": [], "editables": [], "modo_edicion": False}
     registros_cache = []
 
     root = ctk.CTkFrame(parent, fg_color="transparent")
@@ -51,9 +55,6 @@ def mostrar_cotizaciones(parent, app=None):
     root.grid_columnconfigure(0, weight=1)
     root.grid_rowconfigure(1, weight=1)
 
-    # ------------------------------------------------------------------
-    # Franja superior: búsqueda a la izquierda y bandeja a la derecha.
-    # ------------------------------------------------------------------
     superior = ctk.CTkFrame(root, fg_color="transparent")
     superior.grid(row=0, column=0, sticky="ew", pady=(0, 8))
     superior.grid_columnconfigure(0, weight=1, uniform="top")
@@ -62,470 +63,504 @@ def mostrar_cotizaciones(parent, app=None):
     cabecera = ctk.CTkFrame(superior, fg_color=WHITE, corner_radius=16)
     cabecera.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
     cabecera.grid_columnconfigure(0, weight=1)
-    ctk.CTkLabel(
-        cabecera, text="Cotizaciones de levantamientos", font=TITLE_MD,
-        text_color=TEXT_PRIMARY, anchor="w",
-    ).grid(row=0, column=0, columnspan=3, sticky="ew", padx=14, pady=(10, 2))
+    ctk.CTkLabel(cabecera, text="Cotizaciones comerciales", font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="w").grid(
+        row=0, column=0, columnspan=3, sticky="ew", padx=14, pady=(10, 2))
     ctk.CTkLabel(
         cabecera,
-        text=(
-            "Ventas captura el costo de materiales, insumos, equipos y del servicio "
-            "de los levantamientos preautorizados por Operaciones."
-        ),
-        font=TEXT_MD, text_color=TEXT_SECONDARY, anchor="w",
+        text="Los datos existentes del levantamiento se cargan automáticamente; Ventas completa precios, proveedor y condiciones comerciales.",
+        font=TEXT_MD, text_color=TEXT_SECONDARY, anchor="w", wraplength=650,
     ).grid(row=1, column=0, columnspan=3, sticky="ew", padx=14, pady=(0, 8))
 
     var_busqueda = ctk.StringVar()
-    _normalizando_busqueda = {"activo": False}
-
+    normalizando = {"x": False}
     def _forzar_mayusculas_busqueda(*_):
-        if _normalizando_busqueda["activo"]:
-            return
+        if normalizando["x"]: return
         actual = var_busqueda.get()
         mayusculas = actual.upper()
-        if actual == mayusculas:
-            return
-        _normalizando_busqueda["activo"] = True
-        try:
+        if actual != mayusculas:
+            normalizando["x"] = True
             var_busqueda.set(mayusculas)
-        finally:
-            _normalizando_busqueda["activo"] = False
-
+            normalizando["x"] = False
     var_busqueda.trace_add("write", _forzar_mayusculas_busqueda)
-    entrada_busqueda = ctk.CTkEntry(
-        cabecera, textvariable=var_busqueda, height=40,
-        placeholder_text="BUSCAR POR FOLIO, CLIENTE, TIPO O MODALIDAD",
-    )
+    entrada_busqueda = ctk.CTkEntry(cabecera, textvariable=var_busqueda, height=40,
+                                    placeholder_text="BUSCAR POR FOLIO, CLIENTE, TIPO O MODALIDAD")
     entrada_busqueda.grid(row=2, column=0, sticky="ew", padx=(14, 6), pady=(0, 10))
 
-    # ------------------------------------------------------------------
-    # Bandeja superior derecha: compacta y alineada con la búsqueda.
-    # ------------------------------------------------------------------
     bandeja = ctk.CTkFrame(superior, fg_color=WHITE, corner_radius=16)
-    bandeja.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
-    bandeja.grid_columnconfigure(0, weight=1)
-
-    lbl_lista = ctk.CTkLabel(
-        bandeja, text="Levantamientos preautorizados", font=TITLE_MD,
-        text_color=TEXT_PRIMARY, anchor="w",
-    )
+    bandeja.grid(row=0, column=1, sticky="nsew", padx=(6, 0)); bandeja.grid_columnconfigure(0, weight=1)
+    lbl_lista = ctk.CTkLabel(bandeja, text="Levantamientos preautorizados", font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="w")
     lbl_lista.grid(row=0, column=0, sticky="ew", padx=12, pady=(8, 4))
+    tabla = NativeTreeTable(bandeja, columns=(("folio","Folio",135),("cliente","Cliente",210),("tipo","Tipo",210),("fecha","Fecha",125)), height=3)
+    tabla.grid(row=1, column=0, sticky="ew", padx=10, pady=(0,6))
 
-    tabla = NativeTreeTable(
-        bandeja,
-        columns=(("folio", "Folio", 135), ("cliente", "Cliente", 210),
-                 ("tipo", "Tipo", 210), ("fecha", "Fecha", 125)),
-        height=3,
-    )
-    tabla.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 6))
-
-    # ------------------------------------------------------------------
-    # Detalle inferior: ocupa el resto de la pantalla.
-    # ------------------------------------------------------------------
     detalle_card = ctk.CTkFrame(root, fg_color=WHITE, corner_radius=16)
-    detalle_card.grid(row=1, column=0, sticky="nsew")
-    detalle_card.grid_columnconfigure(0, weight=1)
-    detalle_card.grid_rowconfigure(1, weight=1)
-
+    detalle_card.grid(row=1, column=0, sticky="nsew"); detalle_card.grid_columnconfigure(0, weight=1); detalle_card.grid_rowconfigure(1, weight=1)
     info = ctk.CTkFrame(detalle_card, fg_color="transparent")
-    info.grid(row=0, column=0, sticky="ew", padx=14, pady=(8, 3))
-    info.grid_columnconfigure(0, weight=1)
-    lbl_titulo = ctk.CTkLabel(
-        info, text="Selecciona un levantamiento", font=TITLE_MD,
-        text_color=TEXT_PRIMARY, anchor="w",
-    )
+    info.grid(row=0, column=0, sticky="ew", padx=14, pady=(8,3)); info.grid_columnconfigure(0, weight=1)
+    lbl_titulo = ctk.CTkLabel(info, text="Selecciona un levantamiento", font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="w")
     lbl_titulo.grid(row=0, column=0, sticky="ew")
-    lbl_detalle = ctk.CTkLabel(
-        info, text="Aquí aparecerán sus materiales, insumos, equipos y el costo del servicio.",
-        font=TEXT_SM, text_color=TEXT_SECONDARY, anchor="w",
-    )
-    lbl_detalle.grid(row=1, column=0, sticky="ew", pady=(2, 0))
+    lbl_detalle = ctk.CTkLabel(info, text="La cotización se guardará en una tabla propia con folio COT-XXXXX.", font=TEXT_SM, text_color=TEXT_SECONDARY, anchor="w")
+    lbl_detalle.grid(row=1, column=0, sticky="ew", pady=(2,0))
 
     scroll = ctk.CTkScrollableFrame(detalle_card, fg_color="#F8FAFC", corner_radius=12)
     scroll.grid(row=1, column=0, sticky="nsew", padx=12, pady=5)
-    for col, weight in enumerate((0, 0, 0, 1, 0, 0)):
-        scroll.grid_columnconfigure(col, weight=weight)
+    for col in range(4): scroll.grid_columnconfigure(col, weight=1)
 
     acciones = ctk.CTkFrame(detalle_card, fg_color="transparent")
-    acciones.grid(row=2, column=0, sticky="ew", padx=14, pady=(4, 10))
-    acciones.grid_columnconfigure(0, weight=1)
-    lbl_total = ctk.CTkLabel(
-        acciones, text="Total cotizado: $0.00 MXN", font=TITLE_MD,
-        text_color=TEXT_PRIMARY, anchor="e",
-    )
-    lbl_total.grid(row=0, column=0, sticky="e", padx=(0, 10))
-    btn_guardar = ctk.CTkButton(
-        acciones, text="💾 Guardar costos", width=190,
-        fg_color=SECONDARY, hover_color=BUTTON_HOVER,
-        font=BUTTON_FONT, state="disabled",
-    )
-    btn_guardar.grid(row=0, column=1, sticky="e")
+    acciones.grid(row=2, column=0, sticky="ew", padx=14, pady=(4,10)); acciones.grid_columnconfigure(0, weight=1)
+    lbl_total = ctk.CTkLabel(acciones, text="Total: $0.00 MXN", font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="e")
+    lbl_total.grid(row=0, column=0, sticky="e", padx=(0,10))
+    btn_pdf = ctk.CTkButton(acciones, text="👁 PDF Cotización (Preview)", width=170, fg_color="#334155", hover_color=BUTTON_HOVER,
+                            font=BUTTON_FONT, state="disabled")
+    btn_pdf.grid(row=0, column=1, padx=(0,8))
+    btn_modificar = ctk.CTkButton(acciones, text="✎ Modificar cotización", width=165, fg_color="#0F766E", hover_color=BUTTON_HOVER,
+                                  font=BUTTON_FONT, state="disabled")
+    btn_modificar.grid(row=0, column=2, padx=(0,8))
+    btn_guardar = ctk.CTkButton(acciones, text="💾 Guardar cotización", width=175, fg_color=SECONDARY, hover_color=BUTTON_HOVER,
+                                font=BUTTON_FONT, state="disabled")
+    btn_guardar.grid(row=0, column=3, padx=(0,8))
+    btn_finalizar = ctk.CTkButton(acciones, text="✓ Finalizar cotización", width=170, fg_color="#15803D", hover_color=BUTTON_HOVER,
+                                  font=BUTTON_FONT, state="disabled")
+    btn_finalizar.grid(row=0, column=4)
 
-    def limpiar_partidas():
-        for w in scroll.winfo_children():
-            w.destroy()
-        seleccion["partidas"] = []
-        seleccion["entries"] = []
-        seleccion["servicio_concepto"] = None
-        seleccion["servicio_costo"] = None
-        lbl_total.configure(text="Total cotizado: $0.00 MXN")
-        btn_guardar.configure(state="disabled")
+    def limpiar():
+        for w in scroll.winfo_children(): w.destroy()
+        estado["vars"] = {}; estado["partidas"] = []; estado["partida_vars"] = []; estado["cotizacion"] = {}; estado["editables"] = []
+        estado["modo_edicion"] = False
+        for boton in (btn_guardar, btn_pdf, btn_modificar, btn_finalizar):
+            boton.configure(state="disabled")
+        lbl_total.configure(text="Total: $0.00 MXN")
 
-    def recalcular_total(*_):
-        total = 0.0
-        for entry_info in seleccion["entries"]:
-            texto = entry_info["var"].get().strip().replace(",", "")
-            if not texto:
-                continue
-            try:
-                valor = float(texto)
-                if valor >= 0:
-                    total += valor
-            except ValueError:
-                pass
-        var_servicio = seleccion.get("servicio_costo")
-        if var_servicio is not None:
-            texto = var_servicio.get().strip().replace(",", "")
-            if texto:
-                try:
-                    valor = float(texto)
-                    if valor >= 0:
-                        total += valor
-                except ValueError:
-                    pass
-        lbl_total.configure(text=f"Total cotizado: ${total:,.2f} MXN")
+    def recalcular(*_):
+        subtotal = sum(_num(pv["importe"].get()) for pv in estado["partida_vars"])
+        desc = _num(estado["vars"].get("cot_descuento_pct", ctk.StringVar(value="0")).get()) if estado["vars"] else 0
+        iva_pct = _num(estado["vars"].get("cot_iva_pct", ctk.StringVar(value="16")).get()) if estado["vars"] else 16
+        subtotal_desc = subtotal - (subtotal * desc / 100.0)
+        total = subtotal_desc + (subtotal_desc * iva_pct / 100.0)
+        lbl_total.configure(text=f"Total: ${total:,.2f} MXN")
 
-    def render_partidas(registro):
-        limpiar_partidas()
-        partidas = partidas_cotizables(registro)
-        seleccion["partidas"] = partidas
-        cotizacion = cargar_cotizacion(registro)
-        previas = cotizacion.get("partidas") if isinstance(cotizacion, dict) else []
-        previas = previas if isinstance(previas, list) else []
-        mapa_previas = {
-            (str(x.get("partida") or ""), str(x.get("concepto") or "").strip().casefold()): x
-            for x in previas if isinstance(x, dict)
+    def add_field(parent_frame, row, col, label, key, value="", readonly=False, colspan=1):
+        ctk.CTkLabel(parent_frame, text=label, font=TEXT_SM, text_color=TEXT_PRIMARY, anchor="w").grid(
+            row=row*2, column=col, columnspan=colspan, sticky="ew", padx=5, pady=(4,1))
+        var = ctk.StringVar(value=str(value or "")); estado["vars"][key] = var
+        ent = ctk.CTkEntry(parent_frame, textvariable=var, height=32)
+        ent.grid(row=row*2+1, column=col, columnspan=colspan, sticky="ew", padx=5, pady=(0,4))
+        if readonly:
+            ent.configure(state="disabled")
+        else:
+            estado["editables"].append(ent)
+        var.trace_add("write", lambda *_: actualizar_estado_botones())
+        return var
+
+    def add_select(parent_frame, row, col, label, key, values, value="", colspan=1):
+        ctk.CTkLabel(parent_frame, text=label, font=TEXT_SM, text_color=TEXT_PRIMARY, anchor="w").grid(
+            row=row*2, column=col, columnspan=colspan, sticky="ew", padx=5, pady=(4,1))
+        opciones = [str(x).strip() for x in (values or []) if str(x).strip()]
+        actual = str(value or "").strip()
+        if actual not in opciones:
+            actual = opciones[0] if opciones else ""
+        var = ctk.StringVar(value=actual); estado["vars"][key] = var
+        menu = ctk.CTkOptionMenu(parent_frame, variable=var, values=opciones or ["SIN JEFES DE OPERACIONES REGISTRADOS"], height=32)
+        menu.grid(row=row*2+1, column=col, columnspan=colspan, sticky="ew", padx=5, pady=(0,4))
+        if not opciones:
+            menu.configure(state="disabled")
+        else:
+            estado["editables"].append(menu)
+        var.trace_add("write", lambda *_: actualizar_estado_botones())
+        return var
+
+    def validar_captura_completa():
+        """Valida que Preview/Guardar nunca operen sobre una cotización incompleta."""
+        if not estado.get("registro"):
+            return False, "Selecciona y carga un levantamiento."
+
+        etiquetas = {
+            "cot_fecha": "Fecha de Cotización",
+            "lev_folio": "No. Levantamiento",
+            "cot_cliente": "Cliente",
+            "cot_contacto": "Contacto",
+            "cot_sucursal": "Sucursal",
+            "cot_asunto": "Asunto",
+            "cot_esi": "ESI / Ejecutiva de Ventas",
+            "cot_esi_correo": "Correo ESI",
+            "cot_esi_telefono": "Teléfono ESI",
+            "cot_jefe_operaciones": "Jefe de Operaciones",
+            "cot_supervisor": "Supervisor",
+            "cot_dias": "Días",
+            "cot_personas": "Personas",
+            "cot_plan_pagos": "Plan de Pagos",
+            "cot_vigencia": "Vigencia de Cotización",
         }
+        for key, etiqueta in etiquetas.items():
+            var = estado.get("vars", {}).get(key)
+            valor = str(var.get() if var is not None else "").strip()
+            if not valor or valor in {"*", "-"}:
+                return False, f"Falta completar correctamente: {etiqueta}."
 
-        # ----------------------------- Servicio -----------------------------
-        servicio_previo = cotizacion.get("servicio") if isinstance(cotizacion, dict) else {}
-        servicio_previo = servicio_previo if isinstance(servicio_previo, dict) else {}
-        detalle = registro.get("lev_detalle_tecnico_json")
-        especialidad = ""
-        if isinstance(detalle, dict):
-            especialidad = str(detalle.get("tipo_levantamiento") or "").strip()
-        concepto_default = str(servicio_previo.get("concepto") or "").strip()
-        if not concepto_default:
-            base = especialidad or _texto(registro, "lev_tipo") or "levantamiento"
-            concepto_default = f"Servicio de {base}"
+        correo = str(estado["vars"]["cot_esi_correo"].get()).strip()
+        if "@" not in correo or "." not in correo.rsplit("@", 1)[-1]:
+            return False, "El Correo ESI no tiene un formato válido."
+        if _num(estado["vars"]["cot_dias"].get()) <= 0:
+            return False, "Días debe ser mayor que cero."
+        if _num(estado["vars"]["cot_personas"].get()) <= 0:
+            return False, "Personas debe ser mayor que cero."
 
-        # Servicio: mantenemos únicamente los campos editables para ahorrar altura.
-        ctk.CTkLabel(scroll, text="Concepto del servicio", font=TEXT_SM,
-                     text_color=TEXT_PRIMARY, anchor="w").grid(row=0, column=0, columnspan=4, sticky="ew", padx=8, pady=(7, 2))
-        ctk.CTkLabel(scroll, text="Costo total MXN", font=TEXT_SM,
-                     text_color=TEXT_PRIMARY, anchor="w").grid(row=0, column=5, sticky="ew", padx=5, pady=(7, 2))
+        descuento = _num(estado["vars"].get("cot_descuento_pct").get())
+        iva = _num(estado["vars"].get("cot_iva_pct").get())
+        if descuento < 0 or descuento > 100:
+            return False, "Descuento % debe estar entre 0 y 100."
+        if iva < 0 or iva > 100:
+            return False, "IVA % debe estar entre 0 y 100."
 
-        var_servicio_concepto = ctk.StringVar(value=concepto_default)
-        var_servicio_costo = ctk.StringVar(
-            value=str(servicio_previo.get("costo_total"))
-            if servicio_previo.get("costo_total") not in (None, "") else ""
-        )
-        var_servicio_costo.trace_add("write", recalcular_total)
-        seleccion["servicio_concepto"] = var_servicio_concepto
-        seleccion["servicio_costo"] = var_servicio_costo
-
-        ctk.CTkEntry(
-            scroll, textvariable=var_servicio_concepto, height=34,
-            placeholder_text="DESCRIPCIÓN DEL SERVICIO",
-        ).grid(row=1, column=0, columnspan=5, sticky="ew", padx=8, pady=(0, 7))
-        ctk.CTkEntry(
-            scroll, textvariable=var_servicio_costo, width=165, height=34,
-            placeholder_text="0.00",
-        ).grid(row=1, column=5, sticky="ew", padx=5, pady=(0, 7))
-
-        ctk.CTkFrame(scroll, height=2, fg_color="#E2E8F0").grid(
-            row=2, column=0, columnspan=6, sticky="ew", padx=6, pady=(0, 5)
-        )
-
-        headers = (
-            "Partida", "Grupo", "Cant./Unidad", "Concepto / equipo",
-            "Precio por pieza/unidad/metro", "Costo total MXN"
-        )
-        for c, text in enumerate(headers):
-            ctk.CTkLabel(
-                scroll, text=text, font=("Montserrat", 11, "bold"),
-                text_color=TEXT_PRIMARY, anchor="w",
-            ).grid(row=3, column=c, sticky="ew", padx=5, pady=(3, 7))
-
+        partidas = estado.get("partida_vars") or []
         if not partidas:
-            ctk.CTkLabel(
-                scroll,
-                text="Este levantamiento no contiene materiales, insumos o equipos estructurados. Puedes cotizar únicamente el servicio.",
-                font=TEXT_MD, text_color="#B45309", anchor="w",
-            ).grid(row=4, column=0, columnspan=6, sticky="ew", padx=8, pady=12)
-            btn_guardar.configure(state="normal")
-            recalcular_total()
-            return
+            return False, "La cotización no contiene partidas comerciales."
+        requeridos_texto = {
+            "unidad_tipo": "Unidad / Tipo", "concepto": "Concepto", "proveedor": "Proveedor",
+            "modelo": "Modelo", "sku": "SKU", "marca": "Marca",
+        }
+        for idx, pv in enumerate(partidas, 1):
+            for key, etiqueta in requeridos_texto.items():
+                valor = str(pv.get(key).get() if pv.get(key) is not None else "").strip()
+                if not valor:
+                    return False, f"Lote {idx}: falta {etiqueta}. Usa N/A cuando no aplique."
+            if _num(pv["cantidad"].get()) <= 0:
+                return False, f"Lote {idx}: Cantidad debe ser mayor que cero."
+            if _num(pv["precio_lista"].get()) <= 0:
+                return False, f"Lote {idx}: P. Lista debe ser mayor que cero."
+            utilidad_txt = str(pv["utilidad_pct"].get()).strip()
+            if utilidad_txt == "":
+                return False, f"Lote {idx}: captura Utilidad %."
+            if _num(utilidad_txt) < 0:
+                return False, f"Lote {idx}: Utilidad % no puede ser negativa."
+            if _num(pv["precio_unitario"].get()) <= 0 or _num(pv["importe"].get()) <= 0:
+                return False, f"Lote {idx}: los importes calculados no son válidos."
+        return True, "Cotización completa."
 
-        for i, item in enumerate(partidas, 1):
-            row = i + 3
-            concepto = str(item.get("concepto") or "")
-            marca_modelo = " / ".join(filter(None, [
-                str(item.get("marca") or "").strip(),
-                str(item.get("modelo") or "").strip(),
-            ]))
-            if marca_modelo:
-                concepto = f"{concepto}\n{marca_modelo}" if concepto else marca_modelo
-            cant_unidad = " ".join(filter(None, [
-                str(item.get("cantidad") or "").strip(),
-                str(item.get("unidad") or "").strip(),
-            ]))
-            ctk.CTkLabel(scroll, text=str(item.get("partida") or i), font=TEXT_SM,
-                         text_color=TEXT_PRIMARY, anchor="w").grid(row=row, column=0, sticky="nw", padx=5, pady=5)
-            ctk.CTkLabel(scroll, text=str(item.get("grupo") or ""), font=TEXT_SM,
-                         text_color=TEXT_PRIMARY, anchor="w").grid(row=row, column=1, sticky="nw", padx=5, pady=5)
-            ctk.CTkLabel(scroll, text=cant_unidad, font=TEXT_SM,
-                         text_color=TEXT_PRIMARY, anchor="w").grid(row=row, column=2, sticky="nw", padx=5, pady=5)
-            ctk.CTkLabel(scroll, text=concepto, font=TEXT_SM, text_color=TEXT_PRIMARY,
-                         anchor="w", justify="left", wraplength=760).grid(row=row, column=3, sticky="ew", padx=5, pady=5)
-            previa = mapa_previas.get(
-                (str(item.get("partida") or i), str(item.get("concepto") or "").strip().casefold()), {}
-            )
-            valor_previo = previa.get("costo_total", "") if isinstance(previa, dict) else ""
-            precio_previo = previa.get("precio_unitario", "") if isinstance(previa, dict) else ""
-            var_precio = ctk.StringVar(value=str(precio_previo) if precio_previo not in (None, "") else "")
-            var_total = ctk.StringVar(value=str(valor_previo) if valor_previo not in (None, "") else "")
+    def actualizar_estado_botones(*_):
+        valida, _mensaje = validar_captura_completa()
+        cot = estado.get("cotizacion") or {}
+        finalizada = str(cot.get("cot_estatus") or ESTATUS_BORRADOR).strip().upper() == ESTATUS_EN_COMPRA if cot else False
+        modo = bool(estado.get("modo_edicion"))
+        btn_pdf.configure(state="normal" if valida else "disabled")
+        btn_guardar.configure(state="normal" if (modo and valida and not finalizada) else "disabled")
+        btn_modificar.configure(state="normal" if (cot and not finalizada and not modo) else "disabled")
+        btn_finalizar.configure(state="normal" if (cot and valida and not finalizada and not modo) else "disabled")
 
-            actualizando_desde_precio = {"activo": False}
+    def render(registro, forzar_edicion=False):
+        limpiar(); estado["registro"] = registro
+        cot = cargar_cotizacion(registro)
+        base = datos_generales_cotizacion(registro, usuario)
+        if cot:
+            base.update({k:v for k,v in cot.items() if v is not None})
+        estado["cotizacion"] = dict(cot)
+        estatus = str(cot.get("cot_estatus") or ESTATUS_BORRADOR).strip().upper() if cot else ESTATUS_BORRADOR
+        finalizada = bool(cot) and estatus == ESTATUS_EN_COMPRA
+        estado["modo_edicion"] = (not bool(cot) or bool(forzar_edicion)) and not finalizada
 
-            def _recalcular_partida_desde_precio(*_, _item=item, _precio=var_precio, _total=var_total, _flag=actualizando_desde_precio):
-                if _flag["activo"]:
-                    return
-                texto_precio = _precio.get().strip().replace(",", "")
-                texto_cantidad = str(_item.get("cantidad") or "").strip().replace(",", "")
-                if not texto_precio:
-                    return
-                try:
-                    precio = float(texto_precio)
-                    cantidad = float(texto_cantidad)
-                except (TypeError, ValueError):
-                    return
-                if precio < 0 or cantidad < 0:
-                    return
-                _flag["activo"] = True
-                try:
-                    _total.set(f"{precio * cantidad:.2f}")
-                finally:
-                    _flag["activo"] = False
-                recalcular_total()
-
-            var_precio.trace_add("write", _recalcular_partida_desde_precio)
-            var_total.trace_add("write", recalcular_total)
-            ctk.CTkEntry(
-                scroll, textvariable=var_precio, width=190, placeholder_text="0.00"
-            ).grid(row=row, column=4, sticky="ew", padx=5, pady=5)
-            ctk.CTkEntry(
-                scroll, textvariable=var_total, width=165, placeholder_text="0.00"
-            ).grid(row=row, column=5, sticky="ew", padx=5, pady=5)
-            seleccion["entries"].append({
-                "var": var_total, "precio_var": var_precio, "partida": item
-            })
-
-        btn_guardar.configure(state="normal")
-        recalcular_total()
-
-    def cargar_registro(registro):
-        if not registro:
-            return
-        seleccion["registro"] = registro
-        folio = _texto(registro, "lev_folio")
-        cliente = _texto(registro, "lev_cliente")
-        tipo = _texto(registro, "lev_tipo")
-        detalle = registro.get("lev_detalle_tecnico_json")
-        especialidad = ""
-        if isinstance(detalle, dict):
-            especialidad = str(detalle.get("tipo_levantamiento") or "").strip()
-        elif isinstance(detalle, str):
-            import json
+        # Fecha de Supabase -> DD/MM/AAAA.
+        fecha = str(base.get("cot_fecha") or "")
+        if len(fecha) >= 10 and "-" in fecha:
             try:
-                obj = json.loads(detalle) if detalle.strip() else {}
-                especialidad = str(obj.get("tipo_levantamiento") or "").strip() if isinstance(obj, dict) else ""
+                from datetime import datetime
+                base["cot_fecha"] = datetime.strptime(fecha[:10], "%Y-%m-%d").strftime("%d/%m/%Y")
+            except Exception: pass
+
+        ctk.CTkLabel(scroll, text="Datos generales de cotización", font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="w").grid(
+            row=0, column=0, columnspan=4, sticky="ew", padx=6, pady=(4,2))
+        general = ctk.CTkFrame(scroll, fg_color=WHITE, corner_radius=10)
+        general.grid(row=1, column=0, columnspan=4, sticky="ew", padx=4, pady=(0,8))
+        for c in range(5): general.grid_columnconfigure(c, weight=1)
+
+        # Distribución compacta de cinco columnas según el flujo comercial.
+        add_field(general,0,0,"No. Cotización","cot_folio",base.get("cot_folio"),True)
+        add_field(general,0,1,"Fecha de Cotización","cot_fecha",base.get("cot_fecha"),True)
+        add_field(general,0,2,"No. Levantamiento","lev_folio",base.get("lev_folio"),True)
+        add_field(general,0,3,"Cliente","cot_cliente",base.get("cot_cliente"),True)
+        add_field(general,0,4,"Contacto","cot_contacto",base.get("cot_contacto"),True)
+
+        add_field(general,1,0,"Sucursal","cot_sucursal",base.get("cot_sucursal"),True,2)
+        add_field(general,1,2,"Asunto","cot_asunto",base.get("cot_asunto"),True,2)
+        add_field(general,1,4,"ESI / Ejecutiva de Ventas","cot_esi",base.get("cot_esi"),True)
+
+        add_field(general,2,0,"Correo ESI","cot_esi_correo",base.get("cot_esi_correo"),True)
+        add_field(general,2,1,"Teléfono ESI","cot_esi_telefono",base.get("cot_esi_telefono"),True)
+        jefes_operaciones = obtener_nombres_usuarios_por_tipos([2])
+        add_select(general,2,2,"Jefe de Operaciones","cot_jefe_operaciones",jefes_operaciones,base.get("cot_jefe_operaciones"),2)
+        add_field(general,2,4,"Supervisor","cot_supervisor",base.get("cot_supervisor"),True)
+
+        add_field(general,3,0,"Días","cot_dias",base.get("cot_dias"),True)
+        add_field(general,3,1,"Personas","cot_personas",base.get("cot_personas"),True)
+        add_field(general,3,2,"Plan de Pagos","cot_plan_pagos",base.get("cot_plan_pagos"),False,2)
+
+        add_field(general,4,0,"Vigencia de Cotización","cot_vigencia",base.get("cot_vigencia"))
+        vd=add_field(general,4,1,"Descuento %","cot_descuento_pct",base.get("cot_descuento_pct",0))
+        vi=add_field(general,4,2,"IVA %","cot_iva_pct",base.get("cot_iva_pct",16))
+        vd.trace_add("write", recalcular); vi.trace_add("write", recalcular)
+
+        ctk.CTkLabel(scroll, text="Partidas comerciales", font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="w").grid(
+            row=2, column=0, columnspan=4, sticky="ew", padx=6, pady=(4,2))
+        partidas = construir_partidas_comerciales(registro, cot)
+        estado["partidas"] = partidas
+        cont = ctk.CTkFrame(scroll, fg_color="transparent")
+        cont.grid(row=3, column=0, columnspan=4, sticky="ew")
+        cont.grid_columnconfigure(0, weight=1)
+
+        for i,item in enumerate(partidas):
+            card = ctk.CTkFrame(cont, fg_color=WHITE, corner_radius=10)
+            card.grid(row=i, column=0, sticky="ew", padx=4, pady=4)
+            for c in range(6): card.grid_columnconfigure(c, weight=1)
+            ctk.CTkLabel(card, text=f"Lote {item.get('lote',i+1)} · {item.get('concepto','')}", font=("Montserrat",11,"bold"),
+                         text_color=TEXT_PRIMARY, anchor="w", wraplength=1100).grid(row=0,column=0,columnspan=6,sticky="ew",padx=8,pady=(6,2))
+            vars_item={}
+            fields=[
+                ("Unidad / Tipo","unidad_tipo",1,0,1),("Cantidad","cantidad",1,1,1),("Proveedor","proveedor",1,2,1),
+                ("Modelo","modelo",1,3,1),("SKU","sku",1,4,1),("Marca","marca",1,5,1),
+                ("Concepto","concepto",3,0,2),("P. Lista","precio_lista",3,2,1),("Costo","costo",3,3,1),
+                ("Utilidad %","utilidad_pct",3,4,1),("P. Venta","precio_venta",3,5,1),
+                ("P. Unitario","precio_unitario",5,0,1),("Importe","importe",5,1,1),("Observaciones","observaciones",5,2,4),
+            ]
+            for lab,key,r,c,span in fields:
+                ctk.CTkLabel(card,text=lab,font=("Montserrat",9,"bold"),text_color=TEXT_SECONDARY,anchor="w").grid(row=r,column=c,columnspan=span,sticky="ew",padx=5,pady=(2,0))
+                var=ctk.StringVar(value=str(item.get(key) if item.get(key) not in (None,"") else "")); vars_item[key]=var
+                ent = ctk.CTkEntry(card,textvariable=var,height=29)
+                ent.grid(row=r+1,column=c,columnspan=span,sticky="ew",padx=5,pady=(0,5))
+                if key in {"unidad_tipo", "cantidad", "concepto", "costo", "precio_venta", "precio_unitario", "importe"}:
+                    # Unidad/Cantidad/Concepto vienen del levantamiento.
+                    # Costo/P.Venta/P.Unitario/Importe son resultados comerciales calculados.
+                    ent.configure(state="disabled")
+                else:
+                    estado["editables"].append(ent)
+
+            # FIX25: Ventas captura únicamente P. Lista y Utilidad %.
+            # COSTO       = P. LISTA * (UTILIDAD / 100)
+            # P. VENTA    = P. LISTA + COSTO
+            # P. UNITARIO = P. VENTA
+            # IMPORTE     = P. UNITARIO * CANTIDAD
+            lock={"x":False}
+            def calc_comercial(*_, pv=vars_item, lk=lock):
+                if lk["x"]:
+                    return
+                try:
+                    lista=float(str(pv["precio_lista"].get()).replace(",","") or 0)
+                    utilidad=float(str(pv["utilidad_pct"].get()).replace("%","").replace(",","") or 0)
+                    cantidad=float(str(pv["cantidad"].get()).replace(",","") or 0)
+                except (TypeError, ValueError):
+                    recalcular()
+                    return
+
+                costo = round(lista * utilidad / 100.0, 2)
+                venta = round(lista + costo, 2)
+                importe = round(venta * cantidad, 2)
+                lk["x"] = True
+                try:
+                    pv["costo"].set(f"{costo:.2f}")
+                    pv["precio_venta"].set(f"{venta:.2f}")
+                    pv["precio_unitario"].set(f"{venta:.2f}")
+                    pv["importe"].set(f"{importe:.2f}")
+                finally:
+                    lk["x"] = False
+                recalcular()
+
+            vars_item["precio_lista"].trace_add("write",calc_comercial)
+            vars_item["utilidad_pct"].trace_add("write",calc_comercial)
+            vars_item["cantidad"].trace_add("write",calc_comercial)
+            vars_item["importe"].trace_add("write",recalcular)
+            for _var in vars_item.values():
+                _var.trace_add("write", lambda *_: actualizar_estado_botones())
+            calc_comercial()
+            estado["partida_vars"].append(vars_item)
+
+        # Estado visual y permisos de edición. Una cotización guardada se abre en
+        # consulta; "Modificar" recarga desde Supabase y habilita sólo los campos
+        # que Ventas podía editar durante la generación original.
+        for widget in estado["editables"]:
+            try:
+                widget.configure(state="normal" if estado["modo_edicion"] else "disabled")
             except Exception:
                 pass
-        lbl_titulo.configure(text=f"{folio} · {cliente}")
-        lbl_detalle.configure(
-            text=f"{especialidad or tipo} | Preautorizado por: {_texto(registro, 'lev_validado_por') or 'Operaciones'}"
+        actualizar_estado_botones()
+        if finalizada:
+            lbl_detalle.configure(text=f"{cot.get('cot_folio')} · En compra X Cotización. El registro quedó bloqueado para conservar lo enviado a Compras.", text_color="#15803D")
+        elif cot:
+            lbl_detalle.configure(text=f"{cot.get('cot_folio')} · Cotización guardada. Usa Modificar para habilitar cambios o Finalizar para enviarla a Compras.")
+        recalcular()
+
+    def collect():
+        base = dict(estado["cotizacion"] or {})
+        reg = estado["registro"] or {}
+        base.update({k:v.get().strip() for k,v in estado["vars"].items()})
+        base.update({
+            "id_cotizacion": (estado["cotizacion"] or {}).get("id_cotizacion"),
+            "id_levantamiento": reg.get("id_levantamiento"), "id_cliente": reg.get("id_cliente"), "id_sucursal": reg.get("id_sucursal"),
+        })
+        parts=[]
+        for i,pv in enumerate(estado["partida_vars"],1):
+            item={k:v.get().strip() for k,v in pv.items()}; item["lote"]=str(i); parts.append(item)
+        return base,parts
+
+    def guardar():
+        if not estado["registro"]: return
+        valida, motivo = validar_captura_completa()
+        if not valida:
+            messagebox.showwarning("Cotización incompleta", motivo)
+            actualizar_estado_botones()
+            return
+        datos,parts=collect()
+        usuario_nombre=str((usuario or {}).get("usuario") or "Ventas")
+        btn_guardar.configure(state="disabled")
+        def ok(cot):
+            estado["cotizacion"] = cot
+            if "cot_folio" in estado["vars"]:
+                estado["vars"]["cot_folio"].set(str(cot.get("cot_folio") or ""))
+            estado["modo_edicion"] = False
+            for widget in estado["editables"]:
+                try:
+                    widget.configure(state="disabled")
+                except Exception:
+                    pass
+            actualizar_estado_botones()
+            lbl_detalle.configure(text=f"{cot.get('cot_folio')} · Cotización guardada. Usa Modificar para habilitar cambios o Finalizar para enviarla a Compras.")
+            recalcular()
+            messagebox.showinfo("Cotización guardada",f"Cotización {cot.get('cot_folio')} guardada correctamente.\n\nTotal: ${float(cot.get('cot_total') or 0):,.2f} MXN")
+        run_async(parent.winfo_toplevel(), lambda: guardar_cotizacion_comercial(datos,parts,usuario_nombre), ok,
+                  lambda e:(actualizar_estado_botones(),messagebox.showerror("No fue posible guardar",str(e))))
+
+    def modificar():
+        reg = estado.get("registro")
+        cot = estado.get("cotizacion") or {}
+        if not reg or not cot.get("id_cotizacion"):
+            messagebox.showinfo("Cotización pendiente", "Primero guarda la cotización para poder utilizar Modificar.")
+            return
+        if str(cot.get("cot_estatus") or ESTATUS_BORRADOR).strip().upper() == ESTATUS_EN_COMPRA:
+            messagebox.showwarning("Cotización en Compras", "Esta cotización ya fue finalizada y enviada a Compras; no puede modificarse desde Ventas.")
+            return
+        # Se vuelve a consultar la cotización desde Supabase mediante render() y
+        # sólo entonces se habilitan los mismos campos disponibles al generarla.
+        render(reg, forzar_edicion=True)
+        lbl_detalle.configure(text=f"{estado['cotizacion'].get('cot_folio')} · Modo modificación activo. Guarda los cambios antes de finalizar.", text_color=TEXT_SECONDARY)
+
+    def finalizar():
+        cot = estado.get("cotizacion") or {}
+        if not cot.get("id_cotizacion"):
+            messagebox.showwarning("Cotización sin guardar", "Primero guarda la cotización para asignar su folio COT-XXXXX.")
+            return
+        if estado.get("modo_edicion"):
+            messagebox.showwarning("Cambios pendientes", "Guarda los cambios de la cotización antes de finalizarla.")
+            return
+        valida, motivo = validar_captura_completa()
+        if not valida:
+            messagebox.showwarning("Cotización incompleta", motivo)
+            actualizar_estado_botones()
+            return
+        folio = str(cot.get("cot_folio") or "").strip()
+        if str(cot.get("cot_estatus") or ESTATUS_BORRADOR).strip().upper() == ESTATUS_EN_COMPRA:
+            messagebox.showinfo("Cotización finalizada", f"{folio} ya se encuentra En compra X Cotización.")
+            return
+        if not messagebox.askyesno(
+            "Finalizar cotización",
+            f"¿Confirmas finalizar {folio} y enviarla a Compras?\n\n"
+            "Esta acción NO genera una Orden de Trabajo y bloqueará la cotización para evitar cambios posteriores desde Ventas.",
+        ):
+            return
+        usuario_nombre = str((usuario or {}).get("usuario") or "Ventas")
+        btn_finalizar.configure(state="disabled")
+        def ok_finalizada(actualizada):
+            estado["cotizacion"] = actualizada
+            estado["modo_edicion"] = False
+            actualizar_estado_botones()
+            lbl_detalle.configure(text=f"{folio} · En compra X Cotización. Pendiente de atención por Compras.", text_color="#15803D")
+            messagebox.showinfo(
+                "Cotización enviada a Compras",
+                f"{folio} quedó con estado: En compra X Cotización.\n\nNo se generó ninguna Orden de Trabajo.",
+            )
+        run_async(
+            parent.winfo_toplevel(),
+            lambda: finalizar_cotizacion_para_compras(cot, usuario_nombre),
+            ok_finalizada,
+            lambda e: (actualizar_estado_botones(), messagebox.showerror("No fue posible finalizar", str(e))),
         )
-        render_partidas(registro)
+
+    def pdf():
+        if not estado.get("registro"):
+            messagebox.showinfo("Selecciona un levantamiento", "Carga primero un levantamiento para generar la vista previa.")
+            return
+        valida, motivo = validar_captura_completa()
+        if not valida:
+            messagebox.showwarning("Cotización incompleta", motivo)
+            actualizar_estado_botones()
+            return
+
+        # El Preview trabaja con lo que está actualmente capturado en pantalla;
+        # no obliga a guardar ni consume un folio COT-XXXXX.
+        datos, parts = collect()
+        preview = dict(datos)
+        preview["cot_folio"] = str((estado.get("cotizacion") or {}).get("cot_folio") or "").strip()
+        if not preview["cot_folio"] or preview["cot_folio"] == "SE ASIGNA AL GUARDAR":
+            preview["cot_folio"] = "COT-BORRADOR"
+
+        subtotal = 0.0
+        partidas_pdf = []
+        for i, item in enumerate(parts, 1):
+            row = dict(item)
+            cantidad = _num(row.get("cantidad")) or 1.0
+            precio_unitario = _num(row.get("precio_unitario"))
+            importe = _num(row.get("importe"))
+            if importe == 0 and precio_unitario > 0:
+                importe = round(cantidad * precio_unitario, 2)
+                row["importe"] = f"{importe:.2f}"
+            subtotal += importe
+            row["lote"] = str(row.get("lote") or i)
+            partidas_pdf.append(row)
+
+        descuento_pct = _num(preview.get("cot_descuento_pct"))
+        iva_pct = _num(preview.get("cot_iva_pct"))
+        descuento = round(subtotal * descuento_pct / 100.0, 2)
+        subtotal_desc = round(subtotal - descuento, 2)
+        iva = round(subtotal_desc * iva_pct / 100.0, 2)
+        total = round(subtotal_desc + iva, 2)
+        preview.update({
+            "cot_partidas_json": partidas_pdf,
+            "cot_subtotal": round(subtotal, 2),
+            "cot_descuento": descuento,
+            "cot_subtotal_descuento": subtotal_desc,
+            "cot_iva": iva,
+            "cot_total": total,
+        })
+
+        try:
+            AxiaPdfEngine.render_cotizacion(preview, abrir=True)
+        except Exception as e:
+            logger.exception("Error al generar Preview PDF de cotización")
+            messagebox.showerror("Preview PDF", str(e))
 
     def cargar_seleccion():
-        registro = tabla.selected_payload()
-        if not registro:
-            messagebox.showinfo("Selecciona un levantamiento", "Selecciona primero un levantamiento de la tabla.")
-            return
-        cargar_registro(registro)
+        reg=tabla.selected_payload()
+        if not reg: messagebox.showinfo("Selecciona un levantamiento","Selecciona primero un levantamiento de la tabla."); return
+        lbl_titulo.configure(text=f"{_texto(reg,'lev_folio')} · {_texto(reg,'lev_cliente')}")
+        lbl_detalle.configure(text="Cotización comercial ligada al levantamiento preautorizado.")
+        render(reg)
 
     def filtrar_lista(*_):
-        term = var_busqueda.get().strip().casefold()
-        if not term:
-            regs = list(registros_cache)
-        else:
-            regs = [r for r in registros_cache if term in " ".join([
-                _texto(r, "lev_folio"), _texto(r, "lev_cliente"), _texto(r, "lev_tipo"),
-                _texto(r, "lev_modalidad_operativa"),
-            ]).casefold()]
+        term=var_busqueda.get().strip().casefold()
+        regs=list(registros_cache) if not term else [r for r in registros_cache if term in " ".join([
+            _texto(r,"lev_folio"),_texto(r,"lev_cliente"),_texto(r,"lev_tipo"),_texto(r,"lev_modalidad_operativa")]).casefold()]
         lbl_lista.configure(text=f"Levantamientos preautorizados ({len(regs)})")
-        tabla.set_rows(regs, value_factory=lambda r: (
-            _texto(r, "lev_folio"), _texto(r, "lev_cliente"),
-            " / ".join(filter(None, [_texto(r, "lev_tipo"), _texto(r, "lev_modalidad_operativa")])),
-            _texto(r, "lev_fecha_programada"),
-        ))
+        tabla.set_rows(regs,value_factory=lambda r:(_texto(r,"lev_folio"),_texto(r,"lev_cliente")," / ".join(filter(None,[_texto(r,"lev_tipo"),_texto(r,"lev_modalidad_operativa")])),_texto(r,"lev_fecha_programada")))
 
     def refrescar():
         lbl_lista.configure(text="Consultando levantamientos preautorizados...")
-
-        def ok(registros):
-            registros_cache[:] = list(registros or [])
+        def ok(regs):
+            registros_cache[:]=list(regs or [])
             filtrar_lista()
-            if registros_cache:
-                lbl_detalle.configure(text="Aquí aparecerán sus materiales, insumos, equipos y el costo del servicio.")
-            else:
-                lbl_detalle.configure(
-                    text=(
-                        "No hay levantamientos preautorizados en Supabase. "
-                        "Los LEV validados antes de FIX10 no tenían aún la marca de preautorización; "
-                        "valídalos una vez desde Levantamientos con el usuario autorizado (id=5)."
-                    )
-                )
+            if not registros_cache:
+                lbl_detalle.configure(text="No hay levantamientos preautorizados en Supabase. Los LEV validados antes de FIX10 no tenían aún la marca de preautorización; valídalos nuevamente con el usuario autorizado (id=5).")
+        run_async(parent.winfo_toplevel(),obtener_levantamientos_para_cotizar,ok,
+                  lambda e:messagebox.showerror("No fue posible abrir Cotizaciones","Verifica las migraciones de Cotizaciones en Supabase.\n\n"+str(e)))
 
-        run_async(
-            parent.winfo_toplevel(), obtener_levantamientos_para_cotizar, ok,
-            lambda e: messagebox.showerror(
-                "No fue posible abrir Cotizaciones",
-                "Verifica que la migración de FIX10 ya fue ejecutada en Supabase.\n\n" + str(e),
-            ),
-        )
-
-    def guardar_costos():
-        registro = seleccion.get("registro")
-        if not registro:
-            return
-
-        concepto_servicio = ""
-        if seleccion.get("servicio_concepto") is not None:
-            concepto_servicio = seleccion["servicio_concepto"].get().strip()
-        if not concepto_servicio:
-            messagebox.showwarning("Servicio pendiente", "Captura el concepto o descripción del servicio.")
-            return
-
-        valor_servicio = ""
-        if seleccion.get("servicio_costo") is not None:
-            valor_servicio = seleccion["servicio_costo"].get().strip().replace(",", "")
-        if not valor_servicio:
-            messagebox.showwarning("Servicio pendiente", "Captura el costo total del servicio antes de guardar.")
-            return
-        try:
-            costo_servicio = float(valor_servicio)
-        except ValueError:
-            messagebox.showwarning("Costo inválido", "El costo del servicio debe ser un valor numérico.")
-            return
-        if costo_servicio < 0:
-            messagebox.showwarning("Costo inválido", "El costo del servicio no puede ser negativo.")
-            return
-
-        partidas_guardar = []
-        faltantes = []
-        for info_entry in seleccion["entries"]:
-            item = dict(info_entry["partida"])
-            valor_precio = info_entry.get("precio_var").get().strip().replace(",", "") if info_entry.get("precio_var") is not None else ""
-            valor = info_entry["var"].get().strip().replace(",", "")
-            if not valor_precio or not valor:
-                faltantes.append(str(item.get("partida") or "?"))
-                continue
-            try:
-                precio_unitario = float(valor_precio)
-                costo = float(valor)
-            except ValueError:
-                messagebox.showwarning(
-                    "Costo inválido",
-                    f"La partida {item.get('partida')} contiene un precio unitario o costo total no numérico."
-                )
-                return
-            if precio_unitario < 0 or costo < 0:
-                messagebox.showwarning("Costo inválido", "Los precios y costos no pueden ser negativos.")
-                return
-            item["precio_unitario"] = precio_unitario
-            item["costo_total"] = costo
-            partidas_guardar.append(item)
-
-        if faltantes:
-            messagebox.showwarning(
-                "Costos pendientes",
-                "Captura el precio unitario y el costo total de todas las partidas antes de guardar.\n\nPartidas pendientes: " + ", ".join(faltantes),
-            )
-            return
-
-        total_materiales = sum(float(x.get("costo_total") or 0) for x in partidas_guardar)
-        total_estimado = total_materiales + costo_servicio
-        if not messagebox.askyesno(
-            "Guardar cotización",
-            (
-                f"Se guardarán los costos de {_texto(registro, 'lev_folio')} en Supabase.\n\n"
-                f"Materiales/equipos: ${total_materiales:,.2f} MXN\n"
-                f"Servicio: ${costo_servicio:,.2f} MXN\n"
-                f"TOTAL: ${total_estimado:,.2f} MXN\n\n¿Continuar?"
-            ),
-        ):
-            return
-
-        btn_guardar.configure(state="disabled")
-        usuario_nombre = str(
-            (usuario or {}).get("usuario") or (usuario or {}).get("usu_nickname") or "Ventas"
-        )
-
-        def ok(cotizacion):
-            registro["lev_cotizacion_json"] = cotizacion
-            btn_guardar.configure(state="normal")
-            recalcular_total()
-            messagebox.showinfo(
-                "Cotización guardada",
-                (
-                    f"Los costos de {_texto(registro, 'lev_folio')} se guardaron correctamente.\n\n"
-                    f"Total materiales/equipos: ${float(cotizacion.get('total_partidas') or 0):,.2f} MXN\n"
-                    f"Servicio: ${float((cotizacion.get('servicio') or {}).get('costo_total') or 0):,.2f} MXN\n"
-                    f"Total general: ${float(cotizacion.get('total_general') or 0):,.2f} MXN"
-                ),
-            )
-
-        run_async(
-            parent.winfo_toplevel(),
-            lambda: guardar_cotizacion_levantamiento(
-                registro,
-                partidas_guardar,
-                usuario_nombre,
-                servicio={"concepto": concepto_servicio, "costo_total": costo_servicio},
-            ),
-            ok,
-            lambda e: (
-                btn_guardar.configure(state="normal"),
-                messagebox.showerror("No fue posible guardar", str(e)),
-            ),
-        )
-
-    ctk.CTkButton(
-        cabecera, text="🔎 Buscar", width=125, height=40, fg_color=SECONDARY,
-        hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=filtrar_lista,
-    ).grid(row=2, column=1, padx=4, pady=(0, 10))
-    ctk.CTkButton(
-        cabecera, text="↻ Actualizar", width=125, height=40, fg_color="#334155",
-        hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=refrescar,
-    ).grid(row=2, column=2, padx=(0, 14), pady=(0, 10))
-    entrada_busqueda.bind("<Return>", lambda _e: filtrar_lista())
-    btn_guardar.configure(command=guardar_costos)
-
-    ctk.CTkButton(
-        bandeja, text="📥 Cargar seleccionado", height=38, font=BUTTON_FONT,
-        command=cargar_seleccion,
-    ).grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 8))
-
+    ctk.CTkButton(cabecera,text="🔎 Buscar",width=125,height=40,fg_color=SECONDARY,hover_color=BUTTON_HOVER,font=BUTTON_FONT,command=filtrar_lista).grid(row=2,column=1,padx=4,pady=(0,10))
+    ctk.CTkButton(cabecera,text="↻ Actualizar",width=125,height=40,fg_color="#334155",hover_color=BUTTON_HOVER,font=BUTTON_FONT,command=refrescar).grid(row=2,column=2,padx=(0,14),pady=(0,10))
+    entrada_busqueda.bind("<Return>",lambda _e:filtrar_lista())
+    ctk.CTkButton(bandeja,text="📥 Cargar seleccionado",height=38,font=BUTTON_FONT,command=cargar_seleccion).grid(row=2,column=0,sticky="ew",padx=10,pady=(0,8))
+    btn_guardar.configure(command=guardar); btn_pdf.configure(command=pdf); btn_modificar.configure(command=modificar); btn_finalizar.configure(command=finalizar)
     refrescar()

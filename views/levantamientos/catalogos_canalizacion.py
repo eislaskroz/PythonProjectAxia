@@ -13,10 +13,10 @@ TIPOS_TUBOS = [
     "Conduit metálico de pared intermedia (IMC)",
     "Metálico de pared gruesa (RMC)",
     "Helicoidal metálico",
-    "Policloruro de Vinilo (PVC)",
+    "PVC Pesado",
     "Poliducto corrugado (Ligero)",
     "Vorrugado no metálico (ENT)",
-    "Liquidtight",
+    "Liquidtight /Licuatite",
     "Resina termoendurecible reforzada (RTRC)",
 ]
 
@@ -55,7 +55,37 @@ TIPOS_CABLE_ELECTRICO = [
 CALIBRES_CABLE_ELECTRICO = [
     "14 AWG (Hasta 15A)", "12 AWG (Hasta 20A)",
     "10 AWG (Hasta 30A)", "8 AWG (Hasta 40A)",
+    "6 AWG", "4 AWG", "2 AWG", "1/0 AWG", "2/0 AWG",
+    "3/0 AWG", "4/0 AWG", "250 AWG", "350 AWG",
 ]
+
+CATEGORIAS_CON_MEDIDA_TUBO = {"Tubo", "Cople", "Registro", "Conector", "Abrazadera"}
+
+
+def especificaciones_por_categoria(categoria, tipo=""):
+    """Devuelve las medidas/calibres válidos para la partida de canalización."""
+    categoria = str(categoria or "").strip()
+    tipo = str(tipo or "").strip()
+    if categoria in CATEGORIAS_CON_MEDIDA_TUBO:
+        return list(TAMANOS_TUBOS)
+    if categoria == "Cable":
+        # Mantiene opciones abiertas para cableado de datos/control, pero expone
+        # todos los calibres eléctricos disponibles cuando el levantamiento lo requiere.
+        return list(CALIBRES_CABLE_ELECTRICO) + ["No aplica", "Por definir"]
+    if categoria == "Canalización" and tipo in TIPOS_TUBOS:
+        return list(TAMANOS_TUBOS)
+    return ["No aplica", "Por definir"]
+
+
+def normalizar_tipo_canalizacion(tipo):
+    """Compatibilidad de lectura con levantamientos guardados con nombres anteriores."""
+    aliases = {
+        "Policloruro de Vinilo (PVC)": "PVC Pesado",
+        "Liquidtight": "Liquidtight /Licuatite",
+    }
+    valor = str(tipo or "").strip()
+    return aliases.get(valor, valor)
+
 
 TIPOS_CABLE_DATOS_CONTROL = [
     "UTP Cat5e", "UTP Cat6", "UTP Cat6A", "STP Cat6", "STP Cat6A",

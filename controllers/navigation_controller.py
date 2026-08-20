@@ -34,6 +34,7 @@ from security.permissions import (
     puede_consultar_procesos,
     puede_convertir_levantamiento_a_orden,
     puede_cotizar_levantamientos,
+    puede_ver_compras,
     puede_entrar_inicio_aco,
     puede_generar_levantamiento,
     puede_generar_bitacora,
@@ -155,6 +156,11 @@ class NavigationController:
         evitar que queden elementos visuales duplicados.
         """
 
+        try:
+            if hasattr(self.app, "limpiar_proveedor_borrador_levantamiento"):
+                self.app.limpiar_proveedor_borrador_levantamiento()
+        except Exception:
+            pass
         for widget in self.content.winfo_children():
             widget.destroy()
 
@@ -255,7 +261,7 @@ class NavigationController:
             aco=aco
         )
 
-    def mostrar_levantamiento(self, aco=None, tipo_levantamiento=None):
+    def mostrar_levantamiento(self, aco=None, tipo_levantamiento=None, borrador=None):
         """
         Carga la vista para generar levantamientos.
 
@@ -284,7 +290,8 @@ class NavigationController:
             parent=self.content,
             app=self.app,
             aco=aco,
-            tipo_levantamiento=tipo_levantamiento
+            tipo_levantamiento=tipo_levantamiento,
+            borrador=borrador,
         )
 
     # =================================================
@@ -422,6 +429,7 @@ class NavigationController:
         """Muestra la etapa comercial de costeo de levantamientos preautorizados."""
         if not self._verificar_permiso(
             puede_cotizar_levantamientos,
+    puede_ver_compras,
             "Tu nivel de usuario no tiene permiso para cotizar levantamientos.",
         ):
             return
@@ -434,6 +442,23 @@ class NavigationController:
         )
         from views.cotizaciones_view import mostrar_cotizaciones
         mostrar_cotizaciones(parent=self.content, app=self.app)
+
+    def mostrar_compras(self):
+        """Muestra la bandeja de cotizaciones finalizadas pendientes de Compras."""
+        if not self._verificar_permiso(
+            puede_ver_compras,
+            "Tu nivel de usuario no tiene permiso para acceder al módulo de Compras.",
+        ):
+            return
+        self._registrar_vista("mostrar_compras")
+        logger.info("Cargando módulo: Compras")
+        self.limpiar_contenido()
+        self.cambiar_titulo(
+            "Compras",
+            "Cotizaciones finalizadas por Ventas pendientes de proceso de compra.",
+        )
+        from views.compras_view import mostrar_compras
+        mostrar_compras(parent=self.content, app=self.app)
 
     def mostrar_admin_ordenes_servicio(self):
         """Administra Órdenes de Servicio y permite cerrar la OT de origen."""

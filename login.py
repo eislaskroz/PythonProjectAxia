@@ -120,16 +120,41 @@ def abrir_login():
     entry_usuario.pack(pady=4)
     entry_usuario.focus()
 
+    password_row = ctk.CTkFrame(card, width=340, height=44, fg_color="transparent")
+    password_row.pack(pady=4)
+    password_row.pack_propagate(False)
+
     entry_password = ctk.CTkEntry(
-        card,
+        password_row,
         placeholder_text="Contraseña",
         show="*",
-        width=340,
+        width=292,
         height=44,
         corner_radius=12,
         font=TEXT_MD,
     )
-    entry_password.pack(pady=4)
+    entry_password.pack(side="left", fill="y")
+
+    password_visible = {"valor": False}
+
+    def alternar_password():
+        password_visible["valor"] = not password_visible["valor"]
+        entry_password.configure(show="" if password_visible["valor"] else "*")
+        btn_ver_password.configure(text="🙈" if password_visible["valor"] else "👁")
+
+    btn_ver_password = ctk.CTkButton(
+        password_row,
+        text="👁",
+        width=42,
+        height=44,
+        corner_radius=12,
+        fg_color="#E9EFF6",
+        hover_color="#D8E3EF",
+        text_color=TEXT_PRIMARY,
+        font=("Segoe UI Emoji", 16),
+        command=alternar_password,
+    )
+    btn_ver_password.pack(side="right", fill="y")
 
     def iniciar_sesion():
         from security.login_guard import estado
@@ -246,7 +271,7 @@ def abrir_login():
 
     ctk.CTkLabel(
         card,
-        text="Sistema AXIA · v2.01.5",
+        text="Sistema AXIA · v2.01.7",
         font=TEXT_SM,
         text_color=TEXT_SECONDARY,
     ).pack(pady=(14, 2))

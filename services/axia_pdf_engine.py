@@ -165,6 +165,13 @@ class AxiaPdfEngine:
             cls.prepare(titulo=titulo, datos=datos, **kwargs), ruta_salida
         )
 
+
+    @classmethod
+    def render_cotizacion(cls, cotizacion: Mapping[str, Any], ruta_salida: str | Path | None = None, abrir: bool = True):
+        """Ruta especializada del PDF Engine para la cotización comercial horizontal."""
+        from services.cotizacion_pdf import generar_pdf_cotizacion
+        return generar_pdf_cotizacion(dict(cotizacion or {}), ruta_salida=ruta_salida, abrir=abrir)
+
     @classmethod
     def generate(
         cls,

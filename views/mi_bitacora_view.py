@@ -74,7 +74,7 @@ ETIQUETAS_USUARIO = {
     "usu_tipo": "🔐 Tipo/Rol",
     "usu_depto": "🏢 Departamento",
     "usu_puesto": "💼 Puesto",
-    "usu_correo": "✉️ Correo",
+    "usu_correo": "✉️ Correo electrónico de empresa",
     "usu_telefono": "📞 Teléfono",
     "usu_rfc": "🏛️ RFC",
     "usu_curp": "🧾 CURP",

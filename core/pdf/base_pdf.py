@@ -29,6 +29,7 @@ class BasePdfGenerator:
 
     ASSETS_DIR = Path(__file__).resolve().parents[2] / "assets"
     BACKGROUND_PATH = ASSETS_DIR / "FormatoFondo.png"
+    BACKGROUND_LANDSCAPE_PATH = ASSETS_DIR / "FormatoFondoHorizontal.png"
 
     # Área útil calculada para no invadir encabezado ni pie de la plantilla.
     LEFT_MARGIN = 34
@@ -53,10 +54,11 @@ class BasePdfGenerator:
         canvas.saveState()
         width, height = document.pagesize
 
-        if cls.BACKGROUND_PATH.exists():
+        background_path = cls.BACKGROUND_LANDSCAPE_PATH if width > height else cls.BACKGROUND_PATH
+        if background_path.exists():
             try:
                 canvas.drawImage(
-                    str(cls.BACKGROUND_PATH),
+                    str(background_path),
                     0,
                     0,
                     width=width,
@@ -79,6 +81,8 @@ class BasePdfGenerator:
             visible_title = "ÓRDENES DE TRABAJO"
         elif title_key in {"bitácora de avance", "bitacora de avance", "bitácoras de avance", "bitacoras de avance"}:
             visible_title = "BITÁCORA DE AVANCE"
+        elif title_key in {"cotización", "cotizacion", "cotizaciones"}:
+            visible_title = "COTIZACIÓN"
 
         if visible_title:
             canvas.setFillColor(cls.PRIMARY)
@@ -88,7 +92,17 @@ class BasePdfGenerator:
         # Número de página sobre la franja inferior, sin duplicar datos del fondo.
         canvas.setFillColor(cls.TEXT)
         canvas.setFont("Helvetica", 6.5)
-        canvas.drawRightString(width - cls.RIGHT_MARGIN, 72, f"Página {document.page}")
+        if width > height:
+            canvas.setFillColor(colors.white)
+            canvas.setFont("Helvetica-Bold", 6.2)
+            canvas.drawString(33, 18, "55-49-89-34-64")
+            canvas.drawString(150, 18, "www.axiacomunicaciones.com")
+            canvas.drawString(345, 18, "Álvaro Obregón Manzana 2, Lote 3 - 55630 San Juan de Guadalupe, Méx.")
+            canvas.setFillColor(cls.TEXT)
+            canvas.setFont("Helvetica", 6.5)
+            canvas.drawRightString(width - cls.RIGHT_MARGIN, 62, f"Página {document.page}")
+        else:
+            canvas.drawRightString(width - cls.RIGHT_MARGIN, 72, f"Página {document.page}")
         canvas.restoreState()
 
     @classmethod

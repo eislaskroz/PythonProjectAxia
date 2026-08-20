@@ -27,6 +27,8 @@ ui/app_sidebar.py
 # =====================================================
 
 import customtkinter as ctk
+import os
+from tkinter import messagebox
 
 from ui.theme import aplicar_fuente_tk, aplicar_estilo_ventana
 
@@ -118,6 +120,16 @@ class AxiaApp(ctk.CTk):
         # =================================================
         self.usuario_activo = obtener_usuario_actual()
 
+        # Borradores temporales de levantamiento e inactividad.
+        self._proveedor_borrador = None
+        self._tipo_borrador = None
+        self._ultimo_evento_usuario_ms = 0
+        try:
+            minutos = int(os.getenv("AXIA_IDLE_TIMEOUT_MINUTES", "20"))
+        except (TypeError, ValueError):
+            minutos = 20
+        self._inactividad_ms = max(1, minutos) * 60 * 1000
+
         # =================================================
         # CREACIÓN DE LAYOUT BASE
         # =================================================
@@ -146,6 +158,8 @@ class AxiaApp(ctk.CTk):
         # el usuario percibe respuesta inmediata aunque la primera vista tarde.
         mark("app: shell principal construido")
         self.after_idle(self._cargar_vista_inicial)
+        self._instalar_control_inactividad()
+        self.after(900, self._ofrecer_borrador_pendiente)
 
     def report_callback_exception(self, exc, value, traceback_obj):
         """Muestra errores no controlados de callbacks con un código de soporte.
@@ -181,8 +195,15 @@ class AxiaApp(ctk.CTk):
         )
 
     def _cargar_vista_inicial(self):
-        with measure("app: vista inicial ACO"):
-            self.navigation.mostrar_inicio_aco()
+        with measure("app: vista inicial por rol"):
+            from security.permissions import obtener_tipo_usuario, COMPRAS, ALMACEN
+            tipo = obtener_tipo_usuario(self.usuario_activo)
+            if tipo == COMPRAS:
+                self.navigation.mostrar_compras()
+            elif tipo == ALMACEN:
+                self.navigation.mostrar_mi_usuario()
+            else:
+                self.navigation.mostrar_inicio_aco()
 
     # =====================================================
     # MÉTODO: maximizar_ventana()
@@ -344,6 +365,7 @@ class AxiaApp(ctk.CTk):
             # no formularios de generación.
             "admin_levantamientos": self.navigation.mostrar_admin_levantamientos,
             "cotizaciones": self.navigation.mostrar_cotizaciones,
+            "compras": self.navigation.mostrar_compras,
             "admin_ordenes_servicio": self.navigation.mostrar_admin_ordenes_servicio,
             "admin_ordenes_trabajo": self.navigation.mostrar_admin_ordenes_trabajo,
             "admin_bitacoras": self.navigation.mostrar_admin_bitacoras,
@@ -477,7 +499,125 @@ class AxiaApp(ctk.CTk):
         self._auditar_navegacion("Mi Usuario")
         self.navigation.mostrar_mi_usuario()
 
-    def cerrar_sesion(self):
+    def registrar_proveedor_borrador_levantamiento(self, tipo_levantamiento, proveedor):
+        """Registra una función que devuelve el estado actual del levantamiento."""
+        self._tipo_borrador = str(tipo_levantamiento or "")
+        self._proveedor_borrador = proveedor if callable(proveedor) else None
+
+    def limpiar_proveedor_borrador_levantamiento(self):
+        self._tipo_borrador = None
+        self._proveedor_borrador = None
+
+    def _guardar_borrador_actual(self):
+        if not callable(self._proveedor_borrador):
+            return False
+        try:
+            datos = self._proveedor_borrador() or {}
+            # Un formulario apenas abierto no se considera trabajo pendiente.
+            significativos = any(str(datos.get(k) or "").strip() for k in (
+                "lev_cliente", "lev_contacto", "lev_observaciones", "lev_descripcion",
+                "lev_telefono", "lev_correo", "lev_ubicacion"
+            ))
+            if not significativos:
+                detalle = str(datos.get("lev_detalle_tecnico_json") or "").strip()
+                significativos = bool(detalle and detalle not in ("{}", "[]"))
+            if not significativos:
+                return False
+            from services.levantamiento_borradores_service import guardar_borrador
+            guardar_borrador(self.usuario_activo, self._tipo_borrador, datos)
+            return True
+        except Exception:
+            logger.exception("No fue posible guardar el borrador temporal del levantamiento.")
+            return False
+
+    def _instalar_control_inactividad(self):
+        """Cierra la sesión cuando no hay teclado/ratón durante el tiempo configurado."""
+        import time
+        self._ultimo_evento_usuario_ms = int(time.monotonic() * 1000)
+
+        def actividad(_event=None):
+            self._ultimo_evento_usuario_ms = int(time.monotonic() * 1000)
+
+        for secuencia in ("<KeyPress>", "<ButtonPress>", "<Motion>", "<MouseWheel>"):
+            try:
+                self.bind_all(secuencia, actividad, add="+")
+            except Exception:
+                pass
+
+        def revisar():
+            if not self.winfo_exists():
+                return
+            ahora = int(time.monotonic() * 1000)
+            if ahora - self._ultimo_evento_usuario_ms >= self._inactividad_ms:
+                guardado = self._guardar_borrador_actual()
+                try:
+                    from services.movimientos_service import registrar_movimiento_seguro
+                    registrar_movimiento_seguro(
+                        modulo="Login", accion="CIERRE_INACTIVIDAD",
+                        descripcion="Sesión cerrada automáticamente por inactividad" + ("; borrador de levantamiento guardado" if guardado else ""),
+                    )
+                except Exception:
+                    pass
+                self.cerrar_sesion(motivo="inactividad", mostrar_aviso=True)
+                return
+            self.after(15000, revisar)
+
+        self.after(15000, revisar)
+
+    def _ofrecer_borrador_pendiente(self):
+        """Ofrece Continuar / Guardar para después / Borrar al iniciar sesión."""
+        try:
+            from services.levantamiento_borradores_service import cargar_borrador, eliminar_borrador
+            borrador = cargar_borrador(self.usuario_activo)
+        except Exception:
+            borrador = None
+        if not borrador:
+            return
+
+        dialogo = ctk.CTkToplevel(self)
+        dialogo.title("Levantamiento pendiente")
+        dialogo.geometry("520x260")
+        dialogo.resizable(False, False)
+        dialogo.transient(self)
+        dialogo.grab_set()
+        configurar_icono_ventana(dialogo)
+
+        tipo = borrador.get("tipo_levantamiento") or "levantamiento"
+        guardado = str(borrador.get("guardado_en") or "").replace("T", " ")
+        ctk.CTkLabel(dialogo, text="Tienes un levantamiento pendiente", font=TITLE_LG, text_color=TEXT_PRIMARY).pack(pady=(24, 8))
+        ctk.CTkLabel(dialogo, text=f"{tipo}\nÚltimo guardado temporal: {guardado}", font=TEXT_MD, text_color=TEXT_SECONDARY, justify="center").pack(pady=(0, 22))
+        fila = ctk.CTkFrame(dialogo, fg_color="transparent")
+        fila.pack(fill="x", padx=24, pady=8)
+
+        def continuar():
+            datos = borrador.get("datos") if isinstance(borrador.get("datos"), dict) else {}
+            try:
+                dialogo.grab_release(); dialogo.destroy()
+            except Exception:
+                pass
+            self.navigation.mostrar_levantamiento(tipo_levantamiento=tipo, borrador=datos)
+
+        def despues():
+            try:
+                dialogo.grab_release(); dialogo.destroy()
+            except Exception:
+                pass
+
+        def borrar():
+            if not messagebox.askyesno("Borrar borrador", "¿Deseas eliminar definitivamente este levantamiento temporal?", parent=dialogo):
+                return
+            eliminar_borrador(self.usuario_activo)
+            try:
+                dialogo.grab_release(); dialogo.destroy()
+            except Exception:
+                pass
+
+        ctk.CTkButton(fila, text="Continuar", command=continuar).pack(side="left", expand=True, fill="x", padx=4)
+        ctk.CTkButton(fila, text="Guardar para después", command=despues, fg_color="#334155").pack(side="left", expand=True, fill="x", padx=4)
+        ctk.CTkButton(fila, text="Borrar", command=borrar, fg_color="#DC2626", hover_color="#B91C1C").pack(side="left", expand=True, fill="x", padx=4)
+        dialogo.protocol("WM_DELETE_WINDOW", despues)
+
+    def cerrar_sesion(self, motivo="manual", mostrar_aviso=False):
         """Cierra la sesión activa y solicita regresar al Login inicial.
 
         La ventana principal NO debe intentar abrir directamente login.py.
@@ -499,7 +639,7 @@ class AxiaApp(ctk.CTk):
             registrar_movimiento_seguro(
                 modulo="Login",
                 accion="CERRAR_SESION",
-                descripcion="El usuario cerró sesión manualmente"
+                descripcion=("El usuario cerró sesión por inactividad" if motivo == "inactividad" else "El usuario cerró sesión manualmente")
             )
         except Exception:
             logger.exception("No fue posible registrar el cierre de sesión.")
