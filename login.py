@@ -246,7 +246,7 @@ def abrir_login():
 
     ctk.CTkLabel(
         card,
-        text="Sistema AXIA · vAXIA_Setup_2.01.5",
+        text="Sistema AXIA · v2.01.5",
         font=TEXT_SM,
         text_color=TEXT_SECONDARY,
     ).pack(pady=(14, 2))
