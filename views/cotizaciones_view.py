@@ -10,6 +10,8 @@ from core.logger import configurar_logger
 from security.permissions import puede_cotizar_levantamientos
 from services.cotizaciones_service import (
     obtener_levantamientos_para_cotizar,
+    obtener_cotizaciones_pendientes_compras,
+    obtener_levantamiento_de_cotizacion,
     cargar_cotizacion,
     datos_generales_cotizacion,
     construir_partidas_comerciales,
@@ -19,7 +21,7 @@ from services.cotizaciones_service import (
     ESTATUS_EN_COMPRA,
 )
 from services.axia_pdf_engine import AxiaPdfEngine
-from services.usuarios_service import obtener_nombres_usuarios_por_tipos
+from services.usuarios_service import obtener_nombres_usuarios_por_tipos, obtener_usuarios_por_tipos
 from ui.colors import WHITE, TEXT_PRIMARY, TEXT_SECONDARY, SECONDARY, BUTTON_HOVER
 from ui.fonts import TITLE_MD, TEXT_MD, TEXT_SM, BUTTON_FONT
 from ui.native_table import NativeTreeTable
@@ -49,6 +51,7 @@ def mostrar_cotizaciones(parent, app=None):
 
     estado = {"registro": None, "cotizacion": {}, "vars": {}, "partidas": [], "partida_vars": [], "editables": [], "modo_edicion": False}
     registros_cache = []
+    cotizaciones_cache = []
 
     root = ctk.CTkFrame(parent, fg_color="transparent")
     root.pack(fill="both", expand=True, padx=14, pady=(4, 12))
@@ -60,34 +63,28 @@ def mostrar_cotizaciones(parent, app=None):
     superior.grid_columnconfigure(0, weight=1, uniform="top")
     superior.grid_columnconfigure(1, weight=1, uniform="top")
 
-    cabecera = ctk.CTkFrame(superior, fg_color=WHITE, corner_radius=16)
-    cabecera.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
-    cabecera.grid_columnconfigure(0, weight=1)
-    ctk.CTkLabel(cabecera, text="Cotizaciones comerciales", font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="w").grid(
-        row=0, column=0, columnspan=3, sticky="ew", padx=14, pady=(10, 2))
-    ctk.CTkLabel(
-        cabecera,
-        text="Los datos existentes del levantamiento se cargan automáticamente; Ventas completa precios, proveedor y condiciones comerciales.",
-        font=TEXT_MD, text_color=TEXT_SECONDARY, anchor="w", wraplength=650,
-    ).grid(row=1, column=0, columnspan=3, sticky="ew", padx=14, pady=(0, 8))
-
-    var_busqueda = ctk.StringVar()
-    normalizando = {"x": False}
-    def _forzar_mayusculas_busqueda(*_):
-        if normalizando["x"]: return
-        actual = var_busqueda.get()
-        mayusculas = actual.upper()
-        if actual != mayusculas:
-            normalizando["x"] = True
-            var_busqueda.set(mayusculas)
-            normalizando["x"] = False
-    var_busqueda.trace_add("write", _forzar_mayusculas_busqueda)
-    entrada_busqueda = ctk.CTkEntry(cabecera, textvariable=var_busqueda, height=40,
-                                    placeholder_text="BUSCAR POR FOLIO, CLIENTE, TIPO O MODALIDAD")
-    entrada_busqueda.grid(row=2, column=0, sticky="ew", padx=(14, 6), pady=(0, 10))
+    # FIX30: las dos bandejas superiores representan los dos caminos de Ventas:
+    # a la izquierda, cotizaciones COT-XXXXX ya guardadas pero todavía editables;
+    # a la derecha, levantamientos preautorizados que aún pueden generar cotización.
+    bandeja_cot = ctk.CTkFrame(superior, fg_color=WHITE, corner_radius=16)
+    bandeja_cot.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
+    bandeja_cot.grid_columnconfigure(0, weight=1)
+    lbl_cotizaciones = ctk.CTkLabel(
+        bandeja_cot, text="Cotizaciones realizadas · Pendientes de Compras",
+        font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="w"
+    )
+    lbl_cotizaciones.grid(row=0, column=0, sticky="ew", padx=12, pady=(8, 4))
+    tabla_cot = NativeTreeTable(
+        bandeja_cot,
+        columns=(("folio","Cotización",130),("levantamiento","Levantamiento",130),
+                 ("cliente","Cliente",210),("fecha","Fecha",115)),
+        height=3,
+    )
+    tabla_cot.grid(row=1, column=0, sticky="ew", padx=10, pady=(0,6))
 
     bandeja = ctk.CTkFrame(superior, fg_color=WHITE, corner_radius=16)
-    bandeja.grid(row=0, column=1, sticky="nsew", padx=(6, 0)); bandeja.grid_columnconfigure(0, weight=1)
+    bandeja.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
+    bandeja.grid_columnconfigure(0, weight=1)
     lbl_lista = ctk.CTkLabel(bandeja, text="Levantamientos preautorizados", font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="w")
     lbl_lista.grid(row=0, column=0, sticky="ew", padx=12, pady=(8, 4))
     tabla = NativeTreeTable(bandeja, columns=(("folio","Folio",135),("cliente","Cliente",210),("tipo","Tipo",210),("fecha","Fecha",125)), height=3)
@@ -122,6 +119,9 @@ def mostrar_cotizaciones(parent, app=None):
     btn_finalizar = ctk.CTkButton(acciones, text="✓ Finalizar cotización", width=170, fg_color="#15803D", hover_color=BUTTON_HOVER,
                                   font=BUTTON_FONT, state="disabled")
     btn_finalizar.grid(row=0, column=4)
+    lbl_validacion = ctk.CTkLabel(acciones, text="Carga un levantamiento para iniciar la cotización.",
+                                  font=TEXT_SM, text_color=TEXT_SECONDARY, anchor="e")
+    lbl_validacion.grid(row=1, column=0, columnspan=5, sticky="e", pady=(4,0))
 
     def limpiar():
         for w in scroll.winfo_children(): w.destroy()
@@ -130,6 +130,7 @@ def mostrar_cotizaciones(parent, app=None):
         for boton in (btn_guardar, btn_pdf, btn_modificar, btn_finalizar):
             boton.configure(state="disabled")
         lbl_total.configure(text="Total: $0.00 MXN")
+        lbl_validacion.configure(text="Carga un levantamiento para iniciar la cotización.", text_color=TEXT_SECONDARY)
 
     def recalcular(*_):
         subtotal = sum(_num(pv["importe"].get()) for pv in estado["partida_vars"])
@@ -238,7 +239,7 @@ def mostrar_cotizaciones(parent, app=None):
         return True, "Cotización completa."
 
     def actualizar_estado_botones(*_):
-        valida, _mensaje = validar_captura_completa()
+        valida, mensaje = validar_captura_completa()
         cot = estado.get("cotizacion") or {}
         finalizada = str(cot.get("cot_estatus") or ESTATUS_BORRADOR).strip().upper() == ESTATUS_EN_COMPRA if cot else False
         modo = bool(estado.get("modo_edicion"))
@@ -246,6 +247,14 @@ def mostrar_cotizaciones(parent, app=None):
         btn_guardar.configure(state="normal" if (modo and valida and not finalizada) else "disabled")
         btn_modificar.configure(state="normal" if (cot and not finalizada and not modo) else "disabled")
         btn_finalizar.configure(state="normal" if (cot and valida and not finalizada and not modo) else "disabled")
+        if finalizada:
+            lbl_validacion.configure(text="Cotización finalizada y enviada a Compras.", text_color="#15803D")
+        elif not valida:
+            lbl_validacion.configure(text=f"Pendiente: {mensaje}", text_color="#B45309")
+        elif cot and not modo:
+            lbl_validacion.configure(text="Cotización completa. Usa Modificar para editar o Finalizar para enviarla a Compras.", text_color="#15803D")
+        else:
+            lbl_validacion.configure(text="Cotización completa. Preview y Guardar están habilitados.", text_color="#15803D")
 
     def render(registro, forzar_edicion=False):
         limpiar(); estado["registro"] = registro
@@ -281,10 +290,35 @@ def mostrar_cotizaciones(parent, app=None):
 
         add_field(general,1,0,"Sucursal","cot_sucursal",base.get("cot_sucursal"),True,2)
         add_field(general,1,2,"Asunto","cot_asunto",base.get("cot_asunto"),True,2)
-        add_field(general,1,4,"ESI / Ejecutiva de Ventas","cot_esi",base.get("cot_esi"),True)
+        # El usuario tipo 6 queda asociado automáticamente como ESI. El administrador
+        # puede elegir una Ejecutiva de Ventas real (tipo 6) para pruebas/gestión; al
+        # seleccionarla se cargan automáticamente su correo corporativo y teléfono.
+        tipo_actual = int((usuario or {}).get("usu_tipo") or 0)
+        ventas_catalogo = obtener_usuarios_por_tipos([6]) if tipo_actual == 1 else []
+        ventas_por_etiqueta = {str(u.get("etiqueta") or "").strip(): u for u in ventas_catalogo}
+        if tipo_actual == 1 and ventas_catalogo:
+            esi_actual = str(base.get("cot_esi") or "").strip()
+            opciones_esi = list(ventas_por_etiqueta)
+            if esi_actual and esi_actual not in opciones_esi and estado.get("cotizacion"):
+                opciones_esi.insert(0, esi_actual)
+            add_select(general,1,4,"ESI / Ejecutiva de Ventas","cot_esi",opciones_esi,esi_actual)
+        else:
+            add_field(general,1,4,"ESI / Ejecutiva de Ventas","cot_esi",base.get("cot_esi"),True)
 
         add_field(general,2,0,"Correo ESI","cot_esi_correo",base.get("cot_esi_correo"),True)
         add_field(general,2,1,"Teléfono ESI","cot_esi_telefono",base.get("cot_esi_telefono"),True)
+        if tipo_actual == 1 and ventas_catalogo:
+            def _sincronizar_esi(*_):
+                elegido = str(estado["vars"]["cot_esi"].get() or "").strip()
+                reg_esi = ventas_por_etiqueta.get(elegido) or {}
+                if reg_esi:
+                    estado["vars"]["cot_esi_correo"].set(str(reg_esi.get("usu_correo") or "").strip())
+                    estado["vars"]["cot_esi_telefono"].set(str(reg_esi.get("usu_telefono") or "").strip())
+                actualizar_estado_botones()
+            estado["vars"]["cot_esi"].trace_add("write", _sincronizar_esi)
+            if not estado.get("cotizacion"):
+                _sincronizar_esi()
+
         jefes_operaciones = obtener_nombres_usuarios_por_tipos([2])
         add_select(general,2,2,"Jefe de Operaciones","cot_jefe_operaciones",jefes_operaciones,base.get("cot_jefe_operaciones"),2)
         add_field(general,2,4,"Supervisor","cot_supervisor",base.get("cot_supervisor"),True)
@@ -422,6 +456,7 @@ def mostrar_cotizaciones(parent, app=None):
             actualizar_estado_botones()
             lbl_detalle.configure(text=f"{cot.get('cot_folio')} · Cotización guardada. Usa Modificar para habilitar cambios o Finalizar para enviarla a Compras.")
             recalcular()
+            refrescar()
             messagebox.showinfo("Cotización guardada",f"Cotización {cot.get('cot_folio')} guardada correctamente.\n\nTotal: ${float(cot.get('cot_total') or 0):,.2f} MXN")
         run_async(parent.winfo_toplevel(), lambda: guardar_cotizacion_comercial(datos,parts,usuario_nombre), ok,
                   lambda e:(actualizar_estado_botones(),messagebox.showerror("No fue posible guardar",str(e))))
@@ -470,6 +505,7 @@ def mostrar_cotizaciones(parent, app=None):
             estado["modo_edicion"] = False
             actualizar_estado_botones()
             lbl_detalle.configure(text=f"{folio} · En compra X Cotización. Pendiente de atención por Compras.", text_color="#15803D")
+            refrescar()
             messagebox.showinfo(
                 "Cotización enviada a Compras",
                 f"{folio} quedó con estado: En compra X Cotización.\n\nNo se generó ninguna Orden de Trabajo.",
@@ -535,32 +571,75 @@ def mostrar_cotizaciones(parent, app=None):
             messagebox.showerror("Preview PDF", str(e))
 
     def cargar_seleccion():
-        reg=tabla.selected_payload()
-        if not reg: messagebox.showinfo("Selecciona un levantamiento","Selecciona primero un levantamiento de la tabla."); return
+        reg = tabla.selected_payload()
+        if not reg:
+            messagebox.showinfo("Selecciona un levantamiento", "Selecciona primero un levantamiento de la tabla.")
+            return
         lbl_titulo.configure(text=f"{_texto(reg,'lev_folio')} · {_texto(reg,'lev_cliente')}")
         lbl_detalle.configure(text="Cotización comercial ligada al levantamiento preautorizado.")
         render(reg)
 
-    def filtrar_lista(*_):
-        term=var_busqueda.get().strip().casefold()
-        regs=list(registros_cache) if not term else [r for r in registros_cache if term in " ".join([
-            _texto(r,"lev_folio"),_texto(r,"lev_cliente"),_texto(r,"lev_tipo"),_texto(r,"lev_modalidad_operativa")]).casefold()]
-        lbl_lista.configure(text=f"Levantamientos preautorizados ({len(regs)})")
-        tabla.set_rows(regs,value_factory=lambda r:(_texto(r,"lev_folio"),_texto(r,"lev_cliente")," / ".join(filter(None,[_texto(r,"lev_tipo"),_texto(r,"lev_modalidad_operativa")])),_texto(r,"lev_fecha_programada")))
+    def cargar_cotizacion_seleccionada():
+        cot = tabla_cot.selected_payload()
+        if not cot:
+            messagebox.showinfo("Selecciona una cotización", "Selecciona primero una cotización COT-XXXXX de la tabla.")
+            return
+
+        def tarea():
+            reg = obtener_levantamiento_de_cotizacion(cot)
+            if not reg:
+                raise ValueError(f"No fue posible localizar el levantamiento origen de {cot.get('cot_folio') or 'la cotización'}.")
+            return reg
+
+        def ok(reg):
+            lbl_titulo.configure(text=f"{_texto(cot,'cot_folio')} · {_texto(cot,'cot_cliente')}")
+            lbl_detalle.configure(text=f"{_texto(cot,'cot_folio')} · Cotización guardada pendiente de Compras. Usa Modificar para habilitar cambios.")
+            render(reg)
+
+        run_async(parent.winfo_toplevel(), tarea, ok,
+                  lambda e: messagebox.showerror("No fue posible abrir la cotización", str(e)))
 
     def refrescar():
         lbl_lista.configure(text="Consultando levantamientos preautorizados...")
-        def ok(regs):
-            registros_cache[:]=list(regs or [])
-            filtrar_lista()
-            if not registros_cache:
-                lbl_detalle.configure(text="No hay levantamientos preautorizados en Supabase. Los LEV validados antes de FIX10 no tenían aún la marca de preautorización; valídalos nuevamente con el usuario autorizado (id=5).")
-        run_async(parent.winfo_toplevel(),obtener_levantamientos_para_cotizar,ok,
-                  lambda e:messagebox.showerror("No fue posible abrir Cotizaciones","Verifica las migraciones de Cotizaciones en Supabase.\n\n"+str(e)))
+        lbl_cotizaciones.configure(text="Consultando cotizaciones pendientes...")
 
-    ctk.CTkButton(cabecera,text="🔎 Buscar",width=125,height=40,fg_color=SECONDARY,hover_color=BUTTON_HOVER,font=BUTTON_FONT,command=filtrar_lista).grid(row=2,column=1,padx=4,pady=(0,10))
-    ctk.CTkButton(cabecera,text="↻ Actualizar",width=125,height=40,fg_color="#334155",hover_color=BUTTON_HOVER,font=BUTTON_FONT,command=refrescar).grid(row=2,column=2,padx=(0,14),pady=(0,10))
-    entrada_busqueda.bind("<Return>",lambda _e:filtrar_lista())
-    ctk.CTkButton(bandeja,text="📥 Cargar seleccionado",height=38,font=BUTTON_FONT,command=cargar_seleccion).grid(row=2,column=0,sticky="ew",padx=10,pady=(0,8))
+        resultados = {"lev": None, "cot": None}
+
+        def pintar_lev(regs):
+            registros_cache[:] = list(regs or [])
+            lbl_lista.configure(text=f"Levantamientos preautorizados ({len(registros_cache)})")
+            tabla.set_rows(
+                registros_cache,
+                value_factory=lambda r:(
+                    _texto(r,"lev_folio"), _texto(r,"lev_cliente"),
+                    " / ".join(filter(None,[_texto(r,"lev_tipo"),_texto(r,"lev_modalidad_operativa")])),
+                    _texto(r,"lev_fecha_programada"),
+                ),
+            )
+            if not registros_cache:
+                lbl_detalle.configure(text="No hay levantamientos preautorizados pendientes de cotización.")
+
+        def pintar_cot(regs):
+            cotizaciones_cache[:] = list(regs or [])
+            lbl_cotizaciones.configure(text=f"Cotizaciones realizadas · Pendientes de Compras ({len(cotizaciones_cache)})")
+            tabla_cot.set_rows(
+                cotizaciones_cache,
+                value_factory=lambda r:(
+                    _texto(r,"cot_folio"), _texto(r,"lev_folio"), _texto(r,"cot_cliente"), _texto(r,"cot_fecha"),
+                ),
+            )
+
+        run_async(parent.winfo_toplevel(), obtener_levantamientos_para_cotizar, pintar_lev,
+                  lambda e:messagebox.showerror("No fue posible consultar levantamientos",str(e)))
+        run_async(parent.winfo_toplevel(), obtener_cotizaciones_pendientes_compras, pintar_cot,
+                  lambda e:messagebox.showerror("No fue posible consultar cotizaciones",str(e)))
+
+    ctk.CTkButton(
+        bandeja_cot, text="✎ Abrir cotización seleccionada", height=38, font=BUTTON_FONT,
+        fg_color="#0F766E", hover_color=BUTTON_HOVER, command=cargar_cotizacion_seleccionada
+    ).grid(row=2,column=0,sticky="ew",padx=10,pady=(0,8))
+    ctk.CTkButton(
+        bandeja,text="📥 Cargar levantamiento seleccionado",height=38,font=BUTTON_FONT,command=cargar_seleccion
+    ).grid(row=2,column=0,sticky="ew",padx=10,pady=(0,8))
     btn_guardar.configure(command=guardar); btn_pdf.configure(command=pdf); btn_modificar.configure(command=modificar); btn_finalizar.configure(command=finalizar)
     refrescar()

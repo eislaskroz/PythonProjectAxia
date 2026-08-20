@@ -371,6 +371,43 @@ def guardar_cotizacion_comercial(datos: dict, partidas: list[dict], usuario: str
     return guardada
 
 
+
+def obtener_cotizaciones_pendientes_compras(limite: int = 200) -> list[dict]:
+    """Devuelve cotizaciones guardadas que todavía no han sido enviadas a Compras.
+
+    La bandeja de Ventas usa esta consulta para reabrir/modificar COT-XXXXX ya
+    generadas mientras permanezcan en estado BORRADOR.
+    """
+    limite = max(1, int(limite))
+    resp = (
+        supabase.table(TABLA_COTIZACIONES)
+        .select(COLUMNAS_COTIZACIONES)
+        .eq("cot_estatus", ESTATUS_BORRADOR)
+        .order("fecha_actualizacion", desc=True)
+        .limit(limite)
+        .execute()
+    )
+    return [dict(x) for x in (resp.data or [])]
+
+
+def obtener_levantamiento_de_cotizacion(cotizacion: dict) -> dict:
+    """Recupera el levantamiento origen de una cotización guardada."""
+    cotizacion = dict(cotizacion or {})
+    id_levantamiento = cotizacion.get("id_levantamiento")
+    lev_folio = str(cotizacion.get("lev_folio") or "").strip()
+    if not id_levantamiento and not lev_folio:
+        return {}
+
+    def aplicar(q):
+        if id_levantamiento:
+            return q.eq("id_levantamiento", id_levantamiento).limit(1)
+        return q.eq("lev_folio", lev_folio).limit(1)
+
+    resp = execute_select_compatible(
+        supabase, TABLA_LEVANTAMIENTOS, COLUMNAS_LEVANTAMIENTOS, aplicar
+    )
+    return dict((resp.data or [])[0]) if resp.data else {}
+
 def obtener_cotizaciones_en_compra(limite: int = 200) -> list[dict]:
     """Bandeja preparada para el futuro módulo de Compras.
 

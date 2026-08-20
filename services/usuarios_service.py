@@ -509,7 +509,7 @@ def obtener_usuarios_por_tipos(tipos, limite=500):
     Obtiene usuarios para los selectores de asignación de formularios.
 
     No recupera contraseñas ni datos personales sensibles. Devuelve únicamente
-    id, nickname, nombre, apellido y tipo. Los registros se ordenan por nombre.
+    id, nickname, nombre, apellido, tipo, correo corporativo y teléfono. Los registros se ordenan por nombre.
     """
     try:
         tipos_validos = sorted({int(tipo) for tipo in tipos if int(tipo) in TIPOS_VALIDOS})
@@ -519,7 +519,7 @@ def obtener_usuarios_por_tipos(tipos, limite=500):
         respuesta = (
             supabase
             .table(TABLA_USUARIOS)
-            .select("id_usuario,usu_nickname,usu_nombre,usu_apellido,usu_tipo")
+            .select("id_usuario,usu_nickname,usu_nombre,usu_apellido,usu_tipo,usu_correo,usu_telefono")
             .in_("usu_tipo", tipos_validos)
             .limit(limite)
             .execute()
