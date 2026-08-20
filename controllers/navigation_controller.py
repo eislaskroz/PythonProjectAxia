@@ -429,7 +429,6 @@ class NavigationController:
         """Muestra la etapa comercial de costeo de levantamientos preautorizados."""
         if not self._verificar_permiso(
             puede_cotizar_levantamientos,
-    puede_ver_compras,
             "Tu nivel de usuario no tiene permiso para cotizar levantamientos.",
         ):
             return
