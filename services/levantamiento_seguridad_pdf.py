@@ -405,16 +405,20 @@ def generar_pdf_seguridad_instalacion(
     story = []
 
     # 1) Datos generales - estructura equivalente al formato de referencia.
+    duracion = registro.get("lev_duracion_proyecto") or ("Un día" if str(registro.get("lev_dias_trabajo") or "") == "1" else "Varios días")
+    recurso_valor = (f"{registro.get('lev_horas_estimadas')} h" if duracion == "Un día" and registro.get("lev_horas_estimadas") not in (None, "") else (cctv.get("dias_trabajo") or registro.get("lev_dias_trabajo") or "No definido"))
+    recurso_etiqueta = "HORAS ESTIMADAS" if duracion == "Un día" else "DÍAS DE TRABAJO"
     general_rows = [
         ["NOMBRE DE LEVANTAMIENTO", tipo_master or "Seguridad y Monitoreo",
          "FOLIO LEVANTAMIENTO", registro.get("lev_folio") or "Pendiente"],
         ["CLIENTE", registro.get("lev_cliente"), "FECHA", registro.get("lev_fecha_programada") or registro.get("fecha_registro")],
-        ["DIRECCIÓN", registro.get("lev_direccion"), "CONTACTO", registro.get("lev_contacto")],
-        ["TÉCNICO AXIA", registro.get("lev_tecnico"), "SUPERVISOR", registro.get("lev_supervisor")],
-        ["CORREO", registro.get("lev_correo"), "TIPO DE TRABAJO", modalidad or "Instalación"],
-        ["DÍAS DE TRABAJO", cctv.get("dias_trabajo") or "No definido",
-         "PERSONAS A CONSIDERAR", cctv.get("personas_considerar") or "No definido"],
+        ["DIRECCIÓN FISCAL", registro.get("lev_direccion"), "CONTACTO", registro.get("lev_contacto")],
+        ["DIRECCIÓN SUCURSAL", registro.get("lev_direccion_sucursal") or registro.get("lev_ubicacion"), "CORREO", registro.get("lev_correo")],
+        ["TIPO DE TRABAJO", modalidad or "Instalación", "DURACIÓN", duracion],
+        [recurso_etiqueta, recurso_valor, "PERSONAS ESTIMADAS", registro.get("lev_personas_considerar") or cctv.get("personas_considerar") or "No definido"],
     ]
+    if registro.get("lev_notas"):
+        general_rows.append(["NOTAS", registro.get("lev_notas"), "", ""])
     # Días y personas forman parte del mismo bloque de datos generales para mantener
     # exactamente las mismas columnas, bordes y proporciones. Personas queda debajo
     # de Tipo de trabajo.
@@ -810,26 +814,30 @@ def _damaged_rows(registro: Mapping[str, Any], detail: Mapping[str, Any]) -> lis
 
 def _general_story(registro: Mapping[str, Any], detail: Mapping[str, Any], story: list, normal, label, header):
     tipo, modalidad = _tipo_y_modalidad(registro, detail)
+    duracion = _text(registro.get("lev_duracion_proyecto"), "") or ("Un día" if str(registro.get("lev_dias_trabajo") or "") == "1" else "Varios días")
     general_rows = [
         ["NOMBRE DE LEVANTAMIENTO", tipo,
          "FOLIO LEVANTAMIENTO", registro.get("lev_folio") or "Pendiente"],
         ["CLIENTE", registro.get("lev_cliente"), "FECHA", registro.get("lev_fecha_programada") or registro.get("fecha_registro")],
-        ["DIRECCIÓN", registro.get("lev_direccion"), "CONTACTO", registro.get("lev_contacto")],
-        ["TÉCNICO AXIA", registro.get("lev_tecnico"), "SUPERVISOR", registro.get("lev_supervisor")],
-        ["CORREO", registro.get("lev_correo"), "TIPO DE TRABAJO", modalidad or "Instalación"],
+        ["DIRECCIÓN FISCAL", registro.get("lev_direccion"), "CONTACTO", registro.get("lev_contacto")],
+        ["DIRECCIÓN SUCURSAL", registro.get("lev_direccion_sucursal") or registro.get("lev_ubicacion"), "CORREO", registro.get("lev_correo")],
+        ["TIPO DE TRABAJO", modalidad or "Instalación", "DURACIÓN", duracion],
     ]
     days, people = _find_resources(detail)
-    # Los recursos comunes también existen como columnas directas en db_levantamientos.
-    # Esto hace al PDF independiente de la modalidad o del JSON técnico.
     days = days or _text(registro.get("lev_dias_trabajo"), "")
     people = people or _text(registro.get("lev_personas_considerar"), "")
-    # Todos los levantamientos comparten una sexta fila homogénea dentro de Datos
-    # generales. Así "Personas a considerar" queda exactamente debajo de
-    # "Tipo de trabajo", con las mismas columnas y estilo que el resto del bloque.
-    general_rows.append([
-        "DÍAS DE TRABAJO", days or "No definido",
-        "PERSONAS A CONSIDERAR", people or "No definido",
-    ])
+    if duracion == "Un día":
+        general_rows.append([
+            "HORAS ESTIMADAS", _text(registro.get("lev_horas_estimadas"), "No definido"),
+            "PERSONAS ESTIMADAS", people or "No definido",
+        ])
+    else:
+        general_rows.append([
+            "DÍAS DE TRABAJO", days or "No definido",
+            "PERSONAS ESTIMADAS", people or "No definido",
+        ])
+    if _text(registro.get("lev_notas"), ""):
+        general_rows.append(["NOTAS", registro.get("lev_notas"), "", ""])
     story.append(_key_value_table(general_rows, [1.35*inch, 2.75*inch, 1.18*inch, 1.62*inch], normal, label))
     story.append(Spacer(1, 7))
 

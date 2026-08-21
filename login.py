@@ -15,6 +15,7 @@ from ui.colors import (
     BUTTON_HOVER,
 )
 from ui.fonts import TITLE_LG, TITLE_MD, TEXT_MD, TEXT_SM, BUTTON_FONT
+from core.version import APP_VERSION
 
 
 
@@ -271,7 +272,7 @@ def abrir_login():
 
     ctk.CTkLabel(
         card,
-        text="Sistema AXIA · v2.01.8",
+        text=f"Sistema AXIA · v{APP_VERSION}",
         font=TEXT_SM,
         text_color=TEXT_SECONDARY,
     ).pack(pady=(14, 2))

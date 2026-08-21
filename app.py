@@ -160,6 +160,8 @@ class AxiaApp(ctk.CTk):
         self.after_idle(self._cargar_vista_inicial)
         self._instalar_control_inactividad()
         self.after(900, self._ofrecer_borrador_pendiente)
+        # La consulta de actualización es diferida para no retrasar el arranque.
+        self.after(1800, self._comprobar_actualizacion_axia)
 
     def report_callback_exception(self, exc, value, traceback_obj):
         """Muestra errores no controlados de callbacks con un código de soporte.
@@ -616,6 +618,159 @@ class AxiaApp(ctk.CTk):
         ctk.CTkButton(fila, text="Guardar para después", command=despues, fg_color="#334155").pack(side="left", expand=True, fill="x", padx=4)
         ctk.CTkButton(fila, text="Borrar", command=borrar, fg_color="#DC2626", hover_color="#B91C1C").pack(side="left", expand=True, fill="x", padx=4)
         dialogo.protocol("WM_DELETE_WINDOW", despues)
+
+    def _comprobar_actualizacion_axia(self):
+        """Consulta en segundo plano si existe una versión más reciente."""
+        try:
+            from core.background_tasks import run_async
+            from services.update_service import obtener_actualizacion_disponible
+        except Exception:
+            logger.exception("No fue posible cargar el servicio de actualizaciones.")
+            return
+
+        def mostrar(actualizacion):
+            if actualizacion is None or not self.winfo_exists():
+                return
+            self._mostrar_dialogo_actualizacion(actualizacion)
+
+        run_async(
+            root=self,
+            task=obtener_actualizacion_disponible,
+            on_success=mostrar,
+            on_error=lambda error: logger.warning(
+                "Comprobación de actualización omitida: %s", error
+            ),
+        )
+
+    def _mostrar_dialogo_actualizacion(self, actualizacion):
+        """Muestra la versión disponible y permite instalarla o posponerla."""
+        from core.version import APP_VERSION
+
+        dialogo = ctk.CTkToplevel(self)
+        dialogo.title("Actualización de AXIA")
+        dialogo.geometry("590x420")
+        dialogo.resizable(False, False)
+        dialogo.transient(self)
+        dialogo.grab_set()
+        configurar_icono_ventana(dialogo)
+
+        ctk.CTkLabel(
+            dialogo,
+            text="Actualización disponible",
+            font=TITLE_LG,
+            text_color=TEXT_PRIMARY,
+        ).pack(pady=(24, 7))
+        ctk.CTkLabel(
+            dialogo,
+            text=f"Versión instalada: {APP_VERSION}    →    Nueva versión: {actualizacion.version}",
+            font=TEXT_MD,
+            text_color=TEXT_SECONDARY,
+        ).pack(pady=(0, 13))
+
+        if actualizacion.obligatoria:
+            ctk.CTkLabel(
+                dialogo,
+                text="Esta actualización es obligatoria para continuar utilizando AXIA.",
+                font=TEXT_MD,
+                text_color="#B91C1C",
+            ).pack(pady=(0, 10))
+
+        notas = actualizacion.notas or "Mejoras y correcciones de AXIA."
+        caja = ctk.CTkTextbox(dialogo, width=520, height=175, wrap="word")
+        caja.pack(padx=30, pady=(0, 15))
+        caja.insert("1.0", notas)
+        caja.configure(state="disabled")
+
+        estado = ctk.CTkLabel(
+            dialogo,
+            text="",
+            font=TEXT_MD,
+            text_color=TEXT_SECONDARY,
+        )
+        estado.pack(pady=(0, 7))
+
+        fila = ctk.CTkFrame(dialogo, fg_color="transparent")
+        fila.pack(fill="x", padx=32, pady=(0, 20))
+
+        def cerrar_dialogo():
+            try:
+                dialogo.grab_release()
+                dialogo.destroy()
+            except Exception:
+                logger.debug("El diálogo de actualización ya estaba cerrado.", exc_info=True)
+
+        def descargar_e_instalar():
+            from core.background_tasks import run_async
+            from services.update_service import descargar_actualizacion, programar_instalacion
+
+            btn_actualizar.configure(state="disabled")
+            if btn_posponer is not None:
+                btn_posponer.configure(state="disabled")
+            estado.configure(text="Descargando y verificando actualización...")
+            dialogo.configure(cursor="watch")
+
+            def tarea():
+                instalador = descargar_actualizacion(actualizacion)
+                programar_instalacion(instalador)
+                return instalador
+
+            def listo(_instalador):
+                estado.configure(text="Actualización lista. AXIA se cerrará para instalarla.")
+                try:
+                    dialogo.grab_release()
+                except Exception:
+                    logger.debug("No fue necesario liberar el diálogo de actualización.", exc_info=True)
+                # El proceso externo espera unos segundos, instala y vuelve a abrir AXIA.
+                self.after(500, self.salir_aplicacion)
+
+            def error_descarga(error):
+                dialogo.configure(cursor="")
+                btn_actualizar.configure(state="normal")
+                if btn_posponer is not None:
+                    btn_posponer.configure(state="normal")
+                estado.configure(text="No fue posible preparar la actualización.")
+                messagebox.showerror(
+                    "Actualización de AXIA",
+                    f"No fue posible descargar o verificar la actualización.\n\n{error}",
+                    parent=dialogo,
+                )
+
+            run_async(
+                root=dialogo,
+                task=tarea,
+                on_success=listo,
+                on_error=error_descarga,
+            )
+
+        btn_actualizar = ctk.CTkButton(
+            fila,
+            text="Actualizar ahora",
+            command=descargar_e_instalar,
+            height=42,
+        )
+        btn_actualizar.pack(side="left", expand=True, fill="x", padx=5)
+
+        btn_posponer = None
+        if actualizacion.obligatoria:
+            btn_posponer = ctk.CTkButton(
+                fila,
+                text="Salir de AXIA",
+                fg_color="#475569",
+                command=self.salir_aplicacion,
+                height=42,
+            )
+            btn_posponer.pack(side="left", expand=True, fill="x", padx=5)
+            dialogo.protocol("WM_DELETE_WINDOW", self.salir_aplicacion)
+        else:
+            btn_posponer = ctk.CTkButton(
+                fila,
+                text="Más tarde",
+                fg_color="#475569",
+                command=cerrar_dialogo,
+                height=42,
+            )
+            btn_posponer.pack(side="left", expand=True, fill="x", padx=5)
+            dialogo.protocol("WM_DELETE_WINDOW", cerrar_dialogo)
 
     def cerrar_sesion(self, motivo="manual", mostrar_aviso=False):
         """Cierra la sesión activa y solicita regresar al Login inicial.

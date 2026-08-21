@@ -38,12 +38,22 @@ from ui.fonts import (
     BUTTON_FONT
 )
 
+# Escala visual única para formularios de levantamiento.
+# Campo/etiqueta: 11 pt; encabezado de sección: 13 pt bold.
+FORM_FIELD_FONT = ("Montserrat", 11)
+FORM_SECTION_FONT = ("Montserrat", 13, "bold")
+FORM_TABLE_HEADER_FONT = ("Montserrat", 11, "bold")
+FORM_CONTROL_HEIGHT = 30
+
 from app_context import obtener_usuario_actual
 from services.movimientos_service import registrar_movimiento
 from services.materiales_catalogo_service import obtener_materiales_por_especialidad, UNIDADES_MATERIAL
 from services.equipos_catalogo_service import (
     MARCAS_COMUNES, obtener_nombres_familias, obtener_subfamilias,
     obtener_sugerencia_caracteristicas
+)
+from views.levantamientos.catalogo_herramientas import (
+    CATALOGO_HERRAMIENTAS, CATEGORIAS_HERRAMIENTAS, herramientas_por_categoria
 )
 
 from services.aco_context_service import normalizar_datos_aco
@@ -181,6 +191,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     var_telefono = ctk.StringVar()
     var_correo = ctk.StringVar()
     var_direccion = ctk.StringVar()
+    var_direccion_sucursal = ctk.StringVar()
     var_ubicacion = ctk.StringVar()
     var_tecnico = ctk.StringVar()
     var_supervisor = ctk.StringVar()
@@ -192,6 +203,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     # Recursos proyectados: obligatorios y comunes a TODOS los levantamientos.
     # Son la fuente única de verdad para días y personas, independientemente
     # del tipo/modalidad del formulario.
+    var_duracion_proyecto = ctk.StringVar(value="Un día")
+    var_horas_estimadas_general = ctk.StringVar()
     var_dias_trabajo_general = ctk.StringVar()
     var_personas_considerar_general = ctk.StringVar()
     # Anotación gráfica opcional común a TODOS los levantamientos.
@@ -214,6 +227,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
     materiales_miscelaneos_items = []
     equipos_catalogo_items = []
+    herramientas_items = []
     canalizacion_materiales_items = []
 
     # Campos dedicados del formulario Seguridad y Monitoreo.
@@ -555,6 +569,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     entradas = {}
     combo_sucursal = {"widget": None}
     combo_encargado = {"widget": None}
+    manual_widgets = {"cliente": None, "sucursal": None, "encargado": None}
     sucursales_por_nombre = {}
     contactos_por_nombre = {}
     seleccion_catalogo = {"id_cliente": None, "id_sucursal": None, "id_contacto": None}
@@ -597,9 +612,12 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         var_encargado_sucursal.set("")
         var_contacto.set("")
         if sucursal:
-            # La dirección mostrada en levantamientos es siempre la fiscal del cliente.
-            # La sucursal se conserva por ID/nombre para trazabilidad, sin reemplazarla.
+            # Conservamos la dirección fiscal del cliente y mostramos además el
+            # domicilio operativo completo de la sucursal seleccionada.
             var_ubicacion.set(_nombre_sucursal(sucursal))
+            var_direccion_sucursal.set(construir_domicilio_sucursal(sucursal))
+        else:
+            var_direccion_sucursal.set("")
             for contacto in obtener_contactos_por_sucursal(_id_sucursal(sucursal)) or []:
                 contactos_por_nombre[_nombre_contacto(contacto)] = contacto
         opciones = list(contactos_por_nombre.keys()) or ["Sin encargados registrados"]
@@ -667,9 +685,55 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         cargar_sucursales_cliente(datos.get("id_cliente"), datos.get("id_sucursal"), datos.get("id_contacto"))
         bloquear_datos_aco_autollenados()
 
+    def _configurar_entry(etiqueta, editable):
+        entry = entradas.get(etiqueta)
+        if entry:
+            entry.configure(state="normal" if editable else "disabled")
+
+    def _mostrar_manual(clave, mostrar):
+        widget = manual_widgets.get(clave)
+        if not widget:
+            return
+        if mostrar:
+            widget.pack(fill="x", pady=(4, 0))
+        else:
+            widget.pack_forget()
+
+    def activar_modo_cliente_otro(activar=True):
+        """Permite captura libre sin crear registros en db_clientes/db_sucursales."""
+        _mostrar_manual("cliente", activar)
+        _mostrar_manual("sucursal", activar)
+        _mostrar_manual("encargado", activar)
+        for etiqueta in ("Dirección Fiscal", "Dirección de Sucursal", "Teléfono", "Correo"):
+            _configurar_entry(etiqueta, activar)
+        if activar:
+            seleccion_catalogo.update({"id_cliente": None, "id_sucursal": None, "id_contacto": None})
+            var_cliente.set("")
+            var_sucursal.set("")
+            var_encargado_sucursal.set("")
+            var_contacto.set("")
+            var_telefono.set("")
+            var_correo.set("")
+            var_direccion.set("")
+            var_direccion_sucursal.set("")
+            var_ubicacion.set("")
+            if combo_sucursal["widget"] is not None:
+                combo_sucursal["widget"].configure(state="disabled")
+            if combo_encargado["widget"] is not None:
+                combo_encargado["widget"].configure(state="disabled")
+        else:
+            if combo_sucursal["widget"] is not None:
+                combo_sucursal["widget"].configure(state="normal")
+            if combo_encargado["widget"] is not None:
+                combo_encargado["widget"].configure(state="normal")
+
     def cargar_cliente_desde_selector(nombre_cliente=None):
-        """Carga cliente y sus sucursales/contactos operativos desde los catálogos maestros."""
+        """Carga un cliente maestro o activa captura libre al elegir «Otros»."""
         nombre = (nombre_cliente or var_cliente_selector.get() or "").strip()
+        if nombre == "Otros":
+            activar_modo_cliente_otro(True)
+            return
+        activar_modo_cliente_otro(False)
         cliente_db = clientes_por_nombre.get(nombre)
         if not cliente_db:
             return
@@ -690,7 +754,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         ctk.CTkLabel(
             card,
             text=texto,
-            font=TEXT_SM,
+            font=FORM_FIELD_FONT,
             text_color=TEXT_PRIMARY
         ).pack(
             anchor="w",
@@ -703,8 +767,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             card,
             textvariable=variable,
             width=830,
-            height=34,
-            corner_radius=9,
+            height=FORM_CONTROL_HEIGHT,
+            corner_radius=0,
             placeholder_text=placeholder,
             state=state
         ).pack(
@@ -753,7 +817,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         ctk.CTkLabel(
             header_aco,
             text="Información del ACO  🔒 Solo lectura",
-            font=TEXT_SM,
+            font=FORM_FIELD_FONT,
             text_color=TEXT_PRIMARY
         ).pack(anchor="w")
 
@@ -788,7 +852,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             ctk.CTkLabel(
                 item,
                 text=f"{etiqueta}: ",
-                font=("Montserrat", 12, "bold"),
+                font=FORM_SECTION_FONT,
                 text_color=TEXT_PRIMARY,
                 anchor="w"
             ).pack(side="left", anchor="w")
@@ -796,7 +860,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             ctk.CTkLabel(
                 item,
                 text=valor or "No registrado",
-                font=("Montserrat", 11),
+                font=FORM_FIELD_FONT,
                 text_color=TEXT_SECONDARY,
                 anchor="w",
                 justify="left",
@@ -855,6 +919,18 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         card,
         fg_color="transparent"
     )
+    # Fondo neutro: se retiraron los wallpapers temáticos para conservar
+    # una interfaz limpia, legible y consistente en todos los formularios.
+    def _fondo_seccion(frame):
+        try:
+            frame.configure(
+                fg_color="#F7F9FC",
+                border_width=1,
+                border_color="#DCE5EF",
+            )
+        except Exception:
+            pass
+        return None
     # Bloque de datos generales compacto: no debe consumir más altura que
     # las demás secciones del levantamiento.
     form_body.pack(
@@ -899,7 +975,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         ctk.CTkLabel(
             parent_columna,
             text=f"{icono} {texto}",
-            font=TEXT_SM,
+            font=FORM_FIELD_FONT,
             text_color=TEXT_PRIMARY
         ).pack(
             anchor="w",
@@ -919,7 +995,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             columnspan=colspan,
             sticky="ew",
             padx=(izquierda, derecha),
-            pady=(0, 3)
+            pady=(0, 2)
         )
         contenedor_campo.grid_columnconfigure(0, weight=1)
         return contenedor_campo
@@ -939,8 +1015,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         entry = ctk.CTkEntry(
             contenedor_campo,
             textvariable=variable,
-            height=34,
-            corner_radius=9,
+            height=FORM_CONTROL_HEIGHT,
+            corner_radius=0,
+            font=FORM_FIELD_FONT,
             placeholder_text=placeholder,
             state=state
         )
@@ -986,7 +1063,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             contenedor_campo,
             variable=variable,
             values=values,
-            height=34
+            height=FORM_CONTROL_HEIGHT,
+            font=FORM_FIELD_FONT
         ).pack(
             fill="x"
         )
@@ -1003,10 +1081,16 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             contenedor_campo,
             variable=variable,
             values=values or ["Sin clientes registrados"],
-            height=34,
+            height=FORM_CONTROL_HEIGHT,
+            font=FORM_FIELD_FONT,
             command=cargar_cliente_desde_selector
         )
         option.pack(fill="x")
+        manual = ctk.CTkEntry(
+            contenedor_campo, textvariable=var_cliente, height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT,
+            placeholder_text="Nombre / razón social del cliente"
+        )
+        manual_widgets["cliente"] = manual
         return option
 
     def campo_catalogo_selector(texto, variable, columna=0, fila=None, colspan=1, tipo="sucursal"):
@@ -1016,12 +1100,16 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         _label_campo(contenedor_campo, texto)
         valores = ["Sin sucursales registradas"] if tipo == "sucursal" else ["Sin encargados registrados"]
         command = cargar_contactos_sucursal if tipo == "sucursal" else cargar_encargado_sucursal
-        combo = NativeComboBox(contenedor_campo, variable=variable, values=valores, height=34, command=command)
+        combo = NativeComboBox(contenedor_campo, variable=variable, values=valores, height=FORM_CONTROL_HEIGHT, font=FORM_FIELD_FONT, command=command)
         combo.pack(fill="x")
         if tipo == "sucursal":
             combo_sucursal["widget"] = combo
+            manual = ctk.CTkEntry(contenedor_campo, textvariable=var_sucursal, height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Nombre de sucursal")
+            manual_widgets["sucursal"] = manual
         else:
             combo_encargado["widget"] = combo
+            manual = ctk.CTkEntry(contenedor_campo, textvariable=var_encargado_sucursal, height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Nombre del encargado / contacto")
+            manual_widgets["encargado"] = manual
         return combo
 
     def campo_texto(texto, altura=90, fila=None):
@@ -1038,7 +1126,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         caja_texto = ctk.CTkTextbox(
             contenedor_campo,
             height=altura,
-            corner_radius=10
+            corner_radius=0,
+            font=FORM_FIELD_FONT
         )
         caja_texto.pack(
             fill="x"
@@ -1052,7 +1141,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         ctk.CTkLabel(
             badge_tipo,
             text=f"📌 Tipo seleccionado: {tipo_levantamiento}",
-            font=("Montserrat", 12, "bold"),
+            font=FORM_TABLE_HEADER_FONT,
             text_color=PRIMARY
         ).pack(anchor="w", padx=8, pady=3)
         desplazamiento_filas = 1
@@ -1087,14 +1176,18 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     # Datos del cliente: la dirección visible es siempre la fiscal/principal.
     if not aco:
         nombres_clientes = sorted(clientes_por_nombre.keys())
+        nombres_clientes.append("Otros")
         campo_cliente_selector("Cliente", var_cliente_selector, nombres_clientes, columna=1, fila=0 + desplazamiento_filas)
         campo_entry("Dirección Fiscal", var_direccion, "Dirección fiscal del cliente", state="disabled", columna=2, fila=0 + desplazamiento_filas, colspan=3)
         campo_catalogo_selector("Sucursal", var_sucursal, columna=0, fila=1 + desplazamiento_filas, tipo="sucursal")
         campo_catalogo_selector("Encargado de sucursal", var_encargado_sucursal, columna=1, fila=1 + desplazamiento_filas, colspan=2, tipo="contacto")
         campo_entry("Teléfono", var_telefono, "Autollenado desde encargado", state="disabled", columna=3, fila=1 + desplazamiento_filas)
         campo_entry("Correo", var_correo, "Autollenado desde encargado", state="disabled", columna=4, fila=1 + desplazamiento_filas)
-        if nombres_clientes:
+        if var_cliente_selector.get():
             cargar_cliente_desde_selector(var_cliente_selector.get())
+        else:
+            var_cliente_selector.set("Otros")
+            cargar_cliente_desde_selector("Otros")
     else:
         campo_entry("Cliente", var_cliente, "Autollenado desde ACO", state="disabled", columna=1, fila=0 + desplazamiento_filas)
         campo_entry("Dirección Fiscal", var_direccion, "Dirección fiscal del cliente", state="disabled", columna=2, fila=0 + desplazamiento_filas, colspan=3)
@@ -1104,33 +1197,83 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         campo_entry("Correo", var_correo, "Autollenado desde encargado", state="disabled", columna=4, fila=1 + desplazamiento_filas)
         cargar_sucursales_cliente(datos_aco.get("id_cliente"), datos_aco.get("id_sucursal"), datos_aco.get("id_contacto"))
 
-    # Asignación interna AXIA según matriz de roles.
-    campo_option("Supervisor", var_supervisor, supervisores_disponibles or ["Sin usuarios tipo 2 o 3 registrados"], columna=0, fila=2 + desplazamiento_filas, colspan=2)
-    campo_option("Encargado de Proyecto", var_encargado_proyecto, encargados_proyecto_disponibles or ["Sin usuarios tipo 3 o 4 registrados"], columna=2, fila=2 + desplazamiento_filas, colspan=2)
-    campo_option("Técnico", var_tecnico, tecnicos_disponibles or ["Sin operadores tipo 4 registrados"], columna=4, fila=2 + desplazamiento_filas)
+    # En esta etapa sólo se captura el levantamiento. La asignación interna de
+    # jefe/supervisor/técnico ocurre en procesos posteriores y no se muestra aquí.
+
+    campo_entry(
+        "Dirección de Sucursal",
+        var_direccion_sucursal,
+        "Se completa con Calle y Número, Colonia, Municipio, Estado y C.P.",
+        state="disabled",
+        columna=0,
+        fila=2 + desplazamiento_filas,
+        colspan=5,
+    )
+    if not aco and var_cliente_selector.get() == "Otros":
+        activar_modo_cliente_otro(True)
 
     # Sección común y obligatoria para todos los tipos de levantamiento.
-    recursos_frame = ctk.CTkFrame(form_body, fg_color="#F8FAFC", corner_radius=12)
+    recursos_frame = ctk.CTkFrame(form_body, fg_color="#F7F9FC", corner_radius=12, border_width=1, border_color="#DCE5EF")
+    _fondo_seccion(recursos_frame)
     recursos_frame.grid(row=3 + desplazamiento_filas, column=0, columnspan=5, sticky="ew", pady=(3, 5))
-    recursos_frame.grid_columnconfigure(0, weight=0)
-    recursos_frame.grid_columnconfigure(1, weight=0)
-    recursos_frame.grid_columnconfigure(2, weight=1)
+    for _col in range(4):
+        recursos_frame.grid_columnconfigure(_col, weight=0 if _col < 3 else 1)
     ctk.CTkLabel(
         recursos_frame, text="👥 Recursos proyectados",
-        font=("Montserrat", 13, "bold"), text_color=TEXT_PRIMARY
-    ).grid(row=0, column=0, columnspan=3, sticky="w", padx=8, pady=(5, 2))
+        font=FORM_SECTION_FONT, text_color=TEXT_PRIMARY
+    ).grid(row=0, column=0, columnspan=4, sticky="w", padx=8, pady=(5, 2))
+
+    duracion_box = ctk.CTkFrame(recursos_frame, fg_color="transparent")
+    duracion_box.grid(row=1, column=0, sticky="w", padx=(8, 10), pady=(0, 6))
+    ctk.CTkLabel(duracion_box, text="¿Proyecto de un día o varios días?", font=FORM_FIELD_FONT, text_color=TEXT_PRIMARY).pack(anchor="w")
+    NativeComboBox(duracion_box, variable=var_duracion_proyecto, values=["Un día", "Varios días"], width=190, height=FORM_CONTROL_HEIGHT, font=FORM_FIELD_FONT).pack(anchor="w")
+
+    horas_box = ctk.CTkFrame(recursos_frame, fg_color="transparent")
+    horas_box.grid(row=1, column=1, sticky="w", padx=(0, 10), pady=(0, 6))
+    ctk.CTkLabel(horas_box, text="Horas estimadas", font=FORM_FIELD_FONT, text_color=TEXT_PRIMARY).pack(anchor="w")
+    ctk.CTkEntry(horas_box, textvariable=var_horas_estimadas_general, width=180, height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Ej. 6").pack(anchor="w")
 
     dias_box = ctk.CTkFrame(recursos_frame, fg_color="transparent")
-    dias_box.grid(row=1, column=0, sticky="w", padx=(8, 10), pady=(0, 6))
-    ctk.CTkLabel(dias_box, text="¿Cuántos días de trabajo se proyectan?", font=TEXT_SM, text_color=TEXT_PRIMARY).pack(anchor="w")
-    ctk.CTkEntry(dias_box, textvariable=var_dias_trabajo_general, width=220, height=32, corner_radius=9, placeholder_text="Ej. 2").pack(anchor="w")
+    dias_box.grid(row=1, column=1, sticky="w", padx=(0, 10), pady=(0, 6))
+    ctk.CTkLabel(dias_box, text="Días estimados", font=FORM_FIELD_FONT, text_color=TEXT_PRIMARY).pack(anchor="w")
+    ctk.CTkEntry(dias_box, textvariable=var_dias_trabajo_general, width=180, height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Ej. 3").pack(anchor="w")
 
     personas_box = ctk.CTkFrame(recursos_frame, fg_color="transparent")
-    personas_box.grid(row=1, column=1, sticky="w", padx=(0, 10), pady=(0, 6))
-    ctk.CTkLabel(personas_box, text="¿Cuántas personas se consideran?", font=TEXT_SM, text_color=TEXT_PRIMARY).pack(anchor="w")
-    ctk.CTkEntry(personas_box, textvariable=var_personas_considerar_general, width=220, height=32, corner_radius=9, placeholder_text="Ej. 3").pack(anchor="w")
+    personas_box.grid(row=1, column=2, sticky="w", padx=(0, 10), pady=(0, 6))
+    ctk.CTkLabel(personas_box, text="Personas estimadas", font=FORM_FIELD_FONT, text_color=TEXT_PRIMARY).pack(anchor="w")
+    ctk.CTkEntry(personas_box, textvariable=var_personas_considerar_general, width=180, height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Ej. 3").pack(anchor="w")
 
-    fila_inicio_operativa = 4 + desplazamiento_filas
+    def actualizar_recursos_proyectados(*_):
+        if var_duracion_proyecto.get() == "Un día":
+            dias_box.grid_remove()
+            horas_box.grid()
+            var_dias_trabajo_general.set("1")
+        else:
+            horas_box.grid_remove()
+            dias_box.grid()
+            var_horas_estimadas_general.set("")
+            if var_dias_trabajo_general.get().strip() == "1":
+                var_dias_trabajo_general.set("")
+
+    var_duracion_proyecto.trace_add("write", actualizar_recursos_proyectados)
+    actualizar_recursos_proyectados()
+
+    campo_entry(
+        "Fecha de Levantamiento",
+        var_fecha_programada,
+        "DD/MM/AAAA",
+        state="disabled",
+        columna=0,
+        fila=4 + desplazamiento_filas
+    )
+
+    # Notas compactas en la misma fila que la fecha para aprovechar mejor el ancho.
+    contenedor_notas = _crear_contenedor_campo(4 + desplazamiento_filas, 1, colspan=4)
+    _label_campo(contenedor_notas, "Notas")
+    txt_notas_generales = ctk.CTkTextbox(contenedor_notas, height=48, corner_radius=0, font=FORM_FIELD_FONT)
+    txt_notas_generales.pack(fill="x")
+
+    fila_inicio_operativa = 5 + desplazamiento_filas
 
     if not es_especializado:
         campo_option(
@@ -1163,21 +1306,11 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         var_estatus.set("Pendiente")
         fila_operativa = fila_inicio_operativa
 
-    fecha_col_programada = 0 if es_especializado else 2
-
-    campo_entry(
-        "Fecha de Levantamiento",
-        var_fecha_programada,
-        "DD/MM/AAAA",
-        columna=fecha_col_programada,
-        fila=fila_operativa
-    )
-
     if not aco and not es_especializado:
-        campo_entry("Ubicación / referencia", var_ubicacion, "Referencia o ubicación específica", columna=1, fila=fila_operativa + 1, colspan=2)
-        fila_textos = fila_operativa + 2
-    else:
+        campo_entry("Ubicación / referencia", var_ubicacion, "Referencia o ubicación específica", columna=1, fila=fila_operativa, colspan=2)
         fila_textos = fila_operativa + 1
+    else:
+        fila_textos = fila_operativa
 
     if tipo_levantamiento == "Seguridad y Monitoreo":
         # =============================================================
@@ -1197,7 +1330,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             usan hasta 5 columnas internas cuando aplica, reduciendo altura y
             aprovechando mejor la pantalla maximizada.
             """
-            frame = ctk.CTkFrame(form_body, fg_color="#F8FAFC", corner_radius=14)
+            frame = ctk.CTkFrame(form_body, fg_color="#F7F9FC", corner_radius=14, border_width=1, border_color="#DCE5EF")
+            _fondo_seccion(frame)
             frame.grid(row=fila, column=0, columnspan=5, sticky="ew", pady=(2, 5))
             for col in range(5):
                 frame.grid_columnconfigure(col, weight=1, uniform="sec_cols")
@@ -1205,7 +1339,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             ctk.CTkLabel(
                 frame,
                 text=titulo,
-                font=("Montserrat", 14, "bold"),
+                font=FORM_SECTION_FONT,
                 text_color=TEXT_PRIMARY
             ).grid(row=0, column=0, columnspan=5, sticky="w", padx=7, pady=(5, 3))
 
@@ -1215,7 +1349,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             ctk.CTkLabel(
                 parent_frame,
                 text=texto,
-                font=TEXT_SM,
+                font=FORM_FIELD_FONT,
                 text_color=TEXT_PRIMARY,
                 anchor="w",
                 justify="left",
@@ -1269,7 +1403,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             fila.grid_columnconfigure(1, weight=1)
 
             NativeComboBox(fila, variable=var_tipo, values=TIPOS_CANALIZACION, height=32).grid(row=0, column=0, sticky="ew", padx=(0, 3))
-            ctk.CTkEntry(fila, textvariable=var_metros, height=32, corner_radius=9, placeholder_text="Metros").grid(row=0, column=1, sticky="ew", padx=(0, 3))
+            ctk.CTkEntry(fila, textvariable=var_metros, height=FORM_CONTROL_HEIGHT, corner_radius=0, placeholder_text="Metros").grid(row=0, column=1, sticky="ew", padx=(0, 3))
 
             def eliminar_fila():
                 if len(coleccion) <= 1:
@@ -1294,7 +1428,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             fila.grid_columnconfigure(1, weight=1)
 
             NativeComboBox(fila, variable=var_tipo, values=TIPOS_CABLE, height=32).grid(row=0, column=0, sticky="ew", padx=(0, 3))
-            ctk.CTkEntry(fila, textvariable=var_metros, height=32, corner_radius=9, placeholder_text="Metros").grid(row=0, column=1, sticky="ew", padx=(0, 3))
+            ctk.CTkEntry(fila, textvariable=var_metros, height=FORM_CONTROL_HEIGHT, corner_radius=0, placeholder_text="Metros").grid(row=0, column=1, sticky="ew", padx=(0, 3))
 
             def eliminar_fila():
                 if len(coleccion) <= 1:
@@ -1473,7 +1607,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         ctk.CTkLabel(
             seccion_existente,
             text="Selecciona 'No' cuando se deba considerar infraestructura y materiales desde cero.",
-            font=("Montserrat", 11),
+            font=FORM_FIELD_FONT,
             text_color=TEXT_SECONDARY,
             anchor="w",
             justify="left"
@@ -1560,9 +1694,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 fila.grid_columnconfigure(col, weight=1)
 
             NativeComboBox(fila, variable=var_equipo_tipo, values=["Cámara", "DVR", "NVR", "Disco duro", "Fuente", "Monitor", "Switch", "BalUn", "Otro"], height=32).grid(row=0, column=0, sticky="ew", padx=(0, 3))
-            ctk.CTkEntry(fila, textvariable=var_equipo_marca, height=32, corner_radius=9, placeholder_text="Marca").grid(row=0, column=1, sticky="ew", padx=(0, 3))
-            ctk.CTkEntry(fila, textvariable=var_equipo_modelo, height=32, corner_radius=9, placeholder_text="Modelo").grid(row=0, column=2, sticky="ew", padx=(0, 3))
-            ctk.CTkEntry(fila, textvariable=var_equipo_serie, height=32, corner_radius=9, placeholder_text="Número de serie").grid(row=0, column=3, sticky="ew", padx=(0, 3))
+            ctk.CTkEntry(fila, textvariable=var_equipo_marca, height=FORM_CONTROL_HEIGHT, corner_radius=0, placeholder_text="Marca").grid(row=0, column=1, sticky="ew", padx=(0, 3))
+            ctk.CTkEntry(fila, textvariable=var_equipo_modelo, height=FORM_CONTROL_HEIGHT, corner_radius=0, placeholder_text="Modelo").grid(row=0, column=2, sticky="ew", padx=(0, 3))
+            ctk.CTkEntry(fila, textvariable=var_equipo_serie, height=FORM_CONTROL_HEIGHT, corner_radius=0, placeholder_text="Número de serie").grid(row=0, column=3, sticky="ew", padx=(0, 3))
 
             def eliminar_fila():
                 if len(coleccion) <= 1:
@@ -1599,15 +1733,15 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         registrar_seccion("rep_sintomas", seccion_rep_sintomas)
         entry_en(seccion_rep_sintomas, "Ubicación de equipos", var_rep_ubicacion_equipos, "Ej. Acceso principal / SITE / Bodega", 0, 0)
         option_en(seccion_rep_sintomas, "Acceso", var_rep_acceso_equipos, ["Fácil acceso", "Difícil acceso"], 0, 1)
-        lbl_estado_reparacion = ctk.CTkLabel(seccion_rep_sintomas, text="Estado de Cámaras", font=TEXT_SM, text_color=TEXT_PRIMARY, anchor="w", justify="left", wraplength=260)
+        lbl_estado_reparacion = ctk.CTkLabel(seccion_rep_sintomas, text="Estado de Cámaras", font=FORM_FIELD_FONT, text_color=TEXT_PRIMARY, anchor="w", justify="left", wraplength=260)
         lbl_estado_reparacion.grid(row=1, column=2, sticky="w", padx=6, pady=(2, 1))
         widget_estado_reparacion = NativeComboBox(seccion_rep_sintomas, variable=var_rep_estado_camaras, values=["Apagadas", "Intermitencias", "Operando parcialmente"], height=32)
         widget_estado_reparacion.grid(row=2, column=2, sticky="ew", padx=6, pady=(0, 3))
-        lbl_codigo_error = ctk.CTkLabel(seccion_rep_sintomas, text="Código de error", font=TEXT_SM, text_color=TEXT_PRIMARY, anchor="w", justify="left")
+        lbl_codigo_error = ctk.CTkLabel(seccion_rep_sintomas, text="Código de error", font=FORM_FIELD_FONT, text_color=TEXT_PRIMARY, anchor="w", justify="left")
         lbl_codigo_error.grid(row=1, column=3, sticky="w", padx=6, pady=(2, 1))
-        widget_codigo_error = ctk.CTkEntry(seccion_rep_sintomas, textvariable=var_rep_codigo_error, height=32, corner_radius=9, placeholder_text="Ej. 0x800 / Sin señal")
+        widget_codigo_error = ctk.CTkEntry(seccion_rep_sintomas, textvariable=var_rep_codigo_error, height=FORM_CONTROL_HEIGHT, corner_radius=0, placeholder_text="Ej. 0x800 / Sin señal")
         widget_codigo_error.grid(row=2, column=3, sticky="ew", padx=6, pady=(0, 3))
-        lbl_horario_falla = ctk.CTkLabel(seccion_rep_sintomas, text="Horario de la falla", font=TEXT_SM, text_color=TEXT_PRIMARY, anchor="w", justify="left")
+        lbl_horario_falla = ctk.CTkLabel(seccion_rep_sintomas, text="Horario de la falla", font=FORM_FIELD_FONT, text_color=TEXT_PRIMARY, anchor="w", justify="left")
         lbl_horario_falla.grid(row=1, column=4, sticky="w", padx=6, pady=(2, 1))
         widget_horario_falla = NativeComboBox(seccion_rep_sintomas, variable=var_rep_horario_falla, values=["Solo de noche", "Solo de día", "Día y noche", "Intermitente"], height=32)
         widget_horario_falla.grid(row=2, column=4, sticky="ew", padx=6, pady=(0, 3))
@@ -1617,7 +1751,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         ctk.CTkLabel(
             seccion_rep_infraestructura,
             text="Descripción de infraestructura a reparar",
-            font=TEXT_SM,
+            font=FORM_FIELD_FONT,
             text_color=TEXT_PRIMARY,
             anchor="w"
         ).grid(row=1, column=0, columnspan=5, sticky="w", padx=6, pady=(2, 1))
@@ -1645,7 +1779,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         seccion_rep_equipos = crear_seccion("📦 Reparación: Información de Equipos Dañados", fila_textos + 13)
         registrar_seccion("rep_equipos", seccion_rep_equipos)
         for columna, titulo_campo in enumerate(("Tipo de equipo", "Marca", "Modelo", "Número de serie", "Acción")):
-            ctk.CTkLabel(seccion_rep_equipos, text=titulo_campo, font=("Montserrat", 11, "bold"), text_color=TEXT_PRIMARY, anchor="w").grid(row=1, column=columna, sticky="w", padx=6, pady=(0, 2))
+            ctk.CTkLabel(seccion_rep_equipos, text=titulo_campo, font=FORM_TABLE_HEADER_FONT, text_color=TEXT_PRIMARY, anchor="w").grid(row=1, column=columna, sticky="w", padx=6, pady=(0, 2))
         agregar_equipo_danado(seccion_rep_equipos, equipos_danados_items)
         ctk.CTkButton(
             seccion_rep_equipos,
@@ -1724,7 +1858,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         ctk.CTkLabel(
             seccion_mantenimiento,
             text="Este formulario quedará listo para las preguntas de mantenimiento que se definirán en los siguientes movimientos.",
-            font=("Montserrat", 12),
+            font=FORM_FIELD_FONT,
             text_color=TEXT_SECONDARY,
             anchor="w",
             justify="left"
@@ -1745,7 +1879,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         secciones_aa = {}
 
         def crear_seccion_aa(titulo, fila):
-            frame = ctk.CTkFrame(form_body, fg_color="#F8FAFC", corner_radius=14)
+            frame = ctk.CTkFrame(form_body, fg_color="#F7F9FC", corner_radius=14, border_width=1, border_color="#DCE5EF")
+            _fondo_seccion(frame)
             frame.grid(row=fila, column=0, columnspan=5, sticky="ew", pady=(2, 5))
             for col in range(5):
                 frame.grid_columnconfigure(col, weight=1, uniform="aa_cols")
@@ -1753,7 +1888,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             ctk.CTkLabel(
                 frame,
                 text=titulo,
-                font=("Montserrat", 14, "bold"),
+                font=FORM_SECTION_FONT,
                 text_color=TEXT_PRIMARY
             ).grid(row=0, column=0, columnspan=5, sticky="w", padx=7, pady=(5, 3))
             return frame
@@ -1762,7 +1897,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             ctk.CTkLabel(
                 parent_frame,
                 text=texto,
-                font=TEXT_SM,
+                font=FORM_FIELD_FONT,
                 text_color=TEXT_PRIMARY,
                 anchor="w",
                 justify="left",
@@ -1874,7 +2009,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         # rack/energía -> instalación -> pruebas -> entrega.
 
         def crear_seccion_rvd(titulo, fila):
-            frame = ctk.CTkFrame(form_body, fg_color="#F8FAFC", corner_radius=14)
+            frame = ctk.CTkFrame(form_body, fg_color="#F7F9FC", corner_radius=14, border_width=1, border_color="#DCE5EF")
+            _fondo_seccion(frame)
             frame.grid(row=fila, column=0, columnspan=5, sticky="ew", pady=(2, 5))
             for col in range(5):
                 frame.grid_columnconfigure(col, weight=1, uniform="rvd_cols")
@@ -1882,7 +2018,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             ctk.CTkLabel(
                 frame,
                 text=titulo,
-                font=("Montserrat", 14, "bold"),
+                font=FORM_SECTION_FONT,
                 text_color=TEXT_PRIMARY
             ).grid(row=0, column=0, columnspan=5, sticky="w", padx=7, pady=(5, 3))
             return frame
@@ -1891,7 +2027,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             ctk.CTkLabel(
                 parent_frame,
                 text=texto,
-                font=TEXT_SM,
+                font=FORM_FIELD_FONT,
                 text_color=TEXT_PRIMARY,
                 anchor="w",
                 justify="left",
@@ -2051,19 +2187,20 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         # Orden operativo: necesidad -> carga -> sitio -> combustible -> transferencia -> instalación, pruebas y entrega.
 
         def crear_seccion_pe(titulo, fila):
-            frame = ctk.CTkFrame(form_body, fg_color="#F8FAFC", corner_radius=14)
+            frame = ctk.CTkFrame(form_body, fg_color="#F7F9FC", corner_radius=14, border_width=1, border_color="#DCE5EF")
+            _fondo_seccion(frame)
             frame.grid(row=fila, column=0, columnspan=5, sticky="ew", pady=(2, 5))
             for col in range(5):
                 frame.grid_columnconfigure(col, weight=1, uniform="pe_cols")
-            ctk.CTkLabel(frame, text=titulo, font=("Montserrat", 14, "bold"), text_color=TEXT_PRIMARY).grid(row=0, column=0, columnspan=5, sticky="w", padx=7, pady=(5, 3))
+            ctk.CTkLabel(frame, text=titulo, font=FORM_SECTION_FONT, text_color=TEXT_PRIMARY).grid(row=0, column=0, columnspan=5, sticky="w", padx=7, pady=(5, 3))
             return frame
 
         def label_pe(parent_frame, texto, fila, columna):
-            ctk.CTkLabel(parent_frame, text=texto, font=TEXT_SM, text_color=TEXT_PRIMARY, anchor="w", justify="left", wraplength=255).grid(row=fila, column=columna, sticky="w", padx=6, pady=(2, 1))
+            ctk.CTkLabel(parent_frame, text=texto, font=FORM_FIELD_FONT, text_color=TEXT_PRIMARY, anchor="w", justify="left", wraplength=255).grid(row=fila, column=columna, sticky="w", padx=6, pady=(2, 1))
 
         def entry_pe(parent_frame, texto, variable, placeholder, fila, columna, ancho_corto=False):
             label_pe(parent_frame, texto, fila * 2 + 1, columna)
-            entry = ctk.CTkEntry(parent_frame, textvariable=variable, height=32, corner_radius=9, placeholder_text=placeholder)
+            entry = ctk.CTkEntry(parent_frame, textvariable=variable, height=FORM_CONTROL_HEIGHT, corner_radius=0, placeholder_text=placeholder)
             if ancho_corto:
                 entry.configure(width=135)
                 entry.grid(row=fila * 2 + 2, column=columna, sticky="w", padx=6, pady=(0, 3))
@@ -2123,19 +2260,20 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         # Orden operativo: requerimiento -> carga -> tablero -> canalización -> materiales -> seguridad -> pruebas y entrega.
 
         def crear_seccion_ele(titulo, fila):
-            frame = ctk.CTkFrame(form_body, fg_color="#F8FAFC", corner_radius=14)
+            frame = ctk.CTkFrame(form_body, fg_color="#F7F9FC", corner_radius=14, border_width=1, border_color="#DCE5EF")
+            _fondo_seccion(frame)
             frame.grid(row=fila, column=0, columnspan=5, sticky="ew", pady=(2, 5))
             for col in range(5):
                 frame.grid_columnconfigure(col, weight=1, uniform="ele_cols")
-            ctk.CTkLabel(frame, text=titulo, font=("Montserrat", 14, "bold"), text_color=TEXT_PRIMARY).grid(row=0, column=0, columnspan=5, sticky="w", padx=7, pady=(5, 3))
+            ctk.CTkLabel(frame, text=titulo, font=FORM_SECTION_FONT, text_color=TEXT_PRIMARY).grid(row=0, column=0, columnspan=5, sticky="w", padx=7, pady=(5, 3))
             return frame
 
         def label_ele(parent_frame, texto, fila, columna):
-            ctk.CTkLabel(parent_frame, text=texto, font=TEXT_SM, text_color=TEXT_PRIMARY, anchor="w", justify="left", wraplength=255).grid(row=fila, column=columna, sticky="w", padx=6, pady=(2, 1))
+            ctk.CTkLabel(parent_frame, text=texto, font=FORM_FIELD_FONT, text_color=TEXT_PRIMARY, anchor="w", justify="left", wraplength=255).grid(row=fila, column=columna, sticky="w", padx=6, pady=(2, 1))
 
         def entry_ele(parent_frame, texto, variable, placeholder, fila, columna, ancho_corto=False):
             label_ele(parent_frame, texto, fila * 2 + 1, columna)
-            entry = ctk.CTkEntry(parent_frame, textvariable=variable, height=32, corner_radius=9, placeholder_text=placeholder)
+            entry = ctk.CTkEntry(parent_frame, textvariable=variable, height=FORM_CONTROL_HEIGHT, corner_radius=0, placeholder_text=placeholder)
             if ancho_corto:
                 entry.configure(width=135)
                 entry.grid(row=fila * 2 + 2, column=columna, sticky="w", padx=6, pady=(0, 3))
@@ -2221,14 +2359,15 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         # Se usa una plantilla común para mantener espacios, tamaños y comportamiento
         # consistente con los formularios ya liberados.
         def crear_seccion_extra(titulo, fila):
-            frame = ctk.CTkFrame(form_body, fg_color="#F8FAFC", corner_radius=14)
+            frame = ctk.CTkFrame(form_body, fg_color="#F7F9FC", corner_radius=14, border_width=1, border_color="#DCE5EF")
+            _fondo_seccion(frame)
             frame.grid(row=fila, column=0, columnspan=5, sticky="ew", pady=(2, 5))
             for col in range(5):
                 frame.grid_columnconfigure(col, weight=1, uniform="extra_cols")
             ctk.CTkLabel(
                 frame,
                 text=titulo,
-                font=("Montserrat", 14, "bold"),
+                font=FORM_SECTION_FONT,
                 text_color=TEXT_PRIMARY
             ).grid(row=0, column=0, columnspan=5, sticky="w", padx=7, pady=(5, 3))
             return frame
@@ -2237,7 +2376,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             ctk.CTkLabel(
                 parent_frame,
                 text=texto,
-                font=TEXT_SM,
+                font=FORM_FIELD_FONT,
                 text_color=TEXT_PRIMARY,
                 anchor="w",
                 justify="left",
@@ -2395,22 +2534,23 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         return "\n".join(lineas)
 
     if tipo_levantamiento in tipos_con_canalizacion:
-        seccion_canalizacion_dinamica = ctk.CTkFrame(form_body, fg_color="#F8FAFC", corner_radius=14)
+        seccion_canalizacion_dinamica = ctk.CTkFrame(form_body, fg_color="#F7F9FC", corner_radius=14, border_width=1, border_color="#DCE5EF")
+        _fondo_seccion(seccion_canalizacion_dinamica)
         seccion_canalizacion_dinamica.grid(row=fila_textos, column=0, columnspan=5, sticky="ew", pady=(2, 5))
         for col, peso in enumerate((2, 4, 3, 2, 2, 1)):
             seccion_canalizacion_dinamica.grid_columnconfigure(col, weight=peso)
         ctk.CTkLabel(seccion_canalizacion_dinamica, text="🧱 Canalización, cableado y materiales",
-                     font=("Montserrat", 14, "bold"), text_color=TEXT_PRIMARY).grid(
+                     font=FORM_SECTION_FONT, text_color=TEXT_PRIMARY).grid(
             row=0, column=0, columnspan=6, sticky="w", padx=7, pady=(5, 1))
         ctk.CTkLabel(seccion_canalizacion_dinamica,
                      text="Agrega todas las partidas necesarias. Puedes registrar varios tipos, medidas y cantidades.",
-                     font=TEXT_SM, text_color=TEXT_SECONDARY).grid(
+                     font=FORM_FIELD_FONT, text_color=TEXT_SECONDARY).grid(
             row=1, column=0, columnspan=6, sticky="w", padx=7, pady=(0, 4))
-        ctk.CTkLabel(seccion_canalizacion_dinamica, text="¿Se requiere?", font=("Montserrat", 11, "bold")).grid(row=2, column=0, sticky="w", padx=5)
+        ctk.CTkLabel(seccion_canalizacion_dinamica, text="¿Se requiere?", font=FORM_TABLE_HEADER_FONT).grid(row=2, column=0, sticky="w", padx=5)
         combo_requiere = NativeComboBox(seccion_canalizacion_dinamica, variable=var_requiere_canalizacion, values=["Sí", "No"], width=120, height=31)
         combo_requiere.grid(row=3, column=0, sticky="w", padx=5, pady=(0,4))
         for col, encabezado in enumerate(("Categoría", "Tipo", "Tamaño / calibre / especificación", "Cantidad", "Unidad", "Acción")):
-            ctk.CTkLabel(seccion_canalizacion_dinamica, text=encabezado, font=("Montserrat", 11, "bold"), text_color=TEXT_PRIMARY).grid(row=4, column=col, sticky="w", padx=5, pady=(0,2))
+            ctk.CTkLabel(seccion_canalizacion_dinamica, text=encabezado, font=FORM_TABLE_HEADER_FONT, text_color=TEXT_PRIMARY).grid(row=4, column=col, sticky="w", padx=5, pady=(0,2))
 
         categorias = ["Tubo", "Cople", "Registro", "Conector", "Abrazadera", "Canalización", "Cable"]
         if tipo_levantamiento == "Redes Voz y Datos":
@@ -2478,23 +2618,24 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     # EQUIPOS PRINCIPALES REQUERIDOS (CATÁLOGO ESCALABLE)
     # =============================================================
     # Familia/subfamilia se mantienen estables; marca y modelo son dinámicos.
-    seccion_equipos = ctk.CTkFrame(form_body, fg_color="#F8FAFC", corner_radius=14)
+    seccion_equipos = ctk.CTkFrame(form_body, fg_color="#F7F9FC", corner_radius=14, border_width=1, border_color="#DCE5EF")
+    _fondo_seccion(seccion_equipos)
     seccion_equipos.grid(row=fila_textos, column=0, columnspan=5, sticky="ew", pady=(2, 5))
     for col, peso in enumerate((2, 2, 1, 2, 2, 3, 1)):
         seccion_equipos.grid_columnconfigure(col, weight=peso)
 
     ctk.CTkLabel(
         seccion_equipos, text="📦 Equipos principales requeridos",
-        font=("Montserrat", 14, "bold"), text_color=TEXT_PRIMARY
+        font=FORM_SECTION_FONT, text_color=TEXT_PRIMARY
     ).grid(row=0, column=0, columnspan=7, sticky="w", padx=7, pady=(5, 1))
     ctk.CTkLabel(
         seccion_equipos,
         text="Selecciona familia y subfamilia; captura marca y modelo vigente. Así el catálogo no queda obsoleto.",
-        font=TEXT_SM, text_color=TEXT_SECONDARY, anchor="w", justify="left"
+        font=FORM_FIELD_FONT, text_color=TEXT_SECONDARY, anchor="w", justify="left"
     ).grid(row=1, column=0, columnspan=7, sticky="w", padx=7, pady=(0, 4))
 
     for col, encabezado in enumerate(("Familia", "Subfamilia", "Cantidad", "Marca", "Modelo", "Características técnicas", "Acción")):
-        ctk.CTkLabel(seccion_equipos, text=encabezado, font=("Montserrat", 12, "bold"), text_color=TEXT_PRIMARY).grid(
+        ctk.CTkLabel(seccion_equipos, text=encabezado, font=FORM_TABLE_HEADER_FONT, text_color=TEXT_PRIMARY).grid(
             row=2, column=col, sticky="w", padx=4, pady=(0, 2)
         )
 
@@ -2598,7 +2739,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     # =============================================================
     # La captura inicia vacía. Si el técnico agrega una fila, el material
     # se considera requerido por definición; no se solicita un Sí/No redundante.
-    seccion_misc = ctk.CTkFrame(form_body, fg_color="#F8FAFC", corner_radius=14)
+    seccion_misc = ctk.CTkFrame(form_body, fg_color="#F7F9FC", corner_radius=14, border_width=1, border_color="#DCE5EF")
+    _fondo_seccion(seccion_misc)
     seccion_misc.grid(row=fila_textos, column=0, columnspan=5, sticky="ew", pady=(2, 5))
     seccion_misc.grid_columnconfigure(0, weight=2)
     seccion_misc.grid_columnconfigure(1, weight=1)
@@ -2608,16 +2750,16 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
     ctk.CTkLabel(
         seccion_misc, text="🧰 Materiales misceláneos y consumibles",
-        font=("Montserrat", 14, "bold"), text_color=TEXT_PRIMARY
+        font=FORM_SECTION_FONT, text_color=TEXT_PRIMARY
     ).grid(row=0, column=0, columnspan=5, sticky="w", padx=7, pady=(5, 1))
     ctk.CTkLabel(
         seccion_misc,
         text="Agrega únicamente los materiales necesarios e indica cantidad, unidad y especificación para cotización.",
-        font=TEXT_SM, text_color=TEXT_SECONDARY, anchor="w", justify="left"
+        font=FORM_FIELD_FONT, text_color=TEXT_SECONDARY, anchor="w", justify="left"
     ).grid(row=1, column=0, columnspan=5, sticky="w", padx=7, pady=(0, 4))
 
     for col, encabezado in enumerate(("Material", "Cantidad", "Unidad", "Especificación / medida", "Acción")):
-        ctk.CTkLabel(seccion_misc, text=encabezado, font=("Montserrat", 12, "bold"), text_color=TEXT_PRIMARY).grid(
+        ctk.CTkLabel(seccion_misc, text=encabezado, font=FORM_TABLE_HEADER_FONT, text_color=TEXT_PRIMARY).grid(
             row=2, column=col, sticky="w", padx=5, pady=(0, 2)
         )
 
@@ -2732,6 +2874,137 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
     fila_textos += 1
 
+    # =============================================================
+    # HERRAMIENTAS (COMÚN A TODOS LOS LEVANTAMIENTOS)
+    # =============================================================
+    seccion_herramientas = ctk.CTkFrame(
+        form_body, fg_color="#F7F9FC", corner_radius=14,
+        border_width=1, border_color="#DCE5EF"
+    )
+    _fondo_seccion(seccion_herramientas)
+    seccion_herramientas.grid(row=fila_textos, column=0, columnspan=5, sticky="ew", pady=(2, 5))
+    for _col, _weight in enumerate((1, 2, 0, 2, 0)):
+        seccion_herramientas.grid_columnconfigure(_col, weight=_weight)
+
+    ctk.CTkLabel(
+        seccion_herramientas, text="🧰 Herramientas",
+        font=FORM_SECTION_FONT, text_color=TEXT_PRIMARY
+    ).grid(row=0, column=0, columnspan=5, sticky="w", padx=7, pady=(5, 1))
+    ctk.CTkLabel(
+        seccion_herramientas,
+        text="Selecciona las herramientas previstas para ejecutar el servicio. Puedes agregar tantas como sean necesarias.",
+        font=FORM_FIELD_FONT, text_color=TEXT_SECONDARY, anchor="w", justify="left"
+    ).grid(row=1, column=0, columnspan=5, sticky="w", padx=7, pady=(0, 4))
+
+    for _col, _titulo in enumerate(("Área / categoría", "Herramienta", "Cantidad", "Observaciones", "Acción")):
+        ctk.CTkLabel(
+            seccion_herramientas, text=_titulo, font=FORM_TABLE_HEADER_FONT,
+            text_color=TEXT_PRIMARY
+        ).grid(row=2, column=_col, sticky="w", padx=5, pady=(0, 2))
+
+    def agregar_herramienta(datos=None):
+        datos = dict(datos or {})
+        categoria_inicial = str(datos.get("categoria") or "General").strip()
+        if categoria_inicial not in CATEGORIAS_HERRAMIENTAS:
+            categoria_inicial = "General"
+        opciones_iniciales = herramientas_por_categoria(categoria_inicial)
+        herramienta_inicial = str(datos.get("herramienta") or "").strip()
+        if herramienta_inicial and herramienta_inicial not in opciones_iniciales:
+            opciones_iniciales = opciones_iniciales + [herramienta_inicial]
+
+        fila_h = 3 + len(herramientas_items)
+        var_categoria_h = ctk.StringVar(value=categoria_inicial)
+        var_herramienta_h = ctk.StringVar(value=herramienta_inicial or (opciones_iniciales[0] if opciones_iniciales else ""))
+        var_cantidad_h = ctk.StringVar(value=str(datos.get("cantidad") or "1"))
+        var_observaciones_h = ctk.StringVar(value=str(datos.get("observaciones") or ""))
+
+        cmb_herramienta_holder = {}
+
+        def cambiar_categoria(_valor=None):
+            opciones = herramientas_por_categoria(var_categoria_h.get())
+            combo_h = cmb_herramienta_holder.get("widget")
+            if combo_h is not None:
+                combo_h.configure(values=opciones)
+            if var_herramienta_h.get() not in opciones:
+                var_herramienta_h.set(opciones[0] if opciones else "")
+
+        cmb_categoria_h = NativeComboBox(
+            seccion_herramientas, variable=var_categoria_h, values=CATEGORIAS_HERRAMIENTAS,
+            width=190, height=31, command=cambiar_categoria
+        )
+        cmb_categoria_h.grid(row=fila_h, column=0, sticky="ew", padx=5, pady=2)
+        cmb_herramienta_h = NativeComboBox(
+            seccion_herramientas, variable=var_herramienta_h, values=opciones_iniciales,
+            width=270, height=31
+        )
+        cmb_herramienta_h.grid(row=fila_h, column=1, sticky="ew", padx=5, pady=2)
+        cmb_herramienta_holder["widget"] = cmb_herramienta_h
+        ent_cantidad_h = ctk.CTkEntry(
+            seccion_herramientas, textvariable=var_cantidad_h, width=90, height=31,
+            corner_radius=8, placeholder_text="Ej. 1"
+        )
+        ent_cantidad_h.grid(row=fila_h, column=2, sticky="w", padx=5, pady=2)
+        ent_obs_h = ctk.CTkEntry(
+            seccion_herramientas, textvariable=var_observaciones_h, height=31, corner_radius=8,
+            placeholder_text="Modelo, capacidad, accesorio o condición especial"
+        )
+        ent_obs_h.grid(row=fila_h, column=3, sticky="ew", padx=5, pady=2)
+
+        item_h = {
+            "categoria": var_categoria_h, "herramienta": var_herramienta_h,
+            "cantidad": var_cantidad_h, "observaciones": var_observaciones_h,
+            "widgets": [cmb_categoria_h, cmb_herramienta_h, ent_cantidad_h, ent_obs_h],
+        }
+
+        def eliminar_herramienta():
+            for widget in item_h.get("widgets", []):
+                try:
+                    widget.destroy()
+                except Exception:
+                    logger.debug("No fue posible retirar widget de herramienta.", exc_info=True)
+            herramientas_items[:] = [x for x in herramientas_items if x is not item_h]
+
+        btn_eliminar_h = ctk.CTkButton(
+            seccion_herramientas, text="Eliminar", width=82, height=31,
+            fg_color="#DC2626", hover_color="#B91C1C", command=eliminar_herramienta
+        )
+        btn_eliminar_h.grid(row=fila_h, column=4, sticky="ew", padx=5, pady=2)
+        item_h["widgets"].append(btn_eliminar_h)
+        herramientas_items.append(item_h)
+
+    ctk.CTkButton(
+        seccion_herramientas, text="➕ Agregar herramienta", height=32, fg_color=PRIMARY,
+        command=lambda: agregar_herramienta(None)
+    ).grid(row=1000, column=0, columnspan=2, sticky="w", padx=5, pady=(4, 5))
+
+    def obtener_herramientas_json():
+        resultado = []
+        for item in herramientas_items:
+            herramienta = item["herramienta"].get().strip()
+            if not herramienta:
+                continue
+            resultado.append({
+                "categoria": item["categoria"].get().strip(),
+                "herramienta": herramienta,
+                "cantidad": item["cantidad"].get().strip() or "1",
+                "observaciones": item["observaciones"].get().strip(),
+            })
+        return resultado
+
+    def construir_resumen_herramientas():
+        herramientas = obtener_herramientas_json()
+        if not herramientas:
+            return ""
+        lineas = ["HERRAMIENTAS PREVISTAS:"]
+        for item in herramientas:
+            linea = f"- {item['cantidad']} x {item['herramienta']} ({item['categoria']})"
+            if item.get("observaciones"):
+                linea += f" | {item['observaciones']}"
+            lineas.append(linea)
+        return "\n".join(lineas)
+
+    fila_textos += 1
+
     if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS:
         # En formularios especializados el resumen técnico se construye desde campos estructurados.
         # Se conserva un textbox oculto como respaldo para no romper funciones existentes.
@@ -2749,13 +3022,14 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     # ANOTACIONES TIPO PLANO - SECCIÓN COMÚN
     # =================================================
     fila_anotacion_plano = fila_textos + (1 if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else 2)
-    frame_anotacion_plano = ctk.CTkFrame(form_body, fg_color="#F8FAFC", corner_radius=12)
+    frame_anotacion_plano = ctk.CTkFrame(form_body, fg_color="#F7F9FC", corner_radius=12, border_width=1, border_color="#DCE5EF")
+    _fondo_seccion(frame_anotacion_plano)
     frame_anotacion_plano.grid(row=fila_anotacion_plano, column=0, columnspan=5, sticky="ew", pady=(6, 6))
     frame_anotacion_plano.grid_columnconfigure(2, weight=1)
-    ctk.CTkLabel(frame_anotacion_plano, text="🗺 ¿Deseas realizar anotaciones tipo plano?", font=("Montserrat", 13, "bold"), text_color=TEXT_PRIMARY).grid(row=0, column=0, columnspan=3, sticky="w", padx=8, pady=(6, 3))
+    ctk.CTkLabel(frame_anotacion_plano, text="🗺 ¿Deseas realizar anotaciones tipo plano?", font=FORM_SECTION_FONT, text_color=TEXT_PRIMARY).grid(row=0, column=0, columnspan=3, sticky="w", padx=8, pady=(6, 3))
     cmb_anotacion_plano = NativeComboBox(frame_anotacion_plano, variable=var_desea_anotacion_plano, values=["No", "Sí"], width=120, height=31)
     cmb_anotacion_plano.grid(row=1, column=0, sticky="w", padx=8, pady=(0, 7))
-    lbl_estado_anotacion = ctk.CTkLabel(frame_anotacion_plano, text="No se requiere anotación", font=TEXT_SM, text_color=TEXT_SECONDARY)
+    lbl_estado_anotacion = ctk.CTkLabel(frame_anotacion_plano, text="No se requiere anotación", font=FORM_FIELD_FONT, text_color=TEXT_SECONDARY)
     lbl_estado_anotacion.grid(row=1, column=2, sticky="w", padx=8, pady=(0, 7))
 
     def abrir_editor_anotacion_plano():
@@ -2783,13 +3057,14 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     # EVIDENCIA FOTOGRÁFICA - SECCIÓN COMÚN
     # =================================================
     fila_evidencias = fila_anotacion_plano + 1
-    frame_evidencias = ctk.CTkFrame(form_body, fg_color="#F8FAFC", corner_radius=12)
+    frame_evidencias = ctk.CTkFrame(form_body, fg_color="#F7F9FC", corner_radius=12, border_width=1, border_color="#DCE5EF")
+    _fondo_seccion(frame_evidencias)
     frame_evidencias.grid(row=fila_evidencias, column=0, columnspan=5, sticky="ew", pady=(6, 6))
     frame_evidencias.grid_columnconfigure(3, weight=1)
-    ctk.CTkLabel(frame_evidencias, text="📷 ¿Deseas agregar evidencia fotográfica?", font=("Montserrat", 13, "bold"), text_color=TEXT_PRIMARY).grid(row=0, column=0, columnspan=4, sticky="w", padx=8, pady=(6, 3))
+    ctk.CTkLabel(frame_evidencias, text="📷 ¿Deseas agregar evidencia fotográfica?", font=FORM_SECTION_FONT, text_color=TEXT_PRIMARY).grid(row=0, column=0, columnspan=4, sticky="w", padx=8, pady=(6, 3))
     cmb_evidencias = NativeComboBox(frame_evidencias, variable=var_desea_evidencias, values=["No", "Sí"], width=120, height=31)
     cmb_evidencias.grid(row=1, column=0, sticky="w", padx=8, pady=(0, 7))
-    lbl_estado_evidencias = ctk.CTkLabel(frame_evidencias, text="No se requieren fotografías", font=TEXT_SM, text_color=TEXT_SECONDARY)
+    lbl_estado_evidencias = ctk.CTkLabel(frame_evidencias, text="No se requieren fotografías", font=FORM_FIELD_FONT, text_color=TEXT_SECONDARY)
     lbl_estado_evidencias.grid(row=1, column=3, sticky="w", padx=8, pady=(0, 7))
 
     def actualizar_estado_evidencias(*_):
@@ -3468,14 +3743,19 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             return False
         if var_desea_evidencias.get() == "Sí" and not evidencias_levantamiento:
             return False
-        # Días y personas son obligatorios en cualquier levantamiento.
-        dias = var_dias_trabajo_general.get().strip()
+        # Recursos proyectados cambian según la duración elegida.
         personas = var_personas_considerar_general.get().strip()
-        if not (dias and personas):
+        if not personas:
             return False
         try:
-            if int(dias) <= 0 or int(personas) <= 0:
+            if float(personas) <= 0:
                 return False
+            if var_duracion_proyecto.get() == "Un día":
+                if float(var_horas_estimadas_general.get().strip() or 0) <= 0:
+                    return False
+            else:
+                if float(var_dias_trabajo_general.get().strip() or 0) <= 0:
+                    return False
         except (TypeError, ValueError):
             return False
         if tipo_levantamiento == "Seguridad y Monitoreo":
@@ -3657,15 +3937,19 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "Fecha": var_fecha_programada.get(),
             "Cliente": var_cliente.get(),
             "Sucursal": var_sucursal.get(),
+            "Dirección de Sucursal": var_direccion_sucursal.get(),
             "Encargado de sucursal": var_encargado_sucursal.get(),
             "Dirección": var_direccion.get(),
             "Teléfono": var_telefono.get(),
             "Correo": var_correo.get(),
-            "Contacto": var_contacto.get(),
-            "Supervisor": var_supervisor.get(),
-            "Encargado de Proyecto": var_encargado_proyecto.get(),
-            "Técnico": var_tecnico.get(),
+            "Contacto": (var_encargado_sucursal.get() if var_cliente_selector.get() == "Otros" else var_contacto.get()),
             "Fecha de Levantamiento": var_fecha_programada.get(),
+            "Duración del proyecto": var_duracion_proyecto.get(),
+            "Horas estimadas": var_horas_estimadas_general.get() if var_duracion_proyecto.get() == "Un día" else "",
+            "Días estimados": var_dias_trabajo_general.get() if var_duracion_proyecto.get() == "Varios días" else "1",
+            "Personas estimadas": var_personas_considerar_general.get(),
+            "Notas": txt_notas_generales.get("1.0", "end").strip(),
+            "Herramientas": construir_resumen_herramientas(),
             "Descripción": "" if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else txt_descripcion.get("1.0", "end").strip(),
             "Observaciones": txt_observaciones.get("1.0", "end").strip(),
             "Detalle técnico": resumen,
@@ -3681,19 +3965,18 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         )
         detalle = obtener_detalle_tecnico_json() if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else {}
         detalle = dict(detalle or {})
-        detalle["datos_generales_axia"] = {
-            "supervisor": var_supervisor.get().strip(),
-            "encargado_proyecto": var_encargado_proyecto.get().strip(),
-            "tecnico": var_tecnico.get().strip(),
-        }
+        detalle["datos_generales_axia"] = {}
         detalle["recursos_proyectados"] = {
-            "dias_trabajo": var_dias_trabajo_general.get().strip(),
+            "duracion_proyecto": var_duracion_proyecto.get().strip(),
+            "horas_estimadas": var_horas_estimadas_general.get().strip() if var_duracion_proyecto.get() == "Un día" else "",
+            "dias_trabajo": "1" if var_duracion_proyecto.get() == "Un día" else var_dias_trabajo_general.get().strip(),
             "personas_considerar": var_personas_considerar_general.get().strip(),
         }
         if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS:
             detalle["canalizacion_materiales"] = obtener_canalizacion_materiales_json()
             detalle["equipos_principales"] = obtener_equipos_catalogo_json()
             detalle["materiales_miscelaneos"] = obtener_materiales_miscelaneos_json()
+            detalle["herramientas"] = obtener_herramientas_json()
 
         descripcion_fallas = ""
         equipos_danados = []
@@ -3711,15 +3994,19 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "id_cliente": seleccion_catalogo.get("id_cliente") or (datos_aco.get("id_cliente") if aco else None),
             "id_sucursal": seleccion_catalogo.get("id_sucursal"),
             "id_contacto": seleccion_catalogo.get("id_contacto"),
-            "lev_contacto": var_contacto.get().strip(),
+            "lev_contacto": (var_encargado_sucursal.get().strip() if var_cliente_selector.get() == "Otros" else var_contacto.get().strip()),
             "lev_correo": var_correo.get().strip(),
             "lev_telefono": var_telefono.get().strip(),
             "lev_direccion": var_direccion.get().strip(),
-            "lev_ubicacion": var_ubicacion.get().strip(),
-            "lev_tecnico": var_tecnico.get().strip(),
-            "lev_supervisor": var_supervisor.get().strip(),
-            "lev_dias_trabajo": var_dias_trabajo_general.get().strip(),
+            "lev_direccion_sucursal": var_direccion_sucursal.get().strip(),
+            "lev_ubicacion": (var_sucursal.get().strip() if var_cliente_selector.get() == "Otros" else var_ubicacion.get().strip()),
+            "lev_tecnico": "",
+            "lev_supervisor": "",
+            "lev_duracion_proyecto": var_duracion_proyecto.get().strip(),
+            "lev_horas_estimadas": var_horas_estimadas_general.get().strip() if var_duracion_proyecto.get() == "Un día" else None,
+            "lev_dias_trabajo": "1" if var_duracion_proyecto.get() == "Un día" else var_dias_trabajo_general.get().strip(),
             "lev_personas_considerar": var_personas_considerar_general.get().strip(),
+            "lev_notas": txt_notas_generales.get("1.0", "end").strip(),
             "lev_estatus": var_estatus.get().strip(),
             "lev_prioridad": var_prioridad.get().strip(),
             "lev_descripcion": txt_descripcion.get("1.0", "end").strip(),
@@ -3775,15 +4062,19 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "Fecha": var_fecha_programada.get(),
             "Cliente": var_cliente.get(),
             "Sucursal": var_sucursal.get(),
+            "Dirección de Sucursal": var_direccion_sucursal.get(),
             "Encargado de sucursal": var_encargado_sucursal.get(),
-            "Dirección": var_direccion.get(),
+            "Dirección Fiscal": var_direccion.get(),
             "Teléfono": var_telefono.get(),
             "Correo": var_correo.get(),
-            "Contacto": var_contacto.get(),
-            "Supervisor": var_supervisor.get(),
-            "Encargado de Proyecto": var_encargado_proyecto.get(),
-            "Técnico": var_tecnico.get(),
+            "Contacto": (var_encargado_sucursal.get() if var_cliente_selector.get() == "Otros" else var_contacto.get()),
             "Fecha de Levantamiento": var_fecha_programada.get(),
+            "Duración del proyecto": var_duracion_proyecto.get(),
+            "Horas estimadas": var_horas_estimadas_general.get() if var_duracion_proyecto.get() == "Un día" else "",
+            "Días estimados": var_dias_trabajo_general.get() if var_duracion_proyecto.get() == "Varios días" else "1",
+            "Personas estimadas": var_personas_considerar_general.get(),
+            "Notas": txt_notas_generales.get("1.0", "end").strip(),
+            "Herramientas": construir_resumen_herramientas(),
             "Descripción": "" if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else txt_descripcion.get("1.0", "end").strip(),
             "Observaciones": txt_observaciones.get("1.0", "end").strip(),
             "Detalle técnico": resumen,
@@ -3798,19 +4089,18 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         )
         detalle = obtener_detalle_tecnico_json() if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else {}
         detalle = dict(detalle or {})
-        detalle["datos_generales_axia"] = {
-            "supervisor": var_supervisor.get().strip(),
-            "encargado_proyecto": var_encargado_proyecto.get().strip(),
-            "tecnico": var_tecnico.get().strip(),
-        }
+        detalle["datos_generales_axia"] = {}
         detalle["recursos_proyectados"] = {
-            "dias_trabajo": var_dias_trabajo_general.get().strip(),
+            "duracion_proyecto": var_duracion_proyecto.get().strip(),
+            "horas_estimadas": var_horas_estimadas_general.get().strip() if var_duracion_proyecto.get() == "Un día" else "",
+            "dias_trabajo": "1" if var_duracion_proyecto.get() == "Un día" else var_dias_trabajo_general.get().strip(),
             "personas_considerar": var_personas_considerar_general.get().strip(),
         }
         if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS:
             detalle["canalizacion_materiales"] = obtener_canalizacion_materiales_json()
             detalle["equipos_principales"] = obtener_equipos_catalogo_json()
             detalle["materiales_miscelaneos"] = obtener_materiales_miscelaneos_json()
+            detalle["herramientas"] = obtener_herramientas_json()
 
         descripcion_fallas = ""
         equipos_danados = []
@@ -3828,15 +4118,19 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "id_cliente": seleccion_catalogo.get("id_cliente") or (datos_aco.get("id_cliente") if aco else None),
             "id_sucursal": seleccion_catalogo.get("id_sucursal"),
             "id_contacto": seleccion_catalogo.get("id_contacto"),
-            "lev_contacto": var_contacto.get().strip(),
+            "lev_contacto": (var_encargado_sucursal.get().strip() if var_cliente_selector.get() == "Otros" else var_contacto.get().strip()),
             "lev_correo": var_correo.get().strip(),
             "lev_telefono": var_telefono.get().strip(),
             "lev_direccion": var_direccion.get().strip(),
-            "lev_ubicacion": var_ubicacion.get().strip(),
-            "lev_tecnico": var_tecnico.get().strip(),
-            "lev_supervisor": var_supervisor.get().strip(),
-            "lev_dias_trabajo": var_dias_trabajo_general.get().strip(),
+            "lev_direccion_sucursal": var_direccion_sucursal.get().strip(),
+            "lev_ubicacion": (var_sucursal.get().strip() if var_cliente_selector.get() == "Otros" else var_ubicacion.get().strip()),
+            "lev_tecnico": "",
+            "lev_supervisor": "",
+            "lev_duracion_proyecto": var_duracion_proyecto.get().strip(),
+            "lev_horas_estimadas": var_horas_estimadas_general.get().strip() if var_duracion_proyecto.get() == "Un día" else None,
+            "lev_dias_trabajo": "1" if var_duracion_proyecto.get() == "Un día" else var_dias_trabajo_general.get().strip(),
             "lev_personas_considerar": var_personas_considerar_general.get().strip(),
+            "lev_notas": txt_notas_generales.get("1.0", "end").strip(),
             "lev_estatus": var_estatus.get().strip(),
             "lev_prioridad": var_prioridad.get().strip(),
             "lev_descripcion": txt_descripcion.get("1.0", "end").strip(),
@@ -3918,9 +4212,12 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             (var_sucursal, registro.get("lev_ubicacion")), (var_encargado_sucursal, registro.get("lev_contacto")),
             (var_contacto, registro.get("lev_contacto")), (var_telefono, registro.get("lev_telefono")),
             (var_correo, registro.get("lev_correo")), (var_direccion, registro.get("lev_direccion")),
+            (var_direccion_sucursal, registro.get("lev_direccion_sucursal")),
             (var_ubicacion, registro.get("lev_ubicacion")), (var_tecnico, registro.get("lev_tecnico")),
             (var_supervisor, registro.get("lev_supervisor")), (var_fecha_programada, _fecha_levantamiento_visible(registro.get("lev_fecha_programada"))),
             (var_fecha_realizacion, registro.get("lev_fecha_realizacion")),
+            (var_duracion_proyecto, registro.get("lev_duracion_proyecto") or ("Un día" if str(registro.get("lev_dias_trabajo") or "") == "1" else "Varios días")),
+            (var_horas_estimadas_general, registro.get("lev_horas_estimadas")),
             (var_dias_trabajo_general, registro.get("lev_dias_trabajo")),
             (var_personas_considerar_general, registro.get("lev_personas_considerar")),
             (var_tipo, reversa_tipo.get(registro.get("lev_tipo"), registro.get("lev_tipo") or var_tipo.get())),
@@ -3934,7 +4231,24 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             if valor not in (None, ""):
                 variable.set(str(valor))
 
+        cliente_guardado = str(registro.get("lev_cliente") or "").strip()
+        if cliente_guardado and cliente_guardado not in clientes_por_nombre:
+            var_cliente_selector.set("Otros")
+            activar_modo_cliente_otro(True)
+            var_cliente.set(cliente_guardado)
+            var_sucursal.set(str(registro.get("lev_ubicacion") or ""))
+            var_encargado_sucursal.set(str(registro.get("lev_contacto") or ""))
+            var_contacto.set(str(registro.get("lev_contacto") or ""))
+            var_telefono.set(str(registro.get("lev_telefono") or ""))
+            var_correo.set(str(registro.get("lev_correo") or ""))
+            var_direccion.set(str(registro.get("lev_direccion") or ""))
+            var_direccion_sucursal.set(str(registro.get("lev_direccion_sucursal") or ""))
+        elif cliente_guardado:
+            var_cliente_selector.set(cliente_guardado)
+
         # Textos generales.
+        txt_notas_generales.delete("1.0", "end")
+        txt_notas_generales.insert("1.0", str(registro.get("lev_notas") or ""))
         for box, valor in ((txt_descripcion, registro.get("lev_descripcion")), (txt_observaciones, registro.get("lev_observaciones"))):
             box.delete("1.0", "end")
             box.insert("1.0", str(valor or ""))
@@ -4017,6 +4331,12 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     if k in fila and k in item: item[k].set(str(fila.get(k) or ""))
             except Exception:
                 logger.debug("No fue posible restaurar un material misceláneo.", exc_info=True)
+
+        for fila in detalle.get("herramientas", []) if isinstance(detalle.get("herramientas"), list) else []:
+            try:
+                agregar_herramienta(fila)
+            except Exception:
+                logger.debug("No fue posible restaurar una herramienta.", exc_info=True)
 
         # Equipos dañados de Seguridad/Reparación.
         equipos_danados_guardados = _json_list(registro.get("lev_equipos_danados_json"))
@@ -4137,7 +4457,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "lev_tipo": convertir_tipo(var_tipo.get()),
             "lev_estatus": convertir_estatus(var_estatus.get()),
             "lev_prioridad": convertir_prioridad(var_prioridad.get()),
-            "lev_contacto": var_contacto.get().strip(),
+            "lev_contacto": (var_encargado_sucursal.get().strip() if var_cliente_selector.get() == "Otros" else var_contacto.get().strip()),
             "lev_telefono": var_telefono.get().strip(),
             "lev_correo": var_correo.get().strip(),
             "lev_direccion": var_direccion.get().strip(),
@@ -4169,6 +4489,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             detalle_tecnico["canalizacion_materiales"] = obtener_canalizacion_materiales_json()
             detalle_tecnico["equipos_principales"] = obtener_equipos_catalogo_json()
             detalle_tecnico["materiales_miscelaneos"] = obtener_materiales_miscelaneos_json()
+            detalle_tecnico["herramientas"] = obtener_herramientas_json()
             equipos_danados = obtener_equipos_danados_json() if tipo_levantamiento == "Seguridad y Monitoreo" and modalidad_operativa == "Reparación" else []
             descripcion_fallas = (
                 txt_rep_descripcion_fallas.get("1.0", "end").strip()
@@ -4304,6 +4625,32 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 "Error al guardar",
                 "Registrar levantamiento"
             )
+
+    # =================================================
+    # HOMOLOGACIÓN VISUAL FINAL DEL FORMULARIO
+    # =================================================
+    def _homologar_controles_levantamiento(widget):
+        """Mantiene captura/selectores en Montserrat 11 y altura compacta.
+
+        Los encabezados de sección conservan 13 pt bold para no perder
+        jerarquía visual; los botones mantienen su estilo corporativo.
+        """
+        try:
+            if isinstance(widget, ctk.CTkEntry):
+                widget.configure(font=FORM_FIELD_FONT, height=FORM_CONTROL_HEIGHT, corner_radius=0)
+            elif isinstance(widget, ctk.CTkTextbox):
+                widget.configure(font=FORM_FIELD_FONT, corner_radius=0)
+            elif isinstance(widget, NativeComboBox):
+                widget.configure(font=FORM_FIELD_FONT)
+        except Exception:
+            pass
+        try:
+            for child in widget.winfo_children():
+                _homologar_controles_levantamiento(child)
+        except Exception:
+            pass
+
+    _homologar_controles_levantamiento(form_body)
 
     # =================================================
     # BOTONES FIJOS

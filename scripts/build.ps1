@@ -35,7 +35,8 @@ if (-not $SkipInstall) {
     Invoke-Python -m pip install -r requirements-dev.txt
 }
 
-Write-Host "[1/4] Validación estática y sintaxis..." -ForegroundColor Cyan
+Write-Host "[1/4] Validación estática, versión y sintaxis..." -ForegroundColor Cyan
+Invoke-Python .\scripts\check_version_sync.py
 Invoke-Python .\tools\validar_calidad.py
 
 Write-Host "[2/4] Pruebas automatizadas..." -ForegroundColor Cyan

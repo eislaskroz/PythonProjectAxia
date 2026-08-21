@@ -28,6 +28,10 @@ logger = configurar_logger(__name__)
 # =====================================================
 
 import customtkinter as ctk
+import tkinter as tk
+import sys
+from pathlib import Path
+from PIL import Image, ImageEnhance, ImageOps, ImageTk
 
 # =====================================================
 # IMPORTACIÓN DE RECURSOS VISUALES
@@ -65,6 +69,94 @@ from security.permissions import (
     puede_ver_bitacoras_operativas,
 )
 
+
+# =====================================================
+# FONDO TEMÁTICO DE LEVANTAMIENTOS
+# =====================================================
+_FONDOS_SIDEBAR = {
+    "Seguridad y Monitoreo": "fondo_seguridad_monitoreo.png",
+    "Redes Voz y Datos": "fondo_redes_voz_datos.png",
+    "Control de Accesos": "fondo_control_accesos.png",
+    "Enlaces Inalámbricos": "fondo_enlaces_inalambricos.png",
+    "Tecnología, Equipos y Periféricos": "fondo_tecnologia.png",
+    "Electricidad": "fondo_electricidad.png",
+    "Paneles Solares": "fondo_paneles_solares.png",
+    "Plantas de Energía": "fondo_plantas_energia.png",
+    "Aires Acondicionados": "fondo_aires_acondicionados.png",
+}
+
+def _ruta_recurso_sidebar(nombre):
+    base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent))
+    return base / "assets" / nombre
+
+def _crear_fondo_sidebar(tipo, size=(260, 900)):
+    """Crea un wallpaper que cubre TODO el sidebar sin deformar la imagen.
+
+    Se usa recorte tipo cover y un velo azul oscuro para que textos/botones
+    mantengan contraste. La imagen no se limita al área del logotipo.
+    """
+    nombre = _FONDOS_SIDEBAR.get(str(tipo or "").strip())
+    if not nombre:
+        return None
+    ruta = _ruta_recurso_sidebar(nombre)
+    if not ruta.exists():
+        logger.warning("No se encontró fondo de sidebar para %s: %s", tipo, ruta)
+        return None
+    ancho=max(220, int(size[0] or 260))
+    alto=max(600, int(size[1] or 900))
+    with Image.open(ruta) as src:
+        base = ImageOps.fit(src.convert("RGB"), (ancho, alto), method=Image.Resampling.LANCZOS)
+    base = ImageEnhance.Brightness(base).enhance(0.34).convert("RGBA")
+    # Velo corporativo para conservar contraste de menú y botones.
+    velo = Image.new("RGBA", (ancho, alto), (15, 35, 55, 105))
+    base = Image.alpha_composite(base, velo)
+    return ImageTk.PhotoImage(base)
+
+def _redibujar_fondo_sidebar(sidebar):
+    tipo = getattr(sidebar, "_axia_sidebar_tipo", None)
+    label = getattr(sidebar, "_axia_background_label", None)
+    if sidebar is None or label is None:
+        return
+    if not tipo:
+        try:
+            label.place_forget()
+        except Exception:
+            pass
+        return
+    try:
+        sidebar.update_idletasks()
+        ancho = max(220, sidebar.winfo_width())
+        alto = max(600, sidebar.winfo_height())
+        imagen = _crear_fondo_sidebar(tipo, (ancho, alto))
+        if imagen is None:
+            label.place_forget()
+            return
+        label.configure(image=imagen, text="", bd=0, highlightthickness=0)
+        label.image = imagen
+        sidebar._axia_background_image = imagen
+        label.place(x=0, y=0, relwidth=1, relheight=1)
+        # IMPORTANTE: no bajar el label sin referencia. En CustomTkinter
+        # eso puede mandar la imagen por debajo del canvas/fondo interno del
+        # CTkFrame y volverla invisible. La dejamos por encima del fondo del
+        # sidebar, pero justo por debajo del primer control real; los demás
+        # controles fueron creados después y permanecen encima.
+        hijos = [w for w in sidebar.winfo_children() if w is not label]
+        if hijos:
+            try:
+                label.lower(hijos[0])
+            except Exception:
+                pass
+    except Exception:
+        logger.debug("No se pudo redibujar fondo temático del sidebar.", exc_info=True)
+
+def actualizar_sidebar_especialidad(sidebar, tipo_levantamiento=None):
+    """Activa/desactiva el wallpaper de especialidad en todo el sidebar."""
+    if sidebar is None:
+        return
+    sidebar._axia_sidebar_tipo = str(tipo_levantamiento or "").strip() or None
+    # El logo corporativo permanece como capa superior; el wallpaper cubre
+    # desde el borde superior hasta las acciones de sesión.
+    _redibujar_fondo_sidebar(sidebar)
 
 # =====================================================
 # FUNCIÓN: crear_boton_sidebar()
@@ -174,6 +266,25 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
     )
     sidebar.pack_propagate(False)
 
+    # Wallpaper temático: ocupa toda la superficie del sidebar y se activa
+    # únicamente al abrir un levantamiento especializado.
+    background_label = tk.Label(sidebar, text="", bd=0, highlightthickness=0, bg=PRIMARY_DARK)
+    sidebar._axia_background_label = background_label
+    sidebar._axia_background_image = None
+    sidebar._axia_sidebar_tipo = None
+
+    def _on_sidebar_configure(_event=None):
+        # Redibujo diferido para no recalcular la imagen en cada pixel del resize.
+        after_id = getattr(sidebar, "_axia_bg_after", None)
+        if after_id:
+            try:
+                sidebar.after_cancel(after_id)
+            except Exception:
+                pass
+        sidebar._axia_bg_after = sidebar.after(120, lambda: _redibujar_fondo_sidebar(sidebar))
+
+    sidebar.bind("<Configure>", _on_sidebar_configure, add="+")
+
     # =================================================
     # LOGOTIPO
     # =================================================
@@ -186,6 +297,10 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
     )
     label_logo.image = logo_axia
     label_logo.pack(pady=(9, 9))
+    # Referencia estable para sustituir únicamente la cabecera visual cuando
+    # se abra uno de los nueve levantamientos temáticos.
+    sidebar._axia_header_label = label_logo
+    sidebar._axia_header_image = logo_axia
 
     # =================================================
     # INFORMACIÓN DEL USUARIO
@@ -369,5 +484,13 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
         sticky="ew",
         padx=(2, 0)
     )
+
+    # Garantiza una jerarquía estable al terminar de construir el sidebar:
+    # fondo temático > fondo sólido interno de CTkFrame, y controles > fondo.
+    # La primera activación temática redimensionará la imagen al tamaño real.
+    try:
+        sidebar.after_idle(lambda: _redibujar_fondo_sidebar(sidebar))
+    except Exception:
+        pass
 
     return sidebar

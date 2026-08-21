@@ -81,6 +81,12 @@ class ThemeManager:
                 ctk.set_default_color_theme("blue")
             ctk.set_widget_scaling(cls.WIDGET_SCALING)
             ctk.set_window_scaling(cls.WINDOW_SCALING)
+
+            # FIX9: campos de captura visualmente homologados.
+            # Algunos formularios aún declaran corner_radius localmente; este
+            # parche central obliga a que CTkEntry/CTkTextbox sean cuadrados
+            # sin tocar botones, tarjetas ni otros controles.
+            cls._aplicar_campos_cuadrados()
         except Exception:
             # Si por alguna razón falla el tema personalizado, la app no debe detenerse.
             try:
@@ -88,6 +94,21 @@ class ThemeManager:
                 ctk.set_default_color_theme("blue")
             except Exception:
                 logger.debug("Excepción recuperable controlada.", exc_info=True)
+
+    @classmethod
+    def _aplicar_campos_cuadrados(cls) -> None:
+        """Fuerza CTkEntry y CTkTextbox con esquinas cuadradas en toda AXIA."""
+        for widget_cls in (ctk.CTkEntry, ctk.CTkTextbox):
+            if getattr(widget_cls, "_axia_square_inputs", False):
+                continue
+            original_init = widget_cls.__init__
+
+            def _init_cuadrado(self, *args, __orig=original_init, **kwargs):
+                kwargs["corner_radius"] = 0
+                return __orig(self, *args, **kwargs)
+
+            widget_cls.__init__ = _init_cuadrado
+            widget_cls._axia_square_inputs = True
 
     @classmethod
     def apply_native_tk_theme(cls, root=None) -> None:

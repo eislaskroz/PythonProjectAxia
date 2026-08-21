@@ -129,6 +129,15 @@ class NavigationController:
                 self._historial = self._historial[-25:]
         self._vista_actual = (nombre_metodo, kwargs)
 
+        # FIX9: fuera del formulario de levantamiento, la barra lateral vuelve
+        # automáticamente al logotipo AXIA.
+        if nombre_metodo != "mostrar_levantamiento":
+            try:
+                from ui.app_sidebar import actualizar_sidebar_especialidad
+                actualizar_sidebar_especialidad(getattr(self.app, "sidebar", None), None)
+            except Exception:
+                logger.debug("No fue posible restaurar cabecera del sidebar.", exc_info=True)
+
     def volver_atras(self):
         """Regresa a la pantalla anterior sin repetir pasos."""
         if not self._historial:
@@ -274,6 +283,11 @@ class NavigationController:
         """
 
         self._registrar_vista("mostrar_levantamiento", aco=aco, tipo_levantamiento=tipo_levantamiento)
+        try:
+            from ui.app_sidebar import actualizar_sidebar_especialidad
+            actualizar_sidebar_especialidad(getattr(self.app, "sidebar", None), tipo_levantamiento)
+        except Exception:
+            logger.debug("No fue posible aplicar cabecera temática del sidebar.", exc_info=True)
         logger.info("Cargando vista: Levantamiento")
         self.limpiar_contenido()
 

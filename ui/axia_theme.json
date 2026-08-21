@@ -60,7 +60,7 @@
     ]
   },
   "CTkEntry": {
-    "corner_radius": 9,
+    "corner_radius": 0,
     "border_width": 2,
     "fg_color": [
       "#EEF2F6",
@@ -308,7 +308,7 @@
     ]
   },
   "CTkTextbox": {
-    "corner_radius": 6,
+    "corner_radius": 0,
     "border_width": 2,
     "fg_color": [
       "#EEF2F6",

@@ -68,7 +68,7 @@ class NativeComboBox(ttk.Combobox):
     """
 
     _IGNORED_OPTIONS = {
-        "height", "corner_radius", "font", "fg_color", "button_color",
+        "height", "corner_radius", "fg_color", "button_color",
         "button_hover_color", "dropdown_fg_color", "dropdown_hover_color",
         "dropdown_text_color", "text_color", "anchor", "dynamic_resizing",
     }
@@ -79,6 +79,7 @@ class NativeComboBox(ttk.Combobox):
         *,
         variable=None,
         values: Iterable[Any] | None = None,
+        font: Any | None = None,
         command: Callable[[str], Any] | None = None,
         state: str = "normal",
         width: int | None = None,
@@ -100,6 +101,9 @@ class NativeComboBox(ttk.Combobox):
         if width is not None:
             # CTk expresa width en píxeles; ttk lo hace en caracteres.
             ttk_kwargs["width"] = max(8, min(80, int(width / 9)))
+        if font is None:
+            font = ("Montserrat", 11)
+        ttk_kwargs["font"] = font
         ttk_kwargs.update(kwargs)
 
         super().__init__(master, **ttk_kwargs)
