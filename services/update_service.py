@@ -7,8 +7,13 @@ AppId, por lo que actualiza la instalación existente sin desinstalarla.
 from __future__ import annotations
 
 import hashlib
+import ctypes
 import os
 import subprocess
+import re
+import sys
+import json
+from urllib.parse import urlsplit, urlunsplit
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -41,6 +46,39 @@ def actualizaciones_habilitadas() -> bool:
 
 def canal_actualizaciones() -> str:
     return (os.getenv("AXIA_UPDATE_CHANNEL", "stable") or "stable").strip().lower()
+
+
+def normalizar_url_actualizacion(valor: str) -> str:
+    """Normaliza y valida la URL pública del instalador.
+
+    Tolera errores de captura comunes en Supabase, por ejemplo
+    ``https://http://servidor/...`` o dobles diagonales en la ruta. La URL
+    resultante siempre debe ser HTTP/HTTPS y contener un host real.
+    """
+    url = str(valor or "").strip().strip('"\'')
+    if not url:
+        raise ValueError("La actualización no tiene una URL de descarga configurada.")
+
+    # Normaliza separadores copiados desde Windows y espacios accidentales.
+    url = url.replace("\\", "/").replace(" ", "%20")
+
+    # Si se capturó el protocolo dos veces, conserva el primero. Ej.:
+    # https://http://www.ejemplo.com/app.exe -> https://www.ejemplo.com/app.exe
+    url = re.sub(r"^(https?://)(?:https?://)+", r"\1", url, flags=re.IGNORECASE)
+
+    if url.lower().startswith("www."):
+        url = "https://" + url
+
+    partes = urlsplit(url)
+    if partes.scheme.lower() not in {"http", "https"}:
+        raise ValueError("La URL de actualización debe comenzar con https:// o http://.")
+    if not partes.hostname or partes.hostname.lower() in {"http", "https"}:
+        raise ValueError("La URL de actualización no contiene un servidor válido.")
+
+    # Conserva el // inicial sólo para el protocolo; en la ruta no es necesario.
+    ruta = re.sub(r"/{2,}", "/", partes.path or "/")
+    normalizada = urlunsplit((partes.scheme.lower(), partes.netloc, ruta, partes.query, partes.fragment))
+    return normalizada
 
 
 def obtener_actualizacion_disponible() -> ActualizacionDisponible | None:
@@ -78,10 +116,11 @@ def obtener_actualizacion_disponible() -> ActualizacionDisponible | None:
         # La consulta viene ordenada por fecha de publicación; tomamos la más
         # reciente que sea superior a la versión instalada.
         fila = candidatas[0]
-        url = str(fila.get("act_url") or "").strip()
         version = str(fila.get("act_version") or "").strip()
-        if not url.lower().startswith(("https://", "http://")):
-            logger.warning("Actualización %s ignorada: URL inválida.", version)
+        try:
+            url = normalizar_url_actualizacion(str(fila.get("act_url") or ""))
+        except ValueError as exc:
+            logger.warning("Actualización %s ignorada: %s", version, exc)
             return None
         return ActualizacionDisponible(
             version=version,
@@ -117,14 +156,37 @@ def descargar_actualizacion(actualizacion: ActualizacionDisponible) -> Path:
     destino = _ruta_instalador(actualizacion.version)
     temporal = destino.with_suffix(".download")
     try:
-        with requests.get(actualizacion.url, stream=True, timeout=(10, 120)) as respuesta:
-            respuesta.raise_for_status()
-            with temporal.open("wb") as fh:
-                for bloque in respuesta.iter_content(chunk_size=1024 * 512):
-                    if bloque:
-                        fh.write(bloque)
+        url = normalizar_url_actualizacion(actualizacion.url)
+        try:
+            with requests.get(
+                url,
+                stream=True,
+                timeout=(10, 120),
+                allow_redirects=True,
+                headers={"User-Agent": f"AXIA-Desktop/{APP_VERSION}"},
+            ) as respuesta:
+                respuesta.raise_for_status()
+                with temporal.open("wb") as fh:
+                    for bloque in respuesta.iter_content(chunk_size=1024 * 512):
+                        if bloque:
+                            fh.write(bloque)
+        except requests.RequestException as exc:
+            logger.exception("No fue posible descargar la actualización desde %s", url)
+            raise RuntimeError(
+                "No fue posible conectar con el servidor de actualizaciones de AXIA. "
+                "Verifica tu conexión a Internet o inténtalo nuevamente más tarde."
+            ) from exc
         if temporal.stat().st_size < 1024:
             raise RuntimeError("El instalador descargado está vacío o incompleto.")
+
+        with temporal.open("rb") as fh:
+            firma_mz = fh.read(2)
+        if firma_mz != b"MZ":
+            raise RuntimeError(
+                "El servidor respondió, pero el archivo descargado no es un instalador válido de Windows. "
+                "Verifica que act_url apunte directamente al archivo .exe y no a una página web."
+            )
+
         if actualizacion.sha256:
             obtenido = _sha256(temporal)
             if obtenido != actualizacion.sha256:
@@ -143,37 +205,80 @@ def descargar_actualizacion(actualizacion: ActualizacionDisponible) -> Path:
             logger.debug("No fue posible limpiar el temporal de actualización.", exc_info=True)
 
 
-def programar_instalacion(instalador: Path) -> Path:
-    """Lanza un proceso externo que actualiza AXIA después de cerrar la app.
 
-    El archivo CMD vive en LocalAppData, por lo que no es reemplazado durante
-    la actualización de Program Files. Al terminar, vuelve a abrir AXIA.
+
+def consumir_estado_actualizacion() -> dict | None:
+    """Lee y consume el resultado dejado por el actualizador externo."""
+    path = user_data_dir() / "updates" / "actualizacion_estado.json"
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8-sig"))
+        return data if isinstance(data, dict) else None
+    except Exception:
+        logger.exception("No fue posible leer el estado de la actualización.")
+        return None
+    finally:
+        try:
+            path.unlink(missing_ok=True)
+        except Exception:
+            logger.debug("No fue posible limpiar el estado de actualización.", exc_info=True)
+
+def programar_instalacion(instalador: Path) -> Path:
+    """Inicia Inno Setup elevado y deja que el instalador gestione el reemplazo.
+
+    A partir de FIX18 no se usa PowerShell como intermediario. En Windows se
+    invoca directamente el instalador mediante ``ShellExecute(..., runas, ...)``.
+    El instalador se genera especialmente para actualización: en modo silencioso
+    vuelve a abrir AXIA al terminar. Esto evita que un script externo sea cerrado
+    por políticas de PowerShell, antivirus o el ciclo de vida del proceso padre.
     """
     instalador = Path(instalador).resolve()
-    app_exe = executable_dir() / "AXIA.exe"
     if not instalador.is_file():
         raise FileNotFoundError(f"No existe el instalador: {instalador}")
+    if os.name != "nt":
+        raise RuntimeError("La instalación automática de AXIA sólo está disponible en Windows.")
 
     carpeta = user_data_dir() / "updates"
     carpeta.mkdir(parents=True, exist_ok=True)
-    cmd_path = carpeta / "aplicar_actualizacion.cmd"
-    contenido = (
-        "@echo off\r\n"
-        "setlocal\r\n"
-        "timeout /t 2 /nobreak >nul\r\n"
-        f'start "" /wait "{instalador}" /VERYSILENT /SP- /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS\r\n'
-        "if errorlevel 1 exit /b %errorlevel%\r\n"
-        f'if exist "{app_exe}" start "" "{app_exe}"\r\n'
-        'del "%~f0"\r\n'
-    )
-    cmd_path.write_text(contenido, encoding="utf-8")
+    log_path = carpeta / "inno_actualizacion.log"
 
-    kwargs = {"cwd": str(carpeta)}
-    if os.name == "nt":
-        kwargs["creationflags"] = (
-            getattr(subprocess, "CREATE_NO_WINDOW", 0)
-            | getattr(subprocess, "DETACHED_PROCESS", 0)
+    # /SILENT mantiene visible el progreso de Inno sin pedir decisiones al usuario.
+    # El UAC sí puede aparecer: es necesario porque AXIA se instala en Program Files.
+    parametros = (
+        f'/SILENT /SP- /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS '
+        f'/LOG="{log_path}"'
+    )
+
+    try:
+        resultado = ctypes.windll.shell32.ShellExecuteW(
+            None,
+            "runas",
+            str(instalador),
+            parametros,
+            str(instalador.parent),
+            1,  # SW_SHOWNORMAL: muestra el progreso del instalador, no una consola.
         )
-    subprocess.Popen(["cmd.exe", "/c", str(cmd_path)], **kwargs)
-    logger.info("Instalación de actualización programada mediante %s", cmd_path)
-    return cmd_path
+    except Exception as exc:
+        logger.exception("No fue posible iniciar el instalador elevado.")
+        raise RuntimeError(
+            "Windows no pudo iniciar el instalador de la actualización con permisos de administrador."
+        ) from exc
+
+    # ShellExecute devuelve valores <= 32 cuando no pudo crear el proceso.
+    if int(resultado) <= 32:
+        codigos = {
+            2: "No se encontró el instalador descargado.",
+            5: "Windows rechazó la elevación de permisos o el usuario canceló el UAC.",
+            8: "Windows no tiene memoria suficiente para iniciar el instalador.",
+            31: "Windows no pudo asociar el instalador con una aplicación ejecutable.",
+        }
+        detalle = codigos.get(int(resultado), f"ShellExecute devolvió el código {int(resultado)}.")
+        raise RuntimeError(f"No fue posible iniciar la actualización. {detalle}")
+
+    logger.info(
+        "Instalador AXIA lanzado directamente con elevación. Archivo=%s | log=%s",
+        instalador, log_path,
+    )
+    return instalador
+

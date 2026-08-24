@@ -7,6 +7,7 @@ from datetime import date, datetime
 from tkinter import ttk
 
 from core.logger import configurar_logger
+from utils import centrar_ventana_renderizada
 
 logger = configurar_logger(__name__)
 _calendario_activo = None
@@ -122,10 +123,7 @@ def abrir_selector_fecha(parent, variable, *, formato_salida="iso"):
         ttk.Button(header, text="›", width=4, command=lambda: mover(1)).pack(side="right")
         pintar()
 
-    ventana.update_idletasks()
-    x = root.winfo_rootx() + max(20, (root.winfo_width() - ventana.winfo_reqwidth()) // 2)
-    y = root.winfo_rooty() + max(20, (root.winfo_height() - ventana.winfo_reqheight()) // 3)
-    ventana.geometry(f"+{x}+{y}")
+    centrar_ventana_renderizada(ventana, padre=root)
     ventana.focus_force()
 
 def asociar_selector_fecha(entry, parent, variable, *, abrir_con_foco=False, formato_salida="iso"):

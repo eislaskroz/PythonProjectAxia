@@ -53,6 +53,7 @@ COLUMNAS_LEVANTAMIENTOS_TUPLE = (
     "lev_descripcion_fallas",
     "lev_anotacion_plano_json",
     "lev_evidencias_json",
+    "lev_archivos_adjuntos_json",
     "lev_validado_ventas",
     "lev_validado_por",
     "lev_fecha_validacion",
@@ -113,6 +114,7 @@ CAMPOS_CONVERSION_EDITABLES = frozenset({
     "lev_descripcion_fallas",
     "lev_anotacion_plano_json",
     "lev_evidencias_json",
+    "lev_archivos_adjuntos_json",
     "lev_prioridad",
 })
 

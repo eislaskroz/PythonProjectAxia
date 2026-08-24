@@ -23,6 +23,7 @@ from PIL import Image, ImageDraw, ImageOps, ImageTk, ImageFont
 from ui.colors import SECONDARY, TEXT_PRIMARY, TEXT_SECONDARY, BUTTON_HOVER, WHITE
 from ui.fonts import TEXT_SM, BUTTON_FONT
 from core.pdf import BasePdfGenerator
+from utils import centrar_ventana
 
 ENTRY_H = 30
 OPTION_H = 30
@@ -56,9 +57,9 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
     sw, sh = win.winfo_screenwidth(), win.winfo_screenheight()
     ww = min(1180, max(900, int(sw * 0.90)))
     wh = min(760, max(640, int(sh * 0.82)))
-    win.geometry(f"{ww}x{wh}")
     win.minsize(900, 640)
     win.transient(parent.winfo_toplevel())
+    centrar_ventana(win, ww, wh, padre=parent.winfo_toplevel())
     win.grab_set()
 
     root = ctk.CTkFrame(win, fg_color=WHITE)
@@ -197,8 +198,8 @@ def firmar_en_popup(parent, variable_firma_base64, on_change=None, titulo="Firma
     """Abre una ventana para capturar firma y guardarla como PNG base64."""
     win = Toplevel(parent)
     win.title(titulo)
-    win.geometry("620x340")
     win.transient(parent.winfo_toplevel())
+    centrar_ventana(win, 620, 340, padre=parent.winfo_toplevel())
     win.grab_set()
 
     frame = ctk.CTkFrame(win, fg_color=WHITE)

@@ -63,7 +63,8 @@ def abrir_registro_usuario(app):
     centrar_ventana(
         ventana,
         1200,
-        700
+        700,
+        padre=app
     )
 
     ventana.resizable(False, False)

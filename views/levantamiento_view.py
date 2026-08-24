@@ -15,6 +15,8 @@ from core.logger import configurar_logger
 logger = configurar_logger(__name__)
 
 import json
+import re
+from pathlib import Path
 from datetime import datetime
 
 import customtkinter as ctk
@@ -45,6 +47,12 @@ FORM_SECTION_FONT = ("Montserrat", 13, "bold")
 FORM_TABLE_HEADER_FONT = ("Montserrat", 11, "bold")
 FORM_CONTROL_HEIGHT = 30
 
+
+def _titulo_sin_numeracion(titulo: str) -> str:
+    """Quita numeraciones visuales tipo '1.', '2.-' sin alterar el icono/título."""
+    texto = str(titulo or "")
+    return re.sub(r"^(\s*(?:[^\w\d]\s*)*)\d+\s*[.\-:]\s*", r"\1", texto).strip()
+
 from app_context import obtener_usuario_actual
 from services.movimientos_service import registrar_movimiento
 from services.materiales_catalogo_service import obtener_materiales_por_especialidad, UNIDADES_MATERIAL
@@ -63,7 +71,7 @@ from services.sucursales_service import (
     obtener_sucursales_por_cliente, obtener_contactos_por_sucursal,
     construir_domicilio_sucursal,
 )
-from services.levantamientos_service import crear_levantamiento, actualizar_evidencias_levantamiento
+from services.levantamientos_service import crear_levantamiento, actualizar_evidencias_levantamiento, actualizar_archivos_levantamiento
 from services.usuarios_service import (
     obtener_tecnicos_responsables,
     obtener_supervisores_formulario,
@@ -72,7 +80,7 @@ from services.usuarios_service import (
 from views.formato_helpers import generar_pdf_preview, generar_pdf_archivo, enfocar_inicio_formulario, ruta_documentos_axia, anotacion_plano_popup
 from services.pdf_registro_service import generar_pdf_registro
 from services.mail_service import enviar_levantamiento_pdf
-from services.bitacora_evidencias_service import subir_evidencias_levantamiento
+from services.bitacora_evidencias_service import subir_evidencias_levantamiento, subir_archivos_levantamiento
 
 from security.permissions import puede_generar_levantamiento, puede_convertir_levantamiento_a_orden
 
@@ -213,6 +221,18 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     # Evidencia fotográfica opcional común a TODOS los levantamientos.
     var_desea_evidencias = ctk.StringVar(value="No")
     evidencias_levantamiento = []
+    # Archivos técnicos opcionales (PDF / planos) comunes a todos los levantamientos.
+    var_desea_archivos_adjuntos = ctk.StringVar(value="No")
+    archivos_adjuntos_levantamiento = []
+    archivos_adjuntos_existentes = []
+    # Acceso, alturas y riesgos común para especialidades que antes no lo tenían.
+    var_trabajo_alturas_comun = ctk.StringVar(value="No")
+    var_sistema_acceso_comun = ctk.StringVar(value="Escalera")
+    var_altura_comun = ctk.StringVar()
+    var_riesgo_comun = ctk.StringVar(value="Bajo")
+    # Equipo de Protección Personal (EPP) común a TODOS los levantamientos.
+    # Si se requiere, se captura un listado estructurado para conservarlo en el JSON técnico.
+    var_requiere_epp = ctk.StringVar(value="No")
 
     # Catálogos de asignación obtenidos directamente de db_usuarios.
     tecnicos_disponibles = obtener_tecnicos_responsables()
@@ -228,6 +248,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     materiales_miscelaneos_items = []
     equipos_catalogo_items = []
     herramientas_items = []
+    epp_items = []
     canalizacion_materiales_items = []
 
     # Campos dedicados del formulario Seguridad y Monitoreo.
@@ -317,6 +338,15 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     var_rvd_patch_cords = ctk.StringVar()
     var_rvd_ubicacion_rack = ctk.StringVar()
     var_rvd_requiere_rack = ctk.StringVar(value="Sí")
+    var_rvd_modalidad_rack = ctk.StringVar(value="Kit completo")
+    var_rvd_cantidad_rack = ctk.StringVar(value="1")
+    var_rvd_cantidad_kit_rack = ctk.StringVar(value="1")
+    var_rvd_rack_organizadores = ctk.StringVar()  # compatibilidad histórica
+    var_rvd_rack_organizadores_verticales = ctk.StringVar()
+    var_rvd_rack_organizadores_horizontales = ctk.StringVar()
+    var_rvd_rack_charolas = ctk.StringVar()
+    var_rvd_rack_pdu = ctk.StringVar()
+    var_rvd_rack_panel_parcheo = ctk.StringVar()
     var_rvd_tipo_rack = ctk.StringVar()
     var_rvd_requiere_gabinete = ctk.StringVar(value="Sí")
     var_rvd_tipo_gabinete = ctk.StringVar()
@@ -330,6 +360,16 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     var_rvd_detalle_contacto = ctk.StringVar()
     var_rvd_tierra_fisica = ctk.StringVar(value="Sí")
     var_rvd_detalle_tierra = ctk.StringVar()
+    var_rvd_tierra_barra_cobre = ctk.StringVar()
+    var_rvd_tierra_aisladores = ctk.StringVar()
+    var_rvd_tierra_abrazadera_omega = ctk.StringVar()
+    var_rvd_tierra_varilla_cobre = ctk.StringVar()
+    var_rvd_tierra_abrazaderas = ctk.StringVar()
+    var_rvd_tierra_cable_cobre = ctk.StringVar()
+    var_rvd_tierra_tornillos_cobre = ctk.StringVar()
+    var_rvd_tierra_quimico = ctk.StringVar()
+    var_rvd_tierra_tuberia = ctk.StringVar()
+    var_rvd_tierra_bote = ctk.StringVar()
     var_rvd_altura_trabajo = ctk.StringVar()
     var_rvd_acceso = ctk.StringVar(value="Fácil acceso")
     var_rvd_permiso = ctk.StringVar(value="No")
@@ -500,6 +540,15 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
     var_rack_requerido = ctk.StringVar(value="Sí")
     var_tipo_rack = ctk.StringVar()
+    var_cctv_modalidad_rack = ctk.StringVar(value="Kit completo")
+    var_cctv_cantidad_rack = ctk.StringVar(value="1")
+    var_cctv_cantidad_kit_rack = ctk.StringVar(value="1")
+    var_cctv_rack_organizadores = ctk.StringVar()  # compatibilidad histórica
+    var_cctv_rack_organizadores_verticales = ctk.StringVar()
+    var_cctv_rack_organizadores_horizontales = ctk.StringVar()
+    var_cctv_rack_charolas = ctk.StringVar()
+    var_cctv_rack_pdu = ctk.StringVar()
+    var_cctv_rack_panel_parcheo = ctk.StringVar()
     var_gabinete_requerido = ctk.StringVar(value="Sí")
     var_tipo_gabinete = ctk.StringVar()
     var_ru_requeridas = ctk.StringVar()
@@ -509,8 +558,19 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     var_tipo_contacto_regulado = ctk.StringVar()
     var_tierra_fisica = ctk.StringVar(value="Sí")
     var_tipo_tierra_fisica = ctk.StringVar()
+    var_cctv_tierra_barra_cobre = ctk.StringVar()
+    var_cctv_tierra_aisladores = ctk.StringVar()
+    var_cctv_tierra_abrazadera_omega = ctk.StringVar()
+    var_cctv_tierra_varilla_cobre = ctk.StringVar()
+    var_cctv_tierra_abrazaderas = ctk.StringVar()
+    var_cctv_tierra_cable_cobre = ctk.StringVar()
+    var_cctv_tierra_tornillos_cobre = ctk.StringVar()
+    var_cctv_tierra_quimico = ctk.StringVar()
+    var_cctv_tierra_tuberia = ctk.StringVar()
+    var_cctv_tierra_bote = ctk.StringVar()
 
-    var_escalera_requerida = ctk.StringVar(value="No")
+    var_escalera_requerida = ctk.StringVar(value="No")  # ahora representa trabajo en alturas
+    var_sistema_acceso_temporal = ctk.StringVar(value="Escalera")
     var_altura_trabajo = ctk.StringVar()
     var_riesgo_instalacion = ctk.StringVar(value="Bajo")
 
@@ -1338,7 +1398,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
             ctk.CTkLabel(
                 frame,
-                text=titulo,
+                text=_titulo_sin_numeracion(titulo),
                 font=FORM_SECTION_FONT,
                 text_color=TEXT_PRIMARY
             ).grid(row=0, column=0, columnspan=5, sticky="w", padx=7, pady=(5, 3))
@@ -1487,20 +1547,53 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 logger.debug("Excepción recuperable controlada.", exc_info=True)
 
         def actualizar_detalle_rack_energia(*_args):
-            """Habilita el campo de tipo/detalle solo cuando el técnico marca Sí."""
-            pares = [
-                (var_rack_requerido, var_tipo_rack, widget_tipo_rack),
-                (var_gabinete_requerido, var_tipo_gabinete, widget_tipo_gabinete),
-                (var_ups_requerida, var_tipo_ups, widget_tipo_ups),
-                (var_contacto_regulado, var_tipo_contacto_regulado, widget_tipo_contacto_regulado),
-                (var_tierra_fisica, var_tipo_tierra_fisica, widget_tipo_tierra_fisica),
+            """Gestiona Rack, gabinete, energía y tierra física de Seguridad y Monitoreo."""
+            requiere_rack = var_rack_requerido.get() == "Sí"
+            requiere_gabinete = var_gabinete_requerido.get() == "Sí"
+            requiere_ups = var_ups_requerida.get() == "Sí"
+            requiere_contacto = var_contacto_regulado.get() == "Sí"
+            requiere_tierra = var_tierra_fisica.get() == "Sí"
+
+            if not requiere_rack:
+                var_tipo_rack.set("")
+                for v in (
+                    var_cctv_rack_organizadores_verticales,
+                    var_cctv_rack_organizadores_horizontales,
+                    var_cctv_rack_charolas,
+                    var_cctv_rack_pdu,
+                ):
+                    v.set("")
+            if not requiere_gabinete:
+                var_tipo_gabinete.set("")
+            if not requiere_ups:
+                var_tipo_ups.set("")
+            if not requiere_contacto:
+                var_tipo_contacto_regulado.set("")
+            if not requiere_tierra:
+                var_tipo_tierra_fisica.set("")
+                for v in (
+                    var_cctv_tierra_barra_cobre, var_cctv_tierra_aisladores,
+                    var_cctv_tierra_abrazadera_omega, var_cctv_tierra_varilla_cobre,
+                    var_cctv_tierra_abrazaderas, var_cctv_tierra_cable_cobre,
+                    var_cctv_tierra_tornillos_cobre, var_cctv_tierra_quimico,
+                    var_cctv_tierra_tuberia, var_cctv_tierra_bote,
+                ):
+                    v.set("")
+
+            estados = [
+                (widget_tipo_rack, "normal" if requiere_rack else "disabled"),
+                (widget_tipo_gabinete, "normal" if requiere_gabinete else "disabled"),
+                (widget_tipo_ups, "normal" if requiere_ups else "disabled"),
+                (widget_tipo_contacto_regulado, "normal" if requiere_contacto else "disabled"),
+                (widget_tipo_tierra_fisica, "normal" if requiere_tierra else "disabled"),
             ]
-            for var_si_no, var_detalle, widget in pares:
-                habilitado = var_si_no.get() == "Sí"
-                if not habilitado:
-                    var_detalle.set("")
+            for w in cctv_accesorios_rack_widgets:
+                estados.append((w, "normal" if requiere_rack else "disabled"))
+            for w in cctv_tierra_widgets:
+                estados.append((w, "normal" if requiere_tierra else "disabled"))
+            for widget, estado in estados:
                 try:
-                    widget.configure(state="normal" if habilitado else "disabled")
+                    widget.configure(state=estado)
                 except Exception:
                     logger.debug("Excepción recuperable controlada.", exc_info=True)
             try:
@@ -1629,40 +1722,62 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         # Rack / energía
         seccion_rack_energia = crear_seccion("🗄️ Rack, gabinete y energía", fila_textos + 4)
         registrar_seccion("rack_energia", seccion_rack_energia)
-        option_en(seccion_rack_energia, "¿Se requiere rack?", var_rack_requerido, ["Sí", "No"], 0, 0, command=actualizar_detalle_rack_energia)
-        option_en(seccion_rack_energia, "¿Se requiere gabinete?", var_gabinete_requerido, ["Sí", "No"], 0, 1, command=actualizar_detalle_rack_energia)
-        option_en(seccion_rack_energia, "¿Se requiere UPS?", var_ups_requerida, ["Sí", "No"], 0, 2, command=actualizar_detalle_rack_energia)
-        option_en(seccion_rack_energia, "¿Se requiere contacto regulado?", var_contacto_regulado, ["Sí", "No"], 0, 3, command=actualizar_detalle_rack_energia)
-        option_en(seccion_rack_energia, "¿Se requiere tierra física?", var_tierra_fisica, ["Sí", "No"], 0, 4, command=actualizar_detalle_rack_energia)
-        widget_tipo_rack = entry_en(seccion_rack_energia, "Tipo de rack", var_tipo_rack, "Ej. 12U", 1, 0)
-        widget_tipo_gabinete = entry_en(seccion_rack_energia, "Tipo de gabinete", var_tipo_gabinete, "Ej. mural", 1, 1)
-        widget_tipo_ups = entry_en(seccion_rack_energia, "Tipo/capacidad UPS", var_tipo_ups, "Ej. 1 kVA", 1, 2)
-        widget_tipo_contacto_regulado = entry_en(seccion_rack_energia, "Detalle contacto regulado", var_tipo_contacto_regulado, "Ej. 2 contactos", 1, 3)
-        widget_tipo_tierra_fisica = entry_en(seccion_rack_energia, "Detalle tierra física", var_tipo_tierra_fisica, "Ej. barra/cable", 1, 4)
+        widget_cctv_requiere_rack = option_en(seccion_rack_energia, "¿Se requiere Rack?", var_rack_requerido, ["Sí", "No"], 0, 0, command=actualizar_detalle_rack_energia)
+        widget_tipo_rack = entry_en(seccion_rack_energia, "Medida de Rack", var_tipo_rack, "Ej. 24U / 42U", 0, 1)
+        widget_cctv_org_v = entry_en(seccion_rack_energia, "Organizadores Verticales (cantidad)", var_cctv_rack_organizadores_verticales, "Ej. 2", 0, 2)
+        widget_cctv_org_h = entry_en(seccion_rack_energia, "Organizadores Horizontales (cantidad)", var_cctv_rack_organizadores_horizontales, "Ej. 2", 0, 3)
+        widget_cctv_charolas = entry_en(seccion_rack_energia, "Charolas (cantidad)", var_cctv_rack_charolas, "Ej. 1", 0, 4)
+        widget_cctv_pdu = entry_en(seccion_rack_energia, "PDU (cantidad)", var_cctv_rack_pdu, "Ej. 1", 1, 0)
+
+        widget_cctv_gabinete = option_en(seccion_rack_energia, "¿Se requiere gabinete?", var_gabinete_requerido, ["Sí", "No"], 1, 1, command=actualizar_detalle_rack_energia)
+        widget_tipo_gabinete = entry_en(seccion_rack_energia, "Tipo de gabinete", var_tipo_gabinete, "Ej. gabinete pared 12U", 1, 2)
+        widget_cctv_ups = option_en(seccion_rack_energia, "¿Se requiere UPS?", var_ups_requerida, ["Sí", "No"], 1, 3, command=actualizar_detalle_rack_energia)
+        widget_tipo_ups = entry_en(seccion_rack_energia, "Tipo/Capacidad de UPS", var_tipo_ups, "Ej. 1500 VA", 1, 4)
+
+        widget_cctv_contacto = option_en(seccion_rack_energia, "¿Se requiere contacto regulado?", var_contacto_regulado, ["Sí", "No"], 2, 0, command=actualizar_detalle_rack_energia)
+        widget_tipo_contacto_regulado = entry_en(seccion_rack_energia, "Detalle contacto Regulado", var_tipo_contacto_regulado, "Ej. 2 contactos en SITE", 2, 1)
+        widget_cctv_tierra = option_en(seccion_rack_energia, "¿Se requiere tierra física?", var_tierra_fisica, ["Sí", "No"], 2, 2, command=actualizar_detalle_rack_energia)
+        widget_tipo_tierra_fisica = entry_en(seccion_rack_energia, "Detalle/Ubicación de tierra física", var_tipo_tierra_fisica, "Ej. SITE / recorrido", 2, 3)
+
+        widget_cctv_t_barra = entry_en(seccion_rack_energia, "Barra de cobre (piezas/medida)", var_cctv_tierra_barra_cobre, "Ej. 1 / 30 cm", 3, 0)
+        widget_cctv_t_aisl = entry_en(seccion_rack_energia, "Aisladores de cobre (piezas/medida)", var_cctv_tierra_aisladores, "Ej. 2 / 1 in", 3, 1)
+        widget_cctv_t_omega = entry_en(seccion_rack_energia, "Abrazadera/Omega (piezas/medida)", var_cctv_tierra_abrazadera_omega, "Ej. 4 / 1/2 in", 3, 2)
+        widget_cctv_t_varilla = entry_en(seccion_rack_energia, "Varilla de cobre (piezas/medida)", var_cctv_tierra_varilla_cobre, "Ej. 1 / 3 m", 3, 3)
+        widget_cctv_t_abraz = entry_en(seccion_rack_energia, "Abrazaderas de cobre (piezas/medida)", var_cctv_tierra_abrazaderas, "Ej. 2 / 5/8 in", 3, 4)
+        widget_cctv_t_cable = entry_en(seccion_rack_energia, "Cable de cobre (tipo/metros)", var_cctv_tierra_cable_cobre, "Ej. desnudo #4 / 15 m", 4, 0)
+        widget_cctv_t_tornillos = entry_en(seccion_rack_energia, "Tornillos de cobre (piezas/medida)", var_cctv_tierra_tornillos_cobre, "Ej. 4 / 1/4 in", 4, 1)
+        widget_cctv_t_quim = entry_en(seccion_rack_energia, "Químico (botes/juegos)", var_cctv_tierra_quimico, "Ej. 1", 4, 2)
+        widget_cctv_t_tubo = entry_en(seccion_rack_energia, "Tubería (metros)", var_cctv_tierra_tuberia, "Ej. 10", 4, 3)
+        widget_cctv_t_bote = entry_en(seccion_rack_energia, "Bote/Registro (piezas/medida)", var_cctv_tierra_bote, "Ej. 1 / 30x30", 4, 4)
+
+        cctv_accesorios_rack_widgets = (widget_cctv_org_v, widget_cctv_org_h, widget_cctv_charolas, widget_cctv_pdu)
+        cctv_tierra_widgets = (widget_tipo_tierra_fisica, widget_cctv_t_barra, widget_cctv_t_aisl, widget_cctv_t_omega, widget_cctv_t_varilla, widget_cctv_t_abraz, widget_cctv_t_cable, widget_cctv_t_tornillos, widget_cctv_t_quim, widget_cctv_t_tubo, widget_cctv_t_bote)
         actualizar_detalle_rack_energia()
 
-        # Seguridad / acceso para instalación
+        # Seguridad / acceso para instalación y mantenimiento.
         seccion_seguridad = crear_seccion("🪜 Acceso, alturas y riesgos", fila_textos + 5)
         registrar_seccion("seguridad", seccion_seguridad)
         def actualizar_acceso_altura(_valor=None):
-            requiere_acceso = var_escalera_requerida.get() == "Sí"
-            estado = "normal" if requiere_acceso else "disabled"
-            if not requiere_acceso:
+            trabaja_alturas = var_escalera_requerida.get() == "Sí"
+            estado = "normal" if trabaja_alturas else "disabled"
+            if not trabaja_alturas:
+                var_sistema_acceso_temporal.set("Escalera")
                 var_altura_trabajo.set("")
                 var_riesgo_instalacion.set("Bajo")
-            try:
-                widget_altura_trabajo.configure(state=estado)
-                widget_riesgo_instalacion.configure(state=estado)
-            except Exception:
-                logger.debug("Excepción recuperable controlada.", exc_info=True)
+            for widget in (widget_sistema_acceso_temporal, widget_altura_trabajo, widget_riesgo_instalacion):
+                try:
+                    widget.configure(state=("readonly" if widget is widget_sistema_acceso_temporal and trabaja_alturas else estado))
+                except Exception:
+                    logger.debug("Excepción recuperable controlada.", exc_info=True)
             try:
                 actualizar_estado_preview()
             except Exception:
                 logger.debug("Excepción recuperable controlada.", exc_info=True)
 
-        option_en(seccion_seguridad, "¿Se requiere de escalera/andamio?", var_escalera_requerida, ["Sí", "No"], 0, 0, command=actualizar_acceso_altura)
-        widget_altura_trabajo = entry_en(seccion_seguridad, "Altura", var_altura_trabajo, "Ej. 4 metros", 0, 1)
-        widget_riesgo_instalacion = option_en(seccion_seguridad, "Riesgo", var_riesgo_instalacion, ["Bajo", "Medio", "Alto", "Crítico"], 0, 2)
+        option_en(seccion_seguridad, "¿Se trabajará en Alturas?", var_escalera_requerida, ["Sí", "No"], 0, 0, command=actualizar_acceso_altura)
+        widget_sistema_acceso_temporal = option_en(seccion_seguridad, "Tipo de Sistema de Acceso Temporal", var_sistema_acceso_temporal, ["Escalera", "Andamio", "Plataforma"], 0, 1)
+        widget_altura_trabajo = entry_en(seccion_seguridad, "Altura", var_altura_trabajo, "Ej. 4 metros", 0, 2)
+        widget_riesgo_instalacion = option_en(seccion_seguridad, "Riesgo", var_riesgo_instalacion, ["Bajo", "Medio", "Alto", "Crítico"], 0, 3)
         actualizar_acceso_altura()
 
         # Datos técnicos Seguridad y Monitoreo compactados dentro de una sola sección.
@@ -1887,7 +2002,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
             ctk.CTkLabel(
                 frame,
-                text=titulo,
+                text=_titulo_sin_numeracion(titulo),
                 font=FORM_SECTION_FONT,
                 text_color=TEXT_PRIMARY
             ).grid(row=0, column=0, columnspan=5, sticky="w", padx=7, pady=(5, 3))
@@ -2017,7 +2132,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
             ctk.CTkLabel(
                 frame,
-                text=titulo,
+                text=_titulo_sin_numeracion(titulo),
                 font=FORM_SECTION_FONT,
                 text_color=TEXT_PRIMARY
             ).grid(row=0, column=0, columnspan=5, sticky="w", padx=7, pady=(5, 3))
@@ -2126,59 +2241,85 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         actualizar_patch_panel_rvd()
         seccion_rvd_materiales.grid_remove()  # Sustituida por captura dinámica común.
 
-        seccion_rvd_rack = crear_seccion_rvd("🗄️ 4. Rack, gabinete, equipo activo y energía", fila_textos + 3)
-        widget_rvd_requiere_rack = option_rvd(seccion_rvd_rack, "¿Se requiere rack?", var_rvd_requiere_rack, ["Sí", "No"], 0, 0)
-        widget_rvd_tipo_rack = entry_rvd(seccion_rvd_rack, "Tipo/capacidad de rack", var_rvd_tipo_rack, "Ej. rack abierto 24U", 0, 1)
-        widget_rvd_requiere_gabinete = option_rvd(seccion_rvd_rack, "¿Se requiere gabinete?", var_rvd_requiere_gabinete, ["Sí", "No"], 0, 2)
-        widget_rvd_tipo_gabinete = entry_rvd(seccion_rvd_rack, "Tipo/capacidad de gabinete", var_rvd_tipo_gabinete, "Ej. gabinete pared 12U", 0, 3)
-        widget_rvd_ubicacion_rack = entry_rvd(seccion_rvd_rack, "Ubicación de rack/gabinete", var_rvd_ubicacion_rack, "Ej. SITE / cuarto TI", 0, 4)
+        seccion_rvd_rack = crear_seccion_rvd("🗄️ 4. Rack, gabinete y energía", fila_textos + 3)
+        widget_rvd_requiere_rack = option_rvd(seccion_rvd_rack, "¿Se requiere Rack?", var_rvd_requiere_rack, ["Sí", "No"], 0, 0)
+        widget_rvd_tipo_rack = entry_rvd(seccion_rvd_rack, "Medida de Rack", var_rvd_tipo_rack, "Ej. 24U / 42U", 0, 1)
+        widget_rvd_org_v = entry_rvd(seccion_rvd_rack, "Organizadores Verticales (cantidad)", var_rvd_rack_organizadores_verticales, "Ej. 2", 0, 2, ancho_corto=True)
+        widget_rvd_org_h = entry_rvd(seccion_rvd_rack, "Organizadores Horizontales (cantidad)", var_rvd_rack_organizadores_horizontales, "Ej. 2", 0, 3, ancho_corto=True)
+        widget_rvd_charolas = entry_rvd(seccion_rvd_rack, "Charolas (cantidad)", var_rvd_rack_charolas, "Ej. 1", 0, 4, ancho_corto=True)
+        widget_rvd_pdu = entry_rvd(seccion_rvd_rack, "PDU (cantidad)", var_rvd_rack_pdu, "Ej. 1", 1, 0, ancho_corto=True)
 
-        widget_rvd_requiere_switch = option_rvd(seccion_rvd_rack, "¿Se requiere switch?", var_rvd_requiere_switch, ["Sí", "No"], 1, 0)
-        widget_rvd_tipo_switch = entry_rvd(seccion_rvd_rack, "Tipo/modelo o características del switch", var_rvd_tipo_switch, "Ej. administrable Gigabit", 1, 1)
-        widget_rvd_puertos_switch = entry_rvd(seccion_rvd_rack, "Puertos requeridos del switch", var_rvd_puertos_switch, "Ej. 24", 1, 2, ancho_corto=True)
-        widget_rvd_switch_poe = option_rvd(seccion_rvd_rack, "¿Switch con PoE?", var_rvd_switch_poe, ["Sí", "No", "Por validar"], 1, 3)
+        widget_rvd_requiere_gabinete = option_rvd(seccion_rvd_rack, "¿Se requiere gabinete?", var_rvd_requiere_gabinete, ["Sí", "No"], 1, 1)
+        widget_rvd_tipo_gabinete = entry_rvd(seccion_rvd_rack, "Tipo de gabinete", var_rvd_tipo_gabinete, "Ej. gabinete pared 12U", 1, 2)
+        widget_rvd_ups = option_rvd(seccion_rvd_rack, "¿Se requiere UPS?", var_rvd_ups, ["Sí", "No"], 1, 3)
+        widget_rvd_detalle_ups = entry_rvd(seccion_rvd_rack, "Tipo/Capacidad de UPS", var_rvd_detalle_ups, "Ej. 1500 VA", 1, 4)
 
-        widget_rvd_ups = option_rvd(seccion_rvd_rack, "¿Se requiere UPS?", var_rvd_ups, ["Sí", "No"], 2, 0)
-        widget_rvd_detalle_ups = entry_rvd(seccion_rvd_rack, "Capacidad/detalle de UPS", var_rvd_detalle_ups, "Ej. 1500 VA", 2, 1)
-        widget_rvd_contacto = option_rvd(seccion_rvd_rack, "¿Se requiere contacto regulado?", var_rvd_contacto_regulado, ["Sí", "No"], 2, 2)
-        widget_rvd_detalle_contacto = entry_rvd(seccion_rvd_rack, "Cantidad/ubicación de contactos", var_rvd_detalle_contacto, "Ej. 2 en SITE", 2, 3)
-        widget_rvd_tierra = option_rvd(seccion_rvd_rack, "¿Tierra física disponible?", var_rvd_tierra_fisica, ["Sí", "No"], 3, 0)
-        widget_rvd_detalle_tierra = entry_rvd(seccion_rvd_rack, "Detalle o ubicación de tierra física", var_rvd_detalle_tierra, "Ej. barra de tierra en SITE", 3, 1)
+        widget_rvd_contacto = option_rvd(seccion_rvd_rack, "¿Se requiere contacto regulado?", var_rvd_contacto_regulado, ["Sí", "No"], 2, 0)
+        widget_rvd_detalle_contacto = entry_rvd(seccion_rvd_rack, "Detalle contacto Regulado", var_rvd_detalle_contacto, "Ej. 2 contactos en SITE", 2, 1)
+        widget_rvd_tierra = option_rvd(seccion_rvd_rack, "¿Se requiere tierra física?", var_rvd_tierra_fisica, ["Sí", "No"], 2, 2)
+        widget_rvd_detalle_tierra = entry_rvd(seccion_rvd_rack, "Detalle/Ubicación de tierra física", var_rvd_detalle_tierra, "Ej. SITE / recorrido", 2, 3)
+
+        widget_t_barra = entry_rvd(seccion_rvd_rack, "Barra de cobre (piezas/medida)", var_rvd_tierra_barra_cobre, "Ej. 1 / 30 cm", 3, 0)
+        widget_t_aisl = entry_rvd(seccion_rvd_rack, "Aisladores de cobre (piezas/medida)", var_rvd_tierra_aisladores, "Ej. 2 / 1 in", 3, 1)
+        widget_t_omega = entry_rvd(seccion_rvd_rack, "Abrazadera/Omega (piezas/medida)", var_rvd_tierra_abrazadera_omega, "Ej. 4 / 1/2 in", 3, 2)
+        widget_t_varilla = entry_rvd(seccion_rvd_rack, "Varilla de cobre (piezas/medida)", var_rvd_tierra_varilla_cobre, "Ej. 1 / 3 m", 3, 3)
+        widget_t_abraz = entry_rvd(seccion_rvd_rack, "Abrazaderas de cobre (piezas/medida)", var_rvd_tierra_abrazaderas, "Ej. 2 / 5/8 in", 3, 4)
+        widget_t_cable = entry_rvd(seccion_rvd_rack, "Cable de cobre (tipo/metros)", var_rvd_tierra_cable_cobre, "Ej. desnudo #4 / 15 m", 4, 0)
+        widget_t_tornillos = entry_rvd(seccion_rvd_rack, "Tornillos de cobre (piezas/medida)", var_rvd_tierra_tornillos_cobre, "Ej. 4 / 1/4 in", 4, 1)
+        widget_t_quim = entry_rvd(seccion_rvd_rack, "Químico (botes/juegos)", var_rvd_tierra_quimico, "Ej. 1", 4, 2)
+        widget_t_tubo = entry_rvd(seccion_rvd_rack, "Tubería (metros)", var_rvd_tierra_tuberia, "Ej. 10", 4, 3)
+        widget_t_bote = entry_rvd(seccion_rvd_rack, "Bote/Registro (piezas/medida)", var_rvd_tierra_bote, "Ej. 1 / 30x30", 4, 4)
+
+        accesorios_rack_widgets = (widget_rvd_org_v, widget_rvd_org_h, widget_rvd_charolas, widget_rvd_pdu)
+        accesorios_rack_vars = (var_rvd_rack_organizadores_verticales, var_rvd_rack_organizadores_horizontales, var_rvd_rack_charolas, var_rvd_rack_pdu)
+        tierra_widgets = (widget_rvd_detalle_tierra, widget_t_barra, widget_t_aisl, widget_t_omega, widget_t_varilla, widget_t_abraz, widget_t_cable, widget_t_tornillos, widget_t_quim, widget_t_tubo, widget_t_bote)
+        tierra_vars_materiales = (var_rvd_tierra_barra_cobre, var_rvd_tierra_aisladores, var_rvd_tierra_abrazadera_omega, var_rvd_tierra_varilla_cobre, var_rvd_tierra_abrazaderas, var_rvd_tierra_cable_cobre, var_rvd_tierra_tornillos_cobre, var_rvd_tierra_quimico, var_rvd_tierra_tuberia, var_rvd_tierra_bote)
 
         def actualizar_detalles_rack_rvd(*_args):
             requiere_rack = var_rvd_requiere_rack.get() == "Sí"
             requiere_gabinete = var_rvd_requiere_gabinete.get() == "Sí"
-            requiere_switch = var_rvd_requiere_switch.get() == "Sí"
             requiere_ups = var_rvd_ups.get() == "Sí"
             requiere_contacto = var_rvd_contacto_regulado.get() == "Sí"
-            tierra_disponible = var_rvd_tierra_fisica.get() == "Sí"
-            if not requiere_rack: var_rvd_tipo_rack.set("")
+            requiere_tierra = var_rvd_tierra_fisica.get() == "Sí"
+            if not requiere_rack:
+                var_rvd_tipo_rack.set("")
+                for v in accesorios_rack_vars: v.set("")
             if not requiere_gabinete: var_rvd_tipo_gabinete.set("")
-            if not (requiere_rack or requiere_gabinete): var_rvd_ubicacion_rack.set("")
-            if not requiere_switch:
-                var_rvd_tipo_switch.set("")
-                var_rvd_puertos_switch.set("")
-                var_rvd_switch_poe.set("Sí")
             if not requiere_ups: var_rvd_detalle_ups.set("")
             if not requiere_contacto: var_rvd_detalle_contacto.set("")
-            if not tierra_disponible: var_rvd_detalle_tierra.set("")
+            if not requiere_tierra:
+                var_rvd_detalle_tierra.set("")
+                for v in tierra_vars_materiales: v.set("")
             widget_rvd_tipo_rack.configure(state="normal" if requiere_rack else "disabled")
+            for w in accesorios_rack_widgets: w.configure(state="normal" if requiere_rack else "disabled")
             widget_rvd_tipo_gabinete.configure(state="normal" if requiere_gabinete else "disabled")
-            widget_rvd_ubicacion_rack.configure(state="normal" if (requiere_rack or requiere_gabinete) else "disabled")
-            widget_rvd_tipo_switch.configure(state="normal" if requiere_switch else "disabled")
-            widget_rvd_puertos_switch.configure(state="normal" if requiere_switch else "disabled")
-            widget_rvd_switch_poe.configure(state="readonly" if requiere_switch else "disabled")
             widget_rvd_detalle_ups.configure(state="normal" if requiere_ups else "disabled")
             widget_rvd_detalle_contacto.configure(state="normal" if requiere_contacto else "disabled")
-            widget_rvd_detalle_tierra.configure(state="normal" if tierra_disponible else "disabled")
+            for w in tierra_widgets: w.configure(state="normal" if requiere_tierra else "disabled")
 
-        for widget in (widget_rvd_requiere_rack, widget_rvd_requiere_gabinete, widget_rvd_requiere_switch, widget_rvd_ups, widget_rvd_contacto, widget_rvd_tierra):
+        for widget in (widget_rvd_requiere_rack, widget_rvd_requiere_gabinete, widget_rvd_ups, widget_rvd_contacto, widget_rvd_tierra):
             widget.configure(command=lambda _valor: actualizar_detalles_rack_rvd())
         actualizar_detalles_rack_rvd()
 
-        seccion_rvd_pruebas = crear_seccion_rvd("📋 5. Estimación de recursos para la instalación", fila_textos + 4)
+        # Equipo activo se conserva como sección independiente para no perder el flujo actual de Redes.
+        seccion_rvd_switch = crear_seccion_rvd("🔀 Equipo activo", fila_textos + 4)
+        widget_rvd_requiere_switch = option_rvd(seccion_rvd_switch, "¿Se requiere switch?", var_rvd_requiere_switch, ["Sí", "No"], 0, 0)
+        widget_rvd_tipo_switch = entry_rvd(seccion_rvd_switch, "Tipo/modelo o características del switch", var_rvd_tipo_switch, "Ej. administrable Gigabit", 0, 1)
+        widget_rvd_puertos_switch = entry_rvd(seccion_rvd_switch, "Puertos requeridos del switch", var_rvd_puertos_switch, "Ej. 24", 0, 2, ancho_corto=True)
+        widget_rvd_switch_poe = option_rvd(seccion_rvd_switch, "¿Switch con PoE?", var_rvd_switch_poe, ["Sí", "No", "Por validar"], 0, 3)
+        def actualizar_switch_rvd(*_args):
+            requiere_switch = var_rvd_requiere_switch.get() == "Sí"
+            if not requiere_switch:
+                var_rvd_tipo_switch.set(""); var_rvd_puertos_switch.set(""); var_rvd_switch_poe.set("Sí")
+            widget_rvd_tipo_switch.configure(state="normal" if requiere_switch else "disabled")
+            widget_rvd_puertos_switch.configure(state="normal" if requiere_switch else "disabled")
+            widget_rvd_switch_poe.configure(state="readonly" if requiere_switch else "disabled")
+        widget_rvd_requiere_switch.configure(command=lambda _valor: actualizar_switch_rvd())
+        actualizar_switch_rvd()
 
-        fila_textos = fila_textos + 5
+        seccion_rvd_pruebas = crear_seccion_rvd("📋 5. Estimación de recursos para la instalación", fila_textos + 5)
+
+        fila_textos = fila_textos + 6
 
     if tipo_levantamiento == "Plantas de Energía":
         # =============================================================
@@ -2192,7 +2333,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             frame.grid(row=fila, column=0, columnspan=5, sticky="ew", pady=(2, 5))
             for col in range(5):
                 frame.grid_columnconfigure(col, weight=1, uniform="pe_cols")
-            ctk.CTkLabel(frame, text=titulo, font=FORM_SECTION_FONT, text_color=TEXT_PRIMARY).grid(row=0, column=0, columnspan=5, sticky="w", padx=7, pady=(5, 3))
+            ctk.CTkLabel(frame, text=_titulo_sin_numeracion(titulo), font=FORM_SECTION_FONT, text_color=TEXT_PRIMARY).grid(row=0, column=0, columnspan=5, sticky="w", padx=7, pady=(5, 3))
             return frame
 
         def label_pe(parent_frame, texto, fila, columna):
@@ -2265,7 +2406,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             frame.grid(row=fila, column=0, columnspan=5, sticky="ew", pady=(2, 5))
             for col in range(5):
                 frame.grid_columnconfigure(col, weight=1, uniform="ele_cols")
-            ctk.CTkLabel(frame, text=titulo, font=FORM_SECTION_FONT, text_color=TEXT_PRIMARY).grid(row=0, column=0, columnspan=5, sticky="w", padx=7, pady=(5, 3))
+            ctk.CTkLabel(frame, text=_titulo_sin_numeracion(titulo), font=FORM_SECTION_FONT, text_color=TEXT_PRIMARY).grid(row=0, column=0, columnspan=5, sticky="w", padx=7, pady=(5, 3))
             return frame
 
         def label_ele(parent_frame, texto, fila, columna):
@@ -2366,7 +2507,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 frame.grid_columnconfigure(col, weight=1, uniform="extra_cols")
             ctk.CTkLabel(
                 frame,
-                text=titulo,
+                text=_titulo_sin_numeracion(titulo),
                 font=FORM_SECTION_FONT,
                 text_color=TEXT_PRIMARY
             ).grid(row=0, column=0, columnspan=5, sticky="w", padx=7, pady=(5, 3))
@@ -2449,7 +2590,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         if categoria == "Registro": return list(TIPOS_REGISTROS)
         if categoria == "Conector": return list(TIPOS_CONECTORES)
         if categoria == "Abrazadera": return list(TIPOS_ABRAZADERAS)
-        if categoria == "Canalización": return list(TIPOS_CANALIZACION)
+        if categoria in ("Conector", "Conectores"): return list(TIPOS_CONECTORES)
+        if categoria == "Codos": return ["45°", "90°", "Interior", "Exterior", "Plano"]
+        if categoria == "Tapas": return ["Ciega", "Final", "Unión", "Para contacto", "Para datos"]
+        if categoria in ("Canalización", "Canaleta"): return list(TIPOS_CANALIZACION)
         if categoria == "Cable":
             if tipo_levantamiento == "Electricidad": return list(TIPOS_CABLE_ELECTRICO)
             if tipo_levantamiento == "Enlaces Inalámbricos": return list(dict.fromkeys(TIPOS_CABLE_EXTERIOR + TIPOS_CABLE_ELECTRICO))
@@ -2552,7 +2696,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         for col, encabezado in enumerate(("Categoría", "Tipo", "Tamaño / calibre / especificación", "Cantidad", "Unidad", "Acción")):
             ctk.CTkLabel(seccion_canalizacion_dinamica, text=encabezado, font=FORM_TABLE_HEADER_FONT, text_color=TEXT_PRIMARY).grid(row=4, column=col, sticky="w", padx=5, pady=(0,2))
 
-        categorias = ["Tubo", "Cople", "Registro", "Conector", "Abrazadera", "Canalización", "Cable"]
+        categorias = ["Tubo", "Cople", "Registro", "Conectores", "Abrazadera", "Tapas", "Codos", "Canaleta", "Cable"]
         if tipo_levantamiento == "Redes Voz y Datos":
             categorias += ["Jack RJ45", "Plug RJ45", "Faceplate", "Patch cord", "Patch panel"]
 
@@ -2562,7 +2706,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             var_tipo_item = ctk.StringVar()
             var_especificacion = ctk.StringVar()
             var_cantidad_item = ctk.StringVar()
-            var_unidad_item = ctk.StringVar(value="Metro(s)" if categoria_inicial in ("Tubo", "Canalización", "Cable") else "Pieza(s)")
+            var_unidad_item = ctk.StringVar(value="Metro(s)" if categoria_inicial in ("Tubo", "Canalización", "Canaleta", "Cable") else "Pieza(s)")
             combo_categoria = NativeComboBox(seccion_canalizacion_dinamica, variable=var_categoria, values=categorias, width=155, height=31)
             combo_tipo = NativeComboBox(seccion_canalizacion_dinamica, variable=var_tipo_item, values=[], width=300, height=31)
             combo_especificacion = NativeComboBox(seccion_canalizacion_dinamica, variable=var_especificacion, values=[], width=225, height=31)
@@ -2583,8 +2727,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 combo_especificacion.configure(values=especificaciones)
                 if var_tipo_item.get() not in tipos: var_tipo_item.set(tipos[0] if tipos else "")
                 if var_especificacion.get() not in especificaciones: var_especificacion.set(especificaciones[0] if especificaciones else "")
-                if categoria in ("Tubo", "Canalización", "Cable") and not var_unidad_item.get(): var_unidad_item.set("Metro(s)")
-                elif categoria not in ("Tubo", "Canalización", "Cable") and var_unidad_item.get() == "Metro(s)": var_unidad_item.set("Pieza(s)")
+                if categoria in ("Tubo", "Canalización", "Canaleta", "Cable") and not var_unidad_item.get(): var_unidad_item.set("Metro(s)")
+                elif categoria not in ("Tubo", "Canalización", "Canaleta", "Cable") and var_unidad_item.get() == "Metro(s)": var_unidad_item.set("Pieza(s)")
             var_categoria.trace_add("write", actualizar_catalogos)
             var_tipo_item.trace_add("write", actualizar_catalogos)
             actualizar_catalogos()
@@ -2612,6 +2756,51 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         ctk.CTkButton(seccion_canalizacion_dinamica, text="➕ Agregar partida", height=32, fg_color=PRIMARY,
                       command=agregar_partida_canalizacion).grid(row=1000, column=0, columnspan=2, sticky="w", padx=5, pady=(4,5))
         agregar_partida_canalizacion("Tubo")
+        fila_textos += 1
+
+    # =============================================================
+    # ACCESO, ALTURAS Y RIESGOS - COMÚN A ESPECIALIDADES FALTANTES
+    # =============================================================
+    TIPOS_CON_ACCESO_COMUN = {
+        "Redes Voz y Datos", "Control de Accesos", "Enlaces Inalámbricos",
+        "Electricidad", "Paneles Solares", "Plantas de Energía",
+        "Aires Acondicionados",
+    }
+    if tipo_levantamiento in TIPOS_CON_ACCESO_COMUN:
+        seccion_alturas_comun = ctk.CTkFrame(form_body, fg_color="#F7F9FC", corner_radius=14, border_width=1, border_color="#DCE5EF")
+        _fondo_seccion(seccion_alturas_comun)
+        seccion_alturas_comun.grid(row=fila_textos, column=0, columnspan=5, sticky="ew", pady=(2, 5))
+        for _c in range(4):
+            seccion_alturas_comun.grid_columnconfigure(_c, weight=1, uniform="altura_cols")
+        ctk.CTkLabel(seccion_alturas_comun, text="🪜 Acceso, alturas y riesgos", font=FORM_SECTION_FONT, text_color=TEXT_PRIMARY).grid(row=0, column=0, columnspan=4, sticky="w", padx=7, pady=(5, 3))
+
+        def _campo_alturas(parent_frame, texto, variable, opciones=None, col=0):
+            ctk.CTkLabel(parent_frame, text=texto, font=FORM_FIELD_FONT, text_color=TEXT_PRIMARY, anchor="w").grid(row=1, column=col, sticky="w", padx=6, pady=(2, 1))
+            if opciones is None:
+                widget = ctk.CTkEntry(parent_frame, textvariable=variable, height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Ej. 4 metros")
+            else:
+                widget = NativeComboBox(parent_frame, variable=variable, values=opciones, height=FORM_CONTROL_HEIGHT, font=FORM_FIELD_FONT)
+            widget.grid(row=2, column=col, sticky="ew", padx=6, pady=(0, 4))
+            return widget
+
+        _campo_alturas(seccion_alturas_comun, "¿Se trabajará en Alturas?", var_trabajo_alturas_comun, ["Sí", "No"], 0)
+        w_sistema_alturas = _campo_alturas(seccion_alturas_comun, "Tipo de Sistema de Acceso Temporal", var_sistema_acceso_comun, ["Escalera", "Andamio", "Plataforma"], 1)
+        w_altura_comun = _campo_alturas(seccion_alturas_comun, "Altura", var_altura_comun, None, 2)
+        w_riesgo_comun = _campo_alturas(seccion_alturas_comun, "Riesgo", var_riesgo_comun, ["Bajo", "Medio", "Alto", "Crítico"], 3)
+
+        def _actualizar_alturas_comun(*_):
+            habilitar = var_trabajo_alturas_comun.get() == "Sí"
+            for _w in (w_sistema_alturas, w_altura_comun, w_riesgo_comun):
+                try: _w.configure(state="normal" if habilitar else "disabled")
+                except Exception: pass
+            if not habilitar:
+                var_sistema_acceso_comun.set("Escalera")
+                var_altura_comun.set("")
+                var_riesgo_comun.set("Bajo")
+            try: validar_preview()
+            except Exception: pass
+        var_trabajo_alturas_comun.trace_add("write", _actualizar_alturas_comun)
+        _actualizar_alturas_comun()
         fila_textos += 1
 
     # =============================================================
@@ -2875,6 +3064,171 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     fila_textos += 1
 
     # =============================================================
+    # EQUIPO DE PROTECCIÓN PERSONAL (EPP) - COMÚN A TODOS
+    # =============================================================
+    CATALOGO_EPP = [
+        "Casco de seguridad",
+        "Casco dieléctrico",
+        "Lentes de seguridad",
+        "Careta facial",
+        "Guantes de protección mecánica",
+        "Guantes de carnaza",
+        "Guantes dieléctricos",
+        "Guantes de polietileno",
+        "Calzado de seguridad con casquillo",
+        "Calzado dieléctrico",
+        "Chaleco reflejante / alta visibilidad",
+        "Arnés de cuerpo completo",
+        "Línea de vida",
+        "Eslinga con absorbedor de impacto",
+        "Botas de seguridad",
+        "Eslinga de posicionamiento",
+        "Barbiquejo",
+        "Protección auditiva",
+        "Respirador / mascarilla",
+        "Ropa de protección contra arco eléctrico",
+        "Rodilleras",
+        "Otro / especificar",
+    ]
+
+    seccion_epp = ctk.CTkFrame(
+        form_body, fg_color="#F7F9FC", corner_radius=14,
+        border_width=1, border_color="#DCE5EF"
+    )
+    _fondo_seccion(seccion_epp)
+    seccion_epp.grid(row=fila_textos, column=0, columnspan=5, sticky="ew", pady=(2, 5))
+    for _col, _weight in enumerate((2, 0, 3, 0)):
+        seccion_epp.grid_columnconfigure(_col, weight=_weight)
+
+    ctk.CTkLabel(
+        seccion_epp, text="🦺 Equipo de Protección Personal (EPP)",
+        font=FORM_SECTION_FONT, text_color=TEXT_PRIMARY
+    ).grid(row=0, column=0, columnspan=4, sticky="w", padx=7, pady=(5, 1))
+
+    epp_selector_box = ctk.CTkFrame(seccion_epp, fg_color="transparent")
+    epp_selector_box.grid(row=1, column=0, columnspan=4, sticky="w", padx=7, pady=(0, 4))
+    ctk.CTkLabel(
+        epp_selector_box, text="¿Se requiere Equipo de Protección Personal?",
+        font=FORM_FIELD_FONT, text_color=TEXT_PRIMARY
+    ).pack(side="left", padx=(0, 8))
+    NativeComboBox(
+        epp_selector_box, variable=var_requiere_epp, values=["No", "Sí"],
+        width=100, height=FORM_CONTROL_HEIGHT, font=FORM_FIELD_FONT
+    ).pack(side="left")
+
+    epp_detalle_frame = ctk.CTkFrame(seccion_epp, fg_color="transparent")
+    epp_detalle_frame.grid(row=2, column=0, columnspan=4, sticky="ew", padx=2, pady=(0, 3))
+    for _col, _weight in enumerate((2, 0, 3, 0)):
+        epp_detalle_frame.grid_columnconfigure(_col, weight=_weight)
+    for _col, _titulo in enumerate(("EPP requerido", "Cantidad", "Especificación / observaciones", "Acción")):
+        ctk.CTkLabel(
+            epp_detalle_frame, text=_titulo, font=FORM_TABLE_HEADER_FONT, text_color=TEXT_PRIMARY
+        ).grid(row=0, column=_col, sticky="w", padx=5, pady=(0, 2))
+
+    def agregar_epp(datos=None):
+        datos = dict(datos or {})
+        fila_epp = 1 + len(epp_items)
+        valor_epp = str(datos.get("epp") or datos.get("equipo") or "Casco de seguridad").strip()
+        opciones_epp = list(CATALOGO_EPP)
+        if valor_epp and valor_epp not in opciones_epp:
+            opciones_epp.append(valor_epp)
+        var_epp = ctk.StringVar(value=valor_epp or opciones_epp[0])
+        var_cantidad_epp = ctk.StringVar(value=str(datos.get("cantidad") or "1"))
+        var_obs_epp = ctk.StringVar(value=str(datos.get("observaciones") or datos.get("especificacion") or ""))
+
+        cmb_epp = NativeComboBox(
+            epp_detalle_frame, variable=var_epp, values=opciones_epp,
+            width=255, height=FORM_CONTROL_HEIGHT, font=FORM_FIELD_FONT
+        )
+        cmb_epp.grid(row=fila_epp, column=0, sticky="ew", padx=5, pady=2)
+        ent_cant_epp = ctk.CTkEntry(
+            epp_detalle_frame, textvariable=var_cantidad_epp, width=90,
+            height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Ej. 2"
+        )
+        ent_cant_epp.grid(row=fila_epp, column=1, sticky="w", padx=5, pady=2)
+        ent_obs_epp = ctk.CTkEntry(
+            epp_detalle_frame, textvariable=var_obs_epp,
+            height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT,
+            placeholder_text="Talla, clase, norma, capacidad o detalle especial"
+        )
+        ent_obs_epp.grid(row=fila_epp, column=2, sticky="ew", padx=5, pady=2)
+
+        item_epp = {
+            "epp": var_epp, "cantidad": var_cantidad_epp, "observaciones": var_obs_epp,
+            "widgets": [cmb_epp, ent_cant_epp, ent_obs_epp],
+        }
+
+        def eliminar_epp():
+            for widget in item_epp.get("widgets", []):
+                try:
+                    widget.destroy()
+                except Exception:
+                    logger.debug("No fue posible retirar un EPP.", exc_info=True)
+            epp_items[:] = [x for x in epp_items if x is not item_epp]
+            validar_preview()
+
+        btn_epp = ctk.CTkButton(
+            epp_detalle_frame, text="Eliminar", width=82, height=FORM_CONTROL_HEIGHT,
+            fg_color="#DC2626", hover_color="#B91C1C", command=eliminar_epp
+        )
+        btn_epp.grid(row=fila_epp, column=3, sticky="ew", padx=5, pady=2)
+        item_epp["widgets"].append(btn_epp)
+        epp_items.append(item_epp)
+
+    btn_agregar_epp = ctk.CTkButton(
+        epp_detalle_frame, text="➕ Agregar EPP", height=32, fg_color=PRIMARY,
+        command=lambda: agregar_epp(None)
+    )
+    btn_agregar_epp.grid(row=1000, column=0, columnspan=2, sticky="w", padx=5, pady=(4, 5))
+
+    def obtener_epp_json():
+        if var_requiere_epp.get() != "Sí":
+            return []
+        resultado = []
+        for item in epp_items:
+            equipo = item["epp"].get().strip()
+            cantidad = item["cantidad"].get().strip()
+            if not equipo:
+                continue
+            resultado.append({
+                "epp": equipo,
+                "cantidad": cantidad or "1",
+                "observaciones": item["observaciones"].get().strip(),
+            })
+        return resultado
+
+    def construir_resumen_epp():
+        if var_requiere_epp.get() != "Sí":
+            return "No requerido"
+        filas = obtener_epp_json()
+        if not filas:
+            return "Sí, pendiente de especificar"
+        lineas = []
+        for item in filas:
+            linea = f"{item['cantidad']} x {item['epp']}"
+            if item.get("observaciones"):
+                linea += f" ({item['observaciones']})"
+            lineas.append(linea)
+        return "; ".join(lineas)
+
+    def actualizar_visibilidad_epp(*_):
+        if var_requiere_epp.get() == "Sí":
+            epp_detalle_frame.grid()
+            if not epp_items:
+                agregar_epp(None)
+        else:
+            epp_detalle_frame.grid_remove()
+        try:
+            validar_preview()
+        except Exception:
+            pass
+
+    var_requiere_epp.trace_add("write", actualizar_visibilidad_epp)
+    actualizar_visibilidad_epp()
+
+    fila_textos += 1
+
+    # =============================================================
     # HERRAMIENTAS (COMÚN A TODOS LOS LEVANTAMIENTOS)
     # =============================================================
     seccion_herramientas = ctk.CTkFrame(
@@ -3054,9 +3408,65 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     var_desea_anotacion_plano.trace_add("write", actualizar_estado_anotacion_plano)
 
     # =================================================
+    # ARCHIVOS PDF / PLANOS - SECCIÓN COMÚN
+    # =================================================
+    fila_archivos_adjuntos = fila_anotacion_plano + 1
+    frame_archivos_adjuntos = ctk.CTkFrame(form_body, fg_color="#F7F9FC", corner_radius=12, border_width=1, border_color="#DCE5EF")
+    _fondo_seccion(frame_archivos_adjuntos)
+    frame_archivos_adjuntos.grid(row=fila_archivos_adjuntos, column=0, columnspan=5, sticky="ew", pady=(6, 6))
+    frame_archivos_adjuntos.grid_columnconfigure(3, weight=1)
+    ctk.CTkLabel(frame_archivos_adjuntos, text="📎 ¿Deseas agregar archivos PDF o planos?", font=FORM_SECTION_FONT, text_color=TEXT_PRIMARY).grid(row=0, column=0, columnspan=4, sticky="w", padx=8, pady=(6, 3))
+    cmb_archivos_adjuntos = NativeComboBox(frame_archivos_adjuntos, variable=var_desea_archivos_adjuntos, values=["No", "Sí"], width=120, height=31)
+    cmb_archivos_adjuntos.grid(row=1, column=0, sticky="w", padx=8, pady=(0, 7))
+    lbl_estado_archivos = ctk.CTkLabel(frame_archivos_adjuntos, text="No se requieren archivos", font=FORM_FIELD_FONT, text_color=TEXT_SECONDARY)
+    lbl_estado_archivos.grid(row=1, column=3, sticky="w", padx=8, pady=(0, 7))
+
+    def _total_archivos_adjuntos():
+        return len(archivos_adjuntos_existentes) + len(archivos_adjuntos_levantamiento)
+
+    def actualizar_estado_archivos_adjuntos(*_):
+        desea = var_desea_archivos_adjuntos.get() == "Sí"
+        btn_agregar_archivos.configure(state="normal" if desea else "disabled")
+        btn_eliminar_archivo.configure(state="normal" if desea and archivos_adjuntos_levantamiento else "disabled")
+        if not desea:
+            archivos_adjuntos_levantamiento.clear()
+            archivos_adjuntos_existentes.clear()
+            lbl_estado_archivos.configure(text="No se requieren archivos")
+        else:
+            total = _total_archivos_adjuntos()
+            lbl_estado_archivos.configure(text=f"{total} archivo(s) adjunto(s)" if total else "Pendiente de cargar PDF o planos")
+        try: actualizar_estado_preview()
+        except Exception: pass
+
+    def agregar_archivos_adjuntos():
+        rutas = filedialog.askopenfilenames(
+            title="Agregar PDF o planos",
+            filetypes=[
+                ("PDF y planos", "*.pdf *.dwg *.dxf *.png *.jpg *.jpeg *.webp"),
+                ("PDF", "*.pdf"), ("Planos CAD", "*.dwg *.dxf"),
+                ("Imágenes", "*.png *.jpg *.jpeg *.webp"), ("Todos", "*.*"),
+            ],
+        )
+        for ruta in rutas:
+            if ruta and ruta not in archivos_adjuntos_levantamiento:
+                archivos_adjuntos_levantamiento.append(ruta)
+        actualizar_estado_archivos_adjuntos()
+
+    def eliminar_ultimo_archivo_adjunto():
+        if archivos_adjuntos_levantamiento:
+            archivos_adjuntos_levantamiento.pop()
+        actualizar_estado_archivos_adjuntos()
+
+    btn_agregar_archivos = ctk.CTkButton(frame_archivos_adjuntos, text="+ Agregar archivos", width=155, height=31, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=agregar_archivos_adjuntos, state="disabled")
+    btn_agregar_archivos.grid(row=1, column=1, sticky="w", padx=5, pady=(0, 7))
+    btn_eliminar_archivo = ctk.CTkButton(frame_archivos_adjuntos, text="Eliminar último", width=135, height=31, fg_color="#DC2626", hover_color="#B91C1C", command=eliminar_ultimo_archivo_adjunto, state="disabled")
+    btn_eliminar_archivo.grid(row=1, column=2, sticky="w", padx=5, pady=(0, 7))
+    var_desea_archivos_adjuntos.trace_add("write", actualizar_estado_archivos_adjuntos)
+
+    # =================================================
     # EVIDENCIA FOTOGRÁFICA - SECCIÓN COMÚN
     # =================================================
-    fila_evidencias = fila_anotacion_plano + 1
+    fila_evidencias = fila_archivos_adjuntos + 1
     frame_evidencias = ctk.CTkFrame(form_body, fg_color="#F7F9FC", corner_radius=12, border_width=1, border_color="#DCE5EF")
     _fondo_seccion(frame_evidencias)
     frame_evidencias.grid(row=fila_evidencias, column=0, columnspan=5, sticky="ew", pady=(6, 6))
@@ -3179,6 +3589,63 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             logger.debug("Excepción recuperable controlada.", exc_info=True)
         return equipos
 
+    def construir_materiales_rack_tierra_seguridad():
+        """Materiales automáticos de rack/tierra para Seguridad y Monitoreo."""
+        if tipo_levantamiento != "Seguridad y Monitoreo" or var_modalidad_levantamiento.get().strip() != "Instalación":
+            return []
+        filas = []
+        def add(material, categoria, cantidad, unidad, especificacion=""):
+            cantidad = str(cantidad or "").strip()
+            if cantidad:
+                filas.append({"material": material, "categoria": categoria, "cantidad": cantidad, "unidad": unidad, "especificacion": especificacion})
+        if var_rack_requerido.get() == "Sí":
+            add("Rack", "Rack", "1", "Pieza(s)", var_tipo_rack.get().strip())
+            add("Organizadores verticales", "Rack", var_cctv_rack_organizadores_verticales.get(), "Pieza(s)")
+            add("Organizadores horizontales", "Rack", var_cctv_rack_organizadores_horizontales.get(), "Pieza(s)")
+            add("Charolas", "Rack", var_cctv_rack_charolas.get(), "Pieza(s)")
+            add("PDU", "Rack", var_cctv_rack_pdu.get(), "Pieza(s)")
+        if var_tierra_fisica.get() == "Sí":
+            add("Barra de cobre", "Tierra física", var_cctv_tierra_barra_cobre.get(), "Pieza(s)/Medida")
+            add("Aisladores de cobre", "Tierra física", var_cctv_tierra_aisladores.get(), "Pieza(s)/Medida")
+            add("Abrazadera/Omega", "Tierra física", var_cctv_tierra_abrazadera_omega.get(), "Pieza(s)/Medida")
+            add("Varilla de cobre", "Tierra física", var_cctv_tierra_varilla_cobre.get(), "Pieza(s)/Medida")
+            add("Abrazaderas de cobre", "Tierra física", var_cctv_tierra_abrazaderas.get(), "Pieza(s)/Medida")
+            add("Cable de cobre", "Tierra física", var_cctv_tierra_cable_cobre.get(), "Tipo/Metro(s)")
+            add("Tornillos de cobre", "Tierra física", var_cctv_tierra_tornillos_cobre.get(), "Pieza(s)/Medida")
+            add("Químico para tierra física", "Tierra física", var_cctv_tierra_quimico.get(), "Bote(s)/Juego(s)")
+            add("Tubería", "Tierra física", var_cctv_tierra_tuberia.get(), "Metro(s)")
+            add("Bote / registro", "Tierra física", var_cctv_tierra_bote.get(), "Pieza(s)/Medida")
+        return filas
+
+    def construir_materiales_rack_tierra_rvd():
+        """Materiales automáticos de rack/tierra para PDF, cotización y procesos posteriores."""
+        if tipo_levantamiento != "Redes Voz y Datos":
+            return []
+        filas = []
+        def add(material, categoria, cantidad, unidad, especificacion=""):
+            cantidad = str(cantidad or "").strip()
+            if not cantidad:
+                return
+            filas.append({"material": material, "categoria": categoria, "cantidad": cantidad, "unidad": unidad, "especificacion": especificacion})
+        if var_rvd_requiere_rack.get() == "Sí":
+            add("Rack", "Rack", "1", "Pieza(s)", var_rvd_tipo_rack.get().strip())
+            add("Organizadores verticales", "Rack", var_rvd_rack_organizadores_verticales.get(), "Pieza(s)")
+            add("Organizadores horizontales", "Rack", var_rvd_rack_organizadores_horizontales.get(), "Pieza(s)")
+            add("Charolas", "Rack", var_rvd_rack_charolas.get(), "Pieza(s)")
+            add("PDU", "Rack", var_rvd_rack_pdu.get(), "Pieza(s)")
+        if var_rvd_tierra_fisica.get() == "Sí":
+            add("Barra de cobre", "Tierra física", var_rvd_tierra_barra_cobre.get(), "Pieza(s)/Medida")
+            add("Aisladores de cobre", "Tierra física", var_rvd_tierra_aisladores.get(), "Pieza(s)/Medida")
+            add("Abrazadera/Omega", "Tierra física", var_rvd_tierra_abrazadera_omega.get(), "Pieza(s)/Medida")
+            add("Varilla de cobre", "Tierra física", var_rvd_tierra_varilla_cobre.get(), "Pieza(s)/Medida")
+            add("Abrazaderas de cobre", "Tierra física", var_rvd_tierra_abrazaderas.get(), "Pieza(s)/Medida")
+            add("Cable de cobre", "Tierra física", var_rvd_tierra_cable_cobre.get(), "Tipo/Metro(s)")
+            add("Tornillos de cobre", "Tierra física", var_rvd_tierra_tornillos_cobre.get(), "Pieza(s)/Medida")
+            add("Químico para tierra física", "Tierra física", var_rvd_tierra_quimico.get(), "Bote(s)/Juego(s)")
+            add("Tubería", "Tierra física", var_rvd_tierra_tuberia.get(), "Metro(s)")
+            add("Bote / registro", "Tierra física", var_rvd_tierra_bote.get(), "Pieza(s)/Medida")
+        return filas
+
     def obtener_detalle_tecnico_json():
         """Devuelve los campos dinámicos del formulario especializado en JSON."""
         if tipo_levantamiento == "Aires Acondicionados":
@@ -3267,6 +3734,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 },
                 "rack_equipo_activo_energia": {
                     "requiere_rack": var_rvd_requiere_rack.get().strip(),
+                    "modalidad_rack": "Captura individual",
+                    "cantidad_rack": "1" if var_rvd_requiere_rack.get() == "Sí" else "",
+                    "rack_organizadores_verticales": var_rvd_rack_organizadores_verticales.get().strip(),
+                    "rack_organizadores_horizontales": var_rvd_rack_organizadores_horizontales.get().strip(),
+                    "rack_organizadores": var_rvd_rack_organizadores_horizontales.get().strip(),  # compatibilidad
+                    "rack_charolas": var_rvd_rack_charolas.get().strip(),
+                    "rack_pdu": var_rvd_rack_pdu.get().strip(),
                     "tipo_rack": var_rvd_tipo_rack.get().strip(),
                     "requiere_gabinete": var_rvd_requiere_gabinete.get().strip(),
                     "tipo_gabinete": var_rvd_tipo_gabinete.get().strip(),
@@ -3281,7 +3755,18 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     "detalle_contacto_regulado": var_rvd_detalle_contacto.get().strip(),
                     "tierra_fisica": var_rvd_tierra_fisica.get().strip(),
                     "detalle_tierra_fisica": var_rvd_detalle_tierra.get().strip(),
+                    "tierra_barra_cobre": var_rvd_tierra_barra_cobre.get().strip(),
+                    "tierra_aisladores": var_rvd_tierra_aisladores.get().strip(),
+                    "tierra_abrazadera_omega": var_rvd_tierra_abrazadera_omega.get().strip(),
+                    "tierra_varilla_cobre": var_rvd_tierra_varilla_cobre.get().strip(),
+                    "tierra_abrazaderas": var_rvd_tierra_abrazaderas.get().strip(),
+                    "tierra_cable_cobre": var_rvd_tierra_cable_cobre.get().strip(),
+                    "tierra_tornillos_cobre": var_rvd_tierra_tornillos_cobre.get().strip(),
+                    "tierra_quimico": var_rvd_tierra_quimico.get().strip(),
+                    "tierra_tuberia": var_rvd_tierra_tuberia.get().strip(),
+                    "tierra_bote": var_rvd_tierra_bote.get().strip(),
                 },
+                "materiales_rack_tierra": construir_materiales_rack_tierra_rvd(),
                 "estimacion_recursos": {
                     "dias_trabajo": var_dias_trabajo_general.get().strip(),
                     "personas_trabajo": var_personas_considerar_general.get().strip(),
@@ -3421,7 +3906,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
         if modalidad == "Mantenimiento":
             detalle["acceso_alturas_riesgos"] = {
-                "escalera_andamio": var_escalera_requerida.get().strip(),
+                "trabajo_alturas": var_escalera_requerida.get().strip(),
+                "escalera_andamio": var_escalera_requerida.get().strip(),  # compatibilidad
+                "sistema_acceso_temporal": var_sistema_acceso_temporal.get().strip() if var_escalera_requerida.get() == "Sí" else "",
                 "altura_trabajo": var_altura_trabajo.get().strip() if var_escalera_requerida.get() == "Sí" else "",
                 "riesgo_instalacion": var_riesgo_instalacion.get().strip() if var_escalera_requerida.get() == "Sí" else "",
             }
@@ -3445,6 +3932,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             },
             "rack_gabinete_energia": {
                 "rack_requerido": var_rack_requerido.get().strip(),
+                "modalidad_rack": "Captura individual" if var_rack_requerido.get() == "Sí" else "",
+                "cantidad_rack": "1" if var_rack_requerido.get() == "Sí" else "",
+                "rack_organizadores_verticales": var_cctv_rack_organizadores_verticales.get().strip() if var_rack_requerido.get() == "Sí" else "",
+                "rack_organizadores_horizontales": var_cctv_rack_organizadores_horizontales.get().strip() if var_rack_requerido.get() == "Sí" else "",
+                "rack_organizadores": var_cctv_rack_organizadores_horizontales.get().strip() if var_rack_requerido.get() == "Sí" else "",  # compatibilidad
+                "rack_charolas": var_cctv_rack_charolas.get().strip() if var_rack_requerido.get() == "Sí" else "",
+                "rack_pdu": var_cctv_rack_pdu.get().strip() if var_rack_requerido.get() == "Sí" else "",
                 "tipo_rack": var_tipo_rack.get().strip() if var_rack_requerido.get() == "Sí" else "",
                 "gabinete_requerido": var_gabinete_requerido.get().strip(),
                 "tipo_gabinete": var_tipo_gabinete.get().strip() if var_gabinete_requerido.get() == "Sí" else "",
@@ -3454,9 +3948,22 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 "detalle_contacto_regulado": var_tipo_contacto_regulado.get().strip() if var_contacto_regulado.get() == "Sí" else "",
                 "tierra_fisica": var_tierra_fisica.get().strip(),
                 "detalle_tierra_fisica": var_tipo_tierra_fisica.get().strip() if var_tierra_fisica.get() == "Sí" else "",
+                "tierra_barra_cobre": var_cctv_tierra_barra_cobre.get().strip() if var_tierra_fisica.get() == "Sí" else "",
+                "tierra_aisladores": var_cctv_tierra_aisladores.get().strip() if var_tierra_fisica.get() == "Sí" else "",
+                "tierra_abrazadera_omega": var_cctv_tierra_abrazadera_omega.get().strip() if var_tierra_fisica.get() == "Sí" else "",
+                "tierra_varilla_cobre": var_cctv_tierra_varilla_cobre.get().strip() if var_tierra_fisica.get() == "Sí" else "",
+                "tierra_abrazaderas": var_cctv_tierra_abrazaderas.get().strip() if var_tierra_fisica.get() == "Sí" else "",
+                "tierra_cable_cobre": var_cctv_tierra_cable_cobre.get().strip() if var_tierra_fisica.get() == "Sí" else "",
+                "tierra_tornillos_cobre": var_cctv_tierra_tornillos_cobre.get().strip() if var_tierra_fisica.get() == "Sí" else "",
+                "tierra_quimico": var_cctv_tierra_quimico.get().strip() if var_tierra_fisica.get() == "Sí" else "",
+                "tierra_tuberia": var_cctv_tierra_tuberia.get().strip() if var_tierra_fisica.get() == "Sí" else "",
+                "tierra_bote": var_cctv_tierra_bote.get().strip() if var_tierra_fisica.get() == "Sí" else "",
             },
+            "materiales_rack_tierra": construir_materiales_rack_tierra_seguridad(),
             "acceso_alturas_riesgos": {
-                "escalera_andamio": var_escalera_requerida.get().strip(),
+                "trabajo_alturas": var_escalera_requerida.get().strip(),
+                "escalera_andamio": var_escalera_requerida.get().strip(),  # compatibilidad
+                "sistema_acceso_temporal": var_sistema_acceso_temporal.get().strip() if var_escalera_requerida.get() == "Sí" else "",
                 "altura_trabajo": var_altura_trabajo.get().strip(),
                 "riesgo_instalacion": var_riesgo_instalacion.get().strip(),
             },
@@ -3567,22 +4074,37 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "--- 3. CABLEADO, CANALIZACIÓN Y CONSUMIBLES ---",
             construir_resumen_canalizacion_materiales() or "Sin partidas capturadas",
             "",
-            "--- 4. RACK, GABINETE, EQUIPO ACTIVO Y ENERGÍA ---",
+            "--- 4. RACK, GABINETE Y ENERGÍA ---",
             f"Requiere rack: {var_rvd_requiere_rack.get().strip() or 'No definido'}",
-            f"Tipo/capacidad de rack: {var_rvd_tipo_rack.get().strip() or 'No aplica'}",
+            f"Medida de rack: {var_rvd_tipo_rack.get().strip() or 'No aplica'}",
+            f"Organizadores verticales: {var_rvd_rack_organizadores_verticales.get().strip() or 'No aplica'}",
+            f"Organizadores horizontales: {var_rvd_rack_organizadores_horizontales.get().strip() or 'No aplica'}",
+            f"Charolas: {var_rvd_rack_charolas.get().strip() or 'No aplica'}",
+            f"PDU: {var_rvd_rack_pdu.get().strip() or 'No aplica'}",
             f"Requiere gabinete: {var_rvd_requiere_gabinete.get().strip() or 'No definido'}",
-            f"Tipo/capacidad de gabinete: {var_rvd_tipo_gabinete.get().strip() or 'No aplica'}",
-            f"Ubicación de rack/gabinete: {var_rvd_ubicacion_rack.get().strip() or 'No aplica'}",
+            f"Tipo de gabinete: {var_rvd_tipo_gabinete.get().strip() or 'No aplica'}",
+            f"UPS requerida: {var_rvd_ups.get().strip() or 'No definido'}",
+            f"Tipo/Capacidad de UPS: {var_rvd_detalle_ups.get().strip() or 'No aplica'}",
+            f"Contacto regulado requerido: {var_rvd_contacto_regulado.get().strip() or 'No definido'}",
+            f"Detalle contacto regulado: {var_rvd_detalle_contacto.get().strip() or 'No aplica'}",
+            f"Tierra física requerida: {var_rvd_tierra_fisica.get().strip() or 'No definido'}",
+            f"Detalle/Ubicación de tierra física: {var_rvd_detalle_tierra.get().strip() or 'No aplica'}",
+            f"Barra de cobre: {var_rvd_tierra_barra_cobre.get().strip() or 'No aplica'}",
+            f"Aisladores de cobre: {var_rvd_tierra_aisladores.get().strip() or 'No aplica'}",
+            f"Abrazadera/Omega: {var_rvd_tierra_abrazadera_omega.get().strip() or 'No aplica'}",
+            f"Varilla de cobre: {var_rvd_tierra_varilla_cobre.get().strip() or 'No aplica'}",
+            f"Abrazaderas de cobre: {var_rvd_tierra_abrazaderas.get().strip() or 'No aplica'}",
+            f"Cable de cobre (tipo/metros): {var_rvd_tierra_cable_cobre.get().strip() or 'No aplica'}",
+            f"Tornillos de cobre: {var_rvd_tierra_tornillos_cobre.get().strip() or 'No aplica'}",
+            f"Químico: {var_rvd_tierra_quimico.get().strip() or 'No aplica'}",
+            f"Tubería (m): {var_rvd_tierra_tuberia.get().strip() or 'No aplica'}",
+            f"Bote / registro: {var_rvd_tierra_bote.get().strip() or 'No aplica'}",
+            "",
+            "--- EQUIPO ACTIVO ---",
             f"Requiere switch: {var_rvd_requiere_switch.get().strip() or 'No definido'}",
             f"Tipo/características del switch: {var_rvd_tipo_switch.get().strip() or 'No aplica'}",
             f"Puertos requeridos del switch: {var_rvd_puertos_switch.get().strip() or 'No aplica'}",
             f"Switch con PoE: {var_rvd_switch_poe.get().strip() or 'No aplica'}",
-            f"UPS requerida: {var_rvd_ups.get().strip() or 'No definido'}",
-            f"Detalle UPS: {var_rvd_detalle_ups.get().strip() or 'No aplica'}",
-            f"Contacto regulado requerido: {var_rvd_contacto_regulado.get().strip() or 'No definido'}",
-            f"Detalle contacto regulado: {var_rvd_detalle_contacto.get().strip() or 'No aplica'}",
-            f"Tierra física disponible: {var_rvd_tierra_fisica.get().strip() or 'No definido'}",
-            f"Detalle tierra física: {var_rvd_detalle_tierra.get().strip() or 'No aplica'}",
             "",
             "--- 5. ESTIMACIÓN DE RECURSOS ---",
             f"Días de trabajo proyectados: {var_dias_trabajo_general.get().strip() or 'No definido'}",
@@ -3603,7 +4125,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         for titulo_sec, campos_sec in FORMULARIOS_DETALLADOS_EXTRA[tipo_levantamiento]["secciones"]:
             if tipo_levantamiento in ("Control de Accesos", "Enlaces Inalámbricos") and "Cableado, canalización e infraestructura requerida" in titulo_sec:
                 continue
-            lineas.append(f"--- {titulo_sec} ---")
+            lineas.append(f"--- {_titulo_sin_numeracion(titulo_sec)} ---")
             for clave, _tipo_campo, etiqueta, _opciones_placeholder, _default in campos_sec:
                 if clave == "dias_trabajo":
                     valor = var_dias_trabajo_general.get().strip() or "No definido"
@@ -3699,16 +4221,19 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 resumen_dinamico or "Sin partidas de canalización capturadas",
                 "",
                 "--- RACK, GABINETE Y ENERGÍA ---",
-                f"Rack requerido: {var_rack_requerido.get().strip() or 'No'}" + (f" | Tipo: {var_tipo_rack.get().strip()}" if var_rack_requerido.get() == "Sí" and var_tipo_rack.get().strip() else ""),
+                f"Rack requerido: {var_rack_requerido.get().strip() or 'No'}" + (f" | Medida: {var_tipo_rack.get().strip()}" if var_rack_requerido.get() == "Sí" else ""),
+                f"Accesorios rack: Organizadores verticales {var_cctv_rack_organizadores_verticales.get().strip() or '0'}, Organizadores horizontales {var_cctv_rack_organizadores_horizontales.get().strip() or '0'}, Charolas {var_cctv_rack_charolas.get().strip() or '0'}, PDU {var_cctv_rack_pdu.get().strip() or '0'}" if var_rack_requerido.get() == "Sí" else "Accesorios rack: No aplica",
                 f"Gabinete requerido: {var_gabinete_requerido.get().strip() or 'No'}" + (f" | Tipo: {var_tipo_gabinete.get().strip()}" if var_gabinete_requerido.get() == "Sí" and var_tipo_gabinete.get().strip() else ""),
                 f"UPS requerida: {var_ups_requerida.get().strip() or 'No'}" + (f" | Tipo/capacidad: {var_tipo_ups.get().strip()}" if var_ups_requerida.get() == "Sí" and var_tipo_ups.get().strip() else ""),
                 f"Contacto regulado: {var_contacto_regulado.get().strip() or 'No'}" + (f" | Detalle: {var_tipo_contacto_regulado.get().strip()}" if var_contacto_regulado.get() == "Sí" and var_tipo_contacto_regulado.get().strip() else ""),
                 f"Tierra física: {var_tierra_fisica.get().strip() or 'No'}" + (f" | Detalle: {var_tipo_tierra_fisica.get().strip()}" if var_tierra_fisica.get() == "Sí" and var_tipo_tierra_fisica.get().strip() else ""),
+                f"Materiales tierra: Barra {var_cctv_tierra_barra_cobre.get().strip() or '0'}, Aisladores {var_cctv_tierra_aisladores.get().strip() or '0'}, Omega {var_cctv_tierra_abrazadera_omega.get().strip() or '0'}, Varilla {var_cctv_tierra_varilla_cobre.get().strip() or '0'}, Abrazaderas {var_cctv_tierra_abrazaderas.get().strip() or '0'}, Cable {var_cctv_tierra_cable_cobre.get().strip() or '0'}, Tornillos {var_cctv_tierra_tornillos_cobre.get().strip() or '0'}, Químico {var_cctv_tierra_quimico.get().strip() or '0'}, Tubería {var_cctv_tierra_tuberia.get().strip() or '0'} m, Bote/registro {var_cctv_tierra_bote.get().strip() or '0'}" if var_tierra_fisica.get() == "Sí" else "Materiales tierra: No aplica",
                 "",
                 "--- ACCESO, ALTURAS Y RIESGOS ---",
-                f"Requiere escalera/andamio: {var_escalera_requerida.get().strip() or 'No'}",
-                f"Altura de trabajo: {var_altura_trabajo.get().strip() if var_escalera_requerida.get() == 'Sí' else 'No aplica'}",
-                f"Riesgo de instalación: {var_riesgo_instalacion.get().strip() if var_escalera_requerida.get() == 'Sí' else 'No aplica'}",
+                f"Se trabajará en alturas: {var_escalera_requerida.get().strip() or 'No'}",
+                f"Sistema de acceso temporal: {var_sistema_acceso_temporal.get().strip() if var_escalera_requerida.get() == 'Sí' else 'No aplica'}",
+                f"Altura: {var_altura_trabajo.get().strip() if var_escalera_requerida.get() == 'Sí' else 'No aplica'}",
+                f"Riesgo: {var_riesgo_instalacion.get().strip() if var_escalera_requerida.get() == 'Sí' else 'No aplica'}",
             ])
 
         lineas.extend([
@@ -3743,6 +4268,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             return False
         if var_desea_evidencias.get() == "Sí" and not evidencias_levantamiento:
             return False
+        if var_desea_archivos_adjuntos.get() == "Sí" and _total_archivos_adjuntos() == 0:
+            return False
         # Recursos proyectados cambian según la duración elegida.
         personas = var_personas_considerar_general.get().strip()
         if not personas:
@@ -3758,6 +4285,19 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     return False
         except (TypeError, ValueError):
             return False
+        if var_requiere_epp.get() == "Sí":
+            epp = obtener_epp_json()
+            if not epp:
+                return False
+            for item in epp:
+                try:
+                    if float(str(item.get("cantidad") or "0").replace(",", ".")) <= 0:
+                        return False
+                except (TypeError, ValueError):
+                    return False
+        if tipo_levantamiento in TIPOS_CON_ACCESO_COMUN and var_trabajo_alturas_comun.get() == "Sí":
+            if not (var_sistema_acceso_comun.get().strip() and var_altura_comun.get().strip() and var_riesgo_comun.get().strip()):
+                return False
         if tipo_levantamiento == "Seguridad y Monitoreo":
             modalidad = var_modalidad_levantamiento.get().strip()
             if modalidad == "Instalación":
@@ -3770,17 +4310,27 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     return False
                 if var_infra_existe.get() in ("No", "Parcial") and not canalizacion_materiales_completa():
                     return False
-                pares = [(var_rack_requerido, var_tipo_rack), (var_gabinete_requerido, var_tipo_gabinete), (var_ups_requerida, var_tipo_ups), (var_contacto_regulado, var_tipo_contacto_regulado), (var_tierra_fisica, var_tipo_tierra_fisica)]
+                pares = [(var_gabinete_requerido, var_tipo_gabinete), (var_ups_requerida, var_tipo_ups), (var_contacto_regulado, var_tipo_contacto_regulado)]
                 if any(a.get() == "Sí" and not b.get().strip() for a,b in pares):
                     return False
-                if var_escalera_requerida.get() == "Sí" and not (var_altura_trabajo.get().strip() and var_riesgo_instalacion.get().strip()):
+                if var_rack_requerido.get() == "Sí":
+                    if not var_tipo_rack.get().strip():
+                        return False
+                    if not all(v.get().strip() for v in (var_cctv_rack_organizadores_verticales, var_cctv_rack_organizadores_horizontales, var_cctv_rack_charolas, var_cctv_rack_pdu)):
+                        return False
+                if var_tierra_fisica.get() == "Sí":
+                    if not var_tipo_tierra_fisica.get().strip():
+                        return False
+                    if not all(v.get().strip() for v in (var_cctv_tierra_barra_cobre, var_cctv_tierra_aisladores, var_cctv_tierra_abrazadera_omega, var_cctv_tierra_varilla_cobre, var_cctv_tierra_abrazaderas, var_cctv_tierra_cable_cobre, var_cctv_tierra_tornillos_cobre, var_cctv_tierra_quimico, var_cctv_tierra_tuberia, var_cctv_tierra_bote)):
+                        return False
+                if var_escalera_requerida.get() == "Sí" and not (var_sistema_acceso_temporal.get().strip() and var_altura_trabajo.get().strip() and var_riesgo_instalacion.get().strip()):
                     return False
                 return True
             if modalidad == "Mantenimiento":
                 if not txt_observaciones.get("1.0", "end").strip():
                     return False
                 if var_escalera_requerida.get() == "Sí" and not (
-                    var_altura_trabajo.get().strip() and var_riesgo_instalacion.get().strip()
+                    var_sistema_acceso_temporal.get().strip() and var_altura_trabajo.get().strip() and var_riesgo_instalacion.get().strip()
                 ):
                     return False
                 return True
@@ -3827,10 +4377,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             # ocultos y no deben bloquear Preview/Guardar.
             if var_rvd_requiere_rack.get() == "Sí":
                 requeridos.append(var_rvd_tipo_rack.get().strip())
+                requeridos.extend([v.get().strip() for v in (var_rvd_rack_organizadores_verticales, var_rvd_rack_organizadores_horizontales, var_rvd_rack_charolas, var_rvd_rack_pdu)])
             if var_rvd_requiere_gabinete.get() == "Sí":
                 requeridos.append(var_rvd_tipo_gabinete.get().strip())
-            if var_rvd_requiere_rack.get() == "Sí" or var_rvd_requiere_gabinete.get() == "Sí":
-                requeridos.append(var_rvd_ubicacion_rack.get().strip())
             if var_rvd_requiere_switch.get() == "Sí":
                 requeridos.extend([var_rvd_tipo_switch.get().strip(), var_rvd_puertos_switch.get().strip(), var_rvd_switch_poe.get().strip()])
             if var_rvd_ups.get() == "Sí":
@@ -3839,6 +4388,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 requeridos.append(var_rvd_detalle_contacto.get().strip())
             if var_rvd_tierra_fisica.get() == "Sí":
                 requeridos.append(var_rvd_detalle_tierra.get().strip())
+                requeridos.extend([v.get().strip() for v in (var_rvd_tierra_barra_cobre, var_rvd_tierra_aisladores, var_rvd_tierra_abrazadera_omega, var_rvd_tierra_varilla_cobre, var_rvd_tierra_abrazaderas, var_rvd_tierra_cable_cobre, var_rvd_tierra_tornillos_cobre, var_rvd_tierra_quimico, var_rvd_tierra_tuberia, var_rvd_tierra_bote)])
             return all(requeridos) and canalizacion_materiales_completa()
         if tipo_levantamiento == "Electricidad":
             requeridos = [
@@ -3949,7 +4499,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "Días estimados": var_dias_trabajo_general.get() if var_duracion_proyecto.get() == "Varios días" else "1",
             "Personas estimadas": var_personas_considerar_general.get(),
             "Notas": txt_notas_generales.get("1.0", "end").strip(),
+            "¿Requiere EPP?": var_requiere_epp.get(),
+            "Equipo de Protección Personal": construir_resumen_epp(),
             "Herramientas": construir_resumen_herramientas(),
+            "Archivos PDF / planos": "; ".join([Path(x).name for x in archivos_adjuntos_levantamiento] + [str(x.get("nombre") or x.get("storage_path") or "Archivo") for x in archivos_adjuntos_existentes]) or "No",
             "Descripción": "" if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else txt_descripcion.get("1.0", "end").strip(),
             "Observaciones": txt_observaciones.get("1.0", "end").strip(),
             "Detalle técnico": resumen,
@@ -3972,6 +4525,24 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "dias_trabajo": "1" if var_duracion_proyecto.get() == "Un día" else var_dias_trabajo_general.get().strip(),
             "personas_considerar": var_personas_considerar_general.get().strip(),
         }
+        detalle["epp"] = {
+            "requiere": var_requiere_epp.get().strip(),
+            "partidas": obtener_epp_json(),
+        }
+        if tipo_levantamiento == "Seguridad y Monitoreo":
+            detalle["acceso_alturas_riesgos"] = {
+                "trabajo_alturas": var_escalera_requerida.get().strip(),
+                "sistema_acceso_temporal": var_sistema_acceso_temporal.get().strip() if var_escalera_requerida.get() == "Sí" else "",
+                "altura": var_altura_trabajo.get().strip() if var_escalera_requerida.get() == "Sí" else "",
+                "riesgo": var_riesgo_instalacion.get().strip() if var_escalera_requerida.get() == "Sí" else "",
+            }
+        elif tipo_levantamiento in TIPOS_CON_ACCESO_COMUN:
+            detalle["acceso_alturas_riesgos"] = {
+                "trabajo_alturas": var_trabajo_alturas_comun.get().strip(),
+                "sistema_acceso_temporal": var_sistema_acceso_comun.get().strip() if var_trabajo_alturas_comun.get() == "Sí" else "",
+                "altura": var_altura_comun.get().strip() if var_trabajo_alturas_comun.get() == "Sí" else "",
+                "riesgo": var_riesgo_comun.get().strip() if var_trabajo_alturas_comun.get() == "Sí" else "",
+            }
         if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS:
             detalle["canalizacion_materiales"] = obtener_canalizacion_materiales_json()
             detalle["equipos_principales"] = obtener_equipos_catalogo_json()
@@ -4016,7 +4587,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "lev_equipos_danados_json": json.dumps(equipos_danados, ensure_ascii=False) if equipos_danados else "",
             "lev_anotacion_plano_json": json.dumps({"habilitado": var_desea_anotacion_plano.get() == "Sí", "imagen_base64": var_anotacion_plano_base64.get().strip() if var_desea_anotacion_plano.get() == "Sí" else ""}, ensure_ascii=False),
             "lev_evidencias_json": "[]",
+            "lev_archivos_adjuntos_json": json.dumps(archivos_adjuntos_existentes, ensure_ascii=False) if archivos_adjuntos_existentes else "[]",
             "__evidencias_locales": list(evidencias_levantamiento) if var_desea_evidencias.get() == "Sí" else [],
+            "__archivos_adjuntos_locales": list(archivos_adjuntos_levantamiento) if var_desea_archivos_adjuntos.get() == "Sí" else [],
         }
 
     def configuracion_pdf_levantamiento():
@@ -4074,6 +4647,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "Días estimados": var_dias_trabajo_general.get() if var_duracion_proyecto.get() == "Varios días" else "1",
             "Personas estimadas": var_personas_considerar_general.get(),
             "Notas": txt_notas_generales.get("1.0", "end").strip(),
+            "¿Requiere EPP?": var_requiere_epp.get(),
+            "Equipo de Protección Personal": construir_resumen_epp(),
             "Herramientas": construir_resumen_herramientas(),
             "Descripción": "" if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else txt_descripcion.get("1.0", "end").strip(),
             "Observaciones": txt_observaciones.get("1.0", "end").strip(),
@@ -4095,6 +4670,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "horas_estimadas": var_horas_estimadas_general.get().strip() if var_duracion_proyecto.get() == "Un día" else "",
             "dias_trabajo": "1" if var_duracion_proyecto.get() == "Un día" else var_dias_trabajo_general.get().strip(),
             "personas_considerar": var_personas_considerar_general.get().strip(),
+        }
+        detalle["epp"] = {
+            "requiere": var_requiere_epp.get().strip(),
+            "partidas": obtener_epp_json(),
         }
         if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS:
             detalle["canalizacion_materiales"] = obtener_canalizacion_materiales_json()
@@ -4147,7 +4726,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 if var_desea_anotacion_plano.get() == "Sí" else "",
             }, ensure_ascii=False),
             "lev_evidencias_json": "[]",
+            "lev_archivos_adjuntos_json": json.dumps(archivos_adjuntos_existentes, ensure_ascii=False) if archivos_adjuntos_existentes else "[]",
             "__evidencias_locales": list(evidencias_levantamiento) if var_desea_evidencias.get() == "Sí" else [],
+            "__archivos_adjuntos_locales": list(archivos_adjuntos_levantamiento) if var_desea_archivos_adjuntos.get() == "Sí" else [],
         }
 
     def configuracion_pdf_levantamiento():
@@ -4303,14 +4884,37 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             if clave in hojas:
                 variable.set(str(hojas[clave]))
 
+        # Compatibilidad con levantamientos previos al desglose vertical/horizontal y
+        # a los nuevos componentes de tierra física.
+        if tipo_levantamiento == "Seguridad y Monitoreo":
+            if not var_cctv_rack_organizadores_horizontales.get().strip() and var_cctv_rack_organizadores.get().strip():
+                var_cctv_rack_organizadores_horizontales.set(var_cctv_rack_organizadores.get().strip())
+            if var_rack_requerido.get() == "Sí" and not var_cctv_rack_organizadores_verticales.get().strip():
+                var_cctv_rack_organizadores_verticales.set("0")
+            if var_tierra_fisica.get() == "Sí":
+                if not var_cctv_tierra_abrazadera_omega.get().strip(): var_cctv_tierra_abrazadera_omega.set("0")
+                if not var_cctv_tierra_tornillos_cobre.get().strip(): var_cctv_tierra_tornillos_cobre.set("0")
+        elif tipo_levantamiento == "Redes Voz y Datos":
+            if not var_rvd_rack_organizadores_horizontales.get().strip() and var_rvd_rack_organizadores.get().strip():
+                var_rvd_rack_organizadores_horizontales.set(var_rvd_rack_organizadores.get().strip())
+            if var_rvd_requiere_rack.get() == "Sí" and not var_rvd_rack_organizadores_verticales.get().strip():
+                var_rvd_rack_organizadores_verticales.set("0")
+            if var_rvd_tierra_fisica.get() == "Sí":
+                if not var_rvd_tierra_abrazadera_omega.get().strip(): var_rvd_tierra_abrazadera_omega.set("0")
+                if not var_rvd_tierra_tornillos_cobre.get().strip(): var_rvd_tierra_tornillos_cobre.set("0")
+
         # Listas dinámicas que forman parte del formulario original.
         for fila in detalle.get("canalizacion_materiales", []) if isinstance(detalle.get("canalizacion_materiales"), list) else []:
             try:
-                agregar_partida_canalizacion(str(fila.get("categoria") or "Tubo"))
+                categoria_guardada = str(fila.get("categoria") or "Tubo")
+                categoria_guardada = {"Canalización": "Canaleta", "Conector": "Conectores"}.get(categoria_guardada, categoria_guardada)
+                agregar_partida_canalizacion(categoria_guardada)
                 item = canalizacion_materiales_items[-1]
                 for k, destino in (("categoria","categoria"),("tipo","tipo"),("tamano_calibre_especificacion","especificacion"),("cantidad","cantidad"),("unidad","unidad")):
                     if k in fila and destino in item:
                         valor = fila.get(k) or ""
+                        if k == "categoria":
+                            valor = {"Canalización": "Canaleta", "Conector": "Conectores"}.get(str(valor), valor)
                         if k == "tipo":
                             valor = normalizar_tipo_canalizacion(valor)
                         item[destino].set(str(valor))
@@ -4331,6 +4935,30 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     if k in fila and k in item: item[k].set(str(fila.get(k) or ""))
             except Exception:
                 logger.debug("No fue posible restaurar un material misceláneo.", exc_info=True)
+
+        epp_guardado = detalle.get("epp") if isinstance(detalle.get("epp"), dict) else {}
+        var_requiere_epp.set(str(epp_guardado.get("requiere") or "No"))
+        for fila in epp_guardado.get("partidas", []) if isinstance(epp_guardado.get("partidas"), list) else []:
+            try:
+                agregar_epp(fila)
+            except Exception:
+                logger.debug("No fue posible restaurar una partida de EPP.", exc_info=True)
+        actualizar_visibilidad_epp()
+
+        acceso_guardado = detalle.get("acceso_alturas_riesgos") if isinstance(detalle.get("acceso_alturas_riesgos"), dict) else {}
+        if tipo_levantamiento in TIPOS_CON_ACCESO_COMUN and acceso_guardado:
+            var_trabajo_alturas_comun.set(str(acceso_guardado.get("trabajo_alturas") or "No"))
+            var_sistema_acceso_comun.set(str(acceso_guardado.get("sistema_acceso_temporal") or "Escalera"))
+            var_altura_comun.set(str(acceso_guardado.get("altura") or acceso_guardado.get("altura_trabajo") or ""))
+            var_riesgo_comun.set(str(acceso_guardado.get("riesgo") or acceso_guardado.get("riesgo_instalacion") or "Bajo"))
+
+        archivos_guardados = _json_list(registro.get("lev_archivos_adjuntos_json"))
+        if archivos_guardados:
+            archivos_adjuntos_existentes[:] = [x for x in archivos_guardados if isinstance(x, dict)]
+            var_desea_archivos_adjuntos.set("Sí")
+        for ruta in registro.get("__archivos_adjuntos_locales", []) if isinstance(registro.get("__archivos_adjuntos_locales"), list) else []:
+            if ruta and ruta not in archivos_adjuntos_levantamiento:
+                archivos_adjuntos_levantamiento.append(ruta)
 
         for fila in detalle.get("herramientas", []) if isinstance(detalle.get("herramientas"), list) else []:
             try:
@@ -4367,6 +4995,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 pass
         try:
             actualizar_estado_anotacion_plano()
+            actualizar_estado_archivos_adjuntos()
             actualizar_estado_evidencias()
         except Exception:
             pass
@@ -4395,6 +5024,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
         folio = ""
         evidencias_previas = _json_list((registro_editar or {}).get("lev_evidencias_json")) if registro_editar else []
+        archivos_previos = _json_list((registro_editar or {}).get("lev_archivos_adjuntos_json")) if registro_editar else list(archivos_adjuntos_existentes)
+        if var_desea_archivos_adjuntos.get() == "Sí" and not archivos_adjuntos_levantamiento and not archivos_previos:
+            messagebox.showwarning("Archivos adjuntos", "Seleccionaste Sí. Agrega al menos un PDF o plano antes de guardar.")
+            return
         if var_desea_evidencias.get() == "Sí" and not evidencias_levantamiento and not evidencias_previas:
             messagebox.showwarning("Evidencia fotográfica", "Seleccionaste Sí. Agrega al menos una fotografía antes de guardar.")
             return
@@ -4476,6 +5109,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 "imagen_base64": var_anotacion_plano_base64.get().strip() if var_desea_anotacion_plano.get() == "Sí" else "",
             }, ensure_ascii=False),
             "lev_evidencias_json": "[]",
+            "lev_archivos_adjuntos_json": "[]",
             "creado_por": usuario_activo.get("usuario")
         }
 
@@ -4489,6 +5123,24 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             detalle_tecnico["canalizacion_materiales"] = obtener_canalizacion_materiales_json()
             detalle_tecnico["equipos_principales"] = obtener_equipos_catalogo_json()
             detalle_tecnico["materiales_miscelaneos"] = obtener_materiales_miscelaneos_json()
+            detalle_tecnico["epp"] = {
+                "requiere": var_requiere_epp.get().strip(),
+                "partidas": obtener_epp_json(),
+            }
+            if tipo_levantamiento == "Seguridad y Monitoreo":
+                detalle_tecnico["acceso_alturas_riesgos"] = {
+                    "trabajo_alturas": var_escalera_requerida.get().strip(),
+                    "sistema_acceso_temporal": var_sistema_acceso_temporal.get().strip() if var_escalera_requerida.get() == "Sí" else "",
+                    "altura": var_altura_trabajo.get().strip() if var_escalera_requerida.get() == "Sí" else "",
+                    "riesgo": var_riesgo_instalacion.get().strip() if var_escalera_requerida.get() == "Sí" else "",
+                }
+            elif tipo_levantamiento in TIPOS_CON_ACCESO_COMUN:
+                detalle_tecnico["acceso_alturas_riesgos"] = {
+                    "trabajo_alturas": var_trabajo_alturas_comun.get().strip(),
+                    "sistema_acceso_temporal": var_sistema_acceso_comun.get().strip() if var_trabajo_alturas_comun.get() == "Sí" else "",
+                    "altura": var_altura_comun.get().strip() if var_trabajo_alturas_comun.get() == "Sí" else "",
+                    "riesgo": var_riesgo_comun.get().strip() if var_trabajo_alturas_comun.get() == "Sí" else "",
+                }
             detalle_tecnico["herramientas"] = obtener_herramientas_json()
             equipos_danados = obtener_equipos_danados_json() if tipo_levantamiento == "Seguridad y Monitoreo" and modalidad_operativa == "Reparación" else []
             descripcion_fallas = (
@@ -4522,6 +5174,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     datos[campo_id] = registro_editar.get(campo_id)
             datos["lev_fecha_realizacion"] = registro_editar.get("lev_fecha_realizacion")
             datos["lev_evidencias_json"] = registro_editar.get("lev_evidencias_json") or "[]"
+            datos["lev_archivos_adjuntos_json"] = registro_editar.get("lev_archivos_adjuntos_json") or "[]"
             datos["creado_por"] = usuario_activo.get("usuario")
             datos.pop("actualizado_por", None)
             resultado = crear_levantamiento(datos)
@@ -4550,6 +5203,21 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     show_operation_error("Error al guardar evidencias", "Subir evidencia fotográfica del levantamiento", error)
                     return
 
+            archivos_subidos = []
+            if var_desea_archivos_adjuntos.get() == "Sí" and archivos_adjuntos_levantamiento:
+                try:
+                    archivos_subidos = subir_archivos_levantamiento(folio, archivos_adjuntos_levantamiento)
+                    if not archivos_subidos:
+                        raise RuntimeError("Supabase no confirmó la carga de los archivos PDF/planos.")
+                    id_levantamiento = registro_creado.get("id_levantamiento")
+                    combinados_archivos = list(archivos_previos) + archivos_subidos
+                    if not id_levantamiento or actualizar_archivos_levantamiento(id_levantamiento, combinados_archivos) is None:
+                        raise RuntimeError("No fue posible asociar los archivos al levantamiento.")
+                    registro_creado["lev_archivos_adjuntos_json"] = json.dumps(combinados_archivos, ensure_ascii=False)
+                except Exception as error:
+                    show_operation_error("Error al guardar archivos", "Subir PDF/planos del levantamiento", error)
+                    return
+
             registrar_movimiento(
                 modulo="Levantamientos",
                 accion="CREAR_REVISION" if registro_editar else "CREAR",
@@ -4564,6 +5232,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             registro_pdf["__evidencias_locales"] = list(evidencias_levantamiento) if var_desea_evidencias.get() == "Sí" else []
             if evidencias_subidas:
                 registro_pdf["lev_evidencias_json"] = json.dumps(evidencias_subidas, ensure_ascii=False)
+            registro_pdf["__archivos_adjuntos_locales"] = list(archivos_adjuntos_levantamiento) if var_desea_archivos_adjuntos.get() == "Sí" else []
+            if archivos_subidos or archivos_previos:
+                registro_pdf["lev_archivos_adjuntos_json"] = json.dumps(list(archivos_previos) + archivos_subidos, ensure_ascii=False)
             ruta_pdf_destino = ruta_documentos_axia("levantamientos") / f"AXIA_{folio}.pdf"
             ruta_pdf = generar_pdf_registro(
                 registro_pdf,
@@ -4721,7 +5392,14 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         var_desea_anotacion_plano, var_anotacion_plano_base64, var_desea_evidencias,
         var_cctv_cantidad_camaras, var_cctv_dias_retencion,
         var_cctv_personas_considerar, var_cctv_ubicacion_nvr, var_cctv_punto_red,
-        var_cctv_punto_energia, var_escalera_requerida, var_altura_trabajo,
+        var_cctv_punto_energia, var_escalera_requerida, var_sistema_acceso_temporal, var_altura_trabajo,
+        var_trabajo_alturas_comun, var_sistema_acceso_comun, var_altura_comun, var_riesgo_comun, var_desea_archivos_adjuntos,
+        var_rack_requerido, var_tipo_rack, var_cctv_rack_organizadores_verticales, var_cctv_rack_organizadores_horizontales,
+        var_cctv_rack_charolas, var_cctv_rack_pdu, var_gabinete_requerido, var_tipo_gabinete, var_ups_requerida, var_tipo_ups,
+        var_contacto_regulado, var_tipo_contacto_regulado, var_tierra_fisica, var_tipo_tierra_fisica,
+        var_cctv_tierra_barra_cobre, var_cctv_tierra_aisladores, var_cctv_tierra_abrazadera_omega, var_cctv_tierra_varilla_cobre,
+        var_cctv_tierra_abrazaderas, var_cctv_tierra_cable_cobre, var_cctv_tierra_tornillos_cobre, var_cctv_tierra_quimico,
+        var_cctv_tierra_tuberia, var_cctv_tierra_bote,
         var_infra_existe, var_infra_tipo_existente, var_infra_estado,
         var_infra_tubos_tipo, var_infra_tubos_tamano, var_infra_tubos_cantidad, var_infra_coples_tipo, var_infra_coples_cantidad,
         var_infra_registros_tipo, var_infra_registros_cantidad, var_infra_conectores_tipo, var_infra_conectores_cantidad,
@@ -4742,11 +5420,14 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         var_rvd_tipo_canalizacion, var_rvd_metros_canalizacion, var_rvd_tipo_jacks, var_rvd_jacks,
         var_rvd_tipo_plugs, var_rvd_plugs, var_rvd_tipo_faceplates, var_rvd_faceplates,
         var_rvd_tipo_patch_cords, var_rvd_patch_cords, var_rvd_patch_panel, var_rvd_tipo_patch_panel,
-        var_rvd_cantidad_patch_panel, var_rvd_requiere_rack,
+        var_rvd_cantidad_patch_panel, var_rvd_requiere_rack, var_rvd_modalidad_rack, var_rvd_cantidad_rack,
+        var_rvd_cantidad_kit_rack, var_rvd_rack_organizadores, var_rvd_rack_organizadores_verticales, var_rvd_rack_organizadores_horizontales, var_rvd_rack_charolas, var_rvd_rack_pdu, var_rvd_rack_panel_parcheo,
         var_rvd_tipo_rack, var_rvd_requiere_gabinete, var_rvd_tipo_gabinete, var_rvd_ubicacion_rack,
         var_rvd_requiere_switch, var_rvd_tipo_switch, var_rvd_puertos_switch, var_rvd_switch_poe,
         var_rvd_ups, var_rvd_detalle_ups, var_rvd_contacto_regulado, var_rvd_detalle_contacto,
-        var_rvd_tierra_fisica, var_rvd_detalle_tierra, var_rvd_dias_trabajo, var_rvd_personas_trabajo
+        var_rvd_tierra_fisica, var_rvd_detalle_tierra, var_rvd_tierra_barra_cobre, var_rvd_tierra_aisladores,
+        var_rvd_tierra_abrazadera_omega, var_rvd_tierra_varilla_cobre, var_rvd_tierra_abrazaderas, var_rvd_tierra_cable_cobre,
+        var_rvd_tierra_tornillos_cobre, var_rvd_tierra_quimico, var_rvd_tierra_tuberia, var_rvd_tierra_bote, var_rvd_dias_trabajo, var_rvd_personas_trabajo
     ]
     variables_preview.extend(vars_extra.values())
     for _var in variables_preview:

@@ -337,3 +337,25 @@ def actualizar_evidencias_levantamiento(id_levantamiento, evidencias) -> list | 
         register_error(error, "Actualizar evidencias del levantamiento")
         logger.exception("No fue posible asociar evidencias al levantamiento.")
         return None
+
+
+def actualizar_archivos_levantamiento(id_levantamiento, archivos) -> list | None:
+    """Asocia metadatos de PDF/planos de Supabase Storage al levantamiento."""
+    try:
+        import json
+        respuesta = (
+            supabase.table(TABLA_LEVANTAMIENTOS)
+            .update({"lev_archivos_adjuntos_json": json.dumps(archivos or [], ensure_ascii=False)})
+            .eq("id_levantamiento", id_levantamiento)
+            .execute()
+        )
+        registrar_movimiento_seguro(
+            modulo="LEVANTAMIENTOS", accion="ACTUALIZAR_ARCHIVOS",
+            descripcion=f"Se asociaron {len(archivos or [])} archivo(s) técnico(s)",
+            registro_afectado=id_levantamiento,
+        )
+        return respuesta.data
+    except Exception as error:
+        register_error(error, "Actualizar archivos del levantamiento")
+        logger.exception("No fue posible asociar archivos técnicos al levantamiento.")
+        return None

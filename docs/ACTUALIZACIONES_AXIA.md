@@ -39,7 +39,7 @@ insert into public.db_actualizaciones
     (act_version, act_url, act_sha256, act_obligatoria, act_notas, act_canal)
 values
     ('2.02.1',
-     'https://http://www.axiacomunicaciones.com/sftwr//AXIA_Setup_2.02.1.exe',
+     'https://www.axiacomunicaciones.com/sftwr/AXIA_Setup_2.02.1.exe',
      '56f4e01eda89f327cedc99b87364194852eb3ec1fcbc6ee45cdbae5c6c854c04',
      true,
      'Primera versión auto actualizable.',
@@ -54,3 +54,23 @@ values
 - Nunca se distribuye una `service_role` key.
 - Se recomienda publicar siempre `act_sha256`.
 - Las migraciones de Supabase continúan ejecutándose manualmente por administración; los equipos cliente no ejecutan `ALTER TABLE` automáticamente.
+
+
+## Corrección de URL (FIX12)
+
+El cliente normaliza errores comunes de captura como `https://http://...` y diagonales duplicadas. Aun así, la URL almacenada en Supabase debe conservarse limpia. Para corregir registros existentes puede ejecutarse `migrations/20260822_fix_url_actualizaciones.sql`.
+
+
+## Flujo recomendado desde AXIA 2.02.6
+
+Para una actualización **no se publica `dist/AXIA/AXIA.exe`**. El archivo que descarga AXIA debe ser siempre el instalador completo generado por Inno Setup (`AXIA_Setup_X.Y.Z.exe`).
+
+En PowerShell, desde la raíz del proyecto:
+
+```powershell
+.\scripts\build_update.ps1
+```
+
+Ese comando ejecuta las validaciones, compila la aplicación, genera el instalador y crea `release/PUBLICAR_ACTUALIZACION_X.Y.Z.txt` con el SHA-256 y un ejemplo del registro para Supabase.
+
+Desde 2.02.6, AXIA ya no usa PowerShell como intermediario para instalar. Lanza Inno Setup directamente con elevación UAC y en modo `/SILENT`; el propio instalador vuelve a abrir AXIA al finalizar. Durante la actualización puede verse la ventana de progreso de Inno Setup y el cuadro UAC de Windows.

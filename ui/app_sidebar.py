@@ -73,6 +73,8 @@ from security.permissions import (
 # =====================================================
 # FONDO TEMÁTICO DE LEVANTAMIENTOS
 # =====================================================
+_FONDO_SIDEBAR_GENERAL = "fondo_general.png"
+
 _FONDOS_SIDEBAR = {
     "Seguridad y Monitoreo": "fondo_seguridad_monitoreo.png",
     "Redes Voz y Datos": "fondo_redes_voz_datos.png",
@@ -83,6 +85,7 @@ _FONDOS_SIDEBAR = {
     "Paneles Solares": "fondo_paneles_solares.png",
     "Plantas de Energía": "fondo_plantas_energia.png",
     "Aires Acondicionados": "fondo_aires_acondicionados.png",
+    "Obra Civil": "fondo_obra_civil.png",
 }
 
 def _ruta_recurso_sidebar(nombre):
@@ -95,9 +98,11 @@ def _crear_fondo_sidebar(tipo, size=(260, 900)):
     Se usa recorte tipo cover y un velo azul oscuro para que textos/botones
     mantengan contraste. La imagen no se limita al área del logotipo.
     """
-    nombre = _FONDOS_SIDEBAR.get(str(tipo or "").strip())
-    if not nombre:
-        return None
+    # El sidebar siempre tiene fondo. Cuando no hay un levantamiento activo
+    # (o el tipo no tiene imagen específica), se usa la imagen GENERAL.
+    # Al abrir una especialidad, esa imagen sustituye temporalmente al fondo
+    # general; Obra Civil ya cuenta también con su wallpaper dedicado.
+    nombre = _FONDOS_SIDEBAR.get(str(tipo or "").strip(), _FONDO_SIDEBAR_GENERAL)
     ruta = _ruta_recurso_sidebar(nombre)
     if not ruta.exists():
         logger.warning("No se encontró fondo de sidebar para %s: %s", tipo, ruta)
@@ -116,12 +121,6 @@ def _redibujar_fondo_sidebar(sidebar):
     tipo = getattr(sidebar, "_axia_sidebar_tipo", None)
     label = getattr(sidebar, "_axia_background_label", None)
     if sidebar is None or label is None:
-        return
-    if not tipo:
-        try:
-            label.place_forget()
-        except Exception:
-            pass
         return
     try:
         sidebar.update_idletasks()
@@ -150,12 +149,13 @@ def _redibujar_fondo_sidebar(sidebar):
         logger.debug("No se pudo redibujar fondo temático del sidebar.", exc_info=True)
 
 def actualizar_sidebar_especialidad(sidebar, tipo_levantamiento=None):
-    """Activa/desactiva el wallpaper de especialidad en todo el sidebar."""
+    """Muestra el wallpaper de especialidad o restaura el fondo GENERAL."""
     if sidebar is None:
         return
     sidebar._axia_sidebar_tipo = str(tipo_levantamiento or "").strip() or None
     # El logo corporativo permanece como capa superior; el wallpaper cubre
-    # desde el borde superior hasta las acciones de sesión.
+    # desde el borde superior hasta las acciones de sesión. Si tipo es None,
+    # se mantiene el fondo GENERAL en lugar de ocultar la imagen.
     _redibujar_fondo_sidebar(sidebar)
 
 # =====================================================
@@ -266,8 +266,8 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
     )
     sidebar.pack_propagate(False)
 
-    # Wallpaper temático: ocupa toda la superficie del sidebar y se activa
-    # únicamente al abrir un levantamiento especializado.
+    # Wallpaper del sidebar: el fondo GENERAL permanece siempre visible y
+    # se sustituye temporalmente por el de la especialidad activa.
     background_label = tk.Label(sidebar, text="", bd=0, highlightthickness=0, bg=PRIMARY_DARK)
     sidebar._axia_background_label = background_label
     sidebar._axia_background_image = None

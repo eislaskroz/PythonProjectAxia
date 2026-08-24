@@ -45,7 +45,7 @@ TIPOS_CONECTORES = [
 ]
 
 TIPOS_ABRAZADERAS = [
-    "Tipo Omega", "Uña", "Unicanal", "Tipo U", "Tipo P", "Plástico o PVC",
+    "Tipo Omega", "Uña", "Unicanal", "Tipo U", "Tipo P", "Plástico o PVC", "De Clip",
 ]
 
 TIPOS_CABLE_ELECTRICO = [
@@ -59,7 +59,7 @@ CALIBRES_CABLE_ELECTRICO = [
     "3/0 AWG", "4/0 AWG", "250 AWG", "350 AWG",
 ]
 
-CATEGORIAS_CON_MEDIDA_TUBO = {"Tubo", "Cople", "Registro", "Conector", "Abrazadera"}
+CATEGORIAS_CON_MEDIDA_TUBO = {"Tubo", "Cople", "Registro", "Conector", "Conectores", "Abrazadera", "Codos"}
 
 
 def especificaciones_por_categoria(categoria, tipo=""):
@@ -72,7 +72,7 @@ def especificaciones_por_categoria(categoria, tipo=""):
         # Mantiene opciones abiertas para cableado de datos/control, pero expone
         # todos los calibres eléctricos disponibles cuando el levantamiento lo requiere.
         return list(CALIBRES_CABLE_ELECTRICO) + ["No aplica", "Por definir"]
-    if categoria == "Canalización" and tipo in TIPOS_TUBOS:
+    if categoria in ("Canalización", "Canaleta") and tipo in TIPOS_TUBOS:
         return list(TAMANOS_TUBOS)
     return ["No aplica", "Por definir"]
 
@@ -82,6 +82,8 @@ def normalizar_tipo_canalizacion(tipo):
     aliases = {
         "Policloruro de Vinilo (PVC)": "PVC Pesado",
         "Liquidtight": "Liquidtight /Licuatite",
+        "Canalización": "Canaleta",
+        "Conector": "Conectores",
     }
     valor = str(tipo or "").strip()
     return aliases.get(valor, valor)

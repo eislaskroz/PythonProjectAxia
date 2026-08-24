@@ -6,6 +6,7 @@ from core.logger import configurar_logger
 logger = configurar_logger(__name__)
 
 import json
+from pathlib import Path
 import customtkinter as ctk
 from tkinter import messagebox, filedialog
 from ui.native_combobox import NativeComboBox
@@ -33,10 +34,10 @@ from services.equipos_catalogo_service import (
     MARCAS_COMUNES, obtener_nombres_familias, obtener_subfamilias,
     obtener_sugerencia_caracteristicas
 )
-from services.obras_civiles_service import crear_obra_civil, buscar_obra_civil_por_folio, actualizar_evidencias_obra_civil
+from services.obras_civiles_service import crear_obra_civil, buscar_obra_civil_por_folio, actualizar_evidencias_obra_civil, actualizar_archivos_obra_civil
 from services.obra_conceptos_service import obtener_conceptos_obra, obtener_tipos_concepto_obra, filtrar_conceptos_por_tipo
-from services.bitacora_evidencias_service import subir_evidencias_obra_civil
-from ui.colors import SECONDARY, WHITE, TEXT_PRIMARY, TEXT_SECONDARY, BUTTON_HOVER
+from services.bitacora_evidencias_service import subir_evidencias_obra_civil, subir_archivos_obra_civil
+from ui.colors import PRIMARY, SECONDARY, WHITE, TEXT_PRIMARY, TEXT_SECONDARY, BUTTON_HOVER
 from ui.date_picker import abrir_selector_fecha
 from ui.fonts import BUTTON_FONT
 from views.formato_helpers import ENTRY_H, OPTION_H, LABEL_FONT, SMALL_FONT, SECTION_FONT, generar_pdf_preview, generar_pdf_archivo, obtener_textbox, enfocar_inicio_formulario, anotacion_plano_popup
@@ -46,7 +47,7 @@ ESTADOS = ["Pendiente", "En proceso", "Terminado"]
 RESULTADOS = ["Aprobadas", "Reprobadas", "Pendiente"]
 
 
-def mostrar_obra_civil(parent, app, aco=None):
+def mostrar_obra_civil(parent, app, aco=None, borrador=None):
     usuario_activo = obtener_usuario_actual()
     if not puede_generar_levantamiento(usuario_activo):
         messagebox.showerror("Acceso denegado", "No tienes permisos para generar registros de obra civil.")
@@ -63,6 +64,8 @@ def mostrar_obra_civil(parent, app, aco=None):
     entradas_bloqueadas = []
     campos_validables = []
     evidencias = []
+    archivos_adjuntos = []
+    archivos_adjuntos_existentes = []
     materiales_miscelaneos_items = []
     canalizacion_materiales_items = []
     conceptos_obra_items = []
@@ -75,6 +78,11 @@ def mostrar_obra_civil(parent, app, aco=None):
     var_desea_anotacion_plano = ctk.StringVar(value="No")
     var_anotacion_plano_base64 = ctk.StringVar()
     var_desea_evidencias = ctk.StringVar(value="No")
+    var_desea_archivos_adjuntos = ctk.StringVar(value="No")
+    var_trabajo_alturas = ctk.StringVar(value="No")
+    var_sistema_acceso = ctk.StringVar(value="Escalera")
+    var_altura_trabajo = ctk.StringVar()
+    var_riesgo_trabajo = ctk.StringVar(value="Bajo")
     var_requiere_canalizacion = ctk.StringVar(value="Sí")
     var_aco = ctk.StringVar(value=datos_aco.get("aco_numero", ""))
     var_cliente = ctk.StringVar(value=datos_aco.get("cliente", ""))
@@ -98,6 +106,8 @@ def mostrar_obra_civil(parent, app, aco=None):
     var_nombre_proyecto = ctk.StringVar()
     var_dias_trabajo = ctk.StringVar()
     var_personas_considerar = ctk.StringVar()
+    var_requiere_epp = ctk.StringVar(value="No")
+    epp_items = []
 
     var_superficie = ctk.StringVar(value="Sí")
     var_superficie_ok = ctk.StringVar(value="Sí")
@@ -384,20 +394,87 @@ def mostrar_obra_civil(parent, app, aco=None):
     entry("¿Cuántos días de trabajo se proyectan?", var_dias_trabajo, 5, 0, "Ej. 5", colspan=1)
     entry("¿Cuántas personas se consideran?", var_personas_considerar, 5, 1, "Ej. 4", colspan=1)
 
-    entry("Fecha", var_fecha, 6, 0, "YYYY-MM-DD", date=True)
-    entry("Tipo de giro", var_tipo_giro, 6, 1, "Ej. Bancario, retail, oficina")
-    entry("Nombre del proyecto", var_nombre_proyecto, 6, 2, "Proyecto ejecutivo", colspan=3)
+    # EPP común para Obra Civil. Se conserva dentro de obc_ejecucion_json para evitar cambios de esquema.
+    CATALOGO_EPP = [
+        "Casco de seguridad", "Casco dieléctrico", "Lentes de seguridad", "Careta facial",
+        "Guantes de protección mecánica", "Guantes de carnaza", "Guantes dieléctricos", "Guantes de polietileno",
+        "Calzado de seguridad con casquillo", "Calzado dieléctrico", "Chaleco reflejante / alta visibilidad",
+        "Arnés de cuerpo completo", "Línea de vida", "Eslinga con absorbedor de impacto", "Botas de seguridad",
+        "Eslinga de posicionamiento", "Barbiquejo", "Protección auditiva", "Respirador / mascarilla",
+        "Ropa de protección contra arco eléctrico", "Rodilleras", "Otro / especificar"
+    ]
+    epp_panel = celda(6, 0, 5)
+    epp_panel.grid_columnconfigure(0, weight=2)
+    epp_panel.grid_columnconfigure(1, weight=0)
+    epp_panel.grid_columnconfigure(2, weight=3)
+    epp_panel.grid_columnconfigure(3, weight=0)
+    ctk.CTkLabel(epp_panel, text="🦺 Equipo de Protección Personal (EPP)", font=SECTION_FONT).grid(row=0, column=0, columnspan=4, sticky="w", padx=3, pady=(2,3))
+    ctk.CTkLabel(epp_panel, text="¿Se requiere EPP?", font=LABEL_FONT).grid(row=1, column=0, sticky="w", padx=3)
+    combo_epp_req = NativeComboBox(epp_panel, variable=var_requiere_epp, values=["No", "Sí"], width=100, height=OPTION_H)
+    combo_epp_req.grid(row=1, column=1, sticky="w", padx=3)
+    epp_rows = ctk.CTkFrame(epp_panel, fg_color="transparent")
+    epp_rows.grid(row=2, column=0, columnspan=4, sticky="ew", pady=(3,0))
+    for c,w in enumerate((2,0,3,0)): epp_rows.grid_columnconfigure(c, weight=w)
+    for c,t in enumerate(("EPP requerido","Cantidad","Especificación / observaciones","Acción")):
+        ctk.CTkLabel(epp_rows, text=t, font=SMALL_FONT).grid(row=0, column=c, sticky="w", padx=3)
 
-    seccion("Planeación inicial", 7)
-    option("¿Se cuenta con superficie?", var_superficie, SI_NO, 8, 0)
-    option("¿La superficie es adecuada?", var_superficie_ok, SI_NO, 8, 1)
-    option("¿Planos y diseño arquitectónico?", var_planos_arq, SI_NO, 8, 2)
-    option("¿Requiere maquinaria?", var_maquinaria, SI_NO, 8, 3)
-    option("¿Se cuenta con permisos?", var_permisos, SI_NO, 8, 4)
-    txt_observaciones_iniciales = textbox("Observaciones iniciales", 10, 0, 5)
+    def agregar_epp_obra(datos=None):
+        datos = dict(datos or {})
+        fila_e = 1 + len(epp_items)
+        ve = ctk.StringVar(value=str(datos.get("epp") or "Casco de seguridad"))
+        vc = ctk.StringVar(value=str(datos.get("cantidad") or "1"))
+        vo = ctk.StringVar(value=str(datos.get("observaciones") or ""))
+        opciones = list(CATALOGO_EPP)
+        if ve.get() not in opciones: opciones.append(ve.get())
+        ce = NativeComboBox(epp_rows, variable=ve, values=opciones, width=250, height=OPTION_H)
+        ce.grid(row=fila_e,column=0,sticky="ew",padx=3,pady=2)
+        ec = ctk.CTkEntry(epp_rows,textvariable=vc,width=80,height=ENTRY_H,corner_radius=0)
+        ec.grid(row=fila_e,column=1,sticky="w",padx=3,pady=2)
+        eo = ctk.CTkEntry(epp_rows,textvariable=vo,height=ENTRY_H,corner_radius=0,placeholder_text="Talla, clase, norma o detalle especial")
+        eo.grid(row=fila_e,column=2,sticky="ew",padx=3,pady=2)
+        item={"epp":ve,"cantidad":vc,"observaciones":vo,"widgets":[ce,ec,eo]}
+        def borrar():
+            for w in item["widgets"]:
+                try:w.destroy()
+                except Exception:pass
+            epp_items[:] = [x for x in epp_items if x is not item]
+            try:
+                validar_preview()
+            except (NameError, UnboundLocalError):
+                pass
+        b=ctk.CTkButton(epp_rows,text="Eliminar",width=78,height=ENTRY_H,fg_color="#DC2626",command=borrar)
+        b.grid(row=fila_e,column=3,sticky="ew",padx=3,pady=2); item["widgets"].append(b); epp_items.append(item)
 
-    seccion("Ejecución", 11)
-    fila = 12
+    btn_epp_add=ctk.CTkButton(epp_rows,text="➕ Agregar EPP",height=30,fg_color=PRIMARY,command=lambda:agregar_epp_obra(None))
+    btn_epp_add.grid(row=999,column=0,columnspan=2,sticky="w",padx=3,pady=(3,4))
+    def obtener_epp_obra():
+        if var_requiere_epp.get() != "Sí": return []
+        return [{"epp":i["epp"].get().strip(),"cantidad":i["cantidad"].get().strip() or "1","observaciones":i["observaciones"].get().strip()} for i in epp_items if i["epp"].get().strip()]
+    def vis_epp_obra(*_):
+        if var_requiere_epp.get()=="Sí":
+            epp_rows.grid()
+            if not epp_items: agregar_epp_obra(None)
+        else: epp_rows.grid_remove()
+        try:
+            validar_preview()
+        except (NameError, UnboundLocalError):
+            pass
+    var_requiere_epp.trace_add("write",vis_epp_obra); vis_epp_obra()
+
+    entry("Fecha", var_fecha, 7, 0, "YYYY-MM-DD", date=True)
+    entry("Tipo de giro", var_tipo_giro, 7, 1, "Ej. Bancario, retail, oficina")
+    entry("Nombre del proyecto", var_nombre_proyecto, 7, 2, "Proyecto ejecutivo", colspan=3)
+
+    seccion("Planeación inicial", 8)
+    option("¿Se cuenta con superficie?", var_superficie, SI_NO, 9, 0)
+    option("¿La superficie es adecuada?", var_superficie_ok, SI_NO, 9, 1)
+    option("¿Planos y diseño arquitectónico?", var_planos_arq, SI_NO, 9, 2)
+    option("¿Requiere maquinaria?", var_maquinaria, SI_NO, 9, 3)
+    option("¿Se cuenta con permisos?", var_permisos, SI_NO, 9, 4)
+    txt_observaciones_iniciales = textbox("Observaciones iniciales", 11, 0, 5)
+
+    seccion("Ejecución", 12)
+    fila = 13
     col = 0
     for nombre, var in ejecucion_vars.items():
         option(nombre, var, ESTADOS, fila, col)
@@ -406,14 +483,14 @@ def mostrar_obra_civil(parent, app, aco=None):
             col = 0
             fila += 1
 
-    seccion("Acabados", 18)
-    option("¿Planos de detalles y acabados?", var_planos_acabados, SI_NO, 19, 0)
-    option("Generación de planos", var_generacion_planos, ["Sí", "No", "No aplica"], 19, 1)
-    option("Etapa de acabados", var_etapa_acabados, ESTADOS, 19, 2)
-    option("Obra blanca", var_obra_blanca, ESTADOS, 19, 3)
+    seccion("Acabados", 19)
+    option("¿Planos de detalles y acabados?", var_planos_acabados, SI_NO, 20, 0)
+    option("Generación de planos", var_generacion_planos, ["Sí", "No", "No aplica"], 20, 1)
+    option("Etapa de acabados", var_etapa_acabados, ESTADOS, 20, 2)
+    option("Obra blanca", var_obra_blanca, ESTADOS, 20, 3)
 
-    seccion("Conceptos de obra requeridos", 20)
-    panel_conceptos = celda(21, 0, 5)
+    seccion("Conceptos de obra requeridos", 21)
+    panel_conceptos = celda(22, 0, 5)
     # Prioriza el concepto: ~25% más espacio que el layout anterior.
     panel_conceptos.grid_columnconfigure(0, weight=2)
     panel_conceptos.grid_columnconfigure(1, weight=8)
@@ -524,8 +601,8 @@ def mostrar_obra_civil(parent, app, aco=None):
         state="normal" if catalogo_conceptos_obra else "disabled"
     ).grid(row=99, column=0, columnspan=2, sticky="w", padx=3, pady=(4, 2))
 
-    seccion("Materiales misceláneos y consumibles", 22)
-    panel_misc = celda(23, 0, 5)
+    seccion("Materiales misceláneos y consumibles", 23)
+    panel_misc = celda(24, 0, 5)
     panel_misc.grid_columnconfigure(0, weight=2)
     panel_misc.grid_columnconfigure(1, weight=1)
     panel_misc.grid_columnconfigure(2, weight=1)
@@ -608,8 +685,8 @@ def mostrar_obra_civil(parent, app, aco=None):
 
     # Canalización, cableado y materiales. Se persiste dentro de obc_ejecucion_json
     # para conservar compatibilidad con el esquema actual de Supabase.
-    seccion("Canalización, cableado y materiales", 24)
-    panel_canalizacion = celda(25, 0, 5)
+    seccion("Canalización, cableado y materiales", 25)
+    panel_canalizacion = celda(26, 0, 5)
     for col, peso in enumerate((2, 4, 3, 2, 2, 1)):
         panel_canalizacion.grid_columnconfigure(col, weight=peso)
     ctk.CTkLabel(
@@ -623,7 +700,7 @@ def mostrar_obra_civil(parent, app, aco=None):
     for col, encabezado in enumerate(("Categoría", "Tipo", "Tamaño / calibre / especificación", "Cantidad", "Unidad", "Acción")):
         ctk.CTkLabel(panel_canalizacion, text=encabezado, font=("Montserrat", 11, "bold"), text_color=TEXT_PRIMARY).grid(row=3, column=col, sticky="w", padx=3, pady=(0, 2))
 
-    categorias_canalizacion = ["Tubo", "Cople", "Registro", "Conector", "Abrazadera", "Canalización", "Cable"]
+    categorias_canalizacion = ["Tubo", "Cople", "Registro", "Conectores", "Abrazadera", "Tapas", "Codos", "Canaleta", "Cable"]
 
     def catalogo_tipos_canalizacion(categoria):
         if categoria == "Tubo": return list(TIPOS_TUBOS)
@@ -631,7 +708,10 @@ def mostrar_obra_civil(parent, app, aco=None):
         if categoria == "Registro": return list(TIPOS_REGISTROS)
         if categoria == "Conector": return list(TIPOS_CONECTORES)
         if categoria == "Abrazadera": return list(TIPOS_ABRAZADERAS)
-        if categoria == "Canalización": return list(TIPOS_CANALIZACION)
+        if categoria in ("Conector", "Conectores"): return list(TIPOS_CONECTORES)
+        if categoria == "Codos": return ["45°", "90°", "Interior", "Exterior", "Plano"]
+        if categoria == "Tapas": return ["Ciega", "Final", "Unión", "Para contacto", "Para datos"]
+        if categoria in ("Canalización", "Canaleta"): return list(TIPOS_CANALIZACION)
         if categoria == "Cable": return list(TIPOS_CABLE_DATOS_CONTROL)
         return ["Otro"]
 
@@ -682,7 +762,7 @@ def mostrar_obra_civil(parent, app, aco=None):
         vtipo = ctk.StringVar()
         vespecificacion = ctk.StringVar()
         vcantidad = ctk.StringVar()
-        vunidad = ctk.StringVar(value="Metro(s)" if categoria_inicial in ("Tubo", "Canalización", "Cable") else "Pieza(s)")
+        vunidad = ctk.StringVar(value="Metro(s)" if categoria_inicial in ("Tubo", "Canalización", "Canaleta", "Cable") else "Pieza(s)")
         ocategoria = NativeComboBox(panel_canalizacion, variable=vcategoria, values=categorias_canalizacion, width=155, height=31)
         otipo = NativeComboBox(panel_canalizacion, variable=vtipo, values=[], width=300, height=31)
         oespecificacion = NativeComboBox(panel_canalizacion, variable=vespecificacion, values=[], width=225, height=31)
@@ -703,9 +783,9 @@ def mostrar_obra_civil(parent, app, aco=None):
                 vtipo.set(tipos[0] if tipos else "")
             if vespecificacion.get() not in especificaciones:
                 vespecificacion.set(especificaciones[0] if especificaciones else "")
-            if categoria in ("Tubo", "Canalización", "Cable") and not vunidad.get():
+            if categoria in ("Tubo", "Canalización", "Canaleta", "Cable") and not vunidad.get():
                 vunidad.set("Metro(s)")
-            elif categoria not in ("Tubo", "Canalización", "Cable") and vunidad.get() == "Metro(s)":
+            elif categoria not in ("Tubo", "Canalización", "Canaleta", "Cable") and vunidad.get() == "Metro(s)":
                 vunidad.set("Pieza(s)")
             validar_preview()
 
@@ -742,8 +822,39 @@ def mostrar_obra_civil(parent, app, aco=None):
     ctk.CTkButton(panel_canalizacion, text="➕ Agregar partida", height=32, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=agregar_partida_canalizacion_obra).grid(row=1000, column=0, columnspan=2, sticky="w", padx=3, pady=(4, 2))
     agregar_partida_canalizacion_obra("Tubo")
 
-    seccion("Evidencia fotográfica", 26)
-    panel_evidencias = celda(27, 0, 5)
+    seccion("Acceso, alturas y riesgos", 27)
+    panel_alturas = celda(28, 0, 5)
+    panel_alturas.grid_columnconfigure((0, 1, 2, 3), weight=1)
+    campos_alturas = [
+        ("¿Se trabajará en Alturas?", var_trabajo_alturas, ["Sí", "No"]),
+        ("Tipo de Sistema de Acceso Temporal", var_sistema_acceso, ["Escalera", "Andamio", "Plataforma"]),
+        ("Altura", var_altura_trabajo, None),
+        ("Riesgo", var_riesgo_trabajo, ["Bajo", "Medio", "Alto", "Crítico"]),
+    ]
+    widgets_alturas = []
+    for idx, (texto_alt, variable_alt, opciones_alt) in enumerate(campos_alturas):
+        caja_alt = ctk.CTkFrame(panel_alturas, fg_color="transparent")
+        caja_alt.grid(row=0, column=idx, sticky="ew", padx=4)
+        ctk.CTkLabel(caja_alt, text=texto_alt, font=LABEL_FONT, text_color=TEXT_PRIMARY, anchor="w").pack(fill="x")
+        if opciones_alt is None:
+            w_alt = ctk.CTkEntry(caja_alt, textvariable=variable_alt, height=30, corner_radius=0, font=SMALL_FONT, placeholder_text="Ej. 4 metros")
+        else:
+            w_alt = NativeComboBox(caja_alt, variable=variable_alt, values=opciones_alt, height=30, font=SMALL_FONT)
+        w_alt.pack(fill="x")
+        widgets_alturas.append(w_alt)
+    def actualizar_alturas_obra(*_):
+        activo = var_trabajo_alturas.get() == "Sí"
+        for w_alt in widgets_alturas[1:]:
+            try: w_alt.configure(state="normal" if activo else "disabled")
+            except Exception: pass
+        if not activo:
+            var_sistema_acceso.set("Escalera"); var_altura_trabajo.set(""); var_riesgo_trabajo.set("Bajo")
+        validar_preview()
+    var_trabajo_alturas.trace_add("write", actualizar_alturas_obra)
+    actualizar_alturas_obra()
+
+    seccion("Evidencia fotográfica", 29)
+    panel_evidencias = celda(30, 0, 5)
     fila_evidencias = ctk.CTkFrame(panel_evidencias, fg_color="#F8FAFC", corner_radius=10)
     fila_evidencias.pack(fill="x")
     ctk.CTkLabel(fila_evidencias, text="¿Deseas agregar evidencia fotográfica?", font=LABEL_FONT, text_color=TEXT_PRIMARY).pack(side="left", padx=8, pady=7)
@@ -784,8 +895,8 @@ def mostrar_obra_civil(parent, app, aco=None):
     btn_eliminar_evidencia.pack(side="left", padx=5, pady=7)
     var_desea_evidencias.trace_add("write", actualizar_evidencias)
 
-    seccion("Anotaciones tipo plano", 28)
-    panel_anotacion = celda(29, 0, 5)
+    seccion("Anotaciones tipo plano", 31)
+    panel_anotacion = celda(32, 0, 5)
     fila_anotacion = ctk.CTkFrame(panel_anotacion, fg_color="#F8FAFC", corner_radius=10)
     fila_anotacion.pack(fill="x")
     ctk.CTkLabel(fila_anotacion, text="¿Deseas realizar anotaciones tipo plano?", font=LABEL_FONT, text_color=TEXT_PRIMARY).pack(side="left", padx=8, pady=7)
@@ -811,9 +922,97 @@ def mostrar_obra_civil(parent, app, aco=None):
         validar_preview()
     var_desea_anotacion_plano.trace_add("write", actualizar_anotacion)
 
-    seccion("Observaciones finales", 31)
-    txt_finales = textbox("Observaciones finales", 32, 0, 5, height=90)
+    seccion("Archivos PDF o planos", 33)
+    panel_archivos = celda(34, 0, 5)
+    fila_archivos = ctk.CTkFrame(panel_archivos, fg_color="#F8FAFC", corner_radius=10)
+    fila_archivos.pack(fill="x")
+    ctk.CTkLabel(fila_archivos, text="¿Deseas agregar archivos PDF o planos?", font=LABEL_FONT, text_color=TEXT_PRIMARY).pack(side="left", padx=8, pady=7)
+    cmb_archivos = NativeComboBox(fila_archivos, variable=var_desea_archivos_adjuntos, values=["No", "Sí"], width=110, height=30)
+    cmb_archivos.pack(side="left", padx=5, pady=7)
+    lbl_archivos = ctk.CTkLabel(fila_archivos, text="No se requieren archivos", font=SMALL_FONT, text_color=TEXT_SECONDARY)
+    lbl_archivos.pack(side="right", padx=8)
 
+    def total_archivos_obra():
+        return len(archivos_adjuntos) + len(archivos_adjuntos_existentes)
+
+    def actualizar_archivos(*_):
+        desea = var_desea_archivos_adjuntos.get() == "Sí"
+        btn_agregar_archivo.configure(state="normal" if desea else "disabled")
+        btn_eliminar_archivo.configure(state="normal" if desea and archivos_adjuntos else "disabled")
+        if not desea:
+            archivos_adjuntos.clear(); archivos_adjuntos_existentes.clear()
+            lbl_archivos.configure(text="No se requieren archivos")
+        else:
+            lbl_archivos.configure(text=f"{total_archivos_obra()} archivo(s) adjunto(s)" if total_archivos_obra() else "Pendiente de cargar PDF o planos")
+        validar_preview()
+
+    def agregar_archivo_obra():
+        rutas = filedialog.askopenfilenames(
+            title="Agregar PDF o planos",
+            filetypes=[("PDF y planos", "*.pdf *.dwg *.dxf *.png *.jpg *.jpeg *.webp"), ("Todos", "*.*")],
+        )
+        for ruta in rutas:
+            if ruta and ruta not in archivos_adjuntos:
+                archivos_adjuntos.append(ruta)
+        actualizar_archivos()
+
+    def eliminar_ultimo_archivo_obra():
+        if archivos_adjuntos: archivos_adjuntos.pop()
+        actualizar_archivos()
+
+    btn_agregar_archivo = ctk.CTkButton(fila_archivos, text="+ Agregar archivos", width=155, height=30, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=agregar_archivo_obra, state="disabled")
+    btn_agregar_archivo.pack(side="left", padx=5, pady=7)
+    btn_eliminar_archivo = ctk.CTkButton(fila_archivos, text="Eliminar último", width=135, height=30, fg_color="#DC2626", hover_color="#B91C1C", command=eliminar_ultimo_archivo_obra, state="disabled")
+    btn_eliminar_archivo.pack(side="left", padx=5, pady=7)
+    var_desea_archivos_adjuntos.trace_add("write", actualizar_archivos)
+
+    seccion("Observaciones finales", 35)
+    txt_finales = textbox("Observaciones finales", 36, 0, 5, height=90)
+
+    def _restaurar_borrador_obra():
+        if not isinstance(borrador, dict):
+            return
+        estado = borrador.get("__obra_civil_borrador") if isinstance(borrador.get("__obra_civil_borrador"), dict) else {}
+        if not estado:
+            return
+        mapa = {
+            "folio": var_folio, "fecha": var_fecha, "aco": var_aco, "cliente": var_cliente,
+            "contacto": var_contacto, "telefono": var_telefono, "correo": var_correo,
+            "sucursal": var_sucursal, "encargado_sucursal": var_encargado_sucursal,
+            "direccion": var_direccion, "responsable": var_responsable, "supervisor": var_supervisor,
+            "tecnico": var_tecnico, "tipo_giro": var_tipo_giro, "nombre_proyecto": var_nombre_proyecto,
+            "dias_trabajo": var_dias_trabajo, "personas": var_personas_considerar,
+            "requiere_epp": var_requiere_epp, "superficie": var_superficie, "superficie_ok": var_superficie_ok,
+            "planos_arq": var_planos_arq, "maquinaria": var_maquinaria, "permisos": var_permisos,
+            "desea_anotacion": var_desea_anotacion_plano, "anotacion_base64": var_anotacion_plano_base64,
+            "desea_evidencias": var_desea_evidencias, "desea_archivos": var_desea_archivos_adjuntos,
+            "trabajo_alturas": var_trabajo_alturas, "sistema_acceso": var_sistema_acceso,
+            "altura_trabajo": var_altura_trabajo, "riesgo": var_riesgo_trabajo,
+            "requiere_canalizacion": var_requiere_canalizacion,
+            "planos_acabados": var_planos_acabados, "generacion_planos": var_generacion_planos,
+            "etapa_acabados": var_etapa_acabados, "obra_blanca": var_obra_blanca,
+        }
+        for clave, variable in mapa.items():
+            if clave in estado:
+                variable.set(str(estado.get(clave) or ""))
+        for clave, variable in ejecucion_vars.items():
+            if clave in (estado.get("ejecucion") or {}):
+                variable.set(str(estado["ejecucion"].get(clave) or ""))
+        try:
+            txt_observaciones_iniciales.delete("1.0", "end"); txt_observaciones_iniciales.insert("1.0", str(estado.get("observaciones_iniciales") or ""))
+            txt_finales.delete("1.0", "end"); txt_finales.insert("1.0", str(estado.get("observaciones_finales") or ""))
+        except Exception:
+            pass
+        for ruta in estado.get("evidencias_locales", []) if isinstance(estado.get("evidencias_locales"), list) else []:
+            if ruta and ruta not in evidencias: evidencias.append(ruta)
+        for ruta in estado.get("archivos_locales", []) if isinstance(estado.get("archivos_locales"), list) else []:
+            if ruta and ruta not in archivos_adjuntos: archivos_adjuntos.append(ruta)
+        try:
+            actualizar_alturas_obra(); actualizar_evidencias(); actualizar_anotacion(); actualizar_archivos()
+        except Exception:
+            pass
+
+    _restaurar_borrador_obra()
     bloquear_autollenados()
 
     def formulario_completo():
@@ -823,11 +1022,22 @@ def mostrar_obra_civil(parent, app, aco=None):
             return False
         if var_desea_evidencias.get() == "Sí" and not evidencias:
             return False
+        if var_desea_archivos_adjuntos.get() == "Sí" and total_archivos_obra() == 0:
+            return False
+        if var_trabajo_alturas.get() == "Sí" and not (var_sistema_acceso.get().strip() and var_altura_trabajo.get().strip() and var_riesgo_trabajo.get().strip()):
+            return False
         if not canalizacion_obra_completa():
             return False
         try:
             if int(var_dias_trabajo.get().strip()) <= 0 or int(var_personas_considerar.get().strip()) <= 0:
                 return False
+            if var_requiere_epp.get() == "Sí":
+                partidas_epp = obtener_epp_obra()
+                if not partidas_epp:
+                    return False
+                for item_epp in partidas_epp:
+                    if float(str(item_epp.get("cantidad") or "0").replace(",", ".")) <= 0:
+                        return False
         except (TypeError, ValueError):
             return False
         # Si el catálogo está disponible, cada concepto visible debe ser válido y tener cantidad > 0.
@@ -856,11 +1066,18 @@ def mostrar_obra_civil(parent, app, aco=None):
             "Generación de planos": var_generacion_planos.get(), "Etapa de acabados": var_etapa_acabados.get(), "Obra blanca": var_obra_blanca.get(),
             "Observaciones iniciales": obtener_textbox(txt_observaciones_iniciales), "Observaciones finales": obtener_textbox(txt_finales),
             "Evidencia fotográfica": "Sí" if var_desea_evidencias.get() == "Sí" else "No",
+            "¿Requiere EPP?": var_requiere_epp.get(),
+            "Equipo de Protección Personal": "; ".join(f"{x['cantidad']} x {x['epp']}" + (f" ({x['observaciones']})" if x.get('observaciones') else "") for x in obtener_epp_obra()) if var_requiere_epp.get() == "Sí" else "No requerido",
             "__evidencias_fotograficas": list(evidencias) if var_desea_evidencias.get() == "Sí" else [],
             "Conceptos de obra": str(len(obtener_conceptos_obra_seleccionados())),
             "Canalización requerida": var_requiere_canalizacion.get(),
             "Partidas de canalización": str(len(obtener_canalizacion_materiales_obra())),
             "Anotación tipo plano": "Sí" if var_desea_anotacion_plano.get() == "Sí" else "No",
+            "¿Se trabajará en Alturas?": var_trabajo_alturas.get(),
+            "Sistema de acceso temporal": var_sistema_acceso.get() if var_trabajo_alturas.get() == "Sí" else "No aplica",
+            "Altura": var_altura_trabajo.get() if var_trabajo_alturas.get() == "Sí" else "No aplica",
+            "Riesgo": var_riesgo_trabajo.get() if var_trabajo_alturas.get() == "Sí" else "No aplica",
+            "Archivos PDF / planos": "; ".join([Path(x).name for x in archivos_adjuntos] + [str(x.get("nombre") or x.get("storage_path") or "Archivo") for x in archivos_adjuntos_existentes]) or "No",
             "__anotacion_plano_base64": var_anotacion_plano_base64.get().strip() if var_desea_anotacion_plano.get() == "Sí" else "",
             "Materiales misceláneos": "; ".join(
                 f"{m['material']}: {m['cantidad'] or 'Por definir'} {m['unidad']}" + (f" ({m['especificacion']})" if m['especificacion'] else "")
@@ -910,6 +1127,9 @@ def mostrar_obra_civil(parent, app, aco=None):
         if var_desea_evidencias.get() == "Sí" and not evidencias:
             messagebox.showwarning("Evidencia fotográfica", "Seleccionaste Sí. Agrega al menos una fotografía antes de guardar.")
             return
+        if var_desea_archivos_adjuntos.get() == "Sí" and total_archivos_obra() == 0:
+            messagebox.showwarning("Archivos adjuntos", "Seleccionaste Sí. Agrega al menos un PDF o plano antes de guardar.")
+            return
         folio = var_folio.get().strip()
         if buscar_obra_civil_por_folio(folio):
             folio = generar_siguiente_folio("OBC")
@@ -934,6 +1154,13 @@ def mostrar_obra_civil(parent, app, aco=None):
                     "personas_considerar": var_personas_considerar.get().strip(),
                 },
                 "_conceptos_obra": obtener_conceptos_obra_seleccionados(),
+                "_epp": {"requiere": var_requiere_epp.get(), "partidas": obtener_epp_obra()},
+                "_acceso_alturas_riesgos": {
+                    "trabajo_alturas": var_trabajo_alturas.get(),
+                    "sistema_acceso_temporal": var_sistema_acceso.get() if var_trabajo_alturas.get() == "Sí" else "",
+                    "altura": var_altura_trabajo.get() if var_trabajo_alturas.get() == "Sí" else "",
+                    "riesgo": var_riesgo_trabajo.get() if var_trabajo_alturas.get() == "Sí" else "",
+                },
                 "_materiales_miscelaneos": obtener_materiales_misc_obra(),
                 "_canalizacion_materiales": {
                     "requiere": var_requiere_canalizacion.get(),
@@ -941,7 +1168,7 @@ def mostrar_obra_civil(parent, app, aco=None):
                 },
             }, ensure_ascii=False),
             "obc_planos_acabados": var_planos_acabados.get(), "obc_generacion_planos": var_generacion_planos.get(), "obc_etapa_acabados": var_etapa_acabados.get(),
-            "obc_obra_blanca": var_obra_blanca.get(), "obc_evidencias_json": "[]",
+            "obc_obra_blanca": var_obra_blanca.get(), "obc_evidencias_json": "[]", "obc_archivos_adjuntos_json": "[]",
             "obc_anotacion_plano_json": json.dumps({"habilitado": var_desea_anotacion_plano.get() == "Sí", "imagen_base64": var_anotacion_plano_base64.get().strip() if var_desea_anotacion_plano.get() == "Sí" else ""}, ensure_ascii=False),
             "obc_observaciones_finales": obtener_textbox(txt_finales),
             "obc_estatus": 1, "creado_por": usuario_activo.get("usuario"),
@@ -961,9 +1188,22 @@ def mostrar_obra_civil(parent, app, aco=None):
                 except Exception as error:
                     show_operation_error("Error al guardar evidencias", "Subir evidencia fotográfica de Obra Civil", error)
                     return
+            archivos_subidos = []
+            if var_desea_archivos_adjuntos.get() == "Sí" and archivos_adjuntos:
+                try:
+                    archivos_subidos = subir_archivos_obra_civil(folio, archivos_adjuntos)
+                    if not archivos_subidos:
+                        raise RuntimeError("Supabase no confirmó la carga de los PDF/planos.")
+                    id_obra_civil = registro_creado.get("id_obra_civil")
+                    if not id_obra_civil or actualizar_archivos_obra_civil(id_obra_civil, archivos_subidos) is None:
+                        raise RuntimeError("No fue posible asociar los archivos a la obra civil.")
+                except Exception as error:
+                    show_operation_error("Error al guardar archivos", "Subir PDF/planos de Obra Civil", error)
+                    return
             registrar_movimiento(modulo="Obra Civil", accion="CREAR", descripcion=f"El usuario creó la obra civil {folio}", registro_afectado=folio)
             datos_pdf_final = datos_pdf()
             datos_pdf_final["__evidencias_fotograficas"] = evidencias_subidas or list(evidencias)
+            datos_pdf_final["Archivos PDF / planos"] = "; ".join(str(x.get("nombre") or "Archivo") for x in archivos_subidos) or datos_pdf_final.get("Archivos PDF / planos", "No")
             ruta_pdf = generar_pdf_archivo("Obra Civil", datos_pdf_final, nombre_archivo=folio, subcarpeta="obras_civiles", secciones_tabla=[
                 ("Ejecución", ["Actividad", "Estado"], seccion_ejecucion_pdf()),
                 ("Conceptos de obra", ["Tipo", "Partida", "Unidad", "Cantidad", "Concepto"], seccion_conceptos_obra_pdf()),
@@ -971,10 +1211,52 @@ def mostrar_obra_civil(parent, app, aco=None):
                 ("Canalización, cableado y materiales", ["Categoría", "Tipo", "Especificación", "Cantidad", "Unidad"], seccion_canalizacion_pdf()),
             ])
             mensaje_pdf = f"\n\nPDF guardado en:\n{ruta_pdf}" if ruta_pdf else "\n\nNo se pudo guardar el PDF local."
+            try:
+                from services.levantamiento_borradores_service import eliminar_borrador
+                eliminar_borrador(usuario_activo)
+            except Exception:
+                logger.debug("No fue posible eliminar el borrador de Obra Civil ya guardado.", exc_info=True)
             messagebox.showinfo("Registro correcto", "La obra civil fue registrada correctamente." + mensaje_pdf)
             app.mostrar_vista_inicio_aco()
         else:
             show_operation_error("Error al guardar", "Registrar obra civil")
+
+    def _snapshot_borrador_obra():
+        estado = {
+            "folio": var_folio.get(), "fecha": var_fecha.get(), "aco": var_aco.get(), "cliente": var_cliente.get(),
+            "contacto": var_contacto.get(), "telefono": var_telefono.get(), "correo": var_correo.get(),
+            "sucursal": var_sucursal.get(), "encargado_sucursal": var_encargado_sucursal.get(),
+            "direccion": var_direccion.get(), "responsable": var_responsable.get(), "supervisor": var_supervisor.get(),
+            "tecnico": var_tecnico.get(), "tipo_giro": var_tipo_giro.get(), "nombre_proyecto": var_nombre_proyecto.get(),
+            "dias_trabajo": var_dias_trabajo.get(), "personas": var_personas_considerar.get(),
+            "requiere_epp": var_requiere_epp.get(), "superficie": var_superficie.get(), "superficie_ok": var_superficie_ok.get(),
+            "planos_arq": var_planos_arq.get(), "maquinaria": var_maquinaria.get(), "permisos": var_permisos.get(),
+            "desea_anotacion": var_desea_anotacion_plano.get(), "anotacion_base64": var_anotacion_plano_base64.get(),
+            "desea_evidencias": var_desea_evidencias.get(), "evidencias_locales": list(evidencias),
+            "desea_archivos": var_desea_archivos_adjuntos.get(), "archivos_locales": list(archivos_adjuntos),
+            "trabajo_alturas": var_trabajo_alturas.get(), "sistema_acceso": var_sistema_acceso.get(),
+            "altura_trabajo": var_altura_trabajo.get(), "riesgo": var_riesgo_trabajo.get(),
+            "requiere_canalizacion": var_requiere_canalizacion.get(),
+            "planos_acabados": var_planos_acabados.get(), "generacion_planos": var_generacion_planos.get(),
+            "etapa_acabados": var_etapa_acabados.get(), "obra_blanca": var_obra_blanca.get(),
+            "observaciones_iniciales": obtener_textbox(txt_observaciones_iniciales),
+            "observaciones_finales": obtener_textbox(txt_finales),
+            "ejecucion": {k: v.get() for k, v in ejecucion_vars.items()},
+        }
+        return {
+            "lev_cliente": var_cliente.get().strip(),
+            "lev_contacto": var_contacto.get().strip(),
+            "lev_observaciones": obtener_textbox(txt_finales),
+            "lev_descripcion": var_nombre_proyecto.get().strip(),
+            "lev_detalle_tecnico_json": json.dumps({"obra_civil": estado}, ensure_ascii=False),
+            "__obra_civil_borrador": estado,
+        }
+
+    try:
+        if hasattr(app, "registrar_proveedor_borrador_levantamiento"):
+            app.registrar_proveedor_borrador_levantamiento("Obra Civil", _snapshot_borrador_obra)
+    except Exception:
+        logger.debug("No fue posible registrar autoguardado de Obra Civil.", exc_info=True)
 
     botones = ctk.CTkFrame(contenedor, fg_color="#F4F4F4", height=58, corner_radius=0)
     botones.grid(row=1, column=0, sticky="ew")

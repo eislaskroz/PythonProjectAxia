@@ -117,6 +117,46 @@ def _evidencias_levantamiento(registro: Mapping[str, Any]) -> list:
     return list(value) if isinstance(value, (list, tuple)) else []
 
 
+def _archivos_adjuntos_levantamiento(registro: Mapping[str, Any]) -> list:
+    """Resuelve PDF/planos locales del preview o metadatos persistidos."""
+    locales = registro.get("__archivos_adjuntos_locales") or []
+    persistidos = _json(registro.get("lev_archivos_adjuntos_json"), [])
+    resultado = []
+    if isinstance(persistidos, Mapping):
+        resultado.append(dict(persistidos))
+    elif isinstance(persistidos, (list, tuple)):
+        resultado.extend(persistidos)
+    if isinstance(locales, (list, tuple)):
+        resultado.extend(locales)
+    elif locales:
+        resultado.append(locales)
+    return resultado
+
+
+def _append_archivos_adjuntos(story: list, registro: Mapping[str, Any], width: float, normal, header) -> None:
+    items = _archivos_adjuntos_levantamiento(registro)
+    if not items:
+        return
+    filas = []
+    for item in items:
+        if isinstance(item, Mapping):
+            nombre = str(item.get("nombre") or item.get("storage_path") or "Archivo")
+            mime = str(item.get("mime") or "")
+            ubicacion = str(item.get("url") or item.get("storage_path") or "Adjunto en AXIA")
+        else:
+            ruta = Path(str(item))
+            nombre = ruta.name or str(item)
+            mime = ruta.suffix.lower().lstrip(".").upper()
+            ubicacion = "Adjunto local (preview)"
+        filas.append([nombre, mime or "Archivo", ubicacion])
+    story.append(_section_matrix_table(
+        "Archivos PDF / planos adjuntos",
+        ["Archivo", "Tipo", "Referencia"],
+        filas, [2.35*inch, 1.00*inch, 3.55*inch], normal, header
+    ))
+    story.append(Spacer(1, 7))
+
+
 def _cargar_imagen_evidencia(item):
     """Devuelve bytes de una fotografía desde ruta local, URL o Storage."""
     try:
@@ -380,6 +420,9 @@ def generar_pdf_seguridad_instalacion(
     tipo_master, modalidad = _tipo_y_modalidad(registro, detail)
     infra = dict(detail.get("infraestructura_existente") or {})
     rack = dict(detail.get("rack_gabinete_energia") or {})
+    materiales_rack_tierra = detail.get("materiales_rack_tierra") or []
+    if not isinstance(materiales_rack_tierra, (list, tuple)):
+        materiales_rack_tierra = []
     access = dict(detail.get("acceso_alturas_riesgos") or {})
     cctv = dict(detail.get("datos_tecnicos_cctv") or {})
 
@@ -431,8 +474,9 @@ def generar_pdf_seguridad_instalacion(
         ["Tipo de infraestructura", infra.get("tipo_infraestructura_existente") or "No aplica"],
         ["Estado general", infra.get("estado_general") or "No aplica"],
     ], [1.55*inch, 1.70*inch], normal, label)
+    rack_detalle = rack.get("tipo_rack") or "No aplica"
     right_rows = [
-        ["Rack", rack.get("rack_requerido"), rack.get("tipo_rack") or "No aplica"],
+        ["Rack", rack.get("rack_requerido"), rack_detalle],
         ["Gabinete", rack.get("gabinete_requerido"), rack.get("tipo_gabinete") or "No aplica"],
         ["UPS", rack.get("ups_requerida"), rack.get("tipo_ups") or "No aplica"],
         ["Contacto regulado", rack.get("contacto_regulado"), rack.get("detalle_contacto_regulado") or "No aplica"],
@@ -452,20 +496,38 @@ def generar_pdf_seguridad_instalacion(
     pair = Table([[left, right]], colWidths=[3.35*inch, 3.45*inch])
     pair.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "TOP"), ("LEFTPADDING", (0,0), (-1,-1), 0), ("RIGHTPADDING", (0,0), (-1,-1), 0)]))
     story.append(pair)
-    story.append(Spacer(1, 6))
+    story.append(Spacer(1, 5))
+
+    rack_tierra_rows = []
+    for item in materiales_rack_tierra:
+        if not isinstance(item, Mapping):
+            continue
+        rack_tierra_rows.append([
+            item.get("categoria") or "Material", item.get("material"), item.get("cantidad"),
+            item.get("unidad"), item.get("especificacion") or ""
+        ])
+    if rack_tierra_rows:
+        story.append(_section_matrix_table(
+            "Materiales de rack y tierra física",
+            ["Grupo", "Material / accesorio", "Cantidad", "Unidad", "Especificación"],
+            rack_tierra_rows,
+            [1.0*inch, 2.15*inch, .72*inch, 1.02*inch, 2.01*inch], normal, header
+        ))
+        story.append(Spacer(1, 6))
 
     # 3) Acceso, alturas y riesgos.
     access_rows = [[
-        "¿Se requiere escalera/andamio?", access.get("escalera_andamio"),
+        "¿Se trabajará en Alturas?", access.get("trabajo_alturas") or access.get("escalera_andamio"),
+        "Sistema de acceso", access.get("sistema_acceso_temporal") or "No aplica",
         "Altura", access.get("altura_trabajo") or "No aplica",
         "Riesgo", access.get("riesgo_instalacion") or "No aplica",
     ]]
-    access_table = Table([[ _p(v, label if i in (0,2,4) else normal, "") for i,v in enumerate(access_rows[0]) ]],
-                         colWidths=[1.65*inch, .62*inch, .62*inch, .85*inch, .62*inch, 2.54*inch])
+    access_table = Table([[ _p(v, label if i in (0,2,4,6) else normal, "") for i,v in enumerate(access_rows[0]) ]],
+                         colWidths=[1.35*inch, .45*inch, 1.0*inch, .8*inch, .48*inch, .72*inch, .45*inch, 1.65*inch])
     access_table.setStyle(TableStyle([
         ("GRID", (0,0), (-1,-1), .45, BORDER), ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
         ("BACKGROUND", (0,0), (0,0), LIGHT_BLUE), ("BACKGROUND", (2,0), (2,0), LIGHT_BLUE),
-        ("BACKGROUND", (4,0), (4,0), LIGHT_BLUE),
+        ("BACKGROUND", (4,0), (4,0), LIGHT_BLUE), ("BACKGROUND", (6,0), (6,0), LIGHT_BLUE),
         ("LEFTPADDING", (0,0), (-1,-1), 3), ("RIGHTPADDING", (0,0), (-1,-1), 3),
         ("TOPPADDING", (0,0), (-1,-1), 2.5), ("BOTTOMPADDING", (0,0), (-1,-1), 2.5),
     ]))
@@ -537,6 +599,7 @@ def generar_pdf_seguridad_instalacion(
     description = registro.get("lev_observaciones") or registro.get("lev_descripcion") or ""
     story.append(_description_table(str(description), width, normal, header))
     _append_anotacion_plano(story, registro, width, header)
+    _append_archivos_adjuntos(story, registro, width, normal, header)
     _append_evidencias_fotograficas(story, registro, width, header)
 
     title = "Levantamiento Seguridad y Monitoreo - Instalación"
@@ -613,6 +676,29 @@ FIELD_LABELS = {
     "modalidad_operativa": "Tipo de trabajo",
     "requiere": "¿Se requiere?",
     "partidas": "Partidas",
+    "modalidad_rack": "Modalidad de rack (compatibilidad)",
+    "cantidad_rack": "Cantidad de racks (compatibilidad)",
+    "cantidad_kit_rack": "Cantidad de kits para rack (compatibilidad)",
+    "rack_organizadores": "Organizadores (compatibilidad)",
+    "rack_organizadores_verticales": "Organizadores Verticales (cantidad)",
+    "rack_organizadores_horizontales": "Organizadores Horizontales (cantidad)",
+    "rack_charolas": "Charolas",
+    "rack_pdu": "PDU",
+    "rack_panel_parcheo": "Panel de parcheo",
+    "tierra_fisica": "¿Se requiere tierra física?",
+    "detalle_tierra_fisica": "Detalle / ubicación de tierra física",
+    "tierra_barra_cobre": "Barra de cobre (pzas)",
+    "tierra_aisladores": "Aisladores de cobre (piezas/medida)",
+    "tierra_abrazadera_omega": "Abrazadera/Omega (piezas/medida)",
+    "tierra_varilla_cobre": "Varilla de cobre (piezas/medida)",
+    "tierra_abrazaderas": "Abrazaderas de cobre (piezas/medida)",
+    "tierra_cable_cobre": "Cable de cobre (tipo/metros)",
+    "tierra_tornillos_cobre": "Tornillos de cobre (piezas/medida)",
+    "tierra_quimico": "Químico (botes/juegos)",
+    "tierra_tuberia": "Tubería (m)",
+    "tierra_bote": "Bote/Registro (piezas/medida)",
+    "trabajo_alturas": "¿Se trabajará en Alturas?",
+    "sistema_acceso_temporal": "Tipo de Sistema de Acceso Temporal",
     "descripcion_detallada_servicio": "Descripción detallada del servicio",
     "descripcion_general_fallas": "Descripción general de fallas",
     "elemento_a_reparar": "¿Qué se desea reparar?",
@@ -624,7 +710,7 @@ RESOURCE_KEYS_DAYS = {"dias_trabajo", "dias_trabajo_proyectados"}
 RESOURCE_KEYS_PEOPLE = {"personas_trabajo", "personas_considerar", "personas_consideradas"}
 SPECIAL_ROOT_KEYS = {
     "tipo_levantamiento", "modalidad_operativa", "canalizacion_materiales",
-    "equipos_principales", "materiales_miscelaneos", "equipos_danados",
+    "equipos_principales", "materiales_miscelaneos", "equipos_danados", "epp",
     "descripcion_general_fallas", "mantenimiento",
 }
 
@@ -783,6 +869,24 @@ def _equipment_rows(detail: Mapping[str, Any]) -> list[list[Any]]:
 def _material_rows(detail: Mapping[str, Any]) -> list[list[Any]]:
     return [[x.get("material"), x.get("cantidad"), x.get("unidad"), x.get("especificacion") or x.get("medida")]
             for x in _dynamic_rows(detail, "materiales_miscelaneos")]
+
+
+def _epp_rows(detail: Mapping[str, Any]) -> tuple[str, list[list[Any]]]:
+    value = detail.get("epp") or {}
+    if isinstance(value, str):
+        value = _json(value, {})
+    if not isinstance(value, Mapping):
+        return "No", []
+    requiere = _text(value.get("requiere"), "No")
+    partidas = value.get("partidas") or []
+    if isinstance(partidas, str):
+        partidas = _json(partidas, [])
+    rows = []
+    if isinstance(partidas, (list, tuple)):
+        for item in partidas:
+            if isinstance(item, Mapping):
+                rows.append([item.get("epp") or item.get("equipo"), item.get("cantidad"), item.get("observaciones") or item.get("especificacion")])
+    return requiere, rows
 
 
 def _canal_rows(detail: Mapping[str, Any]) -> list[list[Any]]:
@@ -953,8 +1057,21 @@ def generar_pdf_levantamiento_maestro(
         ))
         story.append(Spacer(1, 7))
 
+    requiere_epp, epp_rows = _epp_rows(detail)
+    if requiere_epp.casefold() in {"sí", "si"} or epp_rows:
+        story.append(_section_title("Equipo de Protección Personal (EPP)", width, header))
+        if epp_rows:
+            story.append(_section_matrix_table(
+                "EPP requerido", ["Equipo de protección", "Cantidad", "Especificación / observaciones"],
+                epp_rows, [2.65*inch, .85*inch, 3.40*inch], normal, header
+            ))
+        else:
+            story.append(_key_value_table([["¿Se requiere EPP?", requiere_epp, "Detalle", "Pendiente de especificar"]], [1.55*inch,1.90*inch,1.55*inch,1.90*inch], normal, label))
+        story.append(Spacer(1, 7))
+
     story.append(_description_table(_description_for(registro, detail), width, normal, header))
     _append_anotacion_plano(story, registro, width, header)
+    _append_archivos_adjuntos(story, registro, width, normal, header)
     _append_evidencias_fotograficas(story, registro, width, header)
 
     title = f"Levantamiento {tipo}" + (f" - {modalidad}" if modalidad else "")

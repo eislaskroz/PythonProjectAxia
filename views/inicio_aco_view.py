@@ -16,6 +16,7 @@ import customtkinter as ctk
 from tkinter import messagebox
 from ui.native_combobox import NativeComboBox
 from core.background_tasks import run_async
+from utils import centrar_ventana
 
 from ui.colors import (
     PRIMARY,
@@ -527,9 +528,9 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
 
             ventana = ctk.CTkToplevel(panel_dinamico)
             ventana.title("Cliente nuevo" if modo == "nuevo" else "Modificar cliente")
-            ventana.geometry("920x720")
             ventana.minsize(760, 620)
             ventana.transient(panel_dinamico.winfo_toplevel())
+            centrar_ventana(ventana, 920, 720, padre=panel_dinamico.winfo_toplevel())
             ventana.grab_set()
 
             cont = ctk.CTkFrame(ventana, fg_color=WHITE, corner_radius=16)

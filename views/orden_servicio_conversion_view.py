@@ -3,6 +3,7 @@
 import json
 from datetime import datetime, timezone
 import customtkinter as ctk
+from utils import centrar_ventana
 from tkinter import messagebox
 
 from app_context import obtener_usuario_actual
@@ -331,11 +332,9 @@ def mostrar_conversion_orden_servicio(parent, app):
         modal_h = max(620, int(screen_h * 0.90))
         modal_w = min(modal_w, screen_w)
         modal_h = min(modal_h, screen_h)
-        pos_x = max(0, (screen_w - modal_w) // 2)
-        pos_y = max(0, (screen_h - modal_h) // 2)
-        ventana.geometry(f"{modal_w}x{modal_h}+{pos_x}+{pos_y}")
         ventana.minsize(min(980, modal_w), min(620, modal_h))
         ventana.transient(parent.winfo_toplevel())
+        centrar_ventana(ventana, modal_w, modal_h, padre=parent.winfo_toplevel())
         ventana.grab_set()
         host = ctk.CTkFrame(ventana, fg_color="transparent")
         host.pack(fill="both", expand=True)

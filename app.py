@@ -31,6 +31,7 @@ import os
 from tkinter import messagebox
 
 from ui.theme import aplicar_fuente_tk, aplicar_estilo_ventana
+from utils import centrar_ventana
 
 # =====================================================
 # IMPORTACIÓN DE CONTEXTO
@@ -158,9 +159,12 @@ class AxiaApp(ctk.CTk):
         # el usuario percibe respuesta inmediata aunque la primera vista tarde.
         mark("app: shell principal construido")
         self.after_idle(self._cargar_vista_inicial)
+        self.protocol("WM_DELETE_WINDOW", self.salir_aplicacion)
         self._instalar_control_inactividad()
+        self._instalar_autoguardado_borrador()
         self.after(900, self._ofrecer_borrador_pendiente)
         # La consulta de actualización es diferida para no retrasar el arranque.
+        self.after(1200, self._mostrar_estado_actualizacion_anterior)
         self.after(1800, self._comprobar_actualizacion_axia)
 
     def report_callback_exception(self, exc, value, traceback_obj):
@@ -532,6 +536,17 @@ class AxiaApp(ctk.CTk):
             logger.exception("No fue posible guardar el borrador temporal del levantamiento.")
             return False
 
+    def _instalar_autoguardado_borrador(self):
+        """Guarda periódicamente el formulario activo para sobrevivir a cierres inesperados."""
+        def ciclo():
+            try:
+                if self.winfo_exists():
+                    self._guardar_borrador_actual()
+                    self.after(45000, ciclo)
+            except Exception:
+                logger.debug("Autoguardado periódico omitido.", exc_info=True)
+        self.after(45000, ciclo)
+
     def _instalar_control_inactividad(self):
         """Cierra la sesión cuando no hay teclado/ratón durante el tiempo configurado."""
         import time
@@ -578,9 +593,9 @@ class AxiaApp(ctk.CTk):
 
         dialogo = ctk.CTkToplevel(self)
         dialogo.title("Levantamiento pendiente")
-        dialogo.geometry("520x260")
         dialogo.resizable(False, False)
         dialogo.transient(self)
+        centrar_ventana(dialogo, 520, 260, padre=self)
         dialogo.grab_set()
         configurar_icono_ventana(dialogo)
 
@@ -597,7 +612,10 @@ class AxiaApp(ctk.CTk):
                 dialogo.grab_release(); dialogo.destroy()
             except Exception:
                 pass
-            self.navigation.mostrar_levantamiento(tipo_levantamiento=tipo, borrador=datos)
+            if str(tipo).strip() == "Obra Civil":
+                self.navigation.mostrar_obra_civil(borrador=datos)
+            else:
+                self.navigation.mostrar_levantamiento(tipo_levantamiento=tipo, borrador=datos)
 
         def despues():
             try:
@@ -618,6 +636,27 @@ class AxiaApp(ctk.CTk):
         ctk.CTkButton(fila, text="Guardar para después", command=despues, fg_color="#334155").pack(side="left", expand=True, fill="x", padx=4)
         ctk.CTkButton(fila, text="Borrar", command=borrar, fg_color="#DC2626", hover_color="#B91C1C").pack(side="left", expand=True, fill="x", padx=4)
         dialogo.protocol("WM_DELETE_WINDOW", despues)
+
+    def _mostrar_estado_actualizacion_anterior(self):
+        """Informa si la ejecución externa anterior de actualización falló."""
+        try:
+            from services.update_service import consumir_estado_actualizacion
+            estado = consumir_estado_actualizacion()
+        except Exception:
+            logger.exception("No fue posible leer el resultado de la actualización anterior.")
+            return
+        if not estado:
+            return
+        if estado.get("ok"):
+            logger.info("Resultado de actualización anterior: %s", estado.get("message"))
+            return
+        mensaje = str(estado.get("message") or "La actualización no pudo completarse.")
+        messagebox.showwarning(
+            "Actualización de AXIA",
+            "La actualización anterior no pudo completarse.\n\n" + mensaje +
+            "\n\nPuedes seguir usando AXIA y volver a intentarlo más tarde.",
+            parent=self,
+        )
 
     def _comprobar_actualizacion_axia(self):
         """Consulta en segundo plano si existe una versión más reciente."""
@@ -648,9 +687,9 @@ class AxiaApp(ctk.CTk):
 
         dialogo = ctk.CTkToplevel(self)
         dialogo.title("Actualización de AXIA")
-        dialogo.geometry("590x420")
         dialogo.resizable(False, False)
         dialogo.transient(self)
+        centrar_ventana(dialogo, 590, 420, padre=self)
         dialogo.grab_set()
         configurar_icono_ventana(dialogo)
 
@@ -715,13 +754,13 @@ class AxiaApp(ctk.CTk):
                 return instalador
 
             def listo(_instalador):
-                estado.configure(text="Actualización lista. AXIA se cerrará para instalarla.")
+                estado.configure(text="Instalador iniciado. AXIA se cerrará y volverá a abrir al finalizar.")
                 try:
                     dialogo.grab_release()
                 except Exception:
                     logger.debug("No fue necesario liberar el diálogo de actualización.", exc_info=True)
-                # El proceso externo espera unos segundos, instala y vuelve a abrir AXIA.
-                self.after(500, self.salir_aplicacion)
+                # Inno Setup ya quedó iniciado y elevado; cerramos AXIA para permitir el reemplazo.
+                self.after(350, self.salir_aplicacion)
 
             def error_descarga(error):
                 dialogo.configure(cursor="")
@@ -789,6 +828,8 @@ class AxiaApp(ctk.CTk):
         from services.movimientos_service import registrar_movimiento_seguro
 
         self.logout_requested = True
+        if motivo != "inactividad":
+            self._guardar_borrador_actual()
 
         try:
             registrar_movimiento_seguro(
@@ -807,8 +848,9 @@ class AxiaApp(ctk.CTk):
             logger.exception("No fue posible cerrar la ventana principal al cerrar sesión.")
 
     def salir_aplicacion(self):
-        """Cierra por completo el sistema AXIA."""
+        """Cierra por completo el sistema AXIA conservando un borrador si hay captura activa."""
         self.logout_requested = False
+        self._guardar_borrador_actual()
         try:
             self.destroy()
         except Exception:

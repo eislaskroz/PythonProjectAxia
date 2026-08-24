@@ -129,8 +129,8 @@ class NavigationController:
                 self._historial = self._historial[-25:]
         self._vista_actual = (nombre_metodo, kwargs)
 
-        # FIX9: fuera del formulario de levantamiento, la barra lateral vuelve
-        # automáticamente al logotipo AXIA.
+        # FIX16: fuera del formulario de levantamiento, la barra lateral vuelve
+        # automáticamente al fondo GENERAL (el logotipo AXIA permanece encima).
         if nombre_metodo != "mostrar_levantamiento":
             try:
                 from ui.app_sidebar import actualizar_sidebar_especialidad
@@ -364,7 +364,7 @@ class NavigationController:
     # =================================================
     # VISTA: OBRA CIVIL
     # =================================================
-    def mostrar_obra_civil(self, aco=None):
+    def mostrar_obra_civil(self, aco=None, borrador=None):
         """
         Carga la vista para generar registros de obra civil / proyecto ejecutivo.
         """
@@ -383,7 +383,8 @@ class NavigationController:
         mostrar_obra_civil(
             parent=self.content,
             app=self.app,
-            aco=aco
+            aco=aco,
+            borrador=borrador,
         )
 
     # =================================================

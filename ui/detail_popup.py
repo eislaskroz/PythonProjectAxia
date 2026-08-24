@@ -2,12 +2,14 @@
 """Ventana emergente para vista rápida de registros seleccionados."""
 
 import customtkinter as ctk
+from utils import centrar_ventana
 
 
 def mostrar_detalle_registro(parent, titulo, registro):
     ventana = ctk.CTkToplevel(parent)
     ventana.title(titulo)
-    ventana.geometry("760x560")
+    ventana.transient(parent.winfo_toplevel())
+    centrar_ventana(ventana, 760, 560, padre=parent.winfo_toplevel())
     ventana.grab_set()
 
     contenedor = ctk.CTkFrame(ventana, fg_color="transparent")

@@ -138,7 +138,7 @@ def partidas_desde_detalle_levantamiento(detalle) -> list[dict]:
                         concepto = base + (f" - {car}" if car else "")
                         add(unidad=item.get("unidad") or "Pieza(s)", cantidad=item.get("cantidad"), modelo=item.get("modelo"), marca=item.get("marca"), concepto=concepto, grupo="Equipos")
                     continue
-                if key_norm in {"materiales_miscelaneos", "materiales_misceláneos", "consumibles", "materiales"} or "miscel" in key_norm:
+                if key_norm in {"materiales_miscelaneos", "materiales_misceláneos", "consumibles", "materiales"} or "miscel" in key_norm or "material" in key_norm:
                     for item in value:
                         material = text(item.get("material") or item.get("concepto") or item.get("descripcion"))
                         spec = text(item.get("especificacion") or item.get("medida"))

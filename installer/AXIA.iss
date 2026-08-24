@@ -1,5 +1,5 @@
 #define MyAppName "AXIA"
-#define MyAppVersion "2.02.2"
+#define MyAppVersion "2.02.9"
 #define MyAppPublisher "AXIA Comunicaciones"
 #define MyAppExeName "AXIA.exe"
 
@@ -69,9 +69,15 @@ Name: "{autodesktop}\AXIA"; \
     Tasks: desktopicon
 
 [Run]
+; Instalación manual: muestra la opción normal al finalizar.
 Filename: "{app}\{#MyAppExeName}"; \
     Description: "Ejecutar AXIA"; \
     Flags: nowait postinstall skipifsilent
+
+; Actualización automática (/SILENT): reabre AXIA sin depender de PowerShell.
+Filename: "{app}\{#MyAppExeName}"; \
+    Flags: nowait skipifdoesntexist; \
+    Check: WizardSilent
 
 [UninstallDelete]
 ; Se eliminan únicamente temporales conocidos. La configuración y logs viven en LocalAppData.
