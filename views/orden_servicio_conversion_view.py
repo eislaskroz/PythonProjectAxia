@@ -12,6 +12,7 @@ from core.background_tasks import run_async
 from core.logger import configurar_logger
 from security.permissions import puede_convertir_levantamiento_a_orden, puede_validar_levantamiento_ventas
 from services.levantamientos_service import obtener_levantamientos, buscar_levantamientos, actualizar_levantamiento
+from services.levantamiento_compat import normalizar_registro_levantamiento
 from services.ordenes_trabajo_service import convertir_levantamiento_a_trabajo, buscar_orden_trabajo_por_levantamiento
 from services.pdf_registro_service import generar_pdf_registro
 from services.mail_service import enviar_levantamiento_validacion_ventas
@@ -35,6 +36,7 @@ def _valor(registro, *campos, default=""):
 
 def _tipo_levantamiento_origen(registro):
     """Obtiene la especialidad original para reabrir exactamente su formulario."""
+    registro = normalizar_registro_levantamiento(registro)
     detalle = registro.get("lev_detalle_tecnico_json")
     if isinstance(detalle, str) and detalle.strip():
         try:
@@ -304,7 +306,7 @@ def mostrar_conversion_orden_servicio(parent, app):
         return cambios
 
     def abrir_editor_origen():
-        original = seleccionado.get("registro")
+        original = normalizar_registro_levantamiento(seleccionado.get("registro"))
         if not original:
             messagebox.showwarning("Selecciona un levantamiento", "Primero carga un levantamiento de la tabla.")
             return
@@ -354,7 +356,7 @@ def mostrar_conversion_orden_servicio(parent, app):
         )
 
     def guardar_cambios():
-        original = seleccionado.get("registro")
+        original = normalizar_registro_levantamiento(seleccionado.get("registro"))
         if not original:
             messagebox.showwarning("Selecciona un levantamiento", "Primero carga un levantamiento de la tabla.")
             return
@@ -448,7 +450,7 @@ def mostrar_conversion_orden_servicio(parent, app):
         técnico. Normalizarla aquí garantiza que Operador y Administrativo rendericen
         exactamente el mismo documento.
         """
-        original = dict(seleccionado.get("registro") or {})
+        original = normalizar_registro_levantamiento(seleccionado.get("registro"))
         detalle_texto = txt_detalle.get("1.0", "end").strip()
         try:
             detalle = json.loads(detalle_texto) if detalle_texto else {}

@@ -13,6 +13,7 @@ from io import BytesIO
 from html import escape
 from pathlib import Path
 from typing import Any, Mapping, Sequence
+from services.levantamiento_compat import normalizar_registro_levantamiento
 
 from reportlab.lib import colors
 from reportlab.lib.units import inch
@@ -179,7 +180,8 @@ def _cargar_imagen_evidencia(item):
                 pass
         if storage_path:
             from supabase_config import supabase
-            return supabase.storage.from_("bitacoras-evidencias").download(storage_path)
+            bucket = str(item.get("bucket") or "levantamientos-evidencias") if isinstance(item, Mapping) else "levantamientos-evidencias"
+            return supabase.storage.from_(bucket).download(storage_path)
     except Exception:
         return None
     return None
@@ -595,8 +597,26 @@ def generar_pdf_seguridad_instalacion(
         ))
         story.append(Spacer(1, 7))
 
+    tools = _tool_rows(detail)
+    if tools:
+        story.append(_section_matrix_table(
+            "Herramientas", ["Categoría", "Herramienta", "Cantidad", "Especificación / observaciones"],
+            tools, [1.25*inch,2.35*inch,.8*inch,2.50*inch], normal, header
+        ))
+        story.append(Spacer(1, 7))
+
+    requiere_epp, epp_rows = _epp_rows(detail)
+    if requiere_epp.casefold() in {"sí", "si"} or epp_rows:
+        story.append(_section_title("Equipo de Protección Personal (EPP)", width, header))
+        if epp_rows:
+            story.append(_section_matrix_table(
+                "EPP requerido", ["Equipo de protección", "Cantidad", "Especificación / observaciones"],
+                epp_rows, [2.65*inch,.85*inch,3.40*inch], normal, header
+            ))
+        story.append(Spacer(1, 7))
+
     # 8) Descripción final dinámica.
-    description = registro.get("lev_observaciones") or registro.get("lev_descripcion") or ""
+    description = registro.get("lev_descripcion") or registro.get("lev_observaciones") or ""
     story.append(_description_table(str(description), width, normal, header))
     _append_anotacion_plano(story, registro, width, header)
     _append_archivos_adjuntos(story, registro, width, normal, header)
@@ -710,7 +730,7 @@ RESOURCE_KEYS_DAYS = {"dias_trabajo", "dias_trabajo_proyectados"}
 RESOURCE_KEYS_PEOPLE = {"personas_trabajo", "personas_considerar", "personas_consideradas"}
 SPECIAL_ROOT_KEYS = {
     "tipo_levantamiento", "modalidad_operativa", "canalizacion_materiales",
-    "equipos_principales", "materiales_miscelaneos", "equipos_danados", "epp",
+    "equipos_principales", "materiales_miscelaneos", "equipos_danados", "epp", "herramientas",
     "descripcion_general_fallas", "mantenimiento",
 }
 
@@ -757,7 +777,7 @@ def _visible_declarative_sections(tipo: str, sections: Mapping[str, Any]) -> lis
     accion = ""
     for key, value in items:
         if "tipo_de_solicitud_y_alcance" in key.casefold():
-            accion = _text(value.get("accion_ti"), "")
+            accion = _text(value.get("accion_ti") or value.get("¿Qué deseas realizar?"), "")
             break
     accion_cf = accion.casefold()
 
@@ -871,6 +891,11 @@ def _material_rows(detail: Mapping[str, Any]) -> list[list[Any]]:
             for x in _dynamic_rows(detail, "materiales_miscelaneos")]
 
 
+def _tool_rows(detail: Mapping[str, Any]) -> list[list[Any]]:
+    return [[x.get("categoria"), x.get("herramienta") or x.get("nombre"), x.get("cantidad"), x.get("observaciones")]
+            for x in _dynamic_rows(detail, "herramientas")]
+
+
 def _epp_rows(detail: Mapping[str, Any]) -> tuple[str, list[list[Any]]]:
     value = detail.get("epp") or {}
     if isinstance(value, str):
@@ -953,13 +978,14 @@ def _description_for(registro: Mapping[str, Any], detail: Mapping[str, Any]) -> 
     maint = detail.get("mantenimiento")
     if isinstance(maint, Mapping) and _text(maint.get("descripcion_detallada_servicio"), ""):
         return _text(maint.get("descripcion_detallada_servicio"), "")
-    return _text(registro.get("lev_observaciones") or registro.get("lev_descripcion"), "Sin descripción capturada.")
+    return _text(registro.get("lev_descripcion") or registro.get("lev_observaciones"), "Sin descripción capturada.")
 
 
 def generar_pdf_levantamiento_maestro(
     registro: Mapping[str, Any], *, ruta_salida: str | Path, abrir: bool = False,
 ) -> str:
     """Genera la estructura maestra para cualquier tipo de levantamiento AXIA."""
+    registro = normalizar_registro_levantamiento(registro)
     # Conserva 1:1 la plantilla ya aprobada para Seguridad / Instalación.
     if es_seguridad_instalacion(registro):
         return generar_pdf_seguridad_instalacion(registro, ruta_salida=ruta_salida, abrir=abrir)
@@ -1054,6 +1080,15 @@ def generar_pdf_levantamiento_maestro(
             "Materiales misceláneos y consumibles",
             ["Material", "Cantidad", "Unidad", "Especificación/Medida"], materials,
             [2.15*inch,.9*inch,1.0*inch,2.85*inch], normal, header
+        ))
+        story.append(Spacer(1, 7))
+
+    tools = _tool_rows(detail)
+    if tools:
+        story.append(_section_matrix_table(
+            "Herramientas",
+            ["Categoría", "Herramienta", "Cantidad", "Especificación / observaciones"], tools,
+            [1.25*inch,2.35*inch,.8*inch,2.50*inch], normal, header
         ))
         story.append(Spacer(1, 7))
 

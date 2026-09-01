@@ -63,6 +63,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
     tecnicos_disponibles = obtener_tecnicos_responsables()
     entradas_bloqueadas = []
     campos_validables = []
+    nombres_validables = {}
     evidencias = []
     archivos_adjuntos = []
     archivos_adjuntos_existentes = []
@@ -72,9 +73,12 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
     catalogo_conceptos_obra = obtener_conceptos_obra()
     btn_preview = None
     btn_guardar = None
+    lbl_faltantes = None
 
     var_folio = ctk.StringVar(value=generar_siguiente_folio("OBC"))
     var_fecha = ctk.StringVar()
+    var_desea_notas_cliente = ctk.StringVar(value="No")
+    var_notas_cliente = ctk.StringVar()
     var_desea_anotacion_plano = ctk.StringVar(value="No")
     var_anotacion_plano_base64 = ctk.StringVar()
     var_desea_evidencias = ctk.StringVar(value="No")
@@ -242,15 +246,40 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
     for col in range(5):
         form.grid_columnconfigure(col, weight=1, uniform="cols")
 
+    _validar_preview_after_id = None
+
     def validar_preview():
         try:
-            estado = "normal" if formulario_completo() else "disabled"
+            completo = formulario_completo()
+            estado = "normal" if completo else "disabled"
             if btn_preview is not None:
                 btn_preview.configure(state=estado)
             if btn_guardar is not None:
                 btn_guardar.configure(state=estado)
+            if lbl_faltantes is not None:
+                pendientes = campos_faltantes_obra() if not completo else []
+                if completo:
+                    lbl_faltantes.configure(text="✓ Formulario completo. Ya puedes guardar o generar el Preview PDF.", text_color="#15803D")
+                else:
+                    resumen = ", ".join(pendientes[:10])
+                    if len(pendientes) > 10:
+                        resumen += f" … (+{len(pendientes)-10})"
+                    lbl_faltantes.configure(text=f"⚠ Faltan {len(pendientes)} requisito(s): {resumen}" if pendientes else "⚠ Aún existen campos obligatorios pendientes.", text_color="#B45309")
         except Exception:
             logger.debug("Excepción recuperable controlada.", exc_info=True)
+
+    def programar_validacion_preview(delay_ms=110):
+        """Evita recalcular todo el formulario de Obra Civil en cada pulsación."""
+        nonlocal _validar_preview_after_id
+        try:
+            if _validar_preview_after_id is not None:
+                form.after_cancel(_validar_preview_after_id)
+        except Exception:
+            pass
+        try:
+            _validar_preview_after_id = form.after(delay_ms, validar_preview)
+        except Exception:
+            validar_preview()
 
     def seccion(texto, fila):
         ctk.CTkLabel(form, text=texto, font=SECTION_FONT, text_color=TEXT_PRIMARY).grid(row=fila, column=0, columnspan=5, sticky="w", pady=(6, 3))
@@ -275,7 +304,8 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
             entradas_bloqueadas.append(e)
         if required and state != "disabled":
             campos_validables.append(var)
-            var.trace_add("write", lambda *_: validar_preview())
+            nombres_validables[id(var)] = texto
+            var.trace_add("write", lambda *_: programar_validacion_preview())
         return e
 
     def option(texto, var, opciones, fila, col, required=True, colspan=1):
@@ -285,7 +315,8 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         o.pack(fill="x")
         if required:
             campos_validables.append(var)
-            var.trace_add("write", lambda *_: validar_preview())
+            nombres_validables[id(var)] = texto
+            var.trace_add("write", lambda *_: programar_validacion_preview())
         return o
 
     def cliente_selector(texto, fila, col, colspan=1):
@@ -303,7 +334,8 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         )
         o.pack(fill="x")
         campos_validables.append(var_cliente)
-        var_cliente.trace_add("write", lambda *_: validar_preview())
+        nombres_validables[id(var_cliente)] = texto
+        var_cliente.trace_add("write", lambda *_: programar_validacion_preview())
         return o
 
     def catalogo_selector(texto, var, fila, col, tipo="sucursal", colspan=1):
@@ -462,19 +494,32 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
     var_requiere_epp.trace_add("write",vis_epp_obra); vis_epp_obra()
 
     entry("Fecha", var_fecha, 7, 0, "YYYY-MM-DD", date=True)
-    entry("Tipo de giro", var_tipo_giro, 7, 1, "Ej. Bancario, retail, oficina")
-    entry("Nombre del proyecto", var_nombre_proyecto, 7, 2, "Proyecto ejecutivo", colspan=3)
+    option("¿Deseas agregar notas sobre el cliente?", var_desea_notas_cliente, SI_NO, 7, 1, required=False)
+    entry_notas_cliente = entry("Notas", var_notas_cliente, 7, 2, "Notas breves sobre el cliente", state="disabled", required=False, colspan=3)
 
-    seccion("Planeación inicial", 8)
-    option("¿Se cuenta con superficie?", var_superficie, SI_NO, 9, 0)
-    option("¿La superficie es adecuada?", var_superficie_ok, SI_NO, 9, 1)
-    option("¿Planos y diseño arquitectónico?", var_planos_arq, SI_NO, 9, 2)
-    option("¿Requiere maquinaria?", var_maquinaria, SI_NO, 9, 3)
-    option("¿Se cuenta con permisos?", var_permisos, SI_NO, 9, 4)
-    txt_observaciones_iniciales = textbox("Observaciones iniciales", 11, 0, 5)
+    def actualizar_notas_cliente_obra(*_):
+        habilitado = var_desea_notas_cliente.get() == "Sí"
+        entry_notas_cliente.configure(state="normal" if habilitado else "disabled")
+        if not habilitado:
+            var_notas_cliente.set("")
+        validar_preview()
+    var_desea_notas_cliente.trace_add("write", actualizar_notas_cliente_obra)
+    var_notas_cliente.trace_add("write", lambda *_: programar_validacion_preview())
+    actualizar_notas_cliente_obra()
 
-    seccion("Ejecución", 12)
-    fila = 13
+    entry("Tipo de giro", var_tipo_giro, 8, 0, "Ej. Bancario, retail, oficina")
+    entry("Nombre del proyecto", var_nombre_proyecto, 8, 1, "Proyecto ejecutivo", colspan=4)
+
+    seccion("Planeación inicial", 9)
+    option("¿Se cuenta con superficie?", var_superficie, SI_NO, 10, 0)
+    option("¿La superficie es adecuada?", var_superficie_ok, SI_NO, 10, 1)
+    option("¿Planos y diseño arquitectónico?", var_planos_arq, SI_NO, 10, 2)
+    option("¿Requiere maquinaria?", var_maquinaria, SI_NO, 10, 3)
+    option("¿Se cuenta con permisos?", var_permisos, SI_NO, 10, 4)
+    txt_observaciones_iniciales = textbox("Observaciones iniciales", 12, 0, 5)
+
+    seccion("Ejecución", 13)
+    fila = 14
     col = 0
     for nombre, var in ejecucion_vars.items():
         option(nombre, var, ESTADOS, fila, col)
@@ -483,14 +528,14 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
             col = 0
             fila += 1
 
-    seccion("Acabados", 19)
-    option("¿Planos de detalles y acabados?", var_planos_acabados, SI_NO, 20, 0)
-    option("Generación de planos", var_generacion_planos, ["Sí", "No", "No aplica"], 20, 1)
-    option("Etapa de acabados", var_etapa_acabados, ESTADOS, 20, 2)
-    option("Obra blanca", var_obra_blanca, ESTADOS, 20, 3)
+    seccion("Acabados", 20)
+    option("¿Planos de detalles y acabados?", var_planos_acabados, SI_NO, 21, 0)
+    option("Generación de planos", var_generacion_planos, ["Sí", "No", "No aplica"], 21, 1)
+    option("Etapa de acabados", var_etapa_acabados, ESTADOS, 21, 2)
+    option("Obra blanca", var_obra_blanca, ESTADOS, 21, 3)
 
-    seccion("Conceptos de obra requeridos", 21)
-    panel_conceptos = celda(22, 0, 5)
+    seccion("Conceptos de obra requeridos", 22)
+    panel_conceptos = celda(23, 0, 5)
     # Prioriza el concepto: ~25% más espacio que el layout anterior.
     panel_conceptos.grid_columnconfigure(0, weight=2)
     panel_conceptos.grid_columnconfigure(1, weight=8)
@@ -518,7 +563,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         vconcepto = ctk.StringVar(value=etiquetas[0])
         vunidad = ctk.StringVar(value=str((conceptos_tipo[0].get("obra_unidad") if conceptos_tipo else "") or ""))
         vcantidad = ctk.StringVar(value="1")
-        vcantidad.trace_add("write", lambda *_: validar_preview())
+        vcantidad.trace_add("write", lambda *_: programar_validacion_preview())
 
         otipo = NativeComboBox(panel_conceptos, variable=vtipo, values=tipos_concepto_obra or ["Sin catálogo"], height=30)
         otipo.grid(row=fila_concepto, column=0, sticky="ew", padx=3, pady=2)
@@ -601,8 +646,8 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         state="normal" if catalogo_conceptos_obra else "disabled"
     ).grid(row=99, column=0, columnspan=2, sticky="w", padx=3, pady=(4, 2))
 
-    seccion("Materiales misceláneos y consumibles", 23)
-    panel_misc = celda(24, 0, 5)
+    seccion("Materiales misceláneos y consumibles", 24)
+    panel_misc = celda(25, 0, 5)
     panel_misc.grid_columnconfigure(0, weight=2)
     panel_misc.grid_columnconfigure(1, weight=1)
     panel_misc.grid_columnconfigure(2, weight=1)
@@ -685,8 +730,8 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
 
     # Canalización, cableado y materiales. Se persiste dentro de obc_ejecucion_json
     # para conservar compatibilidad con el esquema actual de Supabase.
-    seccion("Canalización, cableado y materiales", 25)
-    panel_canalizacion = celda(26, 0, 5)
+    seccion("Canalización, cableado y materiales", 26)
+    panel_canalizacion = celda(27, 0, 5)
     for col, peso in enumerate((2, 4, 3, 2, 2, 1)):
         panel_canalizacion.grid_columnconfigure(col, weight=peso)
     ctk.CTkLabel(
@@ -792,7 +837,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         ocategoria.configure(command=actualizar_catalogos)
         vtipo.trace_add("write", lambda *_: actualizar_catalogos())
         actualizar_catalogos()
-        vcantidad.trace_add("write", lambda *_: validar_preview())
+        vcantidad.trace_add("write", lambda *_: programar_validacion_preview())
 
         def eliminar_partida():
             for widget in item.get("widgets", []):
@@ -822,8 +867,8 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
     ctk.CTkButton(panel_canalizacion, text="➕ Agregar partida", height=32, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=agregar_partida_canalizacion_obra).grid(row=1000, column=0, columnspan=2, sticky="w", padx=3, pady=(4, 2))
     agregar_partida_canalizacion_obra("Tubo")
 
-    seccion("Acceso, alturas y riesgos", 27)
-    panel_alturas = celda(28, 0, 5)
+    seccion("Acceso, alturas y riesgos", 28)
+    panel_alturas = celda(29, 0, 5)
     panel_alturas.grid_columnconfigure((0, 1, 2, 3), weight=1)
     campos_alturas = [
         ("¿Se trabajará en Alturas?", var_trabajo_alturas, ["Sí", "No"]),
@@ -853,8 +898,8 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
     var_trabajo_alturas.trace_add("write", actualizar_alturas_obra)
     actualizar_alturas_obra()
 
-    seccion("Evidencia fotográfica", 29)
-    panel_evidencias = celda(30, 0, 5)
+    seccion("Evidencia fotográfica", 30)
+    panel_evidencias = celda(31, 0, 5)
     fila_evidencias = ctk.CTkFrame(panel_evidencias, fg_color="#F8FAFC", corner_radius=10)
     fila_evidencias.pack(fill="x")
     ctk.CTkLabel(fila_evidencias, text="¿Deseas agregar evidencia fotográfica?", font=LABEL_FONT, text_color=TEXT_PRIMARY).pack(side="left", padx=8, pady=7)
@@ -895,8 +940,8 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
     btn_eliminar_evidencia.pack(side="left", padx=5, pady=7)
     var_desea_evidencias.trace_add("write", actualizar_evidencias)
 
-    seccion("Anotaciones tipo plano", 31)
-    panel_anotacion = celda(32, 0, 5)
+    seccion("Anotaciones tipo plano", 32)
+    panel_anotacion = celda(33, 0, 5)
     fila_anotacion = ctk.CTkFrame(panel_anotacion, fg_color="#F8FAFC", corner_radius=10)
     fila_anotacion.pack(fill="x")
     ctk.CTkLabel(fila_anotacion, text="¿Deseas realizar anotaciones tipo plano?", font=LABEL_FONT, text_color=TEXT_PRIMARY).pack(side="left", padx=8, pady=7)
@@ -922,8 +967,8 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         validar_preview()
     var_desea_anotacion_plano.trace_add("write", actualizar_anotacion)
 
-    seccion("Archivos PDF o planos", 33)
-    panel_archivos = celda(34, 0, 5)
+    seccion("Archivos PDF o planos", 34)
+    panel_archivos = celda(35, 0, 5)
     fila_archivos = ctk.CTkFrame(panel_archivos, fg_color="#F8FAFC", corner_radius=10)
     fila_archivos.pack(fill="x")
     ctk.CTkLabel(fila_archivos, text="¿Deseas agregar archivos PDF o planos?", font=LABEL_FONT, text_color=TEXT_PRIMARY).pack(side="left", padx=8, pady=7)
@@ -966,8 +1011,8 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
     btn_eliminar_archivo.pack(side="left", padx=5, pady=7)
     var_desea_archivos_adjuntos.trace_add("write", actualizar_archivos)
 
-    seccion("Observaciones finales", 35)
-    txt_finales = textbox("Observaciones finales", 36, 0, 5, height=90)
+    seccion("Observaciones finales", 36)
+    txt_finales = textbox("Observaciones finales", 37, 0, 5, height=90)
 
     def _restaurar_borrador_obra():
         if not isinstance(borrador, dict):
@@ -976,7 +1021,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         if not estado:
             return
         mapa = {
-            "folio": var_folio, "fecha": var_fecha, "aco": var_aco, "cliente": var_cliente,
+            "folio": var_folio, "fecha": var_fecha, "desea_notas_cliente": var_desea_notas_cliente, "notas_cliente": var_notas_cliente, "aco": var_aco, "cliente": var_cliente,
             "contacto": var_contacto, "telefono": var_telefono, "correo": var_correo,
             "sucursal": var_sucursal, "encargado_sucursal": var_encargado_sucursal,
             "direccion": var_direccion, "responsable": var_responsable, "supervisor": var_supervisor,
@@ -1018,6 +1063,8 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
     def formulario_completo():
         if not all(v.get().strip() for v in campos_validables):
             return False
+        if var_desea_notas_cliente.get() == "Sí" and not var_notas_cliente.get().strip():
+            return False
         if var_desea_anotacion_plano.get() == "Sí" and not var_anotacion_plano_base64.get().strip():
             return False
         if var_desea_evidencias.get() == "Sí" and not evidencias:
@@ -1055,9 +1102,48 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
                     return False
         return True
 
+    def campos_faltantes_obra():
+        faltan = []
+        def agregar(nombre):
+            if nombre and nombre not in faltan:
+                faltan.append(nombre)
+        for variable in campos_validables:
+            if not variable.get().strip():
+                agregar(nombres_validables.get(id(variable), "Campo obligatorio"))
+        if var_desea_notas_cliente.get() == "Sí" and not var_notas_cliente.get().strip(): agregar("Notas sobre el cliente")
+        if var_desea_anotacion_plano.get() == "Sí" and not var_anotacion_plano_base64.get().strip(): agregar("Anotación tipo plano")
+        if var_desea_evidencias.get() == "Sí" and not evidencias: agregar("Evidencia fotográfica")
+        if var_desea_archivos_adjuntos.get() == "Sí" and total_archivos_obra() == 0: agregar("PDF / planos adjuntos")
+        if var_trabajo_alturas.get() == "Sí":
+            if not var_sistema_acceso.get().strip(): agregar("Sistema de acceso temporal")
+            if not var_altura_trabajo.get().strip(): agregar("Altura")
+            if not var_riesgo_trabajo.get().strip(): agregar("Riesgo")
+        if not canalizacion_obra_completa(): agregar("Canalización / materiales")
+        try:
+            if int(var_dias_trabajo.get().strip()) <= 0: agregar("Días de trabajo")
+        except (TypeError, ValueError): agregar("Días de trabajo")
+        try:
+            if int(var_personas_considerar.get().strip()) <= 0: agregar("Personas a considerar")
+        except (TypeError, ValueError): agregar("Personas a considerar")
+        if var_requiere_epp.get() == "Sí":
+            partidas = obtener_epp_obra()
+            if not partidas: agregar("Equipo de protección personal")
+            for item in partidas:
+                try:
+                    if float(str(item.get("cantidad") or "0").replace(",", ".")) <= 0: agregar("Cantidad de EPP"); break
+                except (TypeError, ValueError): agregar("Cantidad de EPP"); break
+        if catalogo_conceptos_obra:
+            if not conceptos_obra_items: agregar("Conceptos de obra")
+            for item in conceptos_obra_items:
+                if not (item.get("registro") or {}): agregar("Concepto de obra válido")
+                try:
+                    if float(item["cantidad"].get().strip().replace(",", ".") or 0) <= 0: agregar("Cantidad de concepto de obra")
+                except (TypeError, ValueError): agregar("Cantidad de concepto de obra")
+        return faltan
+
     def datos_pdf():
         datos = {
-            "Folio OBC": var_folio.get(), "Fecha": var_fecha.get(), "ACO": var_aco.get(), "Cliente": var_cliente.get(), "Contacto": var_contacto.get(),
+            "Folio OBC": var_folio.get(), "Fecha": var_fecha.get(), "¿Deseas agregar notas sobre el cliente?": var_desea_notas_cliente.get(), "Notas sobre el cliente": var_notas_cliente.get().strip() if var_desea_notas_cliente.get() == "Sí" else "No aplica", "ACO": var_aco.get(), "Cliente": var_cliente.get(), "Contacto": var_contacto.get(),
             "Sucursal": var_sucursal.get(), "Encargado de sucursal": var_encargado_sucursal.get(), "Dirección Fiscal": var_direccion.get(), "Teléfono": var_telefono.get(), "Correo": var_correo.get(), "Encargado de Proyecto": var_responsable.get(), "Supervisor": var_supervisor.get(), "Técnico": var_tecnico.get(),
             "Días de trabajo": var_dias_trabajo.get(), "Personas a considerar": var_personas_considerar.get(),
             "Tipo de giro": var_tipo_giro.get(), "Nombre del proyecto": var_nombre_proyecto.get(), "Superficie disponible": var_superficie.get(),
@@ -1144,6 +1230,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
             "obc_requiere_maquinaria": var_maquinaria.get(), "obc_permisos": var_permisos.get(), "obc_observaciones_iniciales": obtener_textbox(txt_observaciones_iniciales),
             "obc_ejecucion_json": json.dumps({
                 **{k: v.get() for k, v in ejecucion_vars.items()},
+                "_notas_cliente": {"desea_agregar": var_desea_notas_cliente.get(), "notas": var_notas_cliente.get().strip() if var_desea_notas_cliente.get() == "Sí" else ""},
                 "_datos_generales_axia": {
                     "supervisor": var_supervisor.get().strip(),
                     "encargado_proyecto": var_responsable.get().strip(),
@@ -1223,7 +1310,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
 
     def _snapshot_borrador_obra():
         estado = {
-            "folio": var_folio.get(), "fecha": var_fecha.get(), "aco": var_aco.get(), "cliente": var_cliente.get(),
+            "folio": var_folio.get(), "fecha": var_fecha.get(), "desea_notas_cliente": var_desea_notas_cliente.get(), "notas_cliente": var_notas_cliente.get(), "aco": var_aco.get(), "cliente": var_cliente.get(),
             "contacto": var_contacto.get(), "telefono": var_telefono.get(), "correo": var_correo.get(),
             "sucursal": var_sucursal.get(), "encargado_sucursal": var_encargado_sucursal.get(),
             "direccion": var_direccion.get(), "responsable": var_responsable.get(), "supervisor": var_supervisor.get(),
@@ -1258,8 +1345,10 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
     except Exception:
         logger.debug("No fue posible registrar autoguardado de Obra Civil.", exc_info=True)
 
-    botones = ctk.CTkFrame(contenedor, fg_color="#F4F4F4", height=58, corner_radius=0)
+    botones = ctk.CTkFrame(contenedor, fg_color="#F4F4F4", height=78, corner_radius=0)
     botones.grid(row=1, column=0, sticky="ew")
+    lbl_faltantes = ctk.CTkLabel(botones, text="", font=SMALL_FONT, text_color="#B45309", anchor="center", justify="center", wraplength=1050)
+    lbl_faltantes.pack(fill="x", padx=12, pady=(3, 0))
     barra_botones = ctk.CTkFrame(botones, fg_color="transparent")
     barra_botones.pack(anchor="center", pady=4)
     ctk.CTkButton(barra_botones, text="⬅ Atrás", width=120, height=38, corner_radius=10, fg_color="#64748B", hover_color="#475569", font=BUTTON_FONT, command=app.volver_atras).grid(row=0, column=0, padx=4)

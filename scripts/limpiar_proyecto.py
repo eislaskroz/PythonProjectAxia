@@ -9,7 +9,7 @@ import shutil
 
 ROOT = Path(__file__).resolve().parent.parent
 DIRS = ["__pycache__", ".pytest_cache", "build", "dist"]
-SUFFIXES = [".pyc", ".pyo"]
+SUFFIXES = [".pyc", ".pyo", ".tmp", ".bak"]
 
 for path in list(ROOT.rglob("*")):
     if path.is_dir() and path.name in DIRS:

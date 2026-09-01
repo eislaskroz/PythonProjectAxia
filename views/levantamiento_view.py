@@ -170,7 +170,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     frame_botones = ctk.CTkFrame(
         contenedor,
         fg_color="#F4F4F4",
-        height=58,
+        height=84,
         corner_radius=0
     )
     frame_botones.pack(side="bottom", fill="x", pady=(0, 0))
@@ -208,6 +208,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     # La columna histórica lev_fecha_programada se conserva en Supabase por compatibilidad.
     var_fecha_programada = ctk.StringVar(value=datetime.now().strftime("%d/%m/%Y"))
     var_fecha_realizacion = ctk.StringVar()
+    # Notas opcionales sobre el cliente. El campo sólo se habilita cuando el usuario lo solicita.
+    var_desea_notas_cliente = ctk.StringVar(value="No")
+    var_notas_cliente = ctk.StringVar()
     # Recursos proyectados: obligatorios y comunes a TODOS los levantamientos.
     # Son la fuente única de verdad para días y personas, independientemente
     # del tipo/modalidad del formulario.
@@ -676,10 +679,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             # domicilio operativo completo de la sucursal seleccionada.
             var_ubicacion.set(_nombre_sucursal(sucursal))
             var_direccion_sucursal.set(construir_domicilio_sucursal(sucursal))
-        else:
-            var_direccion_sucursal.set("")
+            # Los contactos deben consultarse cuando SÍ existe una sucursal.
+            # En FIX21 este bloque quedó accidentalmente dentro del ``else`` y
+            # por eso el combo siempre terminaba en "Sin encargados registrados".
             for contacto in obtener_contactos_por_sucursal(_id_sucursal(sucursal)) or []:
                 contactos_por_nombre[_nombre_contacto(contacto)] = contacto
+        else:
+            var_direccion_sucursal.set("")
         opciones = list(contactos_por_nombre.keys()) or ["Sin encargados registrados"]
         if combo_encargado["widget"] is not None:
             combo_encargado["widget"].configure(values=opciones)
@@ -1327,11 +1333,31 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         fila=4 + desplazamiento_filas
     )
 
-    # Notas compactas en la misma fila que la fecha para aprovechar mejor el ancho.
-    contenedor_notas = _crear_contenedor_campo(4 + desplazamiento_filas, 1, colspan=4)
+    # Notas sobre el cliente: pregunta + captura de una sola línea.
+    contenedor_pregunta_notas = _crear_contenedor_campo(4 + desplazamiento_filas, 1)
+    _label_campo(contenedor_pregunta_notas, "¿Deseas agregar notas sobre el cliente?")
+    combo_notas_cliente = NativeComboBox(
+        contenedor_pregunta_notas, variable=var_desea_notas_cliente, values=["No", "Sí"],
+        height=FORM_CONTROL_HEIGHT, font=FORM_FIELD_FONT
+    )
+    combo_notas_cliente.pack(fill="x")
+
+    contenedor_notas = _crear_contenedor_campo(4 + desplazamiento_filas, 2, colspan=3)
     _label_campo(contenedor_notas, "Notas")
-    txt_notas_generales = ctk.CTkTextbox(contenedor_notas, height=48, corner_radius=0, font=FORM_FIELD_FONT)
-    txt_notas_generales.pack(fill="x")
+    entry_notas_cliente = ctk.CTkEntry(
+        contenedor_notas, textvariable=var_notas_cliente, height=FORM_CONTROL_HEIGHT,
+        corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Notas breves sobre el cliente", state="disabled"
+    )
+    entry_notas_cliente.pack(fill="x")
+
+    def actualizar_notas_cliente(*_):
+        habilitado = var_desea_notas_cliente.get() == "Sí"
+        entry_notas_cliente.configure(state="normal" if habilitado else "disabled")
+        if not habilitado:
+            var_notas_cliente.set("")
+
+    var_desea_notas_cliente.trace_add("write", actualizar_notas_cliente)
+    actualizar_notas_cliente()
 
     fila_inicio_operativa = 5 + desplazamiento_filas
 
@@ -1828,7 +1854,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             coleccion.append({"frame": fila, "tipo": var_equipo_tipo, "marca": var_equipo_marca, "modelo": var_equipo_modelo, "serie": var_equipo_serie})
             for _var in (var_equipo_tipo, var_equipo_marca, var_equipo_modelo, var_equipo_serie):
                 try:
-                    _var.trace_add("write", lambda *_args: actualizar_estado_preview())
+                    _var.trace_add("write", lambda *_args: programar_actualizacion_estado_preview())
                 except Exception:
                     logger.debug("Excepción recuperable controlada.", exc_info=True)
 
@@ -4263,6 +4289,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         """Valida solo campos visibles/aplicables; los deshabilitados no bloquean."""
         if not var_cliente.get().strip():
             return False
+        if var_desea_notas_cliente.get() == "Sí" and not var_notas_cliente.get().strip():
+            return False
         # La anotación es opcional; si el usuario elige Sí, debe capturarla antes de continuar.
         if var_desea_anotacion_plano.get() == "Sí" and not var_anotacion_plano_base64.get().strip():
             return False
@@ -4439,6 +4467,136 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             return canalizacion_materiales_completa()
         return True
 
+    def campos_faltantes_preview():
+        """Devuelve nombres legibles de los requisitos que aún bloquean Guardar/PDF."""
+        faltan = []
+        def falta(nombre, condicion):
+            if condicion and nombre not in faltan:
+                faltan.append(nombre)
+        def vacia(v):
+            try:
+                return not str(v.get() or "").strip()
+            except Exception:
+                return True
+
+        falta("Cliente", vacia(var_cliente))
+        falta("Notas sobre el cliente", var_desea_notas_cliente.get() == "Sí" and vacia(var_notas_cliente))
+        falta("Anotación tipo plano", var_desea_anotacion_plano.get() == "Sí" and not var_anotacion_plano_base64.get().strip())
+        falta("Evidencia fotográfica", var_desea_evidencias.get() == "Sí" and not evidencias_levantamiento)
+        falta("PDF / planos adjuntos", var_desea_archivos_adjuntos.get() == "Sí" and _total_archivos_adjuntos() == 0)
+
+        personas = var_personas_considerar_general.get().strip()
+        try:
+            personas_ok = float(personas) > 0
+        except (TypeError, ValueError):
+            personas_ok = False
+        falta("Personas estimadas", not personas_ok)
+        try:
+            if var_duracion_proyecto.get() == "Un día":
+                dur_ok = float(var_horas_estimadas_general.get().strip() or 0) > 0
+                falta("Horas estimadas", not dur_ok)
+            else:
+                dur_ok = float(var_dias_trabajo_general.get().strip() or 0) > 0
+                falta("Días estimados", not dur_ok)
+        except (TypeError, ValueError):
+            falta("Horas estimadas" if var_duracion_proyecto.get() == "Un día" else "Días estimados", True)
+
+        if var_requiere_epp.get() == "Sí":
+            epp = obtener_epp_json()
+            falta("Equipo de protección personal", not epp)
+            for item in epp:
+                try:
+                    if float(str(item.get("cantidad") or "0").replace(",", ".")) <= 0:
+                        falta("Cantidad de EPP", True); break
+                except (TypeError, ValueError):
+                    falta("Cantidad de EPP", True); break
+
+        if tipo_levantamiento in TIPOS_CON_ACCESO_COMUN and var_trabajo_alturas_comun.get() == "Sí":
+            falta("Sistema de acceso temporal", vacia(var_sistema_acceso_comun))
+            falta("Altura", vacia(var_altura_comun))
+            falta("Riesgo", vacia(var_riesgo_comun))
+
+        if tipo_levantamiento == "Seguridad y Monitoreo":
+            modalidad = var_modalidad_levantamiento.get().strip()
+            falta("Tipo de trabajo", not modalidad)
+            if modalidad in ("Instalación", "Mantenimiento"):
+                falta("Descripción detallada del servicio", not txt_observaciones.get("1.0", "end").strip())
+                if modalidad == "Instalación":
+                    for nombre, variable in [
+                        ("Cantidad de cámaras", var_cctv_cantidad_camaras), ("Tipo de cámaras", var_cctv_tipo_camaras),
+                        ("Ubicación NVR/DVR", var_cctv_ubicacion_nvr), ("Punto de red", var_cctv_punto_red),
+                        ("Punto de energía", var_cctv_punto_energia), ("Infraestructura existente", var_infra_existe)]:
+                        falta(nombre, vacia(variable))
+                    if var_infra_existe.get() in ("Sí", "Parcial"):
+                        falta("Tipo de infraestructura existente", vacia(var_infra_tipo_existente))
+                        falta("Estado de infraestructura", vacia(var_infra_estado))
+                    if var_infra_existe.get() in ("No", "Parcial"):
+                        falta("Canalización / materiales", not canalizacion_materiales_completa())
+                    for pregunta, detalle, nombre in [
+                        (var_gabinete_requerido,var_tipo_gabinete,"Tipo de gabinete"),
+                        (var_ups_requerida,var_tipo_ups,"Tipo/capacidad de UPS"),
+                        (var_contacto_regulado,var_tipo_contacto_regulado,"Detalle contacto regulado")]:
+                        falta(nombre, pregunta.get()=="Sí" and vacia(detalle))
+                    if var_rack_requerido.get()=="Sí":
+                        falta("Medida de Rack", vacia(var_tipo_rack))
+                        for nombre, variable in [("Organizadores verticales",var_cctv_rack_organizadores_verticales),("Organizadores horizontales",var_cctv_rack_organizadores_horizontales),("Charolas",var_cctv_rack_charolas),("PDU",var_cctv_rack_pdu)]:
+                            falta(nombre, vacia(variable))
+                    if var_tierra_fisica.get()=="Sí":
+                        falta("Detalle/ubicación de tierra física", vacia(var_tipo_tierra_fisica))
+                        tierra=[("Barra de cobre",var_cctv_tierra_barra_cobre),("Aisladores de cobre",var_cctv_tierra_aisladores),("Abrazadera/Omega",var_cctv_tierra_abrazadera_omega),("Varilla de cobre",var_cctv_tierra_varilla_cobre),("Abrazaderas de cobre",var_cctv_tierra_abrazaderas),("Cable de cobre",var_cctv_tierra_cable_cobre),("Tornillos de cobre",var_cctv_tierra_tornillos_cobre),("Químico",var_cctv_tierra_quimico),("Tubería",var_cctv_tierra_tuberia),("Bote/Registro",var_cctv_tierra_bote)]
+                        for nombre, variable in tierra: falta(nombre, vacia(variable))
+                if var_escalera_requerida.get()=="Sí":
+                    falta("Sistema de acceso temporal", vacia(var_sistema_acceso_temporal)); falta("Altura", vacia(var_altura_trabajo)); falta("Riesgo", vacia(var_riesgo_instalacion))
+            elif modalidad == "Reparación":
+                falta("Objetivo de reparación", vacia(var_rep_objetivo))
+                if var_rep_objetivo.get().strip()=="Infraestructura":
+                    falta("Detalle de infraestructura", not txt_rep_infraestructura.get("1.0","end").strip())
+                else:
+                    for nombre, variable in [("Ubicación de equipos",var_rep_ubicacion_equipos),("Acceso a equipos",var_rep_acceso_equipos),("Estado de cámaras",var_rep_estado_camaras)]: falta(nombre,vacia(variable))
+                    falta("Descripción de fallas", not txt_rep_descripcion_fallas.get("1.0","end").strip())
+                    if var_rep_objetivo.get().strip()=="NVRs y/o DVRs":
+                        falta("Código de error",vacia(var_rep_codigo_error)); falta("Horario de falla",vacia(var_rep_horario_falla))
+        else:
+            descripcion = txt_descripcion.get("1.0", "end").strip()
+            observaciones = txt_observaciones.get("1.0", "end").strip()
+            if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS:
+                falta("Descripción detallada del servicio", not observaciones)
+            else:
+                falta("Descripción", not descripcion); falta("Observaciones", not observaciones)
+            if tipo_levantamiento == "Aires Acondicionados":
+                for nombre, variable in [("Cantidad de equipos",var_aa_cantidad_equipos),("Área a climatizar",var_aa_area_climatizar),("Ubicación evaporadora",var_aa_ubicacion_evaporadora),("Ubicación condensadora",var_aa_ubicacion_condensadora)]: falta(nombre,vacia(variable))
+                falta("Canalización / materiales", not canalizacion_materiales_completa())
+            elif tipo_levantamiento == "Redes Voz y Datos":
+                for nombre, variable in [("Necesidad",var_rvd_necesidad),("Tipo de servicio",var_rvd_tipo_servicio),("Área de instalación",var_rvd_area_instalacion),("Horario de trabajo",var_rvd_horario_trabajo),("Altura de trabajo",var_rvd_altura_trabajo)]: falta(nombre,vacia(variable))
+                ts=var_rvd_tipo_servicio.get().strip()
+                if ts in ("Datos","Voz y datos","Fibra óptica","Mixto"): falta("Cantidad de nodos",vacia(var_rvd_cantidad_nodos))
+                if ts in ("Voz","Voz y datos","Mixto"): falta("Cantidad de telefonía",vacia(var_rvd_cantidad_telefonia))
+                if var_rvd_requiere_rack.get()=="Sí":
+                    falta("Medida de Rack",vacia(var_rvd_tipo_rack))
+                    for nombre, variable in [("Organizadores verticales",var_rvd_rack_organizadores_verticales),("Organizadores horizontales",var_rvd_rack_organizadores_horizontales),("Charolas",var_rvd_rack_charolas),("PDU",var_rvd_rack_pdu)]: falta(nombre,vacia(variable))
+                if var_rvd_requiere_gabinete.get()=="Sí": falta("Tipo de gabinete",vacia(var_rvd_tipo_gabinete))
+                if var_rvd_requiere_switch.get()=="Sí":
+                    falta("Tipo de switch",vacia(var_rvd_tipo_switch)); falta("Puertos de switch",vacia(var_rvd_puertos_switch)); falta("PoE de switch",vacia(var_rvd_switch_poe))
+                if var_rvd_ups.get()=="Sí": falta("Tipo/capacidad de UPS",vacia(var_rvd_detalle_ups))
+                if var_rvd_contacto_regulado.get()=="Sí": falta("Detalle contacto regulado",vacia(var_rvd_detalle_contacto))
+                if var_rvd_tierra_fisica.get()=="Sí":
+                    falta("Detalle/ubicación de tierra física",vacia(var_rvd_detalle_tierra))
+                    for nombre, variable in [("Barra de cobre",var_rvd_tierra_barra_cobre),("Aisladores de cobre",var_rvd_tierra_aisladores),("Abrazadera/Omega",var_rvd_tierra_abrazadera_omega),("Varilla de cobre",var_rvd_tierra_varilla_cobre),("Abrazaderas de cobre",var_rvd_tierra_abrazaderas),("Cable de cobre",var_rvd_tierra_cable_cobre),("Tornillos de cobre",var_rvd_tierra_tornillos_cobre),("Químico",var_rvd_tierra_quimico),("Tubería",var_rvd_tierra_tuberia),("Bote/Registro",var_rvd_tierra_bote)]: falta(nombre,vacia(variable))
+                falta("Canalización / materiales", not canalizacion_materiales_completa())
+            elif tipo_levantamiento == "Electricidad":
+                for nombre, variable in [("Necesidad",var_ele_necesidad),("Tipo de servicio",var_ele_tipo_servicio),("Área",var_ele_area),("Cantidad de puntos",var_ele_cantidad_puntos),("Carga estimada",var_ele_carga_estimacion),("Voltaje",var_ele_voltaje),("Fases",var_ele_fases),("Tablero origen",var_ele_tablero_origen),("Capacidad tablero",var_ele_capacidad_tablero),("Breaker requerido",var_ele_breaker_requerido),("Tipo de circuito",var_ele_tipo_circuito),("Altura de trabajo",var_ele_altura_trabajo)]: falta(nombre,vacia(variable))
+                falta("Canalización / materiales", not canalizacion_materiales_completa())
+            elif tipo_levantamiento == "Control de Accesos":
+                for clave,nombre in [("cantidad_accesos","Cantidad de accesos"),("ubicacion_accesos","Ubicación de accesos"),("flujo_personas","Flujo de personas"),("cantidad_lectores","Cantidad de lectores"),("usuarios_iniciales","Usuarios iniciales")]: falta(nombre,vacia(vars_extra[clave]))
+                falta("Canalización / materiales", not canalizacion_materiales_completa())
+            elif tipo_levantamiento == "Enlaces Inalámbricos":
+                campos=[("necesidad","Necesidad"),("sitio_origen","Sitio origen"),("sitio_destino","Sitio destino"),("distancia","Distancia"),("ancho_banda","Ancho de banda"),("linea_vista","Línea de vista"),("altura_origen","Altura origen"),("altura_destino","Altura destino"),("obstrucciones","Obstrucciones"),("acceso_azotea","Acceso a azotea"),("frecuencia","Frecuencia"),("tipo_equipo","Tipo de equipo"),("cantidad_radios","Cantidad de radios"),("mastil_torre","Mástil/Torre"),("proteccion_clima","Protección clima"),("punto_red_origen","Punto de red origen"),("punto_red_destino","Punto de red destino"),("energia_origen","Energía origen"),("energia_destino","Energía destino"),("metros_cable","Metros de cable"),("proteccion_tierra","Protección/tierra")]
+                for clave,nombre in campos: falta(nombre,vacia(vars_extra[clave]))
+                falta("Canalización / materiales", not canalizacion_materiales_completa())
+            elif tipo_levantamiento in tipos_con_canalizacion:
+                falta("Canalización / materiales", not canalizacion_materiales_completa())
+        return faltan
+
     def titulo_pdf_levantamiento():
         titulos = {
             "Seguridad y Monitoreo": "Levantamiento Seguridad y Monitoreo",
@@ -4494,11 +4652,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "Correo": var_correo.get(),
             "Contacto": (var_encargado_sucursal.get() if var_cliente_selector.get() == "Otros" else var_contacto.get()),
             "Fecha de Levantamiento": var_fecha_programada.get(),
+            "¿Deseas agregar notas sobre el cliente?": var_desea_notas_cliente.get(),
+            "Notas sobre el cliente": var_notas_cliente.get().strip() if var_desea_notas_cliente.get() == "Sí" else "No aplica",
             "Duración del proyecto": var_duracion_proyecto.get(),
             "Horas estimadas": var_horas_estimadas_general.get() if var_duracion_proyecto.get() == "Un día" else "",
             "Días estimados": var_dias_trabajo_general.get() if var_duracion_proyecto.get() == "Varios días" else "1",
             "Personas estimadas": var_personas_considerar_general.get(),
-            "Notas": txt_notas_generales.get("1.0", "end").strip(),
+            "Notas": var_notas_cliente.get().strip(),
             "¿Requiere EPP?": var_requiere_epp.get(),
             "Equipo de Protección Personal": construir_resumen_epp(),
             "Herramientas": construir_resumen_herramientas(),
@@ -4577,7 +4737,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "lev_horas_estimadas": var_horas_estimadas_general.get().strip() if var_duracion_proyecto.get() == "Un día" else None,
             "lev_dias_trabajo": "1" if var_duracion_proyecto.get() == "Un día" else var_dias_trabajo_general.get().strip(),
             "lev_personas_considerar": var_personas_considerar_general.get().strip(),
-            "lev_notas": txt_notas_generales.get("1.0", "end").strip(),
+            "lev_notas": var_notas_cliente.get().strip(),
             "lev_estatus": var_estatus.get().strip(),
             "lev_prioridad": var_prioridad.get().strip(),
             "lev_descripcion": txt_descripcion.get("1.0", "end").strip(),
@@ -4642,11 +4802,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "Correo": var_correo.get(),
             "Contacto": (var_encargado_sucursal.get() if var_cliente_selector.get() == "Otros" else var_contacto.get()),
             "Fecha de Levantamiento": var_fecha_programada.get(),
+            "¿Deseas agregar notas sobre el cliente?": var_desea_notas_cliente.get(),
+            "Notas sobre el cliente": var_notas_cliente.get().strip() if var_desea_notas_cliente.get() == "Sí" else "No aplica",
             "Duración del proyecto": var_duracion_proyecto.get(),
             "Horas estimadas": var_horas_estimadas_general.get() if var_duracion_proyecto.get() == "Un día" else "",
             "Días estimados": var_dias_trabajo_general.get() if var_duracion_proyecto.get() == "Varios días" else "1",
             "Personas estimadas": var_personas_considerar_general.get(),
-            "Notas": txt_notas_generales.get("1.0", "end").strip(),
+            "Notas": var_notas_cliente.get().strip(),
             "¿Requiere EPP?": var_requiere_epp.get(),
             "Equipo de Protección Personal": construir_resumen_epp(),
             "Herramientas": construir_resumen_herramientas(),
@@ -4709,7 +4871,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "lev_horas_estimadas": var_horas_estimadas_general.get().strip() if var_duracion_proyecto.get() == "Un día" else None,
             "lev_dias_trabajo": "1" if var_duracion_proyecto.get() == "Un día" else var_dias_trabajo_general.get().strip(),
             "lev_personas_considerar": var_personas_considerar_general.get().strip(),
-            "lev_notas": txt_notas_generales.get("1.0", "end").strip(),
+            "lev_notas": var_notas_cliente.get().strip(),
             "lev_estatus": var_estatus.get().strip(),
             "lev_prioridad": var_prioridad.get().strip(),
             "lev_descripcion": txt_descripcion.get("1.0", "end").strip(),
@@ -4828,8 +4990,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             var_cliente_selector.set(cliente_guardado)
 
         # Textos generales.
-        txt_notas_generales.delete("1.0", "end")
-        txt_notas_generales.insert("1.0", str(registro.get("lev_notas") or ""))
+        nota_guardada = str(registro.get("lev_notas") or "").strip()
+        var_desea_notas_cliente.set("Sí" if nota_guardada else "No")
+        var_notas_cliente.set(nota_guardada)
         for box, valor in ((txt_descripcion, registro.get("lev_descripcion")), (txt_observaciones, registro.get("lev_observaciones"))):
             box.delete("1.0", "end")
             box.insert("1.0", str(valor or ""))
@@ -5330,6 +5493,12 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     # La barra inferior ya fue reservada antes de empaquetar el área
     # desplazable; aquí solamente agregamos sus controles.
 
+    lbl_faltantes_preview = ctk.CTkLabel(
+        frame_botones, text="", font=FORM_FIELD_FONT, text_color="#B45309",
+        anchor="center", justify="center", wraplength=1050
+    )
+    lbl_faltantes_preview.pack(fill="x", padx=12, pady=(3, 0))
+
     barra_botones = ctk.CTkFrame(frame_botones, fg_color="transparent")
     barra_botones.pack(anchor="center", pady=4)
 
@@ -5373,8 +5542,19 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     )
     btn_preview_levantamiento.grid(row=0, column=2, padx=4)
 
+    _preview_after_id = None
+
     def actualizar_estado_preview():
+        """Actualiza botones/indicador. Se mantiene separada para llamadas forzadas."""
         completo = formulario_preview_completo()
+        faltantes = campos_faltantes_preview() if not completo else []
+        if completo:
+            lbl_faltantes_preview.configure(text="✓ Formulario completo. Ya puedes guardar o generar el Preview PDF.", text_color="#15803D")
+        else:
+            resumen = ", ".join(faltantes[:10])
+            if len(faltantes) > 10:
+                resumen += f" … (+{len(faltantes)-10})"
+            lbl_faltantes_preview.configure(text=f"⚠ Faltan {len(faltantes)} requisito(s): {resumen}" if faltantes else "⚠ Aún existen campos obligatorios pendientes.", text_color="#B45309")
         btn_preview_levantamiento.configure(
             state="normal" if completo else "disabled",
             fg_color="#1F4E79" if completo else "#9CA3AF",
@@ -5386,8 +5566,25 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             hover_color=BUTTON_HOVER if completo else "#9CA3AF"
         )
 
+    def programar_actualizacion_estado_preview(delay_ms=110):
+        """Agrupa múltiples cambios consecutivos para evitar recalcular todo por tecla.
+
+        Los formularios grandes tienen más de cien variables observadas. Sin debounce,
+        cada pulsación podía recorrer todas las reglas de validación varias veces.
+        """
+        nonlocal _preview_after_id
+        try:
+            if _preview_after_id is not None:
+                form_body.after_cancel(_preview_after_id)
+        except Exception:
+            pass
+        try:
+            _preview_after_id = form_body.after(delay_ms, actualizar_estado_preview)
+        except Exception:
+            actualizar_estado_preview()
+
     variables_preview = [
-        var_folio, var_cliente, var_modalidad_levantamiento,
+        var_folio, var_cliente, var_modalidad_levantamiento, var_desea_notas_cliente, var_notas_cliente,
         var_dias_trabajo_general, var_personas_considerar_general,
         var_desea_anotacion_plano, var_anotacion_plano_base64, var_desea_evidencias,
         var_cctv_cantidad_camaras, var_cctv_dias_retencion,
@@ -5432,21 +5629,21 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     variables_preview.extend(vars_extra.values())
     for _var in variables_preview:
         try:
-            _var.trace_add("write", lambda *_args: actualizar_estado_preview())
+            _var.trace_add("write", lambda *_args: programar_actualizacion_estado_preview())
         except Exception:
             logger.debug("Excepción recuperable controlada.", exc_info=True)
 
     for _txt in [txt_descripcion, txt_observaciones]:
         try:
-            _txt.bind("<KeyRelease>", lambda _event: actualizar_estado_preview(), add="+")
+            _txt.bind("<KeyRelease>", lambda _event: programar_actualizacion_estado_preview(), add="+")
         except Exception:
             logger.debug("Excepción recuperable controlada.", exc_info=True)
     try:
-        txt_rep_descripcion_fallas.bind("<KeyRelease>", lambda _event: actualizar_estado_preview(), add="+")
+        txt_rep_descripcion_fallas.bind("<KeyRelease>", lambda _event: programar_actualizacion_estado_preview(), add="+")
     except Exception:
         logger.debug("Excepción recuperable controlada.", exc_info=True)
     try:
-        txt_rep_infraestructura.bind("<KeyRelease>", lambda _event: actualizar_estado_preview(), add="+")
+        txt_rep_infraestructura.bind("<KeyRelease>", lambda _event: programar_actualizacion_estado_preview(), add="+")
     except Exception:
         logger.debug("Excepción recuperable controlada.", exc_info=True)
     actualizar_estado_preview()

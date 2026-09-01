@@ -2,7 +2,7 @@
 from PyInstaller.utils.hooks import collect_all
 
 # SECURITY: .env, logs and runtime data must never be bundled.
-datas = [('assets', 'assets'), ('controllers', 'controllers'), ('core', 'core'), ('modules', 'modules'), ('security', 'security'), ('services', 'services'), ('tools', 'tools'), ('ui', 'ui'), ('views', 'views')]
+datas = [('assets', 'assets'), ('ui/axia_theme.json', 'ui')]
 binaries = []
 hiddenimports = ['reportlab.graphics.barcode.code39', 'reportlab.graphics.barcode.code93', 'reportlab.graphics.barcode.code128', 'reportlab.graphics.barcode', 'reportlab.graphics', 'reportlab.platypus', 'reportlab.pdfgen', 'reportlab']
 tmp_ret = collect_all('reportlab')
@@ -20,7 +20,7 @@ a = Analysis(
     runtime_hooks=[],
     excludes=[],
     noarchive=False,
-    optimize=0,
+    optimize=1,
 )
 pyz = PYZ(a.pure)
 
@@ -33,7 +33,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,
     console=False,
     icon="assets/SoloAxia.ico",
     disable_windowed_traceback=False,
@@ -47,7 +47,7 @@ coll = COLLECT(
     a.binaries,
     a.datas,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     name='AXIA',
 )

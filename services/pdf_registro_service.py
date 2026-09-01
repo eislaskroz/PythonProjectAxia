@@ -8,6 +8,7 @@ from tkinter import filedialog, messagebox
 
 from services.axia_pdf_engine import AxiaPdfEngine
 from services.axia_pdf_artifacts import AxiaPdfArtifactStore, PDF_RENDERER_VERSION
+from services.levantamiento_compat import normalizar_registro_levantamiento
 from services.levantamiento_seguridad_pdf import (
     es_levantamiento,
     generar_pdf_levantamiento_maestro,
@@ -428,6 +429,7 @@ def generar_pdf_registro(
     # por el mismo generador estructurado. Preview, PDF definitivo y descarga
     # administrativa comparten exactamente la misma lógica visual.
     if es_levantamiento(registro):
+        registro = normalizar_registro_levantamiento(registro)
         if ruta_salida is None:
             safe = "_".join(str(registro.get("lev_tipo_levantamiento") or "Levantamiento").split())
             ruta_salida = AxiaPdfEngine._preview_path(f"Levantamiento_{safe}")
