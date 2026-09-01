@@ -21,6 +21,7 @@ from reportlab.platypus import (
     Image as RLImage,
     KeepTogether,
     LongTable,
+    PageBreak,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
@@ -29,6 +30,7 @@ from reportlab.platypus import (
 )
 
 from core.pdf import BasePdfGenerator
+from core.logger import configurar_logger
 
 
 BLUE = colors.HexColor("#1F4E79")
@@ -37,6 +39,7 @@ LIGHT = colors.HexColor("#F8FAFC")
 BORDER = colors.HexColor("#8FA3B5")
 TEXT = colors.HexColor("#243447")
 WHITE = colors.white
+logger = configurar_logger(__name__)
 
 
 def _json(value: Any, default: Any = None) -> Any:
@@ -85,19 +88,23 @@ def _anotacion_plano_base64(registro: Mapping[str, Any]) -> str:
 def _append_anotacion_plano(story: list, registro: Mapping[str, Any], width: float, header) -> None:
     """Añade al PDF final el croquis/anotación gráfica conservando proporción."""
     encoded = _anotacion_plano_base64(registro)
-    if not encoded:
-        return
     try:
-        raw = base64.b64decode(encoded, validate=False)
+        raw = base64.b64decode(encoded, validate=False) if encoded else None
+        if not raw:
+            item = next((item for item in _evidencias_todas(registro) if _es_anotacion_plano(item)), None)
+            raw = _cargar_archivo_evidencia(item) if item is not None else None
+        if not raw:
+            return
         stream = BytesIO(raw)
         image = RLImage(stream)
         iw = float(getattr(image, "imageWidth", 0) or 1)
         ih = float(getattr(image, "imageHeight", 0) or 1)
-        max_w = min(width, 6.75 * inch)
-        max_h = 4.55 * inch
+        max_w = min(width, 4.75 * inch)
+        max_h = 3.20 * inch
         scale = min(max_w / iw, max_h / ih, 1.0)
         image.drawWidth = iw * scale
         image.drawHeight = ih * scale
+        image.hAlign = "CENTER"
         title = _section_title("Anotaciones tipo plano", width, header)
         story.append(Spacer(1, 7))
         story.append(KeepTogether([title, Spacer(1, 4), image]))
@@ -108,7 +115,12 @@ def _append_anotacion_plano(story: list, registro: Mapping[str, Any], width: flo
 
 
 def _evidencias_levantamiento(registro: Mapping[str, Any]) -> list:
-    """Resuelve evidencias locales de preview o metadatos persistidos en Supabase."""
+    """Resuelve únicamente fotografías; planos y anotaciones se renderizan aparte."""
+    return [item for item in _evidencias_todas(registro) if not _es_pdf(item) and not _es_anotacion_plano(item) and not _es_plano_adjunto(item)]
+
+
+def _evidencias_todas(registro: Mapping[str, Any]) -> list:
+    """Resuelve archivos FIELD y evidencias locales/persistidas sin perder su tipo."""
     locales = registro.get("__evidencias_locales") or []
     if locales:
         return list(locales) if isinstance(locales, (list, tuple)) else [locales]
@@ -116,6 +128,34 @@ def _evidencias_levantamiento(registro: Mapping[str, Any]) -> list:
     if isinstance(value, Mapping):
         return [dict(value)]
     return list(value) if isinstance(value, (list, tuple)) else []
+
+
+def _mime_item(item: Any) -> str:
+    if isinstance(item, Mapping):
+        mime = str(item.get("mime") or item.get("mimeType") or "").strip().lower()
+        if mime:
+            return mime
+        name = str(item.get("nombre") or item.get("storage_path") or item.get("path") or "")
+    else:
+        name = str(item or "")
+    suffix = Path(name).suffix.lower()
+    return {".pdf": "application/pdf", ".png": "image/png", ".webp": "image/webp"}.get(suffix, "image/jpeg" if suffix in {".jpg", ".jpeg"} else "")
+
+
+def _relation_key(item: Any) -> str:
+    return str(item.get("relacion_clave") or item.get("relationKey") or "").strip().lower() if isinstance(item, Mapping) else ""
+
+
+def _es_pdf(item: Any) -> bool:
+    return _mime_item(item) == "application/pdf"
+
+
+def _es_anotacion_plano(item: Any) -> bool:
+    return _relation_key(item) == "plan_annotation" or "anotaci" in str(item.get("relacion_etiqueta") or "").lower() if isinstance(item, Mapping) else False
+
+
+def _es_plano_adjunto(item: Any) -> bool:
+    return _es_pdf(item) or _relation_key(item) == "attached_plans"
 
 
 def _archivos_adjuntos_levantamiento(registro: Mapping[str, Any]) -> list:
@@ -131,6 +171,7 @@ def _archivos_adjuntos_levantamiento(registro: Mapping[str, Any]) -> list:
         resultado.extend(locales)
     elif locales:
         resultado.append(locales)
+    resultado.extend(item for item in _evidencias_todas(registro) if _es_plano_adjunto(item))
     return resultado
 
 
@@ -156,10 +197,29 @@ def _append_archivos_adjuntos(story: list, registro: Mapping[str, Any], width: f
         filas, [2.35*inch, 1.00*inch, 3.55*inch], normal, header
     ))
     story.append(Spacer(1, 7))
+    for item in items:
+        if _es_pdf(item):
+            continue
+        raw = _cargar_archivo_evidencia(item)
+        if not raw:
+            continue
+        try:
+            image = RLImage(BytesIO(raw))
+            iw = float(getattr(image, "imageWidth", 0) or 1)
+            ih = float(getattr(image, "imageHeight", 0) or 1)
+            scale = min((4.75 * inch) / iw, (4.25 * inch) / ih, 1.0)
+            image.drawWidth, image.drawHeight = iw * scale, ih * scale
+            image.hAlign = "CENTER"
+            story.extend([
+                KeepTogether([_section_title("Plano adjunto", width, header), Spacer(1, 4), image]),
+                Spacer(1, 7),
+            ])
+        except Exception:
+            continue
 
 
-def _cargar_imagen_evidencia(item):
-    """Devuelve bytes de una fotografía desde ruta local, URL o Storage."""
+def _cargar_archivo_evidencia(item):
+    """Devuelve bytes de un complemento desde ruta local, URL o Storage."""
     try:
         origen = ""
         storage_path = ""
@@ -181,10 +241,92 @@ def _cargar_imagen_evidencia(item):
         if storage_path:
             from supabase_config import supabase
             bucket = str(item.get("bucket") or "levantamientos-evidencias") if isinstance(item, Mapping) else "levantamientos-evidencias"
-            return supabase.storage.from_(bucket).download(storage_path)
+            storage = supabase.storage.from_(bucket)
+            try:
+                raw = storage.download(storage_path)
+                if raw:
+                    return raw
+            except Exception:
+                # FIELD sube con Service Role; la sesión de DESKTOP puede no
+                # tener SELECT sobre Storage aunque el bucket sea público.
+                pass
+            try:
+                public_url = str(storage.get_public_url(storage_path) or "").strip()
+                if public_url:
+                    import requests
+                    response = requests.get(public_url, timeout=20)
+                    response.raise_for_status()
+                    return response.content
+            except Exception:
+                pass
+            # El bucket FIELD permanece privado. Una función con Service Role
+            # valida que la ruta esté registrada y devuelve una URL de 2 min.
+            if bucket == "levantamientos-evidencias":
+                try:
+                    from supabase_config import SUPABASE_KEY, SUPABASE_URL
+                    import requests
+                    endpoint = f"{str(SUPABASE_URL).rstrip('/')}/functions/v1/mobile-evidence-access"
+                    signed_response = requests.post(
+                        endpoint,
+                        headers={
+                            "Authorization": f"Bearer {SUPABASE_KEY}",
+                            "apikey": str(SUPABASE_KEY),
+                            "Content-Type": "application/json",
+                        },
+                        json={"bucket": bucket, "storagePath": storage_path},
+                        timeout=15,
+                    )
+                    signed_response.raise_for_status()
+                    signed_url = str((signed_response.json() or {}).get("signedUrl") or "").strip()
+                    if signed_url:
+                        file_response = requests.get(signed_url, timeout=25)
+                        file_response.raise_for_status()
+                        return file_response.content
+                except Exception:
+                    logger.warning(
+                        "No fue posible descargar complemento FIELD: bucket=%s path=%s",
+                        bucket,
+                        storage_path,
+                        exc_info=True,
+                    )
     except Exception:
         return None
     return None
+
+
+def _cargar_imagen_evidencia(item):
+    return _cargar_archivo_evidencia(item)
+
+
+def _anexar_paginas_pdf(ruta_salida: str | Path, registro: Mapping[str, Any]) -> None:
+    """Anexa completos los PDF enviados por FIELD, preservando sus páginas y calidad."""
+    pdf_items = [item for item in _archivos_adjuntos_levantamiento(registro) if _es_pdf(item)]
+    if not pdf_items:
+        return
+    try:
+        from pypdf import PdfReader, PdfWriter
+        output = Path(ruta_salida)
+        writer = PdfWriter()
+        for page in PdfReader(str(output)).pages:
+            writer.add_page(page)
+        appended = 0
+        for item in pdf_items:
+            raw = _cargar_archivo_evidencia(item)
+            if not raw:
+                continue
+            try:
+                for page in PdfReader(BytesIO(raw)).pages:
+                    writer.add_page(page)
+                    appended += 1
+            except Exception:
+                continue
+        if appended:
+            temporary = output.with_suffix(".attachments.tmp.pdf")
+            with temporary.open("wb") as stream:
+                writer.write(stream)
+            temporary.replace(output)
+    except Exception:
+        return
 
 
 def _append_evidencias_fotograficas(story: list, registro: Mapping[str, Any], width: float, header) -> None:
@@ -207,10 +349,10 @@ def _append_evidencias_fotograficas(story: list, registro: Mapping[str, Any], wi
                 im.save(buf, format="PNG")
                 buf.seek(0)
                 iw, ih = im.size
-            max_w, max_h = 3.18 * inch, 2.18 * inch
+            max_w, max_h = 2.55 * inch, 1.75 * inch
             scale = min(max_w / max(iw, 1), max_h / max(ih, 1))
             img = RLImage(buf, width=max(1, iw * scale), height=max(1, ih * scale))
-            card = Table([[img]], colWidths=[3.28 * inch])
+            card = Table([[img]], colWidths=[2.68 * inch])
             card.setStyle(TableStyle([
                 ("BOX", (0,0), (-1,-1), 0.4, BORDER),
                 ("ALIGN", (0,0), (-1,-1), "CENTER"),
@@ -226,12 +368,18 @@ def _append_evidencias_fotograficas(story: list, registro: Mapping[str, Any], wi
         rows = []
         for i in range(0, len(cards), 2):
             rows.append([cards[i], cards[i+1] if i+1 < len(cards) else ""])
-        grid = Table(rows, colWidths=[width/2, width/2], hAlign="LEFT")
-        grid.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "TOP")]))
         story.append(Spacer(1, 7))
-        story.append(_section_title("Evidencia fotográfica", width, header))
-        story.append(Spacer(1, 4))
-        story.append(grid)
+        first_grid = Table([rows[0]], colWidths=[width/2, width/2], hAlign="LEFT")
+        first_grid.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "TOP")]))
+        story.append(KeepTogether([
+            _section_title("Evidencia fotográfica", width, header),
+            Spacer(1, 4),
+            first_grid,
+        ]))
+        for row in rows[1:]:
+            grid = Table([row], colWidths=[width/2, width/2], hAlign="LEFT")
+            grid.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "TOP")]))
+            story.extend([Spacer(1, 4), grid])
     except Exception:
         return
 
@@ -637,6 +785,7 @@ def generar_pdf_seguridad_instalacion(
         onFirstPage=_page,
         onLaterPages=_page,
     )
+    _anexar_paginas_pdf(ruta, registro)
     if abrir:
         if os.name == "nt":
             os.startfile(str(ruta))
@@ -1117,6 +1266,7 @@ def generar_pdf_levantamiento_maestro(
     def _page(canvas, document):
         BasePdfGenerator.draw_page(canvas, document, title=title)
     doc.build(story, canvasmaker=BasePdfGenerator.canvas_factory(title), onFirstPage=_page, onLaterPages=_page)
+    _anexar_paginas_pdf(ruta, registro)
     if abrir:
         if os.name == "nt":
             os.startfile(str(ruta))

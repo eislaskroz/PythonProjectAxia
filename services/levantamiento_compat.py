@@ -157,7 +157,9 @@ def _build_classic_sections(tipo: str, detail: dict[str, Any]) -> None:
         if re.search(r"_(?:equipment|misc|damaged|material|tool|epp)_?\d+_", str(key)) or str(key).endswith("_count"):
             continue
         if str(key).startswith(pfx):
-            values[str(key)[len(pfx):]] = value
+            short_key = str(key)[len(pfx):]
+            if short_key not in {"wants_plan_annotation", "wants_attachments", "wants_photos"}:
+                values[short_key] = value
         elif tipo == "Seguridad y Monitoreo" and key in {
             "modalidad", "infra_existe", "infra_tipo", "infra_estado", "infra_observaciones",
             "rack_requerido", "gabinete_requerido", "ups_requerida", "contacto_regulado",
