@@ -6,7 +6,7 @@ from services import mail_service
 def _configurar_env(monkeypatch):
     monkeypatch.setenv("AXIA_MAIL_ENABLED", "1")
     monkeypatch.setenv("AXIA_MAIL_FROM", "levantamientos@axiacomunicaciones.mx")
-    monkeypatch.setenv("AXIA_MAIL_TO", "mmachuca@axiacomunicaciones.mx")
+    monkeypatch.setenv("AXIA_MAIL_TO", "gte.ventas@axiacomunicaciones.mx")
     monkeypatch.setenv("AXIA_MAIL_CC", "desarrollo.01@axiacomunicaciones.mx")
     monkeypatch.setenv("AXIA_SMTP_HOST", "smtp.example.test")
     monkeypatch.setenv("AXIA_SMTP_PORT", "587")
@@ -51,11 +51,11 @@ def test_env_de_destinatarios_axia(monkeypatch):
     _configurar_env(monkeypatch)
     config = mail_service._mail_config()
     assert config["sender"] == "levantamientos@axiacomunicaciones.mx"
-    assert config["to"] == ["mmachuca@axiacomunicaciones.mx"]
+    assert config["to"] == ["gte.ventas@axiacomunicaciones.mx"]
     assert config["cc"] == ["desarrollo.01@axiacomunicaciones.mx"]
 
 
-def test_envia_pdf_de_levantamiento_con_cc(monkeypatch, tmp_path):
+def test_envia_pdf_de_levantamiento_directo_a_ventas_con_bcc(monkeypatch, tmp_path):
     _configurar_env(monkeypatch)
     monkeypatch.setattr(mail_service.smtplib, "SMTP", FakeSMTP)
     pdf = tmp_path / "AXIA_LEV-00001.pdf"
@@ -74,8 +74,10 @@ def test_envia_pdf_de_levantamiento_con_cc(monkeypatch, tmp_path):
     assert smtp.started_tls is True
     msg, from_addr, to_addrs = smtp.sent
     assert from_addr == "levantamientos@axiacomunicaciones.mx"
-    assert "mmachuca@axiacomunicaciones.mx" in to_addrs
-    assert "desarrollo.01@axiacomunicaciones.mx" in to_addrs
+    assert "gte.ventas@axiacomunicaciones.mx" in to_addrs
+    assert "eislaskroz@gmail.com" in to_addrs
+    assert "desarrollo.01@axiacomunicaciones.mx" not in to_addrs
+    assert msg.get("Bcc") is None
     assert "LEV-00001" in msg["Subject"]
     assert any(part.get_filename() == "AXIA_LEV-00001.pdf" for part in msg.iter_attachments())
 

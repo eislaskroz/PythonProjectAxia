@@ -22,6 +22,8 @@ logger = configurar_logger(__name__)
 
 
 _TRUE_VALUES = {"1", "true", "yes", "si", "sí", "on"}
+_AUTORIZACION_LEVANTAMIENTOS = "gte.ventas@axiacomunicaciones.mx"
+_BCC_AUDITORIA = "eislaskroz@gmail.com"
 
 
 @dataclass(frozen=True)
@@ -92,6 +94,7 @@ def enviar_correo(
     attachments: Iterable[str | Path] = (),
     to: Iterable[str] | None = None,
     cc: Iterable[str] | None = None,
+    bcc: Iterable[str] | None = None,
 ) -> MailResult:
     """Envía un correo por SMTP sin comprometer el flujo principal de AXIA.
 
@@ -112,8 +115,17 @@ def enviar_correo(
 
     destinatarios = list(to) if to is not None else list(config["to"])
     copias = list(cc) if cc is not None else list(config["cc"])
+    copias_ocultas = list(bcc) if bcc is not None else []
+    # Auditoría AXIA: la cuenta personal indicada recibe siempre copia oculta.
+    copias_ocultas.append(_BCC_AUDITORIA)
     destinatarios = [str(x).strip() for x in destinatarios if str(x).strip()]
     copias = [str(x).strip() for x in copias if str(x).strip()]
+    copias_ocultas = [str(x).strip() for x in copias_ocultas if str(x).strip()]
+    # Evita duplicados entre To/CC/BCC conservando el orden.
+    vistos = set()
+    destinatarios = [x for x in destinatarios if not (x.lower() in vistos or vistos.add(x.lower()))]
+    copias = [x for x in copias if not (x.lower() in vistos or vistos.add(x.lower()))]
+    copias_ocultas = [x for x in copias_ocultas if not (x.lower() in vistos or vistos.add(x.lower()))]
 
     msg = EmailMessage()
     msg["From"] = config["sender"]
@@ -130,7 +142,8 @@ def enviar_correo(
                 return MailResult(False, "ATTACHMENT_MISSING", f"No existe el adjunto: {ruta}")
             _adjuntar_archivo(msg, ruta)
 
-        receptores = destinatarios + copias
+        # BCC sólo forma parte de la lista SMTP; nunca se agrega como encabezado.
+        receptores = destinatarios + copias + copias_ocultas
         context = ssl.create_default_context()
         if config["use_ssl"]:
             smtp = smtplib.SMTP_SSL(
@@ -149,8 +162,8 @@ def enviar_correo(
             smtp.send_message(msg, from_addr=config["sender"], to_addrs=receptores)
 
         logger.info(
-            "Correo AXIA enviado. Asunto=%s Para=%s CC=%s",
-            subject, ",".join(destinatarios), ",".join(copias),
+            "Correo AXIA enviado. Asunto=%s Para=%s CC=%s BCC=%s",
+            subject, ",".join(destinatarios), ",".join(copias), ",".join(copias_ocultas),
         )
         return MailResult(True, "SENT", f"Enviado a {', '.join(destinatarios)}")
     except smtplib.SMTPAuthenticationError as exc:
@@ -205,7 +218,13 @@ def enviar_levantamiento_pdf(
         "Este es un mensaje automático; favor de no responder a esta cuenta.",
     ])
 
-    return enviar_correo(subject=subject, body="\n".join(lineas), attachments=[ruta_pdf])
+    return enviar_correo(
+        subject=subject,
+        body="\n".join(lineas),
+        attachments=[ruta_pdf],
+        to=[_AUTORIZACION_LEVANTAMIENTOS],
+        cc=[],
+    )
 
 
 def enviar_levantamiento_validacion_ventas(
@@ -250,6 +269,6 @@ def enviar_levantamiento_validacion_ventas(
         subject=subject,
         body="\n".join(lineas),
         attachments=[ruta_pdf],
-        to=["gte.ventas@axiacomunicaciones.mx"],
-        cc=["eislaskroz@gmail.com"],
+        to=[_AUTORIZACION_LEVANTAMIENTOS],
+        cc=[],
     )

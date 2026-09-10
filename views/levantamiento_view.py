@@ -33,6 +33,7 @@ from ui.colors import (
 )
 
 from ui.date_picker import abrir_selector_fecha, asociar_selector_fecha
+from ui.numeric_masks import aplicar_mascara_numerica, tipo_mascara_por_etiqueta, NUMBER, INTEGER
 from ui.fonts import (
     TITLE_MD,
     TEXT_MD,
@@ -62,6 +63,10 @@ from services.equipos_catalogo_service import (
 )
 from views.levantamientos.catalogo_herramientas import (
     CATALOGO_HERRAMIENTAS, CATEGORIAS_HERRAMIENTAS, herramientas_por_categoria
+)
+from views.levantamientos.canalizacion_aproximado import (
+    texto_aproximado_canalizacion,
+    unidad_forzada_canalizacion,
 )
 
 from services.aco_context_service import normalizar_datos_aco
@@ -257,6 +262,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     # Campos dedicados del formulario Seguridad y Monitoreo.
     # Se guardan dentro de los campos descriptivos existentes para evitar
     # romper la estructura actual de Supabase mientras se valida el proceso.
+    var_cctv_requiere_camaras = ctk.StringVar()
     var_cctv_cantidad_camaras = ctk.StringVar()
     var_cctv_tipo_camaras = ctk.StringVar(value="IP")
     var_cctv_tipo_cableado = ctk.StringVar(value="UTP")
@@ -1297,17 +1303,23 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     horas_box = ctk.CTkFrame(recursos_frame, fg_color="transparent")
     horas_box.grid(row=1, column=1, sticky="w", padx=(0, 10), pady=(0, 6))
     ctk.CTkLabel(horas_box, text="Horas estimadas", font=FORM_FIELD_FONT, text_color=TEXT_PRIMARY).pack(anchor="w")
-    ctk.CTkEntry(horas_box, textvariable=var_horas_estimadas_general, width=180, height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Ej. 6").pack(anchor="w")
+    entrada_horas = ctk.CTkEntry(horas_box, textvariable=var_horas_estimadas_general, width=180, height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Ej. 6")
+    aplicar_mascara_numerica(entrada_horas, var_horas_estimadas_general, NUMBER)
+    entrada_horas.pack(anchor="w")
 
     dias_box = ctk.CTkFrame(recursos_frame, fg_color="transparent")
     dias_box.grid(row=1, column=1, sticky="w", padx=(0, 10), pady=(0, 6))
     ctk.CTkLabel(dias_box, text="Días estimados", font=FORM_FIELD_FONT, text_color=TEXT_PRIMARY).pack(anchor="w")
-    ctk.CTkEntry(dias_box, textvariable=var_dias_trabajo_general, width=180, height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Ej. 3").pack(anchor="w")
+    entrada_dias = ctk.CTkEntry(dias_box, textvariable=var_dias_trabajo_general, width=180, height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Ej. 3")
+    aplicar_mascara_numerica(entrada_dias, var_dias_trabajo_general, INTEGER)
+    entrada_dias.pack(anchor="w")
 
     personas_box = ctk.CTkFrame(recursos_frame, fg_color="transparent")
     personas_box.grid(row=1, column=2, sticky="w", padx=(0, 10), pady=(0, 6))
     ctk.CTkLabel(personas_box, text="Personas estimadas", font=FORM_FIELD_FONT, text_color=TEXT_PRIMARY).pack(anchor="w")
-    ctk.CTkEntry(personas_box, textvariable=var_personas_considerar_general, width=180, height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Ej. 3").pack(anchor="w")
+    entrada_personas = ctk.CTkEntry(personas_box, textvariable=var_personas_considerar_general, width=180, height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Ej. 3")
+    aplicar_mascara_numerica(entrada_personas, var_personas_considerar_general, INTEGER)
+    entrada_personas.pack(anchor="w")
 
     def actualizar_recursos_proyectados(*_):
         if var_duracion_proyecto.get() == "Un día":
@@ -1452,6 +1464,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 placeholder_text=placeholder
             )
             entry.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=6, pady=(0, 3))
+            tipo_mascara = tipo_mascara_por_etiqueta(texto)
+            if tipo_mascara:
+                aplicar_mascara_numerica(entry, variable, tipo_mascara)
             return entry
 
         def option_en(parent_frame, texto, variable, values, fila, columna, command=None, width=None):
@@ -1489,7 +1504,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             fila.grid_columnconfigure(1, weight=1)
 
             NativeComboBox(fila, variable=var_tipo, values=TIPOS_CANALIZACION, height=32).grid(row=0, column=0, sticky="ew", padx=(0, 3))
-            ctk.CTkEntry(fila, textvariable=var_metros, height=FORM_CONTROL_HEIGHT, corner_radius=0, placeholder_text="Metros").grid(row=0, column=1, sticky="ew", padx=(0, 3))
+            entrada_metros = ctk.CTkEntry(fila, textvariable=var_metros, height=FORM_CONTROL_HEIGHT, corner_radius=0, placeholder_text="Metros")
+            aplicar_mascara_numerica(entrada_metros, var_metros, NUMBER)
+            entrada_metros.grid(row=0, column=1, sticky="ew", padx=(0, 3))
 
             def eliminar_fila():
                 if len(coleccion) <= 1:
@@ -1514,7 +1531,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             fila.grid_columnconfigure(1, weight=1)
 
             NativeComboBox(fila, variable=var_tipo, values=TIPOS_CABLE, height=32).grid(row=0, column=0, sticky="ew", padx=(0, 3))
-            ctk.CTkEntry(fila, textvariable=var_metros, height=FORM_CONTROL_HEIGHT, corner_radius=0, placeholder_text="Metros").grid(row=0, column=1, sticky="ew", padx=(0, 3))
+            entrada_metros = ctk.CTkEntry(fila, textvariable=var_metros, height=FORM_CONTROL_HEIGHT, corner_radius=0, placeholder_text="Metros")
+            aplicar_mascara_numerica(entrada_metros, var_metros, NUMBER)
+            entrada_metros.grid(row=0, column=1, sticky="ew", padx=(0, 3))
 
             def eliminar_fila():
                 if len(coleccion) <= 1:
@@ -1809,12 +1828,35 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         # Datos técnicos Seguridad y Monitoreo compactados dentro de una sola sección.
         seccion_cctv = crear_seccion("📹 Datos técnicos Seguridad y Monitoreo", fila_textos + 6)
         registrar_seccion("datos_cctv", seccion_cctv)
-        entry_en(seccion_cctv, "¿Cuántas cámaras se requieren?", var_cctv_cantidad_camaras, "Ej. 8", 0, 0)
-        option_en(seccion_cctv, "¿Qué tipo de cámaras se requieren?", var_cctv_tipo_camaras, ["IP", "Análoga", "Híbrida", "PTZ", "LPR", "Térmica"], 0, 1)
-        entry_en(seccion_cctv, "¿Dónde se ubicará el NVR/DVR?", var_cctv_ubicacion_nvr, "Ej. SITE", 0, 2)
+        widget_cctv_cantidad = entry_en(seccion_cctv, "¿Cuántas cámaras se requieren?", var_cctv_cantidad_camaras, "Ej. 8", 0, 1)
+        widget_cctv_tipo = option_en(seccion_cctv, "¿Qué tipo de cámaras se requieren?", var_cctv_tipo_camaras, ["IP", "Análoga", "Híbrida", "PTZ", "LPR", "Térmica"], 0, 2)
+        widget_cctv_nvr = entry_en(seccion_cctv, "¿Dónde se ubicará el NVR/DVR?", var_cctv_ubicacion_nvr, "Ej. SITE", 0, 3)
 
-        entry_en(seccion_cctv, "¿Dónde estará el punto de enlace de red?", var_cctv_punto_red, "Ej. Rack/SITE", 1, 0)
-        entry_en(seccion_cctv, "¿Dónde estará el punto de energía?", var_cctv_punto_energia, "Ej. Contacto regulado", 1, 1)
+        widget_cctv_red = entry_en(seccion_cctv, "¿Dónde estará el punto de enlace de red?", var_cctv_punto_red, "Ej. Rack/SITE", 1, 0)
+        widget_cctv_energia = entry_en(seccion_cctv, "¿Dónde estará el punto de energía?", var_cctv_punto_energia, "Ej. Contacto regulado", 1, 1)
+        widgets_detalle_camaras = (
+            widget_cctv_cantidad, widget_cctv_tipo, widget_cctv_nvr,
+            widget_cctv_red, widget_cctv_energia,
+        )
+
+        def actualizar_requerimiento_camaras(_valor=None):
+            """Activa el detalle de CCTV y recalcula Guardar/Preview al cambiar Sí/No."""
+            estado = "normal" if var_cctv_requiere_camaras.get() == "Sí" else "disabled"
+            for widget in widgets_detalle_camaras:
+                try:
+                    widget.configure(state=estado)
+                except Exception:
+                    logger.debug("Excepción recuperable controlada.", exc_info=True)
+            try:
+                actualizar_estado_preview()
+            except Exception:
+                logger.debug("Excepción recuperable controlada.", exc_info=True)
+
+        option_en(
+            seccion_cctv, "¿Se requieren cámaras?", var_cctv_requiere_camaras,
+            ["Sí", "No"], 0, 0, command=actualizar_requerimiento_camaras
+        )
+        actualizar_requerimiento_camaras()
 
         # =============================================================
         # FORMULARIO DE REPARACIÓN
@@ -2059,6 +2101,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 entry.grid(row=fila * 2 + 2, column=columna, sticky="w", padx=6, pady=(0, 3))
             else:
                 entry.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=6, pady=(0, 3))
+            tipo_mascara = tipo_mascara_por_etiqueta(texto)
+            if tipo_mascara:
+                aplicar_mascara_numerica(entry, variable, tipo_mascara)
             return entry
 
         def option_aa(parent_frame, texto, variable, values, fila, columna, command=None):
@@ -2189,6 +2234,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 entry.grid(row=fila * 2 + 2, column=columna, sticky="w", padx=6, pady=(0, 3))
             else:
                 entry.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=6, pady=(0, 3))
+            tipo_mascara = tipo_mascara_por_etiqueta(texto)
+            if tipo_mascara:
+                aplicar_mascara_numerica(entry, variable, tipo_mascara)
             return entry
 
         def option_rvd(parent_frame, texto, variable, values, fila, columna, command=None):
@@ -2373,6 +2421,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 entry.grid(row=fila * 2 + 2, column=columna, sticky="w", padx=6, pady=(0, 3))
             else:
                 entry.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=6, pady=(0, 3))
+            tipo_mascara = tipo_mascara_por_etiqueta(texto)
+            if tipo_mascara:
+                aplicar_mascara_numerica(entry, variable, tipo_mascara)
             return entry
 
         def option_pe(parent_frame, texto, variable, values, fila, columna, command=None):
@@ -2446,6 +2497,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 entry.grid(row=fila * 2 + 2, column=columna, sticky="w", padx=6, pady=(0, 3))
             else:
                 entry.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=6, pady=(0, 3))
+            tipo_mascara = tipo_mascara_por_etiqueta(texto)
+            if tipo_mascara:
+                aplicar_mascara_numerica(entry, variable, tipo_mascara)
             return entry
 
         def option_ele(parent_frame, texto, variable, values, fila, columna, command=None, width=None):
@@ -2566,6 +2620,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 entry.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=6, pady=(0, 3))
             if "fecha" in texto.lower():
                 asociar_selector_fecha(entry, parent_frame, variable)
+            tipo_mascara = tipo_mascara_por_etiqueta(texto)
+            if tipo_mascara:
+                aplicar_mascara_numerica(entry, variable, tipo_mascara)
             return entry
 
         def option_extra(parent_frame, texto, variable, values, fila, columna):
@@ -2707,19 +2764,19 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         seccion_canalizacion_dinamica = ctk.CTkFrame(form_body, fg_color="#F7F9FC", corner_radius=14, border_width=1, border_color="#DCE5EF")
         _fondo_seccion(seccion_canalizacion_dinamica)
         seccion_canalizacion_dinamica.grid(row=fila_textos, column=0, columnspan=5, sticky="ew", pady=(2, 5))
-        for col, peso in enumerate((2, 4, 3, 2, 2, 1)):
+        for col, peso in enumerate((2, 4, 3, 2, 2, 2, 1)):
             seccion_canalizacion_dinamica.grid_columnconfigure(col, weight=peso)
         ctk.CTkLabel(seccion_canalizacion_dinamica, text="🧱 Canalización, cableado y materiales",
                      font=FORM_SECTION_FONT, text_color=TEXT_PRIMARY).grid(
-            row=0, column=0, columnspan=6, sticky="w", padx=7, pady=(5, 1))
+            row=0, column=0, columnspan=7, sticky="w", padx=7, pady=(5, 1))
         ctk.CTkLabel(seccion_canalizacion_dinamica,
                      text="Agrega todas las partidas necesarias. Puedes registrar varios tipos, medidas y cantidades.",
                      font=FORM_FIELD_FONT, text_color=TEXT_SECONDARY).grid(
-            row=1, column=0, columnspan=6, sticky="w", padx=7, pady=(0, 4))
+            row=1, column=0, columnspan=7, sticky="w", padx=7, pady=(0, 4))
         ctk.CTkLabel(seccion_canalizacion_dinamica, text="¿Se requiere?", font=FORM_TABLE_HEADER_FONT).grid(row=2, column=0, sticky="w", padx=5)
         combo_requiere = NativeComboBox(seccion_canalizacion_dinamica, variable=var_requiere_canalizacion, values=["Sí", "No"], width=120, height=31)
         combo_requiere.grid(row=3, column=0, sticky="w", padx=5, pady=(0,4))
-        for col, encabezado in enumerate(("Categoría", "Tipo", "Tamaño / calibre / especificación", "Cantidad", "Unidad", "Acción")):
+        for col, encabezado in enumerate(("Categoría", "Tipo", "Tamaño / calibre / especificación", "Cantidad", "Unidad", "Aproximado", "Acción")):
             ctk.CTkLabel(seccion_canalizacion_dinamica, text=encabezado, font=FORM_TABLE_HEADER_FONT, text_color=TEXT_PRIMARY).grid(row=4, column=col, sticky="w", padx=5, pady=(0,2))
 
         categorias = ["Tubo", "Cople", "Registro", "Conectores", "Abrazadera", "Tapas", "Codos", "Canaleta", "Cable"]
@@ -2732,18 +2789,33 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             var_tipo_item = ctk.StringVar()
             var_especificacion = ctk.StringVar()
             var_cantidad_item = ctk.StringVar()
-            var_unidad_item = ctk.StringVar(value="Metro(s)" if categoria_inicial in ("Tubo", "Canalización", "Canaleta", "Cable") else "Pieza(s)")
+            var_unidad_item = ctk.StringVar(value="Pieza(s)" if categoria_inicial == "Tubo" else ("Metro(s)" if categoria_inicial in ("Canalización", "Canaleta", "Cable") else "Pieza(s)"))
             combo_categoria = NativeComboBox(seccion_canalizacion_dinamica, variable=var_categoria, values=categorias, width=155, height=31)
             combo_tipo = NativeComboBox(seccion_canalizacion_dinamica, variable=var_tipo_item, values=[], width=300, height=31)
             combo_especificacion = NativeComboBox(seccion_canalizacion_dinamica, variable=var_especificacion, values=[], width=225, height=31)
             entrada_cantidad = ctk.CTkEntry(seccion_canalizacion_dinamica, textvariable=var_cantidad_item, width=120, height=31, placeholder_text="Ej. 20")
+            aplicar_mascara_numerica(entrada_cantidad, var_cantidad_item, NUMBER)
             combo_unidad = NativeComboBox(seccion_canalizacion_dinamica, variable=var_unidad_item,
                                           values=["Metro(s)", "Pieza(s)", "Caja(s)", "Rollo(s)", "Juego(s)"], width=125, height=31)
+            lbl_aproximado = ctk.CTkLabel(
+                seccion_canalizacion_dinamica, text="—", font=FORM_FIELD_FONT,
+                text_color=TEXT_SECONDARY, anchor="w"
+            )
             widgets = [combo_categoria, combo_tipo, combo_especificacion, entrada_cantidad, combo_unidad]
             for col, widget in enumerate(widgets):
                 widget.grid(row=fila, column=col, sticky="ew", padx=5, pady=2)
+            lbl_aproximado.grid(row=fila, column=5, sticky="ew", padx=5, pady=2)
             item = {"categoria": var_categoria, "tipo": var_tipo_item, "especificacion": var_especificacion,
-                    "cantidad": var_cantidad_item, "unidad": var_unidad_item, "widgets": widgets}
+                    "cantidad": var_cantidad_item, "unidad": var_unidad_item, "widgets": widgets,
+                    "unidad_widget": combo_unidad, "aproximado_widget": lbl_aproximado}
+
+            def actualizar_aproximado(*_):
+                if var_categoria.get().strip() == "Tubo" and var_unidad_item.get() != "Pieza(s)":
+                    var_unidad_item.set("Pieza(s)")
+                    return
+                lbl_aproximado.configure(text=texto_aproximado_canalizacion(
+                    var_categoria.get(), var_cantidad_item.get(), var_unidad_item.get()
+                ))
 
             def actualizar_catalogos(*_):
                 categoria = var_categoria.get().strip()
@@ -2753,10 +2825,15 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 combo_especificacion.configure(values=especificaciones)
                 if var_tipo_item.get() not in tipos: var_tipo_item.set(tipos[0] if tipos else "")
                 if var_especificacion.get() not in especificaciones: var_especificacion.set(especificaciones[0] if especificaciones else "")
-                if categoria in ("Tubo", "Canalización", "Canaleta", "Cable") and not var_unidad_item.get(): var_unidad_item.set("Metro(s)")
+                var_unidad_item.set(unidad_forzada_canalizacion(categoria, var_unidad_item.get()))
+                if categoria in ("Canalización", "Canaleta", "Cable") and not var_unidad_item.get(): var_unidad_item.set("Metro(s)")
                 elif categoria not in ("Tubo", "Canalización", "Canaleta", "Cable") and var_unidad_item.get() == "Metro(s)": var_unidad_item.set("Pieza(s)")
+                combo_unidad.configure(state="disabled" if categoria == "Tubo" else "normal")
+                actualizar_aproximado()
             var_categoria.trace_add("write", actualizar_catalogos)
             var_tipo_item.trace_add("write", actualizar_catalogos)
+            var_cantidad_item.trace_add("write", actualizar_aproximado)
+            var_unidad_item.trace_add("write", actualizar_aproximado)
             actualizar_catalogos()
 
             def eliminar():
@@ -2765,10 +2842,12 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     except Exception: pass
                 try: btn_eliminar.destroy()
                 except Exception: pass
+                try: lbl_aproximado.destroy()
+                except Exception: pass
                 canalizacion_materiales_items[:] = [x for x in canalizacion_materiales_items if x is not item]
             btn_eliminar = ctk.CTkButton(seccion_canalizacion_dinamica, text="Eliminar", width=78, height=31,
                                          fg_color="#DC2626", hover_color="#B91C1C", command=eliminar)
-            btn_eliminar.grid(row=fila, column=5, sticky="ew", padx=5, pady=2)
+            btn_eliminar.grid(row=fila, column=6, sticky="ew", padx=5, pady=2)
             item["widgets"].append(btn_eliminar)
             canalizacion_materiales_items.append(item)
 
@@ -2776,7 +2855,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             habilitado = var_requiere_canalizacion.get() == "Sí"
             for item in canalizacion_materiales_items:
                 for w in item.get("widgets", []):
-                    try: w.configure(state="normal" if habilitado else "disabled")
+                    estado = "normal" if habilitado else "disabled"
+                    if w is item.get("unidad_widget") and item["categoria"].get().strip() == "Tubo":
+                        estado = "disabled"
+                    try: w.configure(state=estado)
                     except Exception: pass
         var_requiere_canalizacion.trace_add("write", actualizar_requiere_canalizacion)
         ctk.CTkButton(seccion_canalizacion_dinamica, text="➕ Agregar partida", height=32, fg_color=PRIMARY,
@@ -2870,7 +2952,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         om_familia.grid(row=fila_eq, column=0, sticky="ew", padx=4, pady=2)
         om_subfamilia = NativeComboBox(seccion_equipos, variable=var_subfamilia_eq, values=subfamilias, height=31)
         om_subfamilia.grid(row=fila_eq, column=1, sticky="ew", padx=4, pady=2)
-        ctk.CTkEntry(seccion_equipos, textvariable=var_cantidad_eq, width=80, height=31, placeholder_text="Ej. 2").grid(row=fila_eq, column=2, sticky="w", padx=4, pady=2)
+        entrada_cantidad_eq = ctk.CTkEntry(seccion_equipos, textvariable=var_cantidad_eq, width=80, height=31, placeholder_text="Ej. 2")
+        aplicar_mascara_numerica(entrada_cantidad_eq, var_cantidad_eq, NUMBER)
+        entrada_cantidad_eq.grid(row=fila_eq, column=2, sticky="w", padx=4, pady=2)
         combo_marca = NativeComboBox(seccion_equipos, variable=var_marca_eq, values=MARCAS_COMUNES, state="normal", dropdown_rows=8)
         combo_marca.grid(row=fila_eq, column=3, sticky="ew", padx=4, pady=2)
         ctk.CTkEntry(seccion_equipos, textvariable=var_modelo_eq, height=31, placeholder_text="Modelo vigente o por definir").grid(row=fila_eq, column=4, sticky="ew", padx=4, pady=2)
@@ -3004,6 +3088,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             seccion_misc, textvariable=var_cantidad, width=95, height=31, corner_radius=8,
             placeholder_text="Ej. 20"
         )
+        aplicar_mascara_numerica(entrada_cantidad, var_cantidad, NUMBER)
         entrada_cantidad.grid(row=fila, column=1, sticky="w", padx=5, pady=2)
         opcion_unidad = NativeComboBox(
             seccion_misc, variable=var_unidad, values=UNIDADES_MATERIAL,
@@ -3171,6 +3256,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             epp_detalle_frame, textvariable=var_cantidad_epp, width=90,
             height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Ej. 2"
         )
+        aplicar_mascara_numerica(ent_cant_epp, var_cantidad_epp, NUMBER)
         ent_cant_epp.grid(row=fila_epp, column=1, sticky="w", padx=5, pady=2)
         ent_obs_epp = ctk.CTkEntry(
             epp_detalle_frame, textvariable=var_obs_epp,
@@ -3323,6 +3409,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             seccion_herramientas, textvariable=var_cantidad_h, width=90, height=31,
             corner_radius=8, placeholder_text="Ej. 1"
         )
+        aplicar_mascara_numerica(ent_cantidad_h, var_cantidad_h, NUMBER)
         ent_cantidad_h.grid(row=fila_h, column=2, sticky="w", padx=5, pady=2)
         ent_obs_h = ctk.CTkEntry(
             seccion_herramientas, textvariable=var_observaciones_h, height=31, corner_radius=8,
@@ -3994,13 +4081,14 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 "riesgo_instalacion": var_riesgo_instalacion.get().strip(),
             },
             "datos_tecnicos_cctv": {
-                "cantidad_camaras": var_cctv_cantidad_camaras.get().strip(),
-                "tipo_camaras": var_cctv_tipo_camaras.get().strip(),
+                "requiere_camaras": var_cctv_requiere_camaras.get().strip(),
+                "cantidad_camaras": var_cctv_cantidad_camaras.get().strip() if var_cctv_requiere_camaras.get() == "Sí" else "",
+                "tipo_camaras": var_cctv_tipo_camaras.get().strip() if var_cctv_requiere_camaras.get() == "Sí" else "",
                 "dias_trabajo": var_dias_trabajo_general.get().strip(),
                 "personas_considerar": var_personas_considerar_general.get().strip(),
-                "ubicacion_nvr_dvr": var_cctv_ubicacion_nvr.get().strip(),
-                "punto_red": var_cctv_punto_red.get().strip(),
-                "punto_energia": var_cctv_punto_energia.get().strip(),
+                "ubicacion_nvr_dvr": var_cctv_ubicacion_nvr.get().strip() if var_cctv_requiere_camaras.get() == "Sí" else "",
+                "punto_red": var_cctv_punto_red.get().strip() if var_cctv_requiere_camaras.get() == "Sí" else "",
+                "punto_energia": var_cctv_punto_energia.get().strip() if var_cctv_requiere_camaras.get() == "Sí" else "",
             },
         })
         return detalle
@@ -4265,13 +4353,14 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         lineas.extend([
             "",
             "--- DATOS TÉCNICOS Seguridad y Monitoreo ---",
-            f"Cantidad de cámaras: {var_cctv_cantidad_camaras.get().strip() or 'No definido'}",
-            f"Tipo de cámaras: {var_cctv_tipo_camaras.get().strip() or 'No definido'}",
+            f"¿Se requieren cámaras?: {var_cctv_requiere_camaras.get().strip() or 'No definido'}",
+            f"Cantidad de cámaras: {var_cctv_cantidad_camaras.get().strip() or 'No definido'}" if var_cctv_requiere_camaras.get() == "Sí" else "Cantidad de cámaras: No aplica",
+            f"Tipo de cámaras: {var_cctv_tipo_camaras.get().strip() or 'No definido'}" if var_cctv_requiere_camaras.get() == "Sí" else "Tipo de cámaras: No aplica",
             f"Días de trabajo: {var_dias_trabajo_general.get().strip() or 'No definido'}",
             f"Personas a considerar: {var_personas_considerar_general.get().strip() or 'No definido'}",
-            f"Ubicación NVR/DVR: {var_cctv_ubicacion_nvr.get().strip() or 'No definido'}",
-            f"Punto de red: {var_cctv_punto_red.get().strip() or 'No definido'}",
-            f"Punto de energía: {var_cctv_punto_energia.get().strip() or 'No definido'}",
+            f"Ubicación NVR/DVR: {var_cctv_ubicacion_nvr.get().strip() or 'No definido'}" if var_cctv_requiere_camaras.get() == "Sí" else "Ubicación NVR/DVR: No aplica",
+            f"Punto de red: {var_cctv_punto_red.get().strip() or 'No definido'}" if var_cctv_requiere_camaras.get() == "Sí" else "Punto de red: No aplica",
+            f"Punto de energía: {var_cctv_punto_energia.get().strip() or 'No definido'}" if var_cctv_requiere_camaras.get() == "Sí" else "Punto de energía: No aplica",
             "",
             "--- DESCRIPCIÓN DETALLADA DEL SERVICIO ---",
             txt_observaciones.get("1.0", "end").strip() or "No definido",
@@ -4331,7 +4420,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             if modalidad == "Instalación":
                 if not txt_observaciones.get("1.0", "end").strip():
                     return False
-                obligatorios = [var_cctv_cantidad_camaras.get().strip(), var_cctv_tipo_camaras.get().strip(), var_cctv_ubicacion_nvr.get().strip(), var_cctv_punto_red.get().strip(), var_cctv_punto_energia.get().strip(), var_infra_existe.get().strip()]
+                obligatorios = [var_cctv_requiere_camaras.get().strip(), var_infra_existe.get().strip()]
+                if var_cctv_requiere_camaras.get() == "Sí":
+                    obligatorios.extend([var_cctv_cantidad_camaras.get().strip(), var_cctv_tipo_camaras.get().strip(), var_cctv_ubicacion_nvr.get().strip(), var_cctv_punto_red.get().strip(), var_cctv_punto_energia.get().strip()])
                 if not all(obligatorios):
                     return False
                 if var_infra_existe.get() in ("Sí", "Parcial") and not (var_infra_tipo_existente.get().strip() and var_infra_estado.get().strip()):
@@ -4522,11 +4613,14 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             if modalidad in ("Instalación", "Mantenimiento"):
                 falta("Descripción detallada del servicio", not txt_observaciones.get("1.0", "end").strip())
                 if modalidad == "Instalación":
-                    for nombre, variable in [
-                        ("Cantidad de cámaras", var_cctv_cantidad_camaras), ("Tipo de cámaras", var_cctv_tipo_camaras),
-                        ("Ubicación NVR/DVR", var_cctv_ubicacion_nvr), ("Punto de red", var_cctv_punto_red),
-                        ("Punto de energía", var_cctv_punto_energia), ("Infraestructura existente", var_infra_existe)]:
+                    for nombre, variable in [("¿Se requieren cámaras?", var_cctv_requiere_camaras), ("Infraestructura existente", var_infra_existe)]:
                         falta(nombre, vacia(variable))
+                    if var_cctv_requiere_camaras.get() == "Sí":
+                        for nombre, variable in [
+                            ("Cantidad de cámaras", var_cctv_cantidad_camaras), ("Tipo de cámaras", var_cctv_tipo_camaras),
+                            ("Ubicación NVR/DVR", var_cctv_ubicacion_nvr), ("Punto de red", var_cctv_punto_red),
+                            ("Punto de energía", var_cctv_punto_energia)]:
+                            falta(nombre, vacia(variable))
                     if var_infra_existe.get() in ("Sí", "Parcial"):
                         falta("Tipo de infraestructura existente", vacia(var_infra_tipo_existente))
                         falta("Estado de infraestructura", vacia(var_infra_estado))
@@ -5050,6 +5144,19 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         # Compatibilidad con levantamientos previos al desglose vertical/horizontal y
         # a los nuevos componentes de tierra física.
         if tipo_levantamiento == "Seguridad y Monitoreo":
+            # Los registros anteriores no tenían la pregunta explícita. Si ya
+            # contienen detalle de cámaras, se consideran afirmativos.
+            if not var_cctv_requiere_camaras.get().strip():
+                var_cctv_requiere_camaras.set(
+                    "Sí" if any(v.get().strip() for v in (
+                        var_cctv_cantidad_camaras, var_cctv_ubicacion_nvr,
+                        var_cctv_punto_red, var_cctv_punto_energia,
+                    )) else ""
+                )
+            try:
+                actualizar_requerimiento_camaras()
+            except Exception:
+                logger.debug("No fue posible restaurar el estado del bloque de cámaras.", exc_info=True)
             if not var_cctv_rack_organizadores_horizontales.get().strip() and var_cctv_rack_organizadores.get().strip():
                 var_cctv_rack_organizadores_horizontales.set(var_cctv_rack_organizadores.get().strip())
             if var_rack_requerido.get() == "Sí" and not var_cctv_rack_organizadores_verticales.get().strip():
@@ -5587,7 +5694,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         var_folio, var_cliente, var_modalidad_levantamiento, var_desea_notas_cliente, var_notas_cliente,
         var_dias_trabajo_general, var_personas_considerar_general,
         var_desea_anotacion_plano, var_anotacion_plano_base64, var_desea_evidencias,
-        var_cctv_cantidad_camaras, var_cctv_dias_retencion,
+        var_cctv_requiere_camaras, var_cctv_cantidad_camaras, var_cctv_dias_retencion,
         var_cctv_personas_considerar, var_cctv_ubicacion_nvr, var_cctv_punto_red,
         var_cctv_punto_energia, var_escalera_requerida, var_sistema_acceso_temporal, var_altura_trabajo,
         var_trabajo_alturas_comun, var_sistema_acceso_comun, var_altura_comun, var_riesgo_comun, var_desea_archivos_adjuntos,

@@ -21,7 +21,8 @@ def test_boton_validar_y_destinatario_ventas_estan_integrados():
     assert 'puede_validar_levantamiento_ventas(usuario)' in src
     assert 'enviar_levantamiento_validacion_ventas' in src
     assert 'gte.ventas@axiacomunicaciones.mx' in mail
-    assert 'to=["gte.ventas@axiacomunicaciones.mx"]' in mail
+    assert '_AUTORIZACION_LEVANTAMIENTOS = "gte.ventas@axiacomunicaciones.mx"' in mail
+    assert 'to=[_AUTORIZACION_LEVANTAMIENTOS]' in mail
 
 
 def test_convertir_a_ot_permanece_visible_pero_deshabilitado():

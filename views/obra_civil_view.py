@@ -15,6 +15,10 @@ from views.levantamientos.catalogos_canalizacion import (
     TIPOS_CONECTORES, TIPOS_COPLES, TIPOS_REGISTROS, TIPOS_TUBOS, TAMANOS_TUBOS,
     especificaciones_por_categoria,
 )
+from views.levantamientos.canalizacion_aproximado import (
+    texto_aproximado_canalizacion,
+    unidad_forzada_canalizacion,
+)
 
 from app_context import obtener_usuario_actual
 from security.permissions import puede_generar_levantamiento
@@ -40,6 +44,7 @@ from services.bitacora_evidencias_service import subir_evidencias_obra_civil, su
 from ui.colors import PRIMARY, SECONDARY, WHITE, TEXT_PRIMARY, TEXT_SECONDARY, BUTTON_HOVER
 from ui.date_picker import abrir_selector_fecha
 from ui.fonts import BUTTON_FONT
+from ui.numeric_masks import aplicar_mascara_numerica, NUMBER, INTEGER
 from views.formato_helpers import ENTRY_H, OPTION_H, LABEL_FONT, SMALL_FONT, SECTION_FONT, generar_pdf_preview, generar_pdf_archivo, obtener_textbox, enfocar_inicio_formulario, anotacion_plano_popup
 
 SI_NO = ["Sí", "No"]
@@ -298,6 +303,8 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         label(c, texto)
         e = ctk.CTkEntry(c, textvariable=var, placeholder_text=placeholder, height=ENTRY_H, corner_radius=8, font=SMALL_FONT, state=state)
         e.pack(fill="x")
+        if texto in {"¿Cuántos días de trabajo se proyectan?", "¿Cuántas personas se consideran?"}:
+            aplicar_mascara_numerica(e, var, INTEGER)
         if date and state != "disabled":
             e.bind("<Button-1>", lambda _event, v=var: (abrir_selector_fecha(c, v), validar_preview()))
         if lock:
@@ -461,6 +468,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         ce = NativeComboBox(epp_rows, variable=ve, values=opciones, width=250, height=OPTION_H)
         ce.grid(row=fila_e,column=0,sticky="ew",padx=3,pady=2)
         ec = ctk.CTkEntry(epp_rows,textvariable=vc,width=80,height=ENTRY_H,corner_radius=0)
+        aplicar_mascara_numerica(ec, vc, NUMBER)
         ec.grid(row=fila_e,column=1,sticky="w",padx=3,pady=2)
         eo = ctk.CTkEntry(epp_rows,textvariable=vo,height=ENTRY_H,corner_radius=0,placeholder_text="Talla, clase, norma o detalle especial")
         eo.grid(row=fila_e,column=2,sticky="ew",padx=3,pady=2)
@@ -572,6 +580,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         eunidad = ctk.CTkEntry(panel_conceptos, textvariable=vunidad, width=68, height=30, state="disabled")
         eunidad.grid(row=fila_concepto, column=2, sticky="ew", padx=3, pady=2)
         ecantidad = ctk.CTkEntry(panel_conceptos, textvariable=vcantidad, width=72, height=30, placeholder_text="Ej. 12.5")
+        aplicar_mascara_numerica(ecantidad, vcantidad, NUMBER)
         ecantidad.grid(row=fila_concepto, column=3, sticky="ew", padx=3, pady=2)
 
         item_concepto = {
@@ -682,6 +691,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         if nombre:
             em.configure(state="readonly")
         ec = ctk.CTkEntry(panel_misc, textvariable=vc, width=90, height=30, placeholder_text="Ej. 20", state="disabled")
+        aplicar_mascara_numerica(ec, vc, NUMBER)
         ec.grid(row=fila_misc, column=2, sticky="w", padx=3, pady=2)
         ou = NativeComboBox(panel_misc, variable=vu, values=UNIDADES_MATERIAL, width=120, height=30, state="disabled")
         ou.grid(row=fila_misc, column=3, sticky="w", padx=3, pady=2)
@@ -732,17 +742,17 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
     # para conservar compatibilidad con el esquema actual de Supabase.
     seccion("Canalización, cableado y materiales", 26)
     panel_canalizacion = celda(27, 0, 5)
-    for col, peso in enumerate((2, 4, 3, 2, 2, 1)):
+    for col, peso in enumerate((2, 4, 3, 2, 2, 2, 1)):
         panel_canalizacion.grid_columnconfigure(col, weight=peso)
     ctk.CTkLabel(
         panel_canalizacion,
         text="Agrega todas las partidas necesarias. Puedes registrar varios tipos, medidas y cantidades.",
         font=SMALL_FONT, text_color=TEXT_SECONDARY,
-    ).grid(row=0, column=0, columnspan=6, sticky="w", padx=3, pady=(0, 6))
+    ).grid(row=0, column=0, columnspan=7, sticky="w", padx=3, pady=(0, 6))
     ctk.CTkLabel(panel_canalizacion, text="¿Se requiere?", font=("Montserrat", 11, "bold")).grid(row=1, column=0, sticky="w", padx=3)
     combo_requiere_canalizacion = NativeComboBox(panel_canalizacion, variable=var_requiere_canalizacion, values=["Sí", "No"], width=120, height=31)
     combo_requiere_canalizacion.grid(row=2, column=0, sticky="w", padx=3, pady=(0, 5))
-    for col, encabezado in enumerate(("Categoría", "Tipo", "Tamaño / calibre / especificación", "Cantidad", "Unidad", "Acción")):
+    for col, encabezado in enumerate(("Categoría", "Tipo", "Tamaño / calibre / especificación", "Cantidad", "Unidad", "Aproximado", "Acción")):
         ctk.CTkLabel(panel_canalizacion, text=encabezado, font=("Montserrat", 11, "bold"), text_color=TEXT_PRIMARY).grid(row=3, column=col, sticky="w", padx=3, pady=(0, 2))
 
     categorias_canalizacion = ["Tubo", "Cople", "Registro", "Conectores", "Abrazadera", "Tapas", "Codos", "Canaleta", "Cable"]
@@ -807,16 +817,28 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         vtipo = ctk.StringVar()
         vespecificacion = ctk.StringVar()
         vcantidad = ctk.StringVar()
-        vunidad = ctk.StringVar(value="Metro(s)" if categoria_inicial in ("Tubo", "Canalización", "Canaleta", "Cable") else "Pieza(s)")
+        vunidad = ctk.StringVar(value="Pieza(s)" if categoria_inicial == "Tubo" else ("Metro(s)" if categoria_inicial in ("Canalización", "Canaleta", "Cable") else "Pieza(s)"))
         ocategoria = NativeComboBox(panel_canalizacion, variable=vcategoria, values=categorias_canalizacion, width=155, height=31)
         otipo = NativeComboBox(panel_canalizacion, variable=vtipo, values=[], width=300, height=31)
         oespecificacion = NativeComboBox(panel_canalizacion, variable=vespecificacion, values=[], width=225, height=31)
         ecantidad = ctk.CTkEntry(panel_canalizacion, textvariable=vcantidad, width=120, height=31, placeholder_text="Ej. 20")
+        aplicar_mascara_numerica(ecantidad, vcantidad, NUMBER)
         ounidad = NativeComboBox(panel_canalizacion, variable=vunidad, values=["Metro(s)", "Pieza(s)", "Caja(s)", "Rollo(s)", "Juego(s)"], width=125, height=31)
+        laproximado = ctk.CTkLabel(panel_canalizacion, text="—", font=SMALL_FONT, text_color=TEXT_SECONDARY, anchor="w")
         widgets = [ocategoria, otipo, oespecificacion, ecantidad, ounidad]
         for col, widget in enumerate(widgets):
             widget.grid(row=fila, column=col, sticky="ew", padx=3, pady=2)
-        item = {"categoria": vcategoria, "tipo": vtipo, "especificacion": vespecificacion, "cantidad": vcantidad, "unidad": vunidad, "widgets": widgets}
+        laproximado.grid(row=fila, column=5, sticky="ew", padx=3, pady=2)
+        item = {"categoria": vcategoria, "tipo": vtipo, "especificacion": vespecificacion, "cantidad": vcantidad, "unidad": vunidad, "widgets": widgets,
+                "unidad_widget": ounidad, "aproximado_widget": laproximado}
+
+        def actualizar_aproximado(*_):
+            if vcategoria.get().strip() == "Tubo" and vunidad.get() != "Pieza(s)":
+                vunidad.set("Pieza(s)")
+                return
+            laproximado.configure(text=texto_aproximado_canalizacion(
+                vcategoria.get(), vcantidad.get(), vunidad.get()
+            ))
 
         def actualizar_catalogos(_=None):
             categoria = vcategoria.get().strip()
@@ -828,14 +850,19 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
                 vtipo.set(tipos[0] if tipos else "")
             if vespecificacion.get() not in especificaciones:
                 vespecificacion.set(especificaciones[0] if especificaciones else "")
-            if categoria in ("Tubo", "Canalización", "Canaleta", "Cable") and not vunidad.get():
+            vunidad.set(unidad_forzada_canalizacion(categoria, vunidad.get()))
+            if categoria in ("Canalización", "Canaleta", "Cable") and not vunidad.get():
                 vunidad.set("Metro(s)")
             elif categoria not in ("Tubo", "Canalización", "Canaleta", "Cable") and vunidad.get() == "Metro(s)":
                 vunidad.set("Pieza(s)")
+            ounidad.configure(state="disabled" if categoria == "Tubo" else "normal")
+            actualizar_aproximado()
             validar_preview()
 
         ocategoria.configure(command=actualizar_catalogos)
         vtipo.trace_add("write", lambda *_: actualizar_catalogos())
+        vcantidad.trace_add("write", actualizar_aproximado)
+        vunidad.trace_add("write", actualizar_aproximado)
         actualizar_catalogos()
         vcantidad.trace_add("write", lambda *_: programar_validacion_preview())
 
@@ -845,11 +872,13 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
                 except Exception: logger.debug("Excepción recuperable controlada.", exc_info=True)
             try: btn_eliminar.destroy()
             except Exception: logger.debug("Excepción recuperable controlada.", exc_info=True)
+            try: laproximado.destroy()
+            except Exception: logger.debug("Excepción recuperable controlada.", exc_info=True)
             canalizacion_materiales_items[:] = [x for x in canalizacion_materiales_items if x is not item]
             validar_preview()
 
         btn_eliminar = ctk.CTkButton(panel_canalizacion, text="Eliminar", width=78, height=31, fg_color="#DC2626", hover_color="#B91C1C", command=eliminar_partida)
-        btn_eliminar.grid(row=fila, column=5, sticky="ew", padx=3, pady=2)
+        btn_eliminar.grid(row=fila, column=6, sticky="ew", padx=3, pady=2)
         item["widgets"].append(btn_eliminar)
         canalizacion_materiales_items.append(item)
         validar_preview()
@@ -859,7 +888,10 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         estado = "normal" if habilitado else "disabled"
         for item in canalizacion_materiales_items:
             for widget in item.get("widgets", []):
-                try: widget.configure(state=estado)
+                estado_widget = estado
+                if widget is item.get("unidad_widget") and item["categoria"].get().strip() == "Tubo":
+                    estado_widget = "disabled"
+                try: widget.configure(state=estado_widget)
                 except Exception: pass
         validar_preview()
 

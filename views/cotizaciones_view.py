@@ -25,6 +25,7 @@ from services.usuarios_service import obtener_nombres_usuarios_por_tipos, obtene
 from ui.colors import WHITE, TEXT_PRIMARY, TEXT_SECONDARY, SECONDARY, BUTTON_HOVER
 from ui.fonts import TITLE_MD, TEXT_MD, TEXT_SM, BUTTON_FONT
 from ui.native_table import NativeTreeTable
+from ui.numeric_masks import aplicar_mascara_numerica, MONEY, NUMBER, INTEGER
 
 logger = configurar_logger(__name__)
 
@@ -146,6 +147,10 @@ def mostrar_cotizaciones(parent, app=None):
         var = ctk.StringVar(value=str(value or "")); estado["vars"][key] = var
         ent = ctk.CTkEntry(parent_frame, textvariable=var, height=32)
         ent.grid(row=row*2+1, column=col, columnspan=colspan, sticky="ew", padx=5, pady=(0,4))
+        if key in {"cot_dias", "cot_personas", "cot_vigencia"}:
+            aplicar_mascara_numerica(ent, var, INTEGER)
+        elif key in {"cot_descuento_pct", "cot_iva_pct"}:
+            aplicar_mascara_numerica(ent, var, NUMBER)
         if readonly:
             ent.configure(state="disabled")
         else:
@@ -359,6 +364,10 @@ def mostrar_cotizaciones(parent, app=None):
                 var=ctk.StringVar(value=str(item.get(key) if item.get(key) not in (None,"") else "")); vars_item[key]=var
                 ent = ctk.CTkEntry(card,textvariable=var,height=29)
                 ent.grid(row=r+1,column=c,columnspan=span,sticky="ew",padx=5,pady=(0,5))
+                if key in {"precio_lista", "costo", "precio_venta", "precio_unitario", "importe"}:
+                    aplicar_mascara_numerica(ent, var, MONEY)
+                elif key in {"cantidad", "utilidad_pct"}:
+                    aplicar_mascara_numerica(ent, var, NUMBER)
                 if key in {"unidad_tipo", "cantidad", "concepto", "costo", "precio_venta", "precio_unitario", "importe"}:
                     # Unidad/Cantidad/Concepto vienen del levantamiento.
                     # Costo/P.Venta/P.Unitario/Importe son resultados comerciales calculados.

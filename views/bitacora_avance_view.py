@@ -9,6 +9,7 @@ from core.logger import configurar_logger
 from ui.native_combobox import NativeComboBox
 from ui.colors import SECONDARY, WHITE, TEXT_PRIMARY, TEXT_SECONDARY, BUTTON_HOVER
 from ui.fonts import TEXT_SM, BUTTON_FONT
+from ui.numeric_masks import aplicar_mascara_numerica, INTEGER
 from app_context import obtener_usuario_actual
 from services.movimientos_service import registrar_movimiento
 from services.aco_context_service import normalizar_datos_aco
@@ -255,6 +256,7 @@ def mostrar_bitacora_avance(parent, app, aco=None):
         height=ENTRY_H, corner_radius=8, font=SMALL_FONT
     )
     entry_porcentaje.pack(fill="x")
+    aplicar_mascara_numerica(entry_porcentaje, var_porcentaje, INTEGER)
     lbl_avance = ctk.CTkLabel(form, text="0% de avance", font=SMALL_FONT, text_color=TEXT_SECONDARY)
 
     # Evidencias fotográficas reemplazan al antiguo campo Observaciones.

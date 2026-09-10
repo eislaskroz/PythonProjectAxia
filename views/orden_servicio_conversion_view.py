@@ -10,7 +10,11 @@ from app_context import obtener_usuario_actual
 from ui.date_picker import asociar_selector_fecha
 from core.background_tasks import run_async
 from core.logger import configurar_logger
-from security.permissions import puede_convertir_levantamiento_a_orden, puede_validar_levantamiento_ventas
+from security.permissions import (
+    puede_convertir_levantamiento_a_orden,
+    puede_modificar_levantamientos,
+    puede_validar_levantamiento_ventas,
+)
 from services.levantamientos_service import obtener_levantamientos, buscar_levantamientos, actualizar_levantamiento
 from services.levantamiento_compat import normalizar_registro_levantamiento
 from services.ordenes_trabajo_service import convertir_levantamiento_a_trabajo, buscar_orden_trabajo_por_levantamiento
@@ -59,10 +63,10 @@ def _tipo_levantamiento_origen(registro):
 
 def mostrar_conversion_orden_servicio(parent, app):
     usuario = obtener_usuario_actual()
-    if not puede_convertir_levantamiento_a_orden(usuario):
+    if not puede_modificar_levantamientos(usuario):
         messagebox.showerror(
             "Acceso denegado",
-            "Esta función está disponible para Administrador y personal Administrativo.",
+            "Tu nivel de usuario no tiene permiso para modificar levantamientos.",
         )
         return
 
@@ -78,11 +82,11 @@ def mostrar_conversion_orden_servicio(parent, app):
     busqueda.grid(row=0, column=0, sticky="ew", pady=(0, 8))
     busqueda.grid_columnconfigure(0, weight=1)
 
-    ctk.CTkLabel(busqueda, text="Convertir levantamiento en Orden de Trabajo", font=TITLE_MD,
+    ctk.CTkLabel(busqueda, text="Consulta y modificación de levantamientos", font=TITLE_MD,
                  text_color=TEXT_PRIMARY, anchor="w").grid(row=0, column=0, columnspan=4, sticky="ew", padx=12, pady=(10, 2))
     ctk.CTkLabel(
         busqueda,
-        text="Busca un levantamiento, revisa sus datos y habilita la edición solo cuando sea necesario antes de convertirlo.",
+        text="Busca un levantamiento, revisa sus datos y abre su formulario original para crear una nueva versión.",
         font=TEXT_MD, text_color=TEXT_SECONDARY, anchor="w",
     ).grid(row=1, column=0, columnspan=4, sticky="ew", padx=12, pady=(0, 8))
 

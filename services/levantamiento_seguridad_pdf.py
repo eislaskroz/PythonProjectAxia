@@ -685,8 +685,11 @@ def generar_pdf_seguridad_instalacion(
     story.append(Spacer(1, 6))
 
     # 4) Datos técnicos CCTV.
+    requiere_camaras = cctv.get("requiere_camaras") or "No definido"
+    story.append(_key_value_table([["¿Se requieren cámaras?", requiere_camaras]], [1.8*inch, .85*inch], normal, label))
+    story.append(Spacer(1, 5))
     cctv_headers = ["¿Cuántas cámaras?", "¿Tipo de cámaras?", "Ubicación NVR/DVR", "Punto de enlace de red", "Punto de energía"]
-    cctv_rows = [[
+    cctv_rows = [["No aplica"] * 5] if requiere_camaras == "No" else [[
         cctv.get("cantidad_camaras"), cctv.get("tipo_camaras"), cctv.get("ubicacion_nvr_dvr"),
         cctv.get("punto_red"), cctv.get("punto_energia")
     ]]
@@ -836,6 +839,7 @@ FIELD_LABELS = {
     "personas_considerar": "Personas a considerar",
     "cantidad_equipos": "Cantidad de equipos",
     "cantidad_camaras": "Cantidad de cámaras",
+    "requiere_camaras": "¿Se requieren cámaras?",
     "tipo_camaras": "Tipo de cámaras",
     "ubicacion_nvr_dvr": "Ubicación NVR/DVR",
     "punto_red": "Punto de red",

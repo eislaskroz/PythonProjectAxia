@@ -146,6 +146,17 @@ def puede_generar_levantamiento(usuario_activo) -> bool:
     return obtener_tipo_usuario(usuario_activo) in ROLES_TODOS
 
 
+def puede_modificar_levantamientos(usuario_activo) -> bool:
+    """Permite crear revisiones de LEV a Administración, Operaciones y Supervisión."""
+    return _es_rol(
+        usuario_activo,
+        ADMINISTRADOR,
+        JEFE_OPERACIONES,
+        SUPERVISOR,
+        ADMINISTRATIVO,
+    )
+
+
 
 def puede_convertir_levantamiento_a_orden(usuario_activo) -> bool:
     """Administrador y Administrativo pueden avanzar LEV -> OT."""
@@ -209,6 +220,9 @@ def matriz_permisos() -> dict[int, dict[str, bool]]:
             "inicio_aco": tipo in ROLES_GESTION_OPERATIVA,
             "crear_aco": tipo in ROLES_GESTION_OPERATIVA,
             "agregar_levantamiento": tipo in ROLES_TODOS,
+            "modificar_levantamientos": tipo in {
+                ADMINISTRADOR, JEFE_OPERACIONES, SUPERVISOR, ADMINISTRATIVO
+            },
             "consultar_procesos": tipo in ROLES_GESTION_OPERATIVA,
             "ordenes": tipo in ROLES_GESTION_OPERATIVA,
             "orden_servicio_operativa": tipo in ROLES_TODOS,

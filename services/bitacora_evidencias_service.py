@@ -14,6 +14,15 @@ logger = configurar_logger(__name__)
 BUCKET = "bitacoras-evidencias"
 _EXT_PERMITIDAS = {".jpg", ".jpeg", ".png", ".webp"}
 _EXT_ARCHIVOS_TECNICOS = {".pdf", ".dwg", ".dxf", ".png", ".jpg", ".jpeg", ".webp"}
+_MIME_ARCHIVOS_TECNICOS = {
+    ".pdf": "application/pdf",
+    ".dwg": "image/vnd.dwg",
+    ".dxf": "image/vnd.dxf",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+}
 
 
 def _slug(texto: str) -> str:
@@ -89,13 +98,23 @@ def _subir_archivos_tecnicos(prefijo: str, folio: str, rutas) -> list[dict]:
         ext = archivo.suffix.lower()
         if ext not in _EXT_ARCHIVOS_TECNICOS:
             raise ValueError(f"Formato no permitido para archivo técnico: {archivo.name}")
-        mime = mimetypes.guess_type(archivo.name)[0] or "application/octet-stream"
+        mime = _MIME_ARCHIVOS_TECNICOS.get(ext) or mimetypes.guess_type(archivo.name)[0] or "application/octet-stream"
         destino = f"{prefijo}/{folio}/{uuid4().hex}_{_slug(archivo.stem)}{ext}"
-        with archivo.open("rb") as fh:
-            supabase.storage.from_(BUCKET).upload(
-                path=destino, file=fh,
-                file_options={"content-type": mime, "upsert": "false"},
-            )
+        try:
+            with archivo.open("rb") as fh:
+                supabase.storage.from_(BUCKET).upload(
+                    path=destino, file=fh,
+                    file_options={"content-type": mime, "upsert": "false"},
+                )
+        except Exception as exc:
+            texto = str(exc)
+            if "invalid_mime_type" in texto or "mime type" in texto.lower():
+                raise RuntimeError(
+                    f"Supabase Storage rechazó el tipo {mime}. "
+                    f"Actualiza los MIME permitidos del bucket {BUCKET} con "
+                    "supabase/sql/02092026_storage_archivos_tecnicos.sql."
+                ) from exc
+            raise
         try:
             url = supabase.storage.from_(BUCKET).get_public_url(destino)
         except Exception:

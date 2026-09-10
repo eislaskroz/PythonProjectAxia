@@ -12,6 +12,7 @@ import json
 import customtkinter as ctk
 from tkinter import messagebox
 from ui.native_combobox import NativeComboBox
+from ui.numeric_masks import aplicar_mascara_numerica, NUMBER, INTEGER
 
 from ui.colors import SECONDARY, WHITE, TEXT_PRIMARY, BUTTON_HOVER
 from ui.date_picker import abrir_selector_fecha
@@ -89,6 +90,8 @@ def mostrar_orden_trabajo(parent, app, aco=None):
         label(c, texto)
         e = ctk.CTkEntry(c, textvariable=var, placeholder_text=placeholder, height=ENTRY_H, corner_radius=8, font=SMALL_FONT, state=state)
         e.pack(fill="x")
+        if texto in {"Número de Días", "Número de Personas"}:
+            aplicar_mascara_numerica(e, var, INTEGER)
         if date and state != "disabled":
             e.bind("<Button-1>", lambda _event, v=var: (abrir_selector_fecha(c, v), validar_preview()))
         if lock:
@@ -177,7 +180,10 @@ def mostrar_orden_trabajo(parent, app, aco=None):
             sub.grid(row=0, column=j, sticky="ew", padx=1)
             fila.grid_columnconfigure(j, weight=1)
             ctk.CTkLabel(sub, text=h, font=LABEL_FONT, text_color=TEXT_PRIMARY).pack(anchor="w")
-            ctk.CTkEntry(sub, textvariable=row_vars[h], height=ENTRY_H, corner_radius=8, font=SMALL_FONT).pack(fill="x")
+            entrada_partida = ctk.CTkEntry(sub, textvariable=row_vars[h], height=ENTRY_H, corner_radius=8, font=SMALL_FONT)
+            entrada_partida.pack(fill="x")
+            if h in {"Cantidad", "Día", "Adicional", "Total"}:
+                aplicar_mascara_numerica(entrada_partida, row_vars[h], NUMBER)
             row_vars[h].trace_add("write", lambda *_: validar_preview())
         validar_preview()
 

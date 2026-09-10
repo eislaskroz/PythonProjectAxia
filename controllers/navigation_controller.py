@@ -33,6 +33,7 @@ from security.permissions import (
     puede_administrar_usuarios,
     puede_consultar_procesos,
     puede_convertir_levantamiento_a_orden,
+    puede_modificar_levantamientos,
     puede_cotizar_levantamientos,
     puede_ver_compras,
     puede_entrar_inicio_aco,
@@ -406,10 +407,10 @@ class NavigationController:
         self._registrar_vista("mostrar_admin_levantamientos")
         logger.info("Cargando vista administrativa: Levantamientos")
         self.limpiar_contenido()
-        if puede_convertir_levantamiento_a_orden(obtener_usuario_actual()):
+        if puede_modificar_levantamientos(obtener_usuario_actual()):
             self.cambiar_titulo(
                 "Levantamientos",
-                "Busca, edita y convierte levantamientos aceptados en órdenes de trabajo."
+                "Busca, consulta y modifica levantamientos registrados."
             )
             from views.orden_servicio_conversion_view import mostrar_conversion_orden_servicio
             mostrar_conversion_orden_servicio(parent=self.content, app=self.app)
