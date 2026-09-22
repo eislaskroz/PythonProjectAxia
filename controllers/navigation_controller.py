@@ -32,7 +32,7 @@ from security.permissions import (
     puede_administrar_clientes,
     puede_administrar_usuarios,
     puede_consultar_procesos,
-    puede_convertir_levantamiento_a_orden,
+    puede_avanzar_flujo_operativo,
     puede_modificar_levantamientos,
     puede_cotizar_levantamientos,
     puede_ver_compras,
@@ -505,7 +505,7 @@ class NavigationController:
         }
 
         def finalizar_ot(record, status, refresh):
-            if not puede_convertir_levantamiento_a_orden(obtener_usuario_actual()):
+            if not puede_avanzar_flujo_operativo(obtener_usuario_actual()):
                 messagebox.showerror("Acceso denegado", "Solo Administrador o personal Administrativo puede finalizar el servicio desde la Orden de Servicio.")
                 return
             if int(record.get("os_estatus") or 0) == 3:
@@ -588,7 +588,7 @@ class NavigationController:
         }
 
         def convertir_ot_a_os(record, status, refresh):
-            if not puede_convertir_levantamiento_a_orden(obtener_usuario_actual()):
+            if not puede_avanzar_flujo_operativo(obtener_usuario_actual()):
                 messagebox.showerror("Acceso denegado", "Solo Administrador o personal Administrativo puede convertir una OT en Orden de Servicio.")
                 return
             try:

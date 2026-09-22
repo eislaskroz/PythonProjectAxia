@@ -819,7 +819,7 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
     """
     try:
         from reportlab.lib.pagesizes import letter
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage, KeepTogether
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, LongTable, TableStyle, Image as RLImage, KeepTogether
         from reportlab.lib import colors
         from reportlab.lib.styles import ParagraphStyle
         from reportlab.lib.units import inch
@@ -853,8 +853,15 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
                 return value
         return fallback
 
-    def p(value, style=normal):
-        return Paragraph(html_escape(str(value or "")), style)
+    def p(value, style=normal, conservar_saltos=False):
+        contenido = html_escape(str(value or ""))
+        if conservar_saltos:
+            # ReportLab interpreta los saltos de línea del texto plano como
+            # espacios. Convertirlos después de escapar el contenido conserva
+            # tanto los Enter como las líneas en blanco capturadas por el usuario.
+            contenido = contenido.replace("\r\n", "\n").replace("\r", "\n")
+            contenido = contenido.replace("\n", "<br/>")
+        return Paragraph(contenido, style)
 
     def lp(value):
         return Paragraph(html_escape(str(value or "")).upper(), label)
@@ -887,8 +894,9 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
     story.append(general)
     story.append(Spacer(1, 8))
 
-    # Descripción como bloque de altura dinámica. La celda crece únicamente
-    # según el contenido capturado, evitando un recuadro vacío de altura fija.
+    # Descripción como bloque de altura dinámica y divisible. Cada renglón
+    # capturado se convierte en una fila: así LongTable puede continuar en otra
+    # página sin intentar acomodar toda la descripción en una celda indivisible.
     desc_header = Table([[Paragraph("DESCRIPCIÓN DEL SERVICIO", header)]], colWidths=[6.90*inch])
     desc_header.setStyle(TableStyle([
         ("BACKGROUND", (0,0), (-1,-1), BLUE),
@@ -900,14 +908,19 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
     ]))
     story.append(desc_header)
     descripcion = text("Descripción del Servicio", "Descripción")
-    desc_body = Table([[p(descripcion or "Sin descripción registrada.")]], colWidths=[6.90*inch])
+    lineas_descripcion = str(descripcion or "Sin descripción registrada.").replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    filas_descripcion = [
+        [p(linea)] if linea else [Spacer(1, normal.leading)]
+        for linea in lineas_descripcion
+    ]
+    desc_body = LongTable(filas_descripcion, colWidths=[6.90*inch], splitByRow=1)
     desc_body.setStyle(TableStyle([
         ("BOX", (0,0), (-1,-1), 0.45, BORDER),
         ("VALIGN", (0,0), (-1,-1), "TOP"),
         ("LEFTPADDING", (0,0), (-1,-1), 6),
         ("RIGHTPADDING", (0,0), (-1,-1), 6),
-        ("TOPPADDING", (0,0), (-1,-1), 6),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 6),
+        ("TOPPADDING", (0,0), (-1,-1), 1.5),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 1.5),
     ]))
     story.append(desc_body)
     story.append(Spacer(1, 8))

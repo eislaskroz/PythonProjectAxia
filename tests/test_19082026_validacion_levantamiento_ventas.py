@@ -25,12 +25,13 @@ def test_boton_validar_y_destinatario_ventas_estan_integrados():
     assert 'to=[_AUTORIZACION_LEVANTAMIENTOS]' in mail
 
 
-def test_convertir_a_ot_permanece_visible_pero_deshabilitado():
+def test_convertir_a_ot_se_habilita_solo_con_cotizacion_finalizada():
     src = VIEW.read_text(encoding='utf-8')
     assert 'text="✓ Convertir a OT"' in src
     bloque = src[src.index('btn_convertir = ctk.CTkButton'):]
     assert 'state="disabled"' in bloque.split('btn_convertir.pack', 1)[0]
-    assert 'btn_convertir.configure(state="normal")' not in src
+    assert 'cotizacion_finalizada and autorizado' in src
+    assert 'btn_convertir.configure(state="normal")' in src
 
 
 def test_etiqueta_fecha_admin_homologada():

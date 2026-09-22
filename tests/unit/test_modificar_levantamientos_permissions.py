@@ -10,12 +10,15 @@ def test_roles_autorizados_para_modificar_levantamientos():
         assert puede_modificar_levantamientos({"usu_tipo": tipo})
 
 
-def test_modificar_no_hereda_conversion_ni_validacion():
-    for tipo in (2, 3):
-        usuario = {"usu_tipo": tipo}
-        assert puede_modificar_levantamientos(usuario)
-        assert not puede_convertir_levantamiento_a_orden(usuario)
-        assert not puede_validar_levantamiento_ventas(usuario)
+def test_jefe_operaciones_convierte_y_supervisor_solo_modifica():
+    jefe = {"usu_tipo": 2}
+    supervisor = {"usu_tipo": 3}
+    assert puede_modificar_levantamientos(jefe)
+    assert puede_convertir_levantamiento_a_orden(jefe)
+    assert not puede_validar_levantamiento_ventas(jefe)
+    assert puede_modificar_levantamientos(supervisor)
+    assert not puede_convertir_levantamiento_a_orden(supervisor)
+    assert not puede_validar_levantamiento_ventas(supervisor)
 
 
 def test_roles_no_autorizados_para_modificar_levantamientos():

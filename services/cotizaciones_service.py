@@ -426,6 +426,27 @@ def obtener_cotizaciones_en_compra(limite: int = 200) -> list[dict]:
     return [dict(x) for x in (resp.data or [])]
 
 
+def obtener_cotizacion_finalizada_de_levantamiento(
+    id_levantamiento=None, lev_folio=None
+) -> dict:
+    """Obtiene la COT finalizada que autoriza convertir un LEV en OT."""
+    folio = str(lev_folio or "").strip().upper()
+    if id_levantamiento in (None, "") and not folio:
+        return {}
+
+    consulta = (
+        supabase.table(TABLA_COTIZACIONES)
+        .select(COLUMNAS_COTIZACIONES)
+        .eq("cot_estatus", ESTATUS_EN_COMPRA)
+    )
+    if id_levantamiento not in (None, ""):
+        consulta = consulta.eq("id_levantamiento", id_levantamiento)
+    else:
+        consulta = consulta.eq("lev_folio", folio)
+    respuesta = consulta.order("cot_fecha_finalizacion", desc=True).limit(1).execute()
+    return dict((respuesta.data or [])[0]) if respuesta.data else {}
+
+
 def finalizar_cotizacion_para_compras(cotizacion: dict, usuario: str) -> dict:
     """Finaliza una COT y la deja disponible para Compras, sin crear OT."""
     cotizacion = dict(cotizacion or {})

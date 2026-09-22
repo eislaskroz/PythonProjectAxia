@@ -159,8 +159,8 @@ def puede_modificar_levantamientos(usuario_activo) -> bool:
 
 
 def puede_convertir_levantamiento_a_orden(usuario_activo) -> bool:
-    """Administrador y Administrativo pueden avanzar LEV -> OT."""
-    return _es_rol(usuario_activo, ADMINISTRADOR, ADMINISTRATIVO)
+    """Administrador y Jefe de Operaciones pueden autorizar LEV -> OT."""
+    return _es_rol(usuario_activo, ADMINISTRADOR, JEFE_OPERACIONES)
 
 
 def puede_validar_levantamiento_ventas(usuario_activo) -> bool:
@@ -226,7 +226,7 @@ def matriz_permisos() -> dict[int, dict[str, bool]]:
             "consultar_procesos": tipo in ROLES_GESTION_OPERATIVA,
             "ordenes": tipo in ROLES_GESTION_OPERATIVA,
             "orden_servicio_operativa": tipo in ROLES_TODOS,
-            "convertir_levantamiento_a_orden": tipo in {ADMINISTRADOR, ADMINISTRATIVO},
+            "convertir_levantamiento_a_orden": tipo in {ADMINISTRADOR, JEFE_OPERACIONES},
             "cotizar_levantamientos": tipo in {ADMINISTRADOR, ESPECIAL},
             "compras": tipo in {ADMINISTRADOR, COMPRAS},
             "almacen": tipo in {ADMINISTRADOR, ALMACEN},

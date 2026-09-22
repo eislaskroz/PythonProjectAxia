@@ -427,10 +427,19 @@ def convertir_levantamiento_a_trabajo(levantamiento_original, cambios, usuario_a
     """
     original = dict(levantamiento_original or {})
     editados = dict(cambios or {})
+    from security.permissions import puede_convertir_levantamiento_a_orden
+    if not puede_convertir_levantamiento_a_orden(usuario_activo):
+        raise PermissionError("Solo Administrador o Jefe de Operaciones puede convertir un levantamiento en OT.")
     folio_lev = str(original.get("lev_folio") or editados.get("lev_folio") or "").strip().upper()
     id_lev = original.get("id_levantamiento")
     if not folio_lev:
         raise ValueError("El levantamiento seleccionado no tiene folio válido.")
+    from services.cotizaciones_service import obtener_cotizacion_finalizada_de_levantamiento
+    cotizacion_finalizada = obtener_cotizacion_finalizada_de_levantamiento(id_lev, folio_lev)
+    if not cotizacion_finalizada:
+        raise ValueError(
+            "La cotización del levantamiento debe estar finalizada y enviada a Compras antes de crear la OT."
+        )
     existente = buscar_orden_trabajo_por_levantamiento(folio_lev, id_lev)
     if existente:
         raise ValueError(f"El levantamiento {folio_lev} ya fue convertido en {existente.get('ot_folio', 'una OT')}.")

@@ -213,6 +213,92 @@ def buscar_aco_por_numero(aco_numero):
         ) from error
 
 
+@ttl_cache(ttl_seconds=90)
+def buscar_aco_por_id(id_aco):
+    """Busca un ACO por su llave primaria y devuelve el registro enriquecido."""
+    if id_aco in (None, ""):
+        return None
+    try:
+        respuesta = (
+            supabase.table(TABLA_ACOS)
+            .select(COLUMNAS_ACOS)
+            .eq("id_aco", id_aco)
+            .limit(1)
+            .execute()
+        )
+        return enriquecer_aco_con_sucursal_contacto(respuesta.data[0]) if respuesta.data else None
+    except Exception as error:
+        logger.exception("Error al buscar ACO por ID %s.", id_aco)
+        raise AcoServiceError("No fue posible consultar el ACO por ID en Supabase.") from error
+
+
+def _marca_levantamiento_aco(folio_levantamiento):
+    folio = str(folio_levantamiento or "").strip().upper()
+    return f"[AXIA-LEV:{folio}]" if folio else ""
+
+
+def buscar_aco_generado_por_levantamiento(folio_levantamiento):
+    """Recupera el ACO automático de un LEV para evitar duplicados en reintentos."""
+    marca = _marca_levantamiento_aco(folio_levantamiento)
+    if not marca:
+        return None
+    try:
+        respuesta = (
+            supabase.table(TABLA_ACOS)
+            .select(COLUMNAS_ACOS)
+            .ilike("aco_observaciones", f"%{marca}%")
+            .order("fecha_registro", desc=True)
+            .limit(1)
+            .execute()
+        )
+        return enriquecer_aco_con_sucursal_contacto(respuesta.data[0]) if respuesta.data else None
+    except Exception as error:
+        logger.exception("Error buscando ACO generado para %s.", folio_levantamiento)
+        raise AcoServiceError("No fue posible comprobar el ACO automático del levantamiento.") from error
+
+
+def crear_aco_desde_levantamiento(levantamiento, usuario_activo=None):
+    """Crea el ACO que nace al autorizar un levantamiento para convertirse en OT."""
+    lev = dict(levantamiento or {})
+    folio = str(lev.get("lev_folio") or "").strip().upper()
+    if not folio:
+        raise ValueError("El levantamiento no contiene folio para generar su ACO.")
+
+    existente = buscar_aco_generado_por_levantamiento(folio)
+    if existente:
+        return existente
+
+    marca = _marca_levantamiento_aco(folio)
+    observaciones = str(lev.get("lev_observaciones") or "").strip()
+    observaciones = f"{marca}\n{observaciones}".strip()
+    usuario = str(
+        (usuario_activo or {}).get("usu_nickname")
+        or (usuario_activo or {}).get("usuario")
+        or "Sistema AXIA"
+    ).strip()
+    datos = {
+        # aco_numero lo asigna el trigger vigente de Supabase.
+        "aco_estatus": 1,
+        "id_cliente": lev.get("id_cliente"),
+        "id_sucursal": lev.get("id_sucursal"),
+        "id_contacto": lev.get("id_contacto"),
+        "aco_cliente": str(lev.get("lev_cliente") or "").strip(),
+        "aco_descripcion": str(lev.get("lev_descripcion") or "").strip(),
+        "aco_observaciones": observaciones,
+        "aco_responsable": str(lev.get("lev_supervisor") or lev.get("lev_tecnico") or usuario).strip(),
+        "aco_creado_por": usuario,
+        "aco_fecha_inicio": lev.get("lev_fecha_programada") or lev.get("lev_fecha_realizacion") or None,
+        "aco_fecha_compromiso": None,
+    }
+    datos = {clave: valor for clave, valor in datos.items() if valor is not None}
+    resultado = crear_aco(datos)
+    if not resultado:
+        raise AcoServiceError("Supabase no confirmó la creación automática del ACO.")
+    creado = dict(resultado[0])
+    clear_cache("services.acos_service")
+    return enriquecer_aco_con_sucursal_contacto(creado)
+
+
 # =====================================================
 # FUNCIÓN: obtener_acos()
 # =====================================================

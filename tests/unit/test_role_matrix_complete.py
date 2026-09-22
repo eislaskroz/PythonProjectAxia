@@ -10,6 +10,10 @@ EXPECTED = {
     6: {"inicio_aco": True, "crear_aco": True, "agregar_levantamiento": True, "consultar_procesos": True, "ordenes": True, "orden_servicio_operativa": True, "convertir_levantamiento_a_orden": False, "bitacoras_operativas": True, "reportes_operativos": True, "usuarios": False, "clientes": False, "auditoria_login_movimientos": False},
 }
 
+# LEV -> OT: autorización operativa de Administrador y Jefe de Operaciones.
+EXPECTED[2]["convertir_levantamiento_a_orden"] = True
+EXPECTED[5]["convertir_levantamiento_a_orden"] = False
+
 
 @pytest.mark.parametrize("role", range(1, 7))
 def test_matriz_completa_por_rol(role):

@@ -1,4 +1,4 @@
-"""Conversión administrativa de levantamientos a órdenes de trabajo."""
+"""Consultar, modificar y Convertir levantamiento en Orden de Trabajo."""
 
 import json
 from datetime import datetime, timezone
@@ -18,6 +18,7 @@ from security.permissions import (
 from services.levantamientos_service import obtener_levantamientos, buscar_levantamientos, actualizar_levantamiento
 from services.levantamiento_compat import normalizar_registro_levantamiento
 from services.ordenes_trabajo_service import convertir_levantamiento_a_trabajo, buscar_orden_trabajo_por_levantamiento
+from services.cotizaciones_service import obtener_cotizacion_finalizada_de_levantamiento
 from services.pdf_registro_service import generar_pdf_registro
 from services.mail_service import enviar_levantamiento_validacion_ventas
 from views.formato_helpers import ruta_documentos_axia
@@ -127,7 +128,7 @@ def mostrar_conversion_orden_servicio(parent, app):
     panel_form.grid_columnconfigure(0, weight=1)
     panel_form.grid_columnconfigure(1, weight=1)
 
-    seleccionado = {"registro": None, "editando": False}
+    seleccionado = {"registro": None, "editando": False, "cotizacion_finalizada": {}, "ot_existente": {}}
     widgets_editables = []
     vars_campos = {
         "lev_folio": ctk.StringVar(), "lev_aco_numero": ctk.StringVar(), "lev_cliente": ctk.StringVar(),
@@ -200,9 +201,17 @@ def mostrar_conversion_orden_servicio(parent, app):
         btn_guardar.configure(state="normal" if habilitado else "disabled")
         if habilitado:
             btn_validar.configure(state="disabled")
+            btn_convertir.configure(state="disabled")
         elif seleccionado.get("registro") and puede_validar_levantamiento_ventas(usuario):
             ya_validado = bool((seleccionado.get("registro") or {}).get("lev_validado_ventas"))
             btn_validar.configure(state="disabled" if ya_validado else "normal")
+        if not habilitado and seleccionado.get("registro"):
+            puede_convertir = bool(
+                seleccionado.get("cotizacion_finalizada")
+                and not seleccionado.get("ot_existente")
+                and puede_convertir_levantamiento_a_orden(usuario)
+            )
+            btn_convertir.configure(state="normal" if puede_convertir else "disabled")
         if seleccionado.get("registro"):
             lbl_estado.configure(
                 text=("Modo edición habilitado. Guarda los cambios antes de continuar." if habilitado
@@ -247,6 +256,11 @@ def mostrar_conversion_orden_servicio(parent, app):
         existente = buscar_orden_trabajo_por_levantamiento(
             registro.get("lev_folio"), registro.get("id_levantamiento")
         )
+        seleccionado["ot_existente"] = existente or {}
+        cotizacion_finalizada = obtener_cotizacion_finalizada_de_levantamiento(
+            registro.get("id_levantamiento"), registro.get("lev_folio")
+        )
+        seleccionado["cotizacion_finalizada"] = cotizacion_finalizada
         btn_preview.configure(state="normal")
         btn_validar.configure(
             state=("normal" if puede_validar_levantamiento_ventas(usuario) and not bool(registro.get("lev_validado_ventas")) else "disabled")
@@ -258,12 +272,26 @@ def mostrar_conversion_orden_servicio(parent, app):
             btn_validar.configure(state="disabled")
             btn_editar.configure(state="disabled")
         else:
-            if bool(registro.get("lev_validado_ventas")):
-                lbl_estado.configure(text="Levantamiento preautorizado y enviado a Ventas para cotización.", text_color="#15803D")
+            autorizado = puede_convertir_levantamiento_a_orden(usuario)
+            if cotizacion_finalizada and autorizado:
+                lbl_estado.configure(
+                    text=f"Cotización {cotizacion_finalizada.get('cot_folio', '')} finalizada. Ya puedes convertir este levantamiento en OT.",
+                    text_color="#15803D",
+                )
+                btn_convertir.configure(state="normal")
+            elif cotizacion_finalizada:
+                lbl_estado.configure(
+                    text="La cotización está finalizada, pero tu usuario no tiene permiso para autorizar la OT.",
+                    text_color="#B45309",
+                )
+                btn_convertir.configure(state="disabled")
+            elif bool(registro.get("lev_validado_ventas")):
+                lbl_estado.configure(text="Levantamiento preautorizado. La cotización debe finalizarse antes de convertirlo en OT.", text_color="#B45309")
                 btn_validar.configure(state="disabled")
             else:
-                lbl_estado.configure(text="Modo consulta. Revisa los datos; usa Editar solo si necesitas realizar cambios.", text_color=TEXT_SECONDARY)
-            btn_convertir.configure(state="disabled")
+                lbl_estado.configure(text="Pendiente de validación y cotización finalizada antes de convertir a OT.", text_color=TEXT_SECONDARY)
+            if not (cotizacion_finalizada and autorizado):
+                btn_convertir.configure(state="disabled")
 
     def filas(registros):
         registros = registros or []
@@ -404,6 +432,18 @@ def mostrar_conversion_orden_servicio(parent, app):
             return
         if seleccionado.get("editando"):
             messagebox.showwarning("Edición pendiente", "Guarda o finaliza la edición antes de convertir el levantamiento.")
+            return
+        if not puede_convertir_levantamiento_a_orden(usuario):
+            messagebox.showerror("Acceso denegado", "Solo Administrador o Jefe de Operaciones puede convertir un levantamiento en OT.")
+            return
+        cotizacion_finalizada = obtener_cotizacion_finalizada_de_levantamiento(
+            original.get("id_levantamiento"), original.get("lev_folio")
+        )
+        if not cotizacion_finalizada:
+            messagebox.showwarning(
+                "Cotización pendiente",
+                "La cotización de este levantamiento debe estar finalizada y enviada a Compras antes de crear la Orden de Trabajo.",
+            )
             return
         try:
             cambios = _capturar_cambios()
@@ -638,8 +678,8 @@ def mostrar_conversion_orden_servicio(parent, app):
         state="disabled",
     )
     btn_validar.pack(side="left", padx=4)
-    # La conversión LEV -> OT queda visible como referencia del flujo, pero
-    # temporalmente deshabilitada: la siguiente etapa corresponde a Ventas.
+    # Se habilita al cargar un LEV sólo si su cotización está finalizada y el
+    # usuario es Administrador o Jefe de Operaciones.
     btn_convertir = ctk.CTkButton(fila_edicion, text="✓ Convertir a OT", width=170, fg_color=SECONDARY,
                                   hover_color=BUTTON_HOVER, command=validar_y_convertir, state="disabled")
     btn_convertir.pack(side="left", padx=4)
