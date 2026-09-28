@@ -1257,7 +1257,13 @@ def generar_pdf_levantamiento_maestro(
             story.append(_key_value_table([["¿Se requiere EPP?", requiere_epp, "Detalle", "Pendiente de especificar"]], [1.55*inch,1.90*inch,1.55*inch,1.90*inch], normal, label))
         story.append(Spacer(1, 7))
 
-    story.append(_description_table(_description_for(registro, detail), width, normal, header))
+    # En Aires Acondicionados la información técnica ya se presenta de forma
+    # estructurada en las secciones anteriores del PDF. La descripción detallada
+    # duplicaría esos datos, por lo que se conserva en el registro pero no se
+    # imprime en el PDF. Para los demás tipos de levantamiento se mantiene el
+    # comportamiento actual para no alterar otros formatos.
+    if tipo.casefold() != "aires acondicionados":
+        story.append(_description_table(_description_for(registro, detail), width, normal, header))
     _append_anotacion_plano(story, registro, width, header)
     _append_archivos_adjuntos(story, registro, width, normal, header)
     _append_evidencias_fotograficas(story, registro, width, header)

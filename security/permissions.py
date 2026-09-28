@@ -180,6 +180,11 @@ def puede_ver_compras(usuario_activo) -> bool:
     return _es_rol(usuario_activo, ADMINISTRADOR, COMPRAS)
 
 
+def puede_convertir_cotizacion_a_orden(usuario_activo) -> bool:
+    """Compras (rol 7) y Administrador pueden convertir una cotización finalizada en OT."""
+    return _es_rol(usuario_activo, ADMINISTRADOR, COMPRAS)
+
+
 def puede_ver_almacen(usuario_activo) -> bool:
     """Reserva de permiso para el futuro módulo de Almacén (rol 8)."""
     return _es_rol(usuario_activo, ADMINISTRADOR, ALMACEN)

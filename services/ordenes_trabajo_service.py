@@ -24,6 +24,57 @@ from services.movimientos_service import registrar_movimiento_seguro
 from services.search_service import buscar_parcial_supabase
 
 
+def partidas_desde_cotizacion_aprobada(cotizacion, detalle_levantamiento=None):
+    """Convierte las partidas comerciales aprobadas en filas operativas para la OT.
+
+    La cotización finalizada por Ventas es la fuente autorizada para Modelo/Marca.
+    El detalle técnico del LEV solo se usa para conservar la clasificación
+    Materiales / Equipos / Misceláneos.
+    """
+    import json
+    cot = dict(cotizacion or {})
+    raw = cot.get("cot_partidas_json") or []
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except Exception:
+            raw = []
+    if not isinstance(raw, list):
+        return []
+
+    tecnicas = partidas_desde_detalle_levantamiento(detalle_levantamiento)
+    por_concepto = {}
+    for item in tecnicas:
+        concepto = str(item.get("concepto") or "").strip().casefold()
+        if concepto:
+            por_concepto.setdefault(concepto, item.get("_grupo") or "Materiales")
+
+    resultado = []
+    for i, item in enumerate(raw, 1):
+        if not isinstance(item, dict):
+            continue
+        concepto = str(item.get("concepto") or "").strip()
+        unidad = str(item.get("unidad_tipo") or item.get("unidad") or "").strip()
+        cantidad = str(item.get("cantidad") or "").strip()
+        modelo = str(item.get("modelo") or "").strip()
+        marca = str(item.get("marca") or "").strip()
+        if not concepto or unidad.casefold() == "servicio":
+            continue
+        grupo = por_concepto.get(concepto.casefold())
+        if not grupo:
+            grupo = "Equipos" if (modelo or marca) else "Misceláneos"
+        resultado.append({
+            "partida": str(item.get("lote") or item.get("partida") or i),
+            "unidad": unidad,
+            "cantidad": cantidad,
+            "modelo": modelo,
+            "marca": marca,
+            "concepto": concepto,
+            "_grupo": grupo,
+        })
+    return resultado
+
+
 def _detalle_error_supabase(error):
     """Devuelve un mensaje legible sin perder la respuesta real de PostgREST."""
     if isinstance(error, dict):
@@ -415,7 +466,7 @@ def buscar_orden_trabajo_por_levantamiento(folio_levantamiento=None, id_levantam
         raise RuntimeError("No fue posible comprobar si el levantamiento ya tiene una Orden de Trabajo.") from error
 
 
-def convertir_levantamiento_a_trabajo(levantamiento_original, cambios, usuario_activo=None):
+def convertir_levantamiento_a_trabajo(levantamiento_original, cambios, usuario_activo=None, permitir_compras=False):
     """Convierte un levantamiento autorizado en OT y garantiza su ACO.
 
     Flujo operativo vigente:
@@ -427,9 +478,12 @@ def convertir_levantamiento_a_trabajo(levantamiento_original, cambios, usuario_a
     """
     original = dict(levantamiento_original or {})
     editados = dict(cambios or {})
-    from security.permissions import puede_convertir_levantamiento_a_orden
-    if not puede_convertir_levantamiento_a_orden(usuario_activo):
-        raise PermissionError("Solo Administrador o Jefe de Operaciones puede convertir un levantamiento en OT.")
+    from security.permissions import puede_convertir_levantamiento_a_orden, puede_convertir_cotizacion_a_orden
+    autorizado = puede_convertir_levantamiento_a_orden(usuario_activo)
+    if permitir_compras:
+        autorizado = puede_convertir_cotizacion_a_orden(usuario_activo)
+    if not autorizado:
+        raise PermissionError("El usuario no tiene permiso para convertir el registro en una Orden de Trabajo.")
     folio_lev = str(original.get("lev_folio") or editados.get("lev_folio") or "").strip().upper()
     id_lev = original.get("id_levantamiento")
     if not folio_lev:
@@ -525,7 +579,9 @@ def convertir_levantamiento_a_trabajo(levantamiento_original, cambios, usuario_a
     # su PDF pueda mostrar materiales, equipos y misceláneos en tabla. El texto
     # descriptivo del LEV permanece en ot_asunto/ot_descripcion y no se duplica
     # como una fila gigantesca dentro de la tabla.
-    partidas = partidas_desde_detalle_levantamiento(detalle)
+    partidas = partidas_desde_cotizacion_aprobada(cotizacion_finalizada, detalle)
+    if not partidas:
+        partidas = partidas_desde_detalle_levantamiento(detalle)
     if not partidas:
         partidas = [{
             "partida": "1", "unidad": "Servicio", "cantidad": "1",
@@ -601,3 +657,93 @@ def buscar_ordenes_trabajo_por_aco(aco_numero):
         lambda q: q.eq("ot_aco_numero", numero).order("fecha_registro", desc=True).limit(100),
     )
     return list(respuesta.data or [])
+
+
+def convertir_cotizacion_a_trabajo(cotizacion, usuario_activo=None):
+    """Convierte una cotización finalizada de Compras en OT reutilizando el flujo operativo vigente.
+
+    La cotización es la autorización comercial; el LEV origen aporta los datos
+    técnicos y operativos, y el flujo existente garantiza ACO, trazabilidad y
+    prevención de duplicados.
+    """
+    from security.permissions import puede_convertir_cotizacion_a_orden
+    from services.cotizaciones_service import (
+        ESTATUS_EN_COMPRA,
+        ESTATUS_CONVERTIDA_OT,
+        obtener_levantamiento_de_cotizacion,
+        marcar_cotizacion_convertida_a_ot,
+    )
+
+    if not puede_convertir_cotizacion_a_orden(usuario_activo):
+        raise PermissionError("Solo Compras (id=7) o Administrador puede convertir una cotización en Orden de Trabajo.")
+
+    cot = dict(cotizacion or {})
+    folio_cot = str(cot.get("cot_folio") or "").strip().upper()
+    if not folio_cot:
+        raise ValueError("La cotización seleccionada no tiene un folio válido.")
+    estatus = str(cot.get("cot_estatus") or "").strip().upper()
+    if estatus not in {ESTATUS_EN_COMPRA, ESTATUS_CONVERTIDA_OT}:
+        raise ValueError(f"La cotización {folio_cot} debe estar finalizada y en Compras antes de convertirla.")
+
+    lev = obtener_levantamiento_de_cotizacion(cot)
+    if not lev:
+        raise ValueError(f"No fue posible localizar el levantamiento origen de {folio_cot}.")
+
+    # Idempotencia: puede existir una OT creada anteriormente para el LEV
+    # (por ejemplo, antes de habilitar este flujo desde Compras). En ese caso
+    # NO intentamos crear una segunda OT. Sincronizamos la cotización con la OT
+    # existente y la retiramos de Pendientes de compra.
+    folio_lev = str(lev.get("lev_folio") or cot.get("lev_folio") or "").strip().upper()
+    id_lev = lev.get("id_levantamiento")
+    existente = buscar_orden_trabajo_por_levantamiento(folio_lev, id_lev)
+    if existente:
+        try:
+            usuario_nombre = str(
+                (usuario_activo or {}).get("usu_nickname")
+                or (usuario_activo or {}).get("usuario")
+                or "Compras"
+            ).strip()
+            marcar_cotizacion_convertida_a_ot(cot, usuario_nombre, str(existente.get("ot_folio") or ""))
+        except Exception:
+            logger.exception(
+                "La OT %s ya existía, pero no se pudo sincronizar el estado de la cotización %s",
+                existente.get("ot_folio"), folio_cot,
+            )
+            raise
+        # Si la OT ya existía, actualizamos también sus partidas con la cotización
+        # aprobada para que Modelo/Marca queden persistidos y no dependan solo del PDF.
+        try:
+            detalle_existente = lev.get("lev_detalle_tecnico_json")
+            partidas_aprobadas = partidas_desde_cotizacion_aprobada(
+                cot, detalle_existente
+            )
+            if partidas_aprobadas and existente.get("ot_id"):
+                partidas_guardar = list(partidas_aprobadas) + [metadata_item(folio_lev, "lev")]
+                actualizar_orden_trabajo(
+                    existente.get("ot_id"),
+                    {"ot_partidas_json": partidas_guardar},
+                )
+                existente["ot_partidas_json"] = partidas_guardar
+        except Exception:
+            logger.exception("No fue posible sincronizar las partidas aprobadas en la OT %s", existente.get("ot_folio"))
+        registro_existente = dict(existente)
+        registro_existente["_axia_ot_existente"] = True
+        return [registro_existente]
+
+    resultado = convertir_levantamiento_a_trabajo(
+        lev, {}, usuario_activo, permitir_compras=True
+    )
+    registro_ot = dict(resultado[0]) if isinstance(resultado, list) and resultado and isinstance(resultado[0], dict) else {}
+    folio_ot = str(registro_ot.get("ot_folio") or "").strip()
+    if not folio_ot:
+        raise RuntimeError("La Orden de Trabajo fue creada, pero Supabase no devolvió su folio.")
+
+    # Se marca la COT únicamente después de confirmar la OT. Si este UPDATE
+    # secundario fallara, la OT ya existe y el control de duplicados del flujo
+    # impedirá crear una segunda OT para el mismo LEV.
+    try:
+        marcar_cotizacion_convertida_a_ot(cot, str((usuario_activo or {}).get("usu_nickname") or (usuario_activo or {}).get("usuario") or "Compras"), folio_ot)
+    except Exception:
+        logger.exception("La OT %s fue creada, pero no se pudo actualizar el estado de la cotización %s", folio_ot, folio_cot)
+
+    return resultado

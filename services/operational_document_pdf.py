@@ -150,7 +150,20 @@ def contrato_orden_trabajo(registro):
             # temporalmente; en ese caso se usa la información ya guardada en la OT.
             origen_rows = []
 
-    source_rows = origen_rows or visible_partidas(r.get("ot_partidas_json"))
+    # La cotización finalizada es la fuente autorizada para Modelo/Marca.
+    # Si existe, sustituye esos valores en la tabla de OT sin depender del LEV.
+    source_rows = []
+    try:
+        from services.cotizaciones_service import cargar_cotizacion
+        from services.ordenes_trabajo_service import partidas_desde_cotizacion_aprobada
+        if folio_lev:
+            lev_base = {"id_levantamiento": r.get("id_levantamiento"), "lev_folio": folio_lev, "lev_detalle_tecnico_json": None}
+            cot = cargar_cotizacion(lev_base)
+            if cot:
+                source_rows = partidas_desde_cotizacion_aprobada(cot, (lev or {}).get("lev_detalle_tecnico_json"))
+    except Exception:
+        source_rows = []
+    source_rows = source_rows or origen_rows or visible_partidas(r.get("ot_partidas_json"))
 
     # Compatibilidad con OTs antiguas: versiones previas podían guardar el
     # resumen completo del levantamiento como una fila ``Servicio``. Esa fila

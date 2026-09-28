@@ -19,6 +19,7 @@ logger = configurar_logger(__name__)
 
 ESTATUS_BORRADOR = "BORRADOR"
 ESTATUS_EN_COMPRA = "EN COMPRA X COTIZACIÓN"
+ESTATUS_CONVERTIDA_OT = "CONVERTIDA A OT"
 
 
 
@@ -511,3 +512,41 @@ def guardar_cotizacion_levantamiento(registro: dict, partidas: list[dict], usuar
             "importe": servicio.get("costo_total") or 0, "observaciones": "",
         })
     return guardar_cotizacion_comercial(datos, comerciales, usuario)
+
+
+def marcar_cotizacion_convertida_a_ot(cotizacion: dict, usuario: str, folio_ot: str = "") -> dict:
+    """Marca una cotización finalizada como convertida a Orden de Trabajo.
+
+    La trazabilidad de la OT se conserva en ``db_ordenes_trabajo`` mediante el
+    levantamiento origen. No se agrega una columna nueva a ``db_cotizaciones``
+    para mantener compatibilidad con la migración actual.
+    """
+    cotizacion = dict(cotizacion or {})
+    cot_id = cotizacion.get("id_cotizacion")
+    folio = str(cotizacion.get("cot_folio") or "").strip().upper()
+    if not cot_id or not folio:
+        raise ValueError("La cotización seleccionada no contiene un ID o folio válido.")
+    estatus = str(cotizacion.get("cot_estatus") or "").strip().upper()
+    if estatus not in {ESTATUS_EN_COMPRA, ESTATUS_CONVERTIDA_OT}:
+        raise ValueError(f"La cotización {folio} no está finalizada para conversión. Estado actual: {estatus or 'SIN ESTADO'}.")
+    ahora = datetime.now(timezone.utc).isoformat()
+    payload = {
+        "cot_estatus": ESTATUS_CONVERTIDA_OT,
+        "actualizado_por": str(usuario or "").strip(),
+        "fecha_actualizacion": ahora,
+    }
+    resp = (
+        supabase.table(TABLA_COTIZACIONES)
+        .update(payload)
+        .eq("id_cotizacion", cot_id)
+        .eq("cot_folio", folio)
+        .execute()
+    )
+    guardada = dict((resp.data or [dict(cotizacion, **payload)])[0])
+    registrar_movimiento_seguro(
+        modulo="COTIZACIONES",
+        accion="CONVERTIR_A_OT",
+        descripcion=f"Cotización {folio} convertida a Orden de Trabajo {folio_ot or 'generada'} por Compras.",
+        registro_afectado=folio_ot or folio,
+    )
+    return guardada

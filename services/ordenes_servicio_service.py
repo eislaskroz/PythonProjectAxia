@@ -537,6 +537,102 @@ def _actualizar_levantamiento_conversion(id_levantamiento, folio_levantamiento, 
         "Verifica que el registro exista y que la política RLS permita UPDATE en db_levantamientos."
     )
 
+def _resolver_contacto_conversion(levantamiento, correo_actual, telefono_actual):
+    """Completa correo/teléfono faltantes al convertir LEV -> OS.
+
+    El levantamiento conserva los datos que ya tenga capturados. Si falta
+    correo o teléfono, se consulta el ACO asociado y se reutiliza el servicio
+    central de ACOs, que ya resuelve la prioridad Contacto -> Sucursal.
+
+    Retorna:
+        tuple[str, str, bool, str]: correo, teléfono, hubo_recuperación, fuente.
+    """
+    correo = str(correo_actual or "").strip()
+    telefono = str(telefono_actual or "").strip()
+    recuperado = False
+    fuentes = []
+
+    if correo and telefono:
+        return correo, telefono, False, "LEV"
+
+    aco = None
+    try:
+        from services.acos_service import buscar_aco_por_numero, buscar_aco_por_id
+
+        aco_numero = str(
+            levantamiento.get("lev_aco_numero")
+            or levantamiento.get("aco_numero")
+            or ""
+        ).strip()
+        id_aco = levantamiento.get("id_aco")
+
+        if aco_numero:
+            aco = buscar_aco_por_numero(aco_numero)
+        if not aco and id_aco not in (None, ""):
+            aco = buscar_aco_por_id(id_aco)
+
+        if aco:
+            if not correo:
+                correo_aco = str(aco.get("aco_correo") or "").strip()
+                if correo_aco:
+                    correo = correo_aco
+                    recuperado = True
+                    fuentes.append("ACO")
+            if not telefono:
+                telefono_aco = str(aco.get("aco_telefono") or "").strip()
+                if telefono_aco:
+                    telefono = telefono_aco
+                    recuperado = True
+                    fuentes.append("ACO")
+    except Exception:
+        # La conversión no debe bloquearse únicamente por una consulta de
+        # recuperación. Los datos que ya existan en el LEV siguen siendo válidos.
+        logger.exception(
+            "No fue posible recuperar datos de contacto del ACO al convertir el LEV %s.",
+            levantamiento.get("lev_folio"),
+        )
+
+    # Último respaldo: ficha maestra del cliente/empresa. Esto cubre el caso
+    # en que el contacto, la sucursal o incluso el ACO no tengan uno de los
+    # datos, pero la empresa sí los tenga registrados.
+    if not correo or not telefono:
+        id_cliente = levantamiento.get("id_cliente") or (aco or {}).get("id_cliente")
+        if id_cliente not in (None, ""):
+            try:
+                respuesta_cliente = (
+                    supabase.table("db_clientes")
+                    .select("cli_correo,cli_telefono")
+                    .eq("id_cliente", id_cliente)
+                    .limit(1)
+                    .execute()
+                )
+                cliente = (getattr(respuesta_cliente, "data", None) or [None])[0] or {}
+                if not correo:
+                    correo_cliente = str(cliente.get("cli_correo") or "").strip()
+                    if correo_cliente:
+                        correo = correo_cliente
+                        recuperado = True
+                        fuentes.append("CLIENTE")
+                if not telefono:
+                    telefono_cliente = str(cliente.get("cli_telefono") or "").strip()
+                    if telefono_cliente:
+                        telefono = telefono_cliente
+                        recuperado = True
+                        fuentes.append("CLIENTE")
+            except Exception:
+                logger.exception(
+                    "No fue posible recuperar datos de contacto del cliente %s para el LEV %s.",
+                    id_cliente,
+                    levantamiento.get("lev_folio"),
+                )
+
+    if not fuentes:
+        fuente = "LEV" if (correo or telefono) else "SIN_DATOS"
+    else:
+        fuente = " + ".join(dict.fromkeys(fuentes))
+    return correo, telefono, recuperado, fuente
+
+
 def convertir_levantamiento_a_orden(levantamiento_original, cambios, usuario_activo=None):
     """Transforma un levantamiento en una OS vinculada y evita duplicados.
 
@@ -569,6 +665,14 @@ def convertir_levantamiento_a_orden(levantamiento_original, cambios, usuario_act
 
     cliente = str(valor("lev_cliente", default="")).strip()
     descripcion = str(valor("lev_descripcion", default="")).strip()
+
+    # El LEV es la fuente principal, pero no debemos propagar vacíos a la OS
+    # cuando el ACO/contacto/sucursal sí tiene la información correcta.
+    correo_levantamiento = str(valor("lev_correo", default="")).strip()
+    telefono_levantamiento = str(valor("lev_telefono", default="")).strip()
+    correo_resuelto, telefono_resuelto, contacto_recuperado, fuente_contacto = _resolver_contacto_conversion(
+        original, correo_levantamiento, telefono_levantamiento
+    )
     if not cliente or not descripcion:
         raise ValueError("La orden requiere cliente y descripción antes de realizar la conversión.")
 
@@ -601,8 +705,8 @@ def convertir_levantamiento_a_orden(levantamiento_original, cambios, usuario_act
         "os_estatus": 1,
         "os_prioridad": int(valor("lev_prioridad", default=2) or 2),
         "os_contacto": valor("lev_contacto"),
-        "os_telefono": valor("lev_telefono"),
-        "os_correo": valor("lev_correo"),
+        "os_telefono": telefono_resuelto,
+        "os_correo": correo_resuelto,
         "os_direccion": valor("lev_direccion"),
         "os_ubicacion": valor("lev_ubicacion"),
         "os_descripcion": descripcion,
@@ -619,7 +723,7 @@ def convertir_levantamiento_a_orden(levantamiento_original, cambios, usuario_act
         "os_domicilio": valor("lev_direccion"),
         "os_encargado": valor("lev_contacto"),
         "os_solicitante": usuario,
-        "os_celular": valor("lev_telefono"),
+        "os_celular": telefono_resuelto,
         "os_tipos_servicio_json": _texto_json([tipo_compuesto]),
         "os_tipo_servicio": tipo_compuesto,
         "os_encargado_servicio": valor("lev_contacto"),
@@ -638,6 +742,23 @@ def convertir_levantamiento_a_orden(levantamiento_original, cambios, usuario_act
         editados,
         campos_permitidos=CAMPOS_CONVERSION_EDITABLES,
     )
+
+    # Si durante la conversión recuperamos información faltante desde el ACO,
+    # la persistimos también en el LEV. Así corregimos el origen y evitamos que
+    # una conversión posterior vuelva a perder el correo/teléfono.
+    if contacto_recuperado:
+        if not correo_levantamiento and correo_resuelto:
+            campos_lev["lev_correo"] = correo_resuelto
+        if not telefono_levantamiento and telefono_resuelto:
+            campos_lev["lev_telefono"] = telefono_resuelto
+        logger.info(
+            "Datos de contacto recuperados para %s desde %s: correo=%s teléfono=%s",
+            folio_lev,
+            fuente_contacto,
+            bool(correo_resuelto),
+            bool(telefono_resuelto),
+        )
+
     campos_lev["lev_estatus"] = 2
     campos_lev["actualizado_por"] = usuario
 
