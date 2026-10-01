@@ -17,6 +17,7 @@ from services.levantamiento_compat import normalizar_registro_levantamiento
 
 from reportlab.lib import colors
 from reportlab.lib.units import inch
+from reportlab.graphics.shapes import Drawing, Path as DrawingPath
 from reportlab.platypus import (
     Image as RLImage,
     KeepTogether,
@@ -69,6 +70,103 @@ def _detail(registro: Mapping[str, Any]) -> dict[str, Any]:
     return dict(value) if isinstance(value, Mapping) else {}
 
 
+def _first_text(*values: Any) -> str:
+    for value in values:
+        if value is not None and str(value).strip():
+            return str(value).strip()
+    return ""
+
+
+def _signature_drawing_from_points(value: str, width: float, height: float):
+    """Convierte la firma vectorial de AXIA FIELD (x,y;|;x,y...) a Drawing."""
+    tokens = [t.strip() for t in str(value or "").split(";")]
+    strokes, current = [], []
+    for token in tokens:
+        if not token or token == "|":
+            if current:
+                strokes.append(current); current = []
+            continue
+        try:
+            x, y = token.split(",", 1)
+            current.append((float(x), float(y)))
+        except Exception:
+            continue
+    if current:
+        strokes.append(current)
+    points = [p for stroke in strokes for p in stroke]
+    if not points:
+        return None
+    min_x=min(x for x,_ in points); max_x=max(x for x,_ in points)
+    min_y=min(y for _,y in points); max_y=max(y for _,y in points)
+    span_x=max(max_x-min_x,1.0); span_y=max(max_y-min_y,1.0)
+    scale=min((width-8)/span_x,(height-8)/span_y)
+    ox=(width-span_x*scale)/2; oy=(height-span_y*scale)/2
+    drawing=Drawing(width,height)
+    for stroke in strokes:
+        if len(stroke)<2: continue
+        path=DrawingPath()
+        x0,y0=stroke[0]; path.moveTo(ox+(x0-min_x)*scale, height-(oy+(y0-min_y)*scale))
+        for x,y in stroke[1:]:
+            path.lineTo(ox+(x-min_x)*scale, height-(oy+(y-min_y)*scale))
+        path.strokeColor=colors.black; path.strokeWidth=1.6; path.fillColor=None
+        drawing.add(path)
+    return drawing
+
+
+def _append_vobo_cliente(story: list, registro: Mapping[str, Any], detail: Mapping[str, Any], width, normal, header) -> None:
+    """Añade al PDF el VoBo capturado por AXIA FIELD."""
+    # Versiones nuevas de FIELD guardan la firma en lev_firma_cliente.
+    # Compatibilidad: la versión que estrenó el resumen la enviaba por error
+    # como lev_firma_tecnico; sólo usamos ese fallback si proviene de FIELD.
+    firma = _first_text(
+        registro.get("lev_firma_cliente"), registro.get("lev_firma"),
+        detail.get("firma_cliente"), detail.get("firma_cliente_base64"),
+        detail.get("vobo_firma"), detail.get("vobo_firma_base64"),
+    )
+    if not firma and "AXIA FIELD" in str(registro.get("creado_por") or "").upper():
+        firma = _first_text(registro.get("lev_firma_tecnico"))
+    nombre = _first_text(
+        detail.get("vobo_nombre"), detail.get("nombre_autoriza"),
+        detail.get("nombre_cliente_firma"), detail.get("firmante_nombre"),
+        registro.get("lev_contacto"),
+    )
+    puesto = _first_text(detail.get("vobo_puesto"), detail.get("firmante_puesto"))
+    if not firma:
+        return
+
+    story.append(Spacer(1, 10))
+    story.append(_section_title("VoBo del cliente", width, header))
+    firma_obj = None
+    # FIELD actualmente almacena la firma como trazos vectoriales; DESKTOP
+    # también conserva soporte para firmas base64 de otras fuentes/versiones.
+    if ";" in firma and "," in firma:
+        firma_obj = _signature_drawing_from_points(firma, 1.85*inch, .72*inch)
+    if firma_obj is None:
+        try:
+            raw = firma.split(",", 1)[1] if firma.startswith("data:") and "," in firma else firma
+            firma_obj = RLImage(BytesIO(base64.b64decode(raw)), width=1.85*inch, height=.72*inch)
+        except Exception:
+            logger.warning("La firma de VoBo existe pero no pudo renderizarse como imagen base64.")
+
+    nombre_seguro = escape(nombre or "Cliente / encargado")
+    puesto_seguro = escape(puesto)
+    texto = f"<b>Revisado y autorizado por:</b> {nombre_seguro}"
+    if puesto_seguro:
+        texto += f"<br/><b>Puesto:</b> {puesto_seguro}"
+    leyenda = Paragraph(texto, normal)
+    contenido_firma = firma_obj or Paragraph("Firma registrada", normal)
+    tabla = Table([[leyenda, contenido_firma]], colWidths=[width - 2.15*inch, 2.15*inch], hAlign="LEFT")
+    tabla.setStyle(TableStyle([
+        ("BOX", (0,0), (-1,-1), .6, BORDER),
+        ("INNERGRID", (0,0), (-1,-1), .35, BORDER),
+        ("BACKGROUND", (0,0), (-1,-1), colors.white),
+        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+        ("LEFTPADDING", (0,0), (-1,-1), 8),
+        ("RIGHTPADDING", (0,0), (-1,-1), 8),
+        ("TOPPADDING", (0,0), (-1,-1), 7),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 7),
+    ]))
+    story.append(tabla)
 
 
 def _anotacion_plano_base64(registro: Mapping[str, Any]) -> str:
@@ -772,6 +870,7 @@ def generar_pdf_seguridad_instalacion(
     _append_anotacion_plano(story, registro, width, header)
     _append_archivos_adjuntos(story, registro, width, normal, header)
     _append_evidencias_fotograficas(story, registro, width, header)
+    _append_vobo_cliente(story, registro, detail, width, normal, header)
 
     title = "Levantamiento Seguridad y Monitoreo - Instalación"
     doc.title = f"AXIA - {title}"
@@ -1267,6 +1366,7 @@ def generar_pdf_levantamiento_maestro(
     _append_anotacion_plano(story, registro, width, header)
     _append_archivos_adjuntos(story, registro, width, normal, header)
     _append_evidencias_fotograficas(story, registro, width, header)
+    _append_vobo_cliente(story, registro, detail, width, normal, header)
 
     title = f"Levantamiento {tipo}" + (f" - {modalidad}" if modalidad else "")
     doc.title = f"AXIA - {title}"
