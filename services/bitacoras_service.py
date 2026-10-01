@@ -35,6 +35,41 @@ COLUMNAS_BITACORAS = "id_bitacora,id_sucursal,ot_id,bit_ot_folio,bit_aco_numero,
 # =====================================================
 # FUNCIÓN: crear_bitacora()
 # =====================================================
+def _cerrar_ot_por_avance_cien(datos_bitacora):
+    """Cierra automáticamente la OT cuando una bitácora registra 100% de avance."""
+    try:
+        pct = int(float(datos_bitacora.get("bit_porcentaje_avance") or 0))
+    except (TypeError, ValueError):
+        pct = 0
+    if pct < 100:
+        return False
+
+    ot_id = datos_bitacora.get("ot_id")
+    folio_ot = str(datos_bitacora.get("bit_ot_folio") or "").strip().upper()
+    if ot_id in (None, "") and not folio_ot:
+        logger.warning("Bitácora al 100%% sin OT asociada; no se puede cerrar automáticamente.")
+        return False
+
+    try:
+        from services.ordenes_trabajo_service import actualizar_orden_trabajo
+        resultado = None
+        if ot_id not in (None, ""):
+            resultado = actualizar_orden_trabajo(ot_id, {"ot_estatus": 3})
+        if not resultado and folio_ot:
+            resp = supabase.table("db_ordenes_trabajo").update({"ot_estatus": 3}).eq("ot_folio", folio_ot).execute()
+            resultado = list(getattr(resp, "data", None) or [])
+        if resultado is not None:
+            registrar_movimiento_seguro(
+                modulo="ORDENES_TRABAJO", accion="CIERRE_AUTOMATICO_100",
+                descripcion=f"OT {folio_ot or ot_id} cerrada automáticamente por bitácora al 100%.",
+                registro_afectado=folio_ot or ot_id,
+            )
+            return True
+    except Exception:
+        logger.exception("No fue posible cerrar automáticamente la OT %s al llegar al 100%%.", folio_ot or ot_id)
+    return False
+
+
 def crear_bitacora(datos_bitacora):
     """
     Crea una nueva bitácora operativa.
@@ -57,6 +92,11 @@ def crear_bitacora(datos_bitacora):
             descripcion="Creación de bitácora operativa",
             registro_afectado=datos_bitacora.get("bit_folio") or respuesta.data,
         )
+        # El 100% de avance es el cierre operativo de la OT. Se ejecuta
+        # después de confirmar la bitácora para no cerrar una OT si el registro
+        # de avance no quedó persistido.
+        if _cerrar_ot_por_avance_cien(datos_bitacora):
+            logger.info("OT %s cerrada automáticamente por bitácora al 100%%.", datos_bitacora.get("bit_ot_folio") or datos_bitacora.get("ot_id"))
         return respuesta.data
 
     except Exception as error:

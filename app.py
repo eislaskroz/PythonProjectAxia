@@ -52,6 +52,7 @@ from ui.app_sidebar import crear_app_sidebar
 
 from ui.assets import configurar_icono_ventana
 from ui.keyboard_navigation import install_keyboard_navigation
+from ui.responsive import install_responsive_shell
 
 from ui.colors import (
     CONTENT_BG,
@@ -97,7 +98,7 @@ class AxiaApp(ctk.CTk):
         """
 
         super().__init__()
-        aplicar_estilo_ventana(self, min_width=1180, min_height=720)
+        aplicar_estilo_ventana(self, min_width=1024, min_height=640)
 
         logger.info("Inicializando ventana principal AXIA.")
 
@@ -112,7 +113,7 @@ class AxiaApp(ctk.CTk):
         configurar_icono_ventana(self)
         self.after(100, self.maximizar_ventana)
         self.resizable(True, True)
-        self.minsize(1180, 720)
+        self.minsize(1024, 640)
         self.configure(fg_color=CONTENT_BG)
         install_keyboard_navigation(self)
 
@@ -378,6 +379,7 @@ class AxiaApp(ctk.CTk):
             "admin_obras_civiles": self.navigation.mostrar_admin_obras_civiles,
 
             "reportes": self.navigation.mostrar_reportes,
+            "direccion_general": self.navigation.mostrar_direccion_general,
             "usuarios": self.navigation.mostrar_usuarios,
             "clientes": self.navigation.mostrar_clientes,
             "auditoria": self.navigation.mostrar_auditoria,
@@ -394,6 +396,8 @@ class AxiaApp(ctk.CTk):
             on_exit=self.salir_aplicacion,
             on_logout=self.cerrar_sesion
         )
+        # Ajusta el shell al área real disponible (incluye escalado DPI de Windows).
+        install_responsive_shell(self, self.sidebar)
 
     # =====================================================
     # MÉTODOS DE COMPATIBILIDAD TEMPORAL

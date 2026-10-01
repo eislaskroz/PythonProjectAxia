@@ -244,7 +244,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
     contenedor.grid_rowconfigure(1, weight=0)
     contenedor.grid_columnconfigure(0, weight=1)
 
-    card = ctk.CTkScrollableFrame(contenedor, width=1280, height=520, fg_color=WHITE, corner_radius=18)
+    card = ctk.CTkScrollableFrame(contenedor, height=520, fg_color=WHITE, corner_radius=18)
     card.grid(row=0, column=0, sticky="nsew", pady=(0, 4))
     form = ctk.CTkFrame(card, fg_color="transparent")
     form.pack(fill="x", expand=True, padx=12, pady=(9, 4))

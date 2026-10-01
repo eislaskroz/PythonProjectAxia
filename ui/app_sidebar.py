@@ -66,6 +66,7 @@ from security.permissions import (
     puede_generar_orden_servicio,
     puede_ver_auditoria,
     puede_ver_reportes,
+    puede_ver_direccion_general,
     puede_ver_bitacoras_operativas,
 )
 
@@ -92,7 +93,7 @@ def _ruta_recurso_sidebar(nombre):
     base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent))
     return base / "assets" / nombre
 
-def _crear_fondo_sidebar(tipo, size=(260, 900)):
+def _crear_fondo_sidebar(tipo, size=(230, 900)):
     """Crea un wallpaper que cubre TODO el sidebar sin deformar la imagen.
 
     Se usa recorte tipo cover y un velo azul oscuro para que textos/botones
@@ -255,7 +256,7 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
 
     sidebar = ctk.CTkFrame(
         parent,
-        width=260,
+        width=230,
         fg_color=PRIMARY_DARK,
         corner_radius=0
     )
@@ -386,6 +387,13 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
             sidebar,
             "🧾 Órdenes de servicio",
             callback_os
+        )
+
+    if puede_ver_direccion_general(usuario_activo):
+        crear_boton_sidebar(
+            sidebar,
+            "📊 Dirección General",
+            callbacks["direccion_general"]
         )
 
     if puede_ver_reportes(usuario_activo):

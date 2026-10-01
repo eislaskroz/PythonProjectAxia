@@ -310,12 +310,15 @@ def mostrar_conversion_orden_servicio(parent, app):
                   lambda e: messagebox.showerror("Error", f"No fue posible consultar levantamientos.\n\n{e}"))
 
     def _capturar_cambios():
-        obligatorios = ("lev_cliente", "lev_contacto", "lev_direccion", "lev_supervisor", "lev_tecnico", "lev_tipo")
+        # El supervisor es una asignación operativa posterior y puede quedar
+        # pendiente en el LEV. El técnico sí debe identificar al usuario que
+        # realizó el levantamiento.
+        obligatorios = ("lev_cliente", "lev_contacto", "lev_direccion", "lev_tecnico", "lev_tipo")
         faltantes = [k for k in obligatorios if not vars_campos[k].get().strip()]
         if not txt_descripcion.get("1.0", "end").strip():
             faltantes.append("lev_descripcion")
         if faltantes:
-            raise ValueError("Completa cliente, contacto, dirección, supervisor, técnico, tipo y descripción.")
+            raise ValueError("Completa cliente, contacto, dirección, técnico, tipo y descripción. El supervisor puede quedar pendiente.")
         detalle_texto = txt_detalle.get("1.0", "end").strip()
         if detalle_texto:
             try:

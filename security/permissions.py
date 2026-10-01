@@ -123,6 +123,11 @@ def puede_ver_reportes(usuario_activo) -> bool:
     return obtener_tipo_usuario(usuario_activo) in ROLES_GESTION_OPERATIVA
 
 
+def puede_ver_direccion_general(usuario_activo) -> bool:
+    """Panel ejecutivo: reservado a Dirección General mediante rol Administrador."""
+    return _es_rol(usuario_activo, ADMINISTRADOR)
+
+
 def puede_ver_auditoria(usuario_activo) -> bool:
     """Login y bitácora de movimientos: exclusivamente Administrador."""
     return _es_rol(usuario_activo, ADMINISTRADOR)

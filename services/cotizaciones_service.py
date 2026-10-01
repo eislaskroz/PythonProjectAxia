@@ -45,7 +45,36 @@ def obtener_levantamientos_para_cotizar(limite: int = 200) -> list[dict]:
                        .limit(limite),
         )
         filas = list(respuesta.data or [])
+        # Una vez que Ventas finaliza una cotización, el levantamiento ya fue
+        # autorizado para el siguiente tramo y no debe seguir apareciendo en
+        # la bandeja de "Levantamientos preautorizados". Los borradores sí
+        # permanecen visibles para poder continuarlos.
         if filas:
+            try:
+                ids = [r.get("id_levantamiento") for r in filas if r.get("id_levantamiento") not in (None, "")]
+                folios = [str(r.get("lev_folio") or "").strip().upper() for r in filas if str(r.get("lev_folio") or "").strip()]
+                autorizados = set()
+                consulta_cot = supabase.table(TABLA_COTIZACIONES).select("id_levantamiento,lev_folio,cot_estatus")
+                if ids:
+                    resp_cot = consulta_cot.in_("id_levantamiento", ids).execute()
+                    for c in resp_cot.data or []:
+                        if str(c.get("cot_estatus") or "").strip().upper() in {ESTATUS_EN_COMPRA, ESTATUS_CONVERTIDA_OT}:
+                            autorizados.add(("id", str(c.get("id_levantamiento"))))
+                if folios:
+                    resp_cot = supabase.table(TABLA_COTIZACIONES).select("id_levantamiento,lev_folio,cot_estatus").in_("lev_folio", folios).execute()
+                    for c in resp_cot.data or []:
+                        if str(c.get("cot_estatus") or "").strip().upper() in {ESTATUS_EN_COMPRA, ESTATUS_CONVERTIDA_OT}:
+                            if c.get("id_levantamiento") not in (None, ""):
+                                autorizados.add(("id", str(c.get("id_levantamiento"))))
+                            if str(c.get("lev_folio") or "").strip():
+                                autorizados.add(("folio", str(c.get("lev_folio") or "").strip().upper()))
+                filas = [
+                    r for r in filas
+                    if ("id", str(r.get("id_levantamiento"))) not in autorizados
+                    and ("folio", str(r.get("lev_folio") or "").strip().upper()) not in autorizados
+                ]
+            except Exception:
+                logger.exception("No fue posible filtrar levantamientos ya autorizados mediante cotización.")
             return filas
         respaldo = execute_select_compatible(
             supabase,
@@ -54,6 +83,19 @@ def obtener_levantamientos_para_cotizar(limite: int = 200) -> list[dict]:
             lambda q: q.order("fecha_registro", desc=True).limit(max(limite * 3, 300)),
         )
         recuperados = [r for r in list(respaldo.data or []) if _esta_preautorizado_ventas(r)]
+        # En el respaldo también excluimos los LEV cuya cotización ya fue
+        # finalizada/autorizada. Los borradores continúan visibles.
+        try:
+            resp_cot = supabase.table(TABLA_COTIZACIONES).select("id_levantamiento,lev_folio,cot_estatus").in_("cot_estatus", [ESTATUS_EN_COMPRA, ESTATUS_CONVERTIDA_OT]).limit(max(limite * 3, 300)).execute()
+            ids_aut = {str(c.get("id_levantamiento")) for c in (resp_cot.data or []) if c.get("id_levantamiento") not in (None, "")}
+            folios_aut = {str(c.get("lev_folio") or "").strip().upper() for c in (resp_cot.data or []) if str(c.get("lev_folio") or "").strip()}
+            recuperados = [
+                r for r in recuperados
+                if str(r.get("id_levantamiento")) not in ids_aut
+                and str(r.get("lev_folio") or "").strip().upper() not in folios_aut
+            ]
+        except Exception:
+            logger.exception("No fue posible filtrar el respaldo de levantamientos ya autorizados mediante cotización.")
         recuperados.sort(
             key=lambda r: str(r.get("lev_fecha_validacion") or r.get("fecha_registro") or ""),
             reverse=True,

@@ -184,7 +184,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     # Card principal: queda reservado únicamente para la captura operativa.
     card = ctk.CTkScrollableFrame(
         contenedor,
-        width=1280,
         height=520,
         fg_color=WHITE,
         corner_radius=22
@@ -246,10 +245,21 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     tecnicos_disponibles = obtener_tecnicos_responsables()
     supervisores_disponibles = obtener_supervisores_formulario()
     encargados_proyecto_disponibles = obtener_encargados_proyecto_formulario()
-    if tecnicos_disponibles and not var_tecnico.get().strip():
-        var_tecnico.set(tecnicos_disponibles[0])
-    if supervisores_disponibles and not var_supervisor.get().strip():
-        var_supervisor.set(supervisores_disponibles[0])
+
+    # Un levantamiento nuevo queda asignado al usuario que lo está realizando.
+    # El supervisor NO se autoasigna: queda pendiente para la etapa operativa
+    # posterior (OT). Esto evita que todos los LEV hereden al primer supervisor
+    # del catálogo. En modo edición se conserva el valor persistido y el
+    # restaurador lo vuelve a cargar más abajo.
+    if not registro_editar and not borrador:
+        nombre_usuario = " ".join(filter(None, [
+            str(usuario_activo.get("nombre") or "").strip(),
+            str(usuario_activo.get("apellido") or "").strip(),
+        ])).strip() or str(usuario_activo.get("usuario") or "").strip()
+        if nombre_usuario:
+            var_tecnico.set(nombre_usuario)
+        var_supervisor.set("")
+
     if encargados_proyecto_disponibles and not var_encargado_proyecto.get().strip():
         var_encargado_proyecto.set(encargados_proyecto_disponibles[0])
 

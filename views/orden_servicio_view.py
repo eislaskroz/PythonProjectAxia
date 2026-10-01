@@ -24,9 +24,10 @@ from services.aco_context_service import normalizar_datos_aco
 from services.acos_service import buscar_aco_por_numero
 from services.folios_service import generar_siguiente_folio
 from services.usuarios_service import obtener_supervisores_formulario, obtener_nombres_usuarios_por_tipos
+from services.sucursales_service import obtener_contactos_por_sucursal
 from services.ordenes_servicio_service import (
     crear_orden_servicio, buscar_orden_por_folio, actualizar_orden_servicio,
-    obtener_contextos_aco_disponibles_cierre,
+    obtener_contextos_aco_disponibles_cierre, _cerrar_ot_por_os_completa,
 )
 from services.bitacora_evidencias_service import subir_evidencias_orden_servicio
 from security.permissions import puede_generar_orden_servicio
@@ -85,6 +86,10 @@ def mostrar_orden_servicio(parent, app, aco=None):
     var_eval_otro = ctk.StringVar(value="No aplica")
     var_firma_cliente = ctk.StringVar()
     var_estado_firma = ctk.StringVar(value="Sin firma")
+    # Datos de quien firma por parte del cliente. El nombre parte del contacto/encargado
+    # del ACO y el puesto se obtiene del catálogo de contactos de la sucursal.
+    var_firmante_nombre = ctk.StringVar(value=datos_aco.get("contacto", ""))
+    var_firmante_puesto = ctk.StringVar()
 
     var_tipo_servicio = ctk.StringVar(value=datos_aco.get("tipo_servicio", ""))
     encargados_disponibles = obtener_nombres_usuarios_por_tipos([2, 3, 4])
@@ -99,7 +104,7 @@ def mostrar_orden_servicio(parent, app, aco=None):
     contenedor.grid_rowconfigure(1, weight=0)
     contenedor.grid_columnconfigure(0, weight=1)
 
-    card = ctk.CTkScrollableFrame(contenedor, width=1280, fg_color=WHITE, corner_radius=18)
+    card = ctk.CTkScrollableFrame(contenedor, fg_color=WHITE, corner_radius=18)
     card.grid(row=0, column=0, sticky="nsew", pady=(0, 4))
     form = ctk.CTkFrame(card, fg_color="transparent")
     form.pack(fill="x", expand=True, padx=12, pady=(9, 4))
@@ -168,6 +173,28 @@ def mostrar_orden_servicio(parent, app, aco=None):
                 tecnicos_seleccionados.append(nombre)
         var_tecnicos.set(" | ".join(tecnicos_seleccionados))
 
+    def cargar_datos_firmante():
+        """Sincroniza nombre y puesto del encargado que autoriza/firma la OS."""
+        nombre = str(var_encargado_general.get() or datos_aco.get("contacto") or "").strip()
+        var_firmante_nombre.set(nombre)
+        var_firmante_puesto.set("")
+        id_sucursal = datos_aco.get("id_sucursal")
+        id_contacto = datos_aco.get("id_contacto")
+        if not id_sucursal:
+            return
+        try:
+            contactos = obtener_contactos_por_sucursal(id_sucursal) or []
+            elegido = None
+            if id_contacto not in (None, ""):
+                elegido = next((c for c in contactos if str(c.get("con_id")) == str(id_contacto)), None)
+            if elegido is None and nombre:
+                elegido = next((c for c in contactos if str(c.get("con_nombre") or "").strip().casefold() == nombre.casefold()), None)
+            if elegido:
+                var_firmante_nombre.set(str(elegido.get("con_nombre") or nombre).strip())
+                var_firmante_puesto.set(str(elegido.get("con_puesto") or "").strip())
+        except Exception:
+            logger.exception("No fue posible recuperar nombre/puesto del firmante de la OS.")
+
     def cargar_aco(numero=None):
         nonlocal datos_aco, os_existente, contexto_cierre
         numero = str(numero or var_aco.get() or "").strip().upper()
@@ -190,12 +217,31 @@ def mostrar_orden_servicio(parent, app, aco=None):
         var_solicitante.set(contacto)
         var_correo.set(datos_aco.get("correo", ""))
         var_celular.set(datos_aco.get("telefono", ""))
+        cargar_datos_firmante()
         if os_existente:
             var_folio.set(str(os_existente.get("os_folio") or var_folio.get()))
             var_tipo_servicio.set(str(os_existente.get("os_tipo_servicio") or datos_aco.get("tipo_servicio", "")))
             var_supervisor.set(str(os_existente.get("os_supervisor") or datos_aco.get("supervisor", "")))
             var_encargado_servicio.set(str(os_existente.get("os_encargado_servicio") or ""))
             _cargar_tecnicos_desde_texto(os_existente.get("os_tecnicos") or os_existente.get("os_tecnico"))
+            # Las horas deben cargarse desde la OS existente. Si la OS antigua
+            # quedó vacía pero ya existe una Bitácora Operativa con horarios,
+            # usamos esa información como respaldo para no obligar al usuario
+            # a recapturarla manualmente.
+            var_hora_llegada.set(str(os_existente.get("os_hora_llegada") or ""))
+            var_hora_salida.set(str(os_existente.get("os_hora_salida") or ""))
+            if not var_hora_llegada.get().strip() or not var_hora_salida.get().strip():
+                try:
+                    from services.bitacoras_service import obtener_bitacoras_por_ot
+                    folio_ot = str(contexto_cierre.get("ot_folio") or os_existente.get("os_folio_ot") or "").strip().upper()
+                    bitacoras = obtener_bitacoras_por_ot(folio_ot) if folio_ot else []
+                    bit_con_horas = next((b for b in bitacoras if (b.get("bit_hora_llegada") or b.get("bit_hora_salida"))), {})
+                    if not var_hora_llegada.get().strip():
+                        var_hora_llegada.set(str(bit_con_horas.get("bit_hora_llegada") or ""))
+                    if not var_hora_salida.get().strip():
+                        var_hora_salida.set(str(bit_con_horas.get("bit_hora_salida") or ""))
+                except Exception:
+                    logger.exception("No fue posible recuperar horarios de Bitácora para la OS %s.", var_folio.get())
         else:
             tipo = datos_aco.get("tipo_servicio", "")
             if tipo in TIPOS_SERVICIO:
@@ -344,7 +390,9 @@ def mostrar_orden_servicio(parent, app, aco=None):
     eval_compacta("Otro", var_eval_otro, 3)
 
     seccion("Firma del Cliente", 14)
-    c_firma = celda(15, 0, 5)
+    entry("Nombre del encargado", var_firmante_nombre, fila=15, col=0, required=True)
+    entry("Puesto", var_firmante_puesto, fila=15, col=1, required=True)
+    c_firma = celda(16, 0, 5)
     ctk.CTkLabel(c_firma, textvariable=var_estado_firma, font=SMALL_FONT, text_color=TEXT_SECONDARY).pack(side="left", padx=(0, 5))
     ctk.CTkButton(c_firma, text="✍ Capturar firma", width=160, height=32, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=lambda: firmar_en_popup(parent, var_firma_cliente, actualizar_firma)).pack(side="left")
 
@@ -380,7 +428,8 @@ def mostrar_orden_servicio(parent, app, aco=None):
             "Celular": var_celular.get(), "Hora de Llegada": var_hora_llegada.get(), "Hora de Salida": var_hora_salida.get(),
             "Tipo de Servicio": var_tipo_servicio.get(), "Supervisor": var_supervisor.get(), "Encargado Servicio": var_encargado_servicio.get(),
             "Técnicos": var_tecnicos.get(), "Descripción": obtener_textbox(txt_descripcion), "Observaciones": "", "Evidencia Fotográfica": list(evidencias_locales),
-            "Trato y actitud": var_eval_trato.get(), "Habilidades y conocimientos": var_eval_habilidades.get(), "Velocidad y calidad": var_eval_velocidad.get(), "Otro": var_eval_otro.get()
+            "Trato y actitud": var_eval_trato.get(), "Habilidades y conocimientos": var_eval_habilidades.get(), "Velocidad y calidad": var_eval_velocidad.get(), "Otro": var_eval_otro.get(),
+            "Nombre del encargado firmante": var_firmante_nombre.get(), "Puesto del encargado firmante": var_firmante_puesto.get()
         }
 
     def preview_pdf():
@@ -408,7 +457,9 @@ def mostrar_orden_servicio(parent, app, aco=None):
             "os_tipo_servicio": var_tipo_servicio.get().strip(), "os_supervisor": var_supervisor.get().strip(), "os_encargado_servicio": var_encargado_servicio.get().strip(),
             "os_tecnicos": var_tecnicos.get().strip(), "os_tecnico": var_tecnicos.get().strip(), "os_descripcion": obtener_textbox(txt_descripcion), "os_observaciones": "", "os_fotos": [],
             "os_equipos_json": json.dumps(equipos_db, ensure_ascii=False), "os_eval_trato": var_eval_trato.get(), "os_eval_habilidades": var_eval_habilidades.get(),
-            "os_eval_velocidad": var_eval_velocidad.get(), "os_eval_otro": var_eval_otro.get(), "os_firma_cliente": var_firma_cliente.get(), "os_estatus": 1, "os_prioridad": 2,
+            # La OS se guarda primero como "En proceso". Sólo pasa a 100%/
+            # finalizada después de confirmar el cierre automático de su OT.
+            "os_eval_velocidad": var_eval_velocidad.get(), "os_eval_otro": var_eval_otro.get(), "os_firma_cliente": var_firma_cliente.get(), "os_estatus": 2, "os_prioridad": 2,
             "creado_por": usuario_activo.get("usuario")
         }
         id_os_existente = os_existente.get("id_orden") if os_existente else None
@@ -428,6 +479,15 @@ def mostrar_orden_servicio(parent, app, aco=None):
                     aviso_fotos = f"\n\nLa orden se guardó, pero no se pudieron subir todas las fotografías:\n{error}"
             accion = "ACTUALIZAR" if id_os_existente else "CREAR"
             registrar_movimiento(modulo="Órdenes de Servicio", accion=accion, descripcion=f"El usuario guardó la orden {folio}", registro_afectado=folio)
+            # Al guardar una OS completa se considera que el servicio llegó al
+            # 100%. Cerramos automáticamente la OT de origen para evitar que
+            # quede abierta después de la documentación final del servicio.
+            id_orden_resultado = id_os_existente or ((resultado[0] if isinstance(resultado, list) and resultado else {}) or {}).get("id_orden")
+            cierre_ot = _cerrar_ot_por_os_completa({**datos, "os_folio": folio, "id_orden": id_orden_resultado}, usuario_activo)
+            if cierre_ot and id_orden_resultado:
+                actualizar_orden_servicio(id_orden_resultado, {"os_estatus": 3, "actualizado_por": usuario_activo.get("usuario")})
+            elif not cierre_ot:
+                logger.warning("La OS %s se guardó, pero no fue posible confirmar el cierre automático de su OT; la OS permanece En proceso.", folio)
             datos_pdf_final = datos_pdf()
             datos_pdf_final["Evidencia Fotográfica"] = fotos_subidas if fotos_subidas else list(evidencias_locales)
             ruta_pdf = generar_pdf_archivo("Orden de Servicio", datos_pdf_final, nombre_archivo=folio, subcarpeta="ordenes_servicio", secciones_tabla=secciones_equipos_pdf(), firma_base64=var_firma_cliente.get())

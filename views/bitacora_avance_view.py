@@ -75,7 +75,7 @@ def mostrar_bitacora_avance(parent, app, aco=None):
         acos_disponibles.insert(0, var_aco.get())
     tecnicos = obtener_nombres_usuarios_por_tipos([4])
 
-    card = ctk.CTkScrollableFrame(contenedor, width=1280, fg_color=WHITE, corner_radius=18)
+    card = ctk.CTkScrollableFrame(contenedor, fg_color=WHITE, corner_radius=18)
     card.grid(row=0, column=0, sticky="nsew", pady=(0, 4))
     form = ctk.CTkFrame(card, fg_color="transparent")
     form.pack(fill="x", expand=True, padx=12, pady=(9, 4))

@@ -530,12 +530,19 @@ def _generar_pdf_orden_servicio_axia(datos, firma_base64=None, ruta_salida=None,
         except Exception:
             firma_flow = None
     firma_content = firma_flow or p("", center)
-    firma = Table([[firma_content], [p("FIRMA CLIENTE / ENCARGADO", center)]], colWidths=[2.0*inch], rowHeights=[0.68*inch, 0.24*inch])
+    firmante_nombre = text("Nombre del encargado firmante", "Encargado")
+    firmante_puesto = text("Puesto del encargado firmante")
+    leyenda_firma = "FIRMA CLIENTE / ENCARGADO"
+    if firmante_nombre:
+        leyenda_firma += f"<br/><b>{html_escape(firmante_nombre)}</b>"
+    if firmante_puesto:
+        leyenda_firma += f"<br/>{html_escape(firmante_puesto)}"
+    firma = Table([[firma_content], [Paragraph(leyenda_firma, center)]], colWidths=[2.55*inch], rowHeights=[0.68*inch, None])
     firma.setStyle(TableStyle([
         ("BOX", (0,0), (-1,-1), 0.55, BORDER), ("ALIGN", (0,0), (-1,-1), "CENTER"),
         ("VALIGN", (0,0), (-1,-1), "MIDDLE"), ("TOPPADDING", (0,0), (-1,-1), 2), ("BOTTOMPADDING", (0,0), (-1,-1), 2),
     ]))
-    firma_wrap = Table([["", firma, ""]], colWidths=[2.45*inch, 2.0*inch, 2.45*inch])
+    firma_wrap = Table([["", firma, ""]], colWidths=[2.175*inch, 2.55*inch, 2.175*inch])
     firma_wrap.setStyle(TableStyle([("ALIGN", (1,0), (1,0), "CENTER"), ("VALIGN", (0,0), (-1,-1), "TOP")]))
     story.append(firma_wrap)
 

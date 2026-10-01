@@ -40,7 +40,7 @@ from security.permissions import (
     puede_generar_levantamiento,
     puede_generar_bitacora,
     puede_ver_auditoria,
-    puede_ver_reportes,
+    puede_ver_reportes, puede_ver_direccion_general,
     puede_ver_bitacoras_operativas,
 )
 
@@ -756,6 +756,22 @@ class NavigationController:
                 "buscar_por_folio": buscar_obra_civil_por_folio,
             }
         )
+
+    # =================================================
+    # VISTA: DIRECCIÓN GENERAL
+    # =================================================
+    def mostrar_direccion_general(self):
+        if not self._verificar_permiso(
+            puede_ver_direccion_general,
+            "Esta sección está reservada para Dirección General / Administrador.",
+        ):
+            return
+        self._registrar_vista("mostrar_direccion_general")
+        logger.info("Cargando vista: Dirección General")
+        self.limpiar_contenido()
+        self.cambiar_titulo("Dirección General", "Control ejecutivo del ciclo operacional completo.")
+        from views.direccion_general_view import mostrar_direccion_general
+        mostrar_direccion_general(parent=self.content, app=self.app)
 
     # =================================================
     # VISTA: REPORTES ADMINISTRATIVOS

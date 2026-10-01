@@ -813,6 +813,36 @@ def buscar_orden_servicio_por_ot(folio_ot=None, ot_id=None):
         raise RuntimeError("No fue posible comprobar si la Orden de Trabajo ya tiene una Orden de Servicio.") from error
 
 
+def _cerrar_ot_por_os_completa(orden_servicio, usuario_activo=None):
+    """Cierra la OT cuando la OS fue completada y guardada con todos sus requisitos."""
+    os = dict(orden_servicio or {})
+    folio_ot = str(os.get("os_folio_ot") or "").strip().upper()
+    ot_id = os.get("ot_id")
+    if ot_id in (None, "") and not folio_ot:
+        return False
+    usuario = str((usuario_activo or {}).get("usu_nickname") or (usuario_activo or {}).get("usuario") or "Administrativo")
+    try:
+        from services.ordenes_trabajo_service import actualizar_orden_trabajo
+        resultado = None
+        if ot_id not in (None, ""):
+            resultado = actualizar_orden_trabajo(ot_id, {"ot_estatus": 3})
+        if not resultado and folio_ot:
+            resp = supabase.table("db_ordenes_trabajo").update({"ot_estatus": 3}).eq("ot_folio", folio_ot).execute()
+            resultado = list(getattr(resp, "data", None) or [])
+        # Sólo confirmamos el cierre si Supabase devolvió al menos una fila
+        # actualizada. Una lista vacía NO significa cierre exitoso.
+        if resultado:
+            registrar_movimiento_seguro(
+                modulo="ORDENES_TRABAJO", accion="CIERRE_AUTOMATICO_OS",
+                descripcion=f"OT {folio_ot or ot_id} cerrada automáticamente al completar la Orden de Servicio {os.get('os_folio') or ''}.",
+                registro_afectado=folio_ot or ot_id,
+            )
+            return True
+    except Exception:
+        logger.exception("No fue posible cerrar automáticamente la OT %s al completar la OS.", folio_ot or ot_id)
+    return False
+
+
 def convertir_orden_trabajo_a_servicio(orden_trabajo, usuario_activo=None):
     """Crea la OS final desde una OT. La Bitácora Operativa es opcional."""
     ot = dict(orden_trabajo or {})
@@ -854,6 +884,11 @@ def convertir_orden_trabajo_a_servicio(orden_trabajo, usuario_activo=None):
         "os_supervisor": ot.get("ot_supervisor"),
         "os_fecha": bit.get("bit_fecha") or ot.get("ot_fecha"),
         "os_fecha_programada": ot.get("ot_fecha"),
+        # Las horas reales de operación nacen en la Bitácora Operativa.
+        # Al convertir OT -> OS deben viajar a la OS para que queden
+        # disponibles tanto en el formulario como en el PDF.
+        "os_hora_llegada": bit.get("bit_hora_llegada"),
+        "os_hora_salida": bit.get("bit_hora_salida"),
         "os_tipo_servicio": ot.get("ot_asunto") or "Servicio",
         "os_encargado_servicio": ot.get("ot_jefe_operacion"),
         "os_tecnicos": ot.get("ot_esi"),
