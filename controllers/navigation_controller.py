@@ -55,7 +55,7 @@ from security.permissions import (
 # IMPORTACIÓN DE RECURSOS VISUALES
 # =====================================================
 
-from ui.colors import WHITE
+from ui.colors import WHITE, TEXT_MUTED
 
 # =====================================================
 # IMPORTACIÓN DE LOGGER CENTRAL

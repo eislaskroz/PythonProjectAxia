@@ -39,11 +39,18 @@ class ThemeManager:
     SECONDARY = "#0369F8"
     BACKGROUND = "#F4F6F8"
     SURFACE = "#FFFFFF"
+    SURFACE_SOFT = "#F8FAFC"
+    SURFACE_MUTED = "#F1F5F9"
+    PRIMARY_50 = "#EEF2FF"
+    PRIMARY_100 = "#E0E7FF"
+    PRIMARY_700 = "#1E3A8A"
     TEXT_PRIMARY = "#111827"
     TEXT_SECONDARY = "#6B7280"
-    BORDER = "#B8C4D1"
-    INPUT_BACKGROUND = "#EEF2F6"
-    TEXTBOX_BACKGROUND = "#EEF2F6"
+    TEXT_MUTED = "#94A3B8"
+    DIVIDER = "#E2E8F0"
+    BORDER = "#CBD5E1"
+    INPUT_BACKGROUND = "#FFFFFF"
+    TEXTBOX_BACKGROUND = "#FFFFFF"
     BUTTON_HOVER = "#1D4ED8"
     SUCCESS = "#16A34A"
     WARNING = "#F59E0B"
@@ -81,12 +88,6 @@ class ThemeManager:
                 ctk.set_default_color_theme("blue")
             ctk.set_widget_scaling(cls.WIDGET_SCALING)
             ctk.set_window_scaling(cls.WINDOW_SCALING)
-
-            # FIX9: campos de captura visualmente homologados.
-            # Algunos formularios aún declaran corner_radius localmente; este
-            # parche central obliga a que CTkEntry/CTkTextbox sean cuadrados
-            # sin tocar botones, tarjetas ni otros controles.
-            cls._aplicar_campos_cuadrados()
         except Exception:
             # Si por alguna razón falla el tema personalizado, la app no debe detenerse.
             try:
@@ -94,21 +95,6 @@ class ThemeManager:
                 ctk.set_default_color_theme("blue")
             except Exception:
                 logger.debug("Excepción recuperable controlada.", exc_info=True)
-
-    @classmethod
-    def _aplicar_campos_cuadrados(cls) -> None:
-        """Fuerza CTkEntry y CTkTextbox con esquinas cuadradas en toda AXIA."""
-        for widget_cls in (ctk.CTkEntry, ctk.CTkTextbox):
-            if getattr(widget_cls, "_axia_square_inputs", False):
-                continue
-            original_init = widget_cls.__init__
-
-            def _init_cuadrado(self, *args, __orig=original_init, **kwargs):
-                kwargs["corner_radius"] = 0
-                return __orig(self, *args, **kwargs)
-
-            widget_cls.__init__ = _init_cuadrado
-            widget_cls._axia_square_inputs = True
 
     @classmethod
     def apply_native_tk_theme(cls, root=None) -> None:
@@ -157,19 +143,35 @@ class ThemeManager:
                     background=cls.SURFACE,
                     fieldbackground=cls.SURFACE,
                     foreground=cls.TEXT_PRIMARY,
-                    rowheight=28,
-                    bordercolor=cls.BORDER,
-                    lightcolor=cls.BORDER,
-                    darkcolor=cls.BORDER,
+                    rowheight=32,
+                    bordercolor=cls.DIVIDER,
+                    lightcolor=cls.DIVIDER,
+                    darkcolor=cls.DIVIDER,
+                    borderwidth=0,
                 )
                 style.configure(
                     "Treeview.Heading",
                     font=(cls.FONT_FAMILY, cls.BASE_FONT_SIZE, "bold"),
                     background=cls.PRIMARY_DARK,
                     foreground="#FFFFFF",
+                    padding=(10, 8),
+                    bordercolor=cls.PRIMARY_700,
+                    lightcolor=cls.PRIMARY_700,
+                    darkcolor=cls.PRIMARY_700,
+                    borderwidth=0,
                 )
                 style.map("Treeview", background=[("selected", cls.PRIMARY)], foreground=[("selected", "#FFFFFF")])
-                style.configure("TCombobox", fieldbackground=cls.SURFACE, background=cls.SURFACE)
+                style.map("Treeview.Heading", background=[("active", cls.PRIMARY_700)])
+                # Zebra striping: filas pares con fondo suave para mejorar lectura.
+                try:
+                    root.option_add("*TCombobox*Listbox*Background", cls.SURFACE)
+                    root.option_add("*TCombobox*Listbox*Foreground", cls.TEXT_PRIMARY)
+                    root.option_add("*TCombobox*Listbox*Font", (cls.FONT_FAMILY, cls.BASE_FONT_SIZE))
+                    root.option_add("*TCombobox*Listbox*selectBackground", cls.PRIMARY)
+                    root.option_add("*TCombobox*Listbox*selectForeground", "#FFFFFF")
+                except Exception:
+                    pass
+                style.configure("TCombobox", fieldbackground=cls.SURFACE, background=cls.SURFACE, padding=4, bordercolor=cls.DIVIDER, lightcolor=cls.DIVIDER, darkcolor=cls.DIVIDER, borderwidth=1)
             except Exception:
                 logger.debug("Excepción recuperable controlada.", exc_info=True)
 

@@ -33,6 +33,22 @@ class NativeTreeTable(ttk.Frame):
         self.hscroll = ttk.Scrollbar(self, orient="horizontal", command=self.tree.xview)
         self.tree.configure(yscrollcommand=self.vscroll.set, xscrollcommand=self.hscroll.set)
 
+        style = ttk.Style()
+        style.theme_use("clam")
+        style.configure("AXIA.Treeview", background="#F8FAFC", foreground="#0F172A",
+                        fieldbackground="#F8FAFC", rowheight=28, borderwidth=0, relief="flat")
+        style.map("AXIA.Treeview", background=[("selected", "#2563EB")],
+                  foreground=[("selected", "#FFFFFF")])
+        style.configure("AXIA.Treeview.Heading", background="#0F172A", foreground="#FFFFFF",
+                        relief="flat", padding=(10, 8), borderwidth=0,
+                        font=("Segoe UI Semibold", 10))
+        style.map("AXIA.Treeview.Heading", background=[("active", "#1E293B")])
+        style.configure("Vertical.TScrollbar", troughcolor="#EEF4FF", background="#5B8DEF",
+                        arrowcolor="#0F172A", borderwidth=0)
+        style.configure("Horizontal.TScrollbar", troughcolor="#EEF4FF", background="#5B8DEF",
+                        arrowcolor="#0F172A", borderwidth=0)
+        self.tree.configure(style="AXIA.Treeview")
+
         self.tree.grid(row=0, column=0, sticky="nsew")
         self.vscroll.grid(row=0, column=1, sticky="ns")
         self.hscroll.grid(row=1, column=0, sticky="ew")
@@ -74,7 +90,7 @@ class NativeTreeTable(ttk.Frame):
             self._payloads[iid] = row
             if index % 2:
                 self.tree.item(iid, tags=("alternate",))
-        self.tree.tag_configure("alternate", background="#F5F7FA")
+        self.tree.tag_configure("alternate", background="#F3F8FF")
 
     def selected_payload(self) -> dict[str, Any] | None:
         selection = self.tree.selection()

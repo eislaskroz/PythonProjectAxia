@@ -55,15 +55,31 @@ from ui.keyboard_navigation import install_keyboard_navigation
 from ui.responsive import install_responsive_shell
 
 from ui.colors import (
+    PRIMARY,
+    PRIMARY_50,
+    PRIMARY_500,
+    SECONDARY,
+    WHITE,
     CONTENT_BG,
     TEXT_PRIMARY,
-    TEXT_SECONDARY
+    TEXT_SECONDARY,
+    TEXT_MUTED,
+    SURFACE,
+    SURFACE_SOFT,
+    DIVIDER,
+    RING,
+    CARD_BORDER,
 )
-
 from ui.fonts import (
+    FONT_FAMILY,
     TITLE_LG,
-    TEXT_MD
+    TITLE_MD,
+    TEXT_MD,
+    TEXT_SM,
+    TEXT_XS,
+    BUTTON_FONT,
 )
+from core.version import APP_VERSION
 
 # =====================================================
 # IMPORTACIÓN DE LOGGER CENTRAL
@@ -265,8 +281,8 @@ class AxiaApp(ctk.CTk):
         Crea el área derecha de la aplicación.
 
         Incluye:
-        - Encabezado superior.
-        - Frame dinámico donde se cargan las vistas.
+        - Encabezado superior (fila 0, peso 0, altura fija).
+        - Frame dinámico donde se cargan las vistas (fila 1, peso 1, expansible).
         """
 
         self.main_area = ctk.CTkFrame(
@@ -280,9 +296,8 @@ class AxiaApp(ctk.CTk):
             sticky="nsew"
         )
 
-        # La zona superior de título/subtítulo se elimina para recuperar espacio útil.
-        # Se conservan labels internos no visibles porque NavigationController los actualiza.
-        self.main_area.grid_rowconfigure(0, weight=1)
+        self.main_area.grid_rowconfigure(0, weight=0)
+        self.main_area.grid_rowconfigure(1, weight=1)
         self.main_area.grid_columnconfigure(0, weight=1)
 
         self.crear_header()
@@ -294,39 +309,168 @@ class AxiaApp(ctk.CTk):
     def crear_header(self):
         """
         Crea el encabezado superior de la aplicación.
+
+        Versión visual mejorada: tarjeta blanca elevada, con título,
+        subtítulo, breadcrumb decorativo y separadores.
         """
 
-        self.header = ctk.CTkFrame(
+        # Marco superior SIN altura fija → se ajusta al contenido (no corta)
+        self.header_outer = ctk.CTkFrame(
             self.main_area,
-            height=92,
             fg_color=CONTENT_BG,
-            corner_radius=0
+            corner_radius=0,
         )
-        # No se muestra con grid: queda como contenedor lógico invisible.
-        self.header.pack_propagate(False)
+        self.header_outer.grid(row=0, column=0, sticky="nsew", padx=14, pady=(12, 4))
+
+        # Tarjeta blanca interior con apariencia "elevada"  — SIN pack_propagate(False)
+        self.header = ctk.CTkFrame(
+            self.header_outer,
+            corner_radius=16,
+            fg_color=SURFACE,
+            border_width=1,
+            border_color=CARD_BORDER,
+        )
+        self.header.pack(fill="both", expand=True, padx=0, pady=0)
+
+        # Banda de acento superior
+        accent_strip = ctk.CTkFrame(
+            self.header,
+            height=4,
+            corner_radius=4,
+            fg_color=PRIMARY,
+            border_width=0,
+        )
+        accent_strip.pack(fill="x", padx=16, pady=(12, 0))
+
+        # Glifo decorativo central
+        accent_dot = ctk.CTkFrame(
+            accent_strip,
+            width=4,
+            height=4,
+            corner_radius=100,
+            fg_color=WHITE,
+            border_width=0,
+        )
+        accent_dot.place(relx=0.5, rely=0.5, anchor="center")
+
+        # Fila central: título / subtítulo + breadcrumb decorativo
+        # SIN pack_propagate → se ajusta al contenido y no corta nada.
+        header_body = ctk.CTkFrame(self.header, fg_color="transparent")
+        header_body.pack(fill="both", padx=22, pady=(10, 14))
+
+        left_block = ctk.CTkFrame(header_body, fg_color="transparent")
+        left_block.pack(side="left", fill="both", expand=True)
+
+        # Breadcrumb decorativo (no funcional, solo contexto visual)
+        label_breadcrumb = ctk.CTkLabel(
+            left_block,
+            text="◎  AXIA  /  Panel  /  Vista actual",
+            font=TEXT_XS,
+            text_color=TEXT_MUTED,
+            anchor="w",
+        )
+        label_breadcrumb.pack(fill="x", anchor="w", pady=(0, 2))
+        self.breadcrumb_label = label_breadcrumb
 
         self.label_titulo = ctk.CTkLabel(
-            self.header,
+            left_block,
             text="Sistema AXIA",
             font=TITLE_LG,
-            text_color=TEXT_PRIMARY
+            text_color=TEXT_PRIMARY,
+            anchor="w",
         )
-        self.label_titulo.pack(
-            anchor="center",
-            padx=18,
-            pady=(9, 1)
-        )
+        self.label_titulo.pack(fill="x", anchor="w", pady=(0, 1))
 
         self.label_subtitulo = ctk.CTkLabel(
-            self.header,
+            left_block,
             text="Gestión operativa centralizada",
-            font=TEXT_MD,
-            text_color=TEXT_SECONDARY
+            font=TEXT_SM,
+            text_color=TEXT_SECONDARY,
+            anchor="w",
         )
-        self.label_subtitulo.pack(
-            anchor="center",
-            padx=18
+        self.label_subtitulo.pack(fill="x", anchor="w")
+
+        # Bloque derecho decorativo: tarjeta de estado + fecha
+        right_block = ctk.CTkFrame(header_body, fg_color="transparent")
+        right_block.pack(side="right", fill="y")
+
+        # Tarjeta de estado superior
+        status_card = ctk.CTkFrame(
+            right_block,
+            corner_radius=12,
+            fg_color=PRIMARY_50,
+            border_width=1,
+            border_color=RING,
         )
+        status_card.pack(fill="x", pady=(0, 6))
+
+        status_row = ctk.CTkFrame(status_card, fg_color="transparent")
+        status_row.pack(fill="x", padx=10, pady=6)
+
+        status_dot = ctk.CTkFrame(
+            status_row,
+            width=8,
+            height=8,
+            corner_radius=100,
+            fg_color=PRIMARY,
+            border_width=0,
+        )
+        status_dot.pack(side="left", padx=(0, 6), pady=2)
+
+        status_label = ctk.CTkLabel(
+            status_row,
+            text="Conectado a Supabase",
+            text_color=PRIMARY,
+            font=(FONT_FAMILY, 10, "bold"),
+            anchor="w",
+        )
+        status_label.pack(side="left", fill="x", expand=True)
+
+        env_tag = ctk.CTkFrame(
+            status_row,
+            corner_radius=100,
+            fg_color=PRIMARY,
+            border_width=0,
+        )
+        env_tag.pack(side="right")
+        env_lbl = ctk.CTkLabel(
+            env_tag,
+            text="  DESARROLLO  ",
+            text_color=WHITE,
+            font=(FONT_FAMILY, 8, "bold"),
+        )
+        env_lbl.pack()
+
+        # Tarjeta secundaria: hora / fecha
+        import datetime as _dt
+        fecha_texto = _dt.datetime.now().strftime("%A, %d de %B · %H:%M")
+        info_card = ctk.CTkFrame(
+            right_block,
+            corner_radius=12,
+            fg_color=SURFACE_SOFT,
+            border_width=1,
+            border_color=DIVIDER,
+        )
+        info_card.pack(fill="x", pady=0)
+        info_row = ctk.CTkFrame(info_card, fg_color="transparent")
+        info_row.pack(fill="x", padx=10, pady=6)
+
+        calendar_label = ctk.CTkLabel(
+            info_row,
+            text="📅  " + fecha_texto,
+            text_color=TEXT_PRIMARY,
+            font=(FONT_FAMILY, 10),
+            anchor="w",
+        )
+        calendar_label.pack(side="left", fill="x", expand=True)
+
+        version_tag = ctk.CTkLabel(
+            info_row,
+            text="v" + APP_VERSION,
+            text_color=TEXT_MUTED,
+            font=(FONT_FAMILY, 9),
+        )
+        version_tag.pack(side="right")
 
     # =====================================================
     # MÉTODO: crear_area_contenido()
@@ -335,18 +479,54 @@ class AxiaApp(ctk.CTk):
         """
         Crea el frame donde NavigationController cargará
         las vistas dinámicas.
+
+        Versión visual mejorada: el contenido va envuelto en una
+        tarjeta exterior blanca con margen y corner radius, simulando
+        una "tarjeta de contenido" elegante.
         """
 
-        self.content = ctk.CTkFrame(
+        self.content_outer = ctk.CTkFrame(
             self.main_area,
             fg_color=CONTENT_BG,
-            corner_radius=0
+            corner_radius=0,
         )
-        self.content.grid(
-            row=0,
+        self.content_outer.grid(
+            row=1,
             column=0,
-            sticky="nsew"
+            sticky="nsew",
+            padx=14,
+            pady=(0, 12),
         )
+        self.content_outer.grid_rowconfigure(0, weight=1)
+        self.content_outer.grid_columnconfigure(0, weight=1)
+
+        self.content_card = ctk.CTkFrame(
+            self.content_outer,
+            corner_radius=16,
+            fg_color=SURFACE,
+            border_width=1,
+            border_color=CARD_BORDER,
+        )
+        self.content_card.grid(row=0, column=0, sticky="nsew")
+        self.content_card.grid_rowconfigure(0, weight=1)
+        self.content_card.grid_columnconfigure(0, weight=1)
+
+        # Padding interior
+        self.content_inner = ctk.CTkFrame(
+            self.content_card,
+            fg_color="transparent",
+            corner_radius=14,
+        )
+        self.content_inner.grid(row=0, column=0, sticky="nsew", padx=14, pady=14)
+        self.content_inner.grid_rowconfigure(0, weight=1)
+        self.content_inner.grid_columnconfigure(0, weight=1)
+
+        self.content = ctk.CTkFrame(
+            self.content_inner,
+            fg_color="transparent",
+            corner_radius=12,
+        )
+        self.content.grid(row=0, column=0, sticky="nsew")
 
     # =====================================================
     # MÉTODO: crear_sidebar_principal()

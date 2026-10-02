@@ -8,13 +8,36 @@ from core.background_tasks import run_async
 from utils import centrar_ventana
 from ui.colors import (
     PRIMARY,
+    PRIMARY_50,
+    PRIMARY_100,
+    PRIMARY_500,
+    PRIMARY_600,
+    PRIMARY_700,
+    SECONDARY,
     WHITE,
     CONTENT_BG,
     TEXT_PRIMARY,
     TEXT_SECONDARY,
+    TEXT_MUTED,
     BUTTON_HOVER,
+    SURFACE,
+    DIVIDER,
+    RING,
+    CARD_BORDER,
 )
-from ui.fonts import TITLE_LG, TITLE_MD, TEXT_MD, TEXT_SM, BUTTON_FONT
+from ui.fonts import (
+    TITLE_XL,
+    TITLE_LG,
+    TITLE_MD,
+    TITLE_SM,
+    SECTION_FONT,
+    LABEL_BOLD,
+    TEXT_MD,
+    TEXT_SM,
+    TEXT_XS,
+    BUTTON_FONT,
+    CAPTION,
+)
 from core.version import APP_VERSION
 
 
@@ -41,7 +64,7 @@ def _cargar_servicios_auth():
     return _AUTH_SERVICES
 
 LOGIN_WIDTH = 520
-LOGIN_HEIGHT = 570
+LOGIN_HEIGHT = 600
 CARD_WIDTH = 440
 
 
@@ -79,83 +102,236 @@ def abrir_login():
     # de INGRESAR no paga todo el costo de importación.
     app.after(250, lambda: run_async(root=app, task=_cargar_servicios_auth))
 
-    root = ctk.CTkFrame(app, fg_color=CONTENT_BG, corner_radius=0)
+    # Fondo principal: gradiente simulado con frame base + acentos
+    root = ctk.CTkFrame(app, fg_color=WHITE, corner_radius=0)
     root.pack(fill="both", expand=True)
 
-    card = ctk.CTkFrame(
+    # =================================================
+    # CONTENEDOR PRINCIPAL DEL LOGIN
+    # =================================================
+    # Sin tarjeta exterior, sin franja azul/lila y sin
+    # borde alrededor de todo el formulario.
+
+    outer_card = ctk.CTkFrame(
         root,
-        width=CARD_WIDTH,
-        height=505,
-        fg_color=WHITE,
-        corner_radius=22,
-        border_width=1,
-        border_color="#D8E1EC",
+        fg_color="transparent",
+        corner_radius=0,
+        border_width=0,
     )
-    card.pack(expand=True, padx=19, pady=15)
-    card.pack_propagate(False)
+    outer_card.pack(
+        expand=True,
+        padx=0,
+        pady=0,
+        fill="both"
+    )
 
-    _crear_logo(card, size=(105, 105), pady=(9, 2))
+    card = ctk.CTkFrame(
+        outer_card,
+        fg_color=WHITE,
+        corner_radius=0,
+        border_width=0,
+    )
+    card.pack(
+        expand=True,
+        padx=0,
+        pady=0,
+        fill="both"
+    )
 
+    # =================================================
+    # FRanja decorativa superior (acento azul)
+    # =================================================
+    accent_bar = ctk.CTkFrame(
+        card,
+        height=5,
+        corner_radius=4,
+        fg_color=PRIMARY,
+        border_width=0,
+    )
+    accent_bar.pack(fill="x", padx=28, pady=(16, 0))
+
+    # Punto brillante decorativo en el centro
+    accent_dot = ctk.CTkFrame(
+        accent_bar,
+        width=5,
+        height=5,
+        corner_radius=100,
+        fg_color=WHITE,
+        border_width=0,
+    )
+    accent_dot.place(relx=0.5, rely=0.5, anchor="center")
+
+    _crear_logo(card, size=(115, 115), pady=(6, 0))
+
+    # Título SIN pack_propagate(False) SIN tamaño fijo → no aparecerá cuadro.
     ctk.CTkLabel(
         card,
         text="Inicio de sesión",
         font=TITLE_LG,
         text_color=TEXT_PRIMARY,
-    ).pack(pady=(1, 2))
+    ).pack(pady=(6, 2))
+
+    # Barra inferior decorativa debajo del título
+    deco_line = ctk.CTkFrame(
+        card,
+        width=68,
+        height=4,
+        corner_radius=100,
+        fg_color=PRIMARY,
+        border_width=0,
+    )
+    deco_line.pack(pady=(0, 6))
 
     ctk.CTkLabel(
         card,
-        text="Ingresa tus credenciales",
-        font=TEXT_MD,
-        text_color=TEXT_SECONDARY,
-    ).pack(pady=(0, 9))
+        text="Ingresa tus credenciales de acceso",
+        font=TEXT_SM,
+        text_color=TEXT_MUTED,
+    ).pack(pady=(0, 14))
+
+    # Iconos tipográficos: evita depender de archivos gráficos externos.
+    icono_usuario = None
+    icono_cerrar = None
+    icono_ver = None
+
+    # =================================================
+    # CAMPO USUARIO (con label + icono y focus ring)
+    # SIN pack_propagate(False) para tamaño dinámico
+    # =================================================
+    usuario_wrap = ctk.CTkFrame(card, fg_color="transparent")
+    usuario_wrap.pack(padx=42, pady=(2, 6), fill="x")
+
+    ctk.CTkLabel(
+        usuario_wrap,
+        text="Usuario",
+        font=LABEL_BOLD,
+        text_color=TEXT_PRIMARY,
+        anchor="w",
+    ).pack(fill="x", pady=(0, 5))
+
+    usuario_row = ctk.CTkFrame(
+        usuario_wrap,
+        height=50,
+        corner_radius=12,
+        fg_color=SURFACE,
+        border_width=0,
+    )
+    usuario_row.pack(fill="x")
+
+    user_icon = ctk.CTkLabel(
+        usuario_row,
+        text="👤",
+        image=icono_usuario,
+        width=42,
+        anchor="center",
+    )
+    user_icon.pack(side="left", fill="y")
 
     entry_usuario = ctk.CTkEntry(
-        card,
-        placeholder_text="Usuario",
-        width=340,
-        height=44,
-        corner_radius=12,
+        usuario_row,
+        placeholder_text="Ingresa tu nombre de usuario",
+        height=46,
+        corner_radius=0,
+        border_width=0,
+        fg_color="transparent",
+        placeholder_text_color=TEXT_MUTED,
         font=TEXT_MD,
     )
-    entry_usuario.pack(pady=4)
+    entry_usuario.pack(side="left", fill="both", expand=True, padx=(0, 10))
     entry_usuario.focus()
 
-    password_row = ctk.CTkFrame(card, width=340, height=44, fg_color="transparent")
-    password_row.pack(pady=4)
-    password_row.pack_propagate(False)
+    # Focus ring visual para entry_usuario
+    def _usuario_focus_in(_e=None):
+        usuario_row.configure(
+            fg_color=PRIMARY_50
+        )
 
-    entry_password = ctk.CTkEntry(
-        password_row,
-        placeholder_text="Contraseña",
-        show="*",
-        width=292,
-        height=44,
+    def _usuario_focus_out(_e=None):
+        usuario_row.configure(
+            fg_color=SURFACE
+        )
+    entry_usuario.bind("<FocusIn>", _usuario_focus_in, add="+")
+    entry_usuario.bind("<FocusOut>", _usuario_focus_out, add="+")
+
+    # =================================================
+    # CAMPO CONTRASEÑA (con label + icono y focus ring)
+    # =================================================
+    password_wrap = ctk.CTkFrame(card, fg_color="transparent")
+    password_wrap.pack(padx=42, pady=(2, 4), fill="x")
+
+    ctk.CTkLabel(
+        password_wrap,
+        text="Contraseña",
+        font=LABEL_BOLD,
+        text_color=TEXT_PRIMARY,
+        anchor="w",
+    ).pack(fill="x", pady=(0, 5))
+
+    password_row = ctk.CTkFrame(
+        password_wrap,
+        height=50,
         corner_radius=12,
-        font=TEXT_MD,
+        fg_color=SURFACE,
+        border_width=0,
     )
-    entry_password.pack(side="left", fill="y")
+    password_row.pack(fill="x")
+
+    pass_icon = ctk.CTkLabel(
+        password_row,
+        text="🔒",
+        image=icono_cerrar,
+        width=42,
+        anchor="center",
+    )
+    pass_icon.pack(side="left", fill="y")
 
     password_visible = {"valor": False}
 
     def alternar_password():
         password_visible["valor"] = not password_visible["valor"]
         entry_password.configure(show="" if password_visible["valor"] else "*")
-        btn_ver_password.configure(text="🙈" if password_visible["valor"] else "👁")
 
     btn_ver_password = ctk.CTkButton(
         password_row,
         text="👁",
-        width=42,
-        height=44,
-        corner_radius=12,
-        fg_color="#E9EFF6",
-        hover_color="#D8E3EF",
-        text_color=TEXT_PRIMARY,
-        font=("Segoe UI Emoji", 16),
+        image=icono_ver,
+        compound="center",
+        width=44,
+        height=40,
+        corner_radius=10,
+        fg_color=PRIMARY_50,
+        hover_color=PRIMARY_100,
+        text_color=PRIMARY,
+        border_width=0,
         command=alternar_password,
     )
-    btn_ver_password.pack(side="right", fill="y")
+    btn_ver_password.pack(side="right", padx=(0, 5))
+
+    entry_password = ctk.CTkEntry(
+        password_row,
+        placeholder_text="Ingresa tu contraseña",
+        show="*",
+        height=46,
+        corner_radius=0,
+        border_width=0,
+        fg_color="transparent",
+        placeholder_text_color=TEXT_MUTED,
+        font=TEXT_MD,
+    )
+    entry_password.pack(side="left", fill="both", expand=True, padx=(0, 6))
+
+    # Focus ring visual para entry_password
+    def _pass_focus_in(_e=None):
+        password_row.configure(
+            fg_color=PRIMARY_50
+        )
+
+    def _pass_focus_out(_e=None):
+        password_row.configure(
+            fg_color=SURFACE
+        )
+    entry_password.bind("<FocusIn>", _pass_focus_in, add="+")
+    entry_password.bind("<FocusOut>", _pass_focus_out, add="+")
 
     def iniciar_sesion():
         from security.login_guard import estado
@@ -257,25 +433,86 @@ def abrir_login():
             after=lambda: app.configure(cursor=""),
         )
 
-    ctk.CTkButton(
+    # =================================================
+    # BOTÓN INGRESAR
+    # =================================================
+    # El botón queda directamente sobre la tarjeta,
+    # sin fondo/rectángulo permanente detrás.
+
+    btn_ingresar = ctk.CTkButton(
         card,
         text="INGRESAR",
-        width=340,
-        height=45,
-        corner_radius=12,
+        height=50,
+        corner_radius=16,
         fg_color=PRIMARY,
-        hover_color=BUTTON_HOVER,
+        hover_color=PRIMARY_700,
+        border_width=0,
+        text_color=WHITE,
         font=BUTTON_FONT,
         command=iniciar_sesion,
-    ).pack(pady=(12, 8))
+    )
+    btn_ingresar.pack(
+        padx=36,
+        pady=(20, 2)
+    )
 
-
+    # =================================================
+    # SEPARADOR + FOOTER
+    # =================================================
+    separator_wrap = ctk.CTkFrame(card, fg_color="transparent")
+    separator_wrap.pack(padx=42, pady=(18, 4), fill="x")
+    # Línea + glifo central decorativo
+    sep_container = ctk.CTkFrame(separator_wrap, fg_color="transparent")
+    sep_container.pack(fill="x", pady=6)
+    sep_left = ctk.CTkFrame(
+        sep_container,
+        height=1,
+        corner_radius=0,
+        fg_color=DIVIDER,
+        border_width=0,
+    )
+    sep_left.pack(side="left", fill="x", expand=True)
+    sep_dot = ctk.CTkFrame(
+        sep_container,
+        width=26,
+        height=26,
+        corner_radius=100,
+        fg_color=WHITE,
+        border_width=1,
+        border_color=DIVIDER,
+    )
+    sep_dot.pack(side="left", padx=10)
     ctk.CTkLabel(
-        card,
-        text=f"Sistema AXIA · v{APP_VERSION}",
-        font=TEXT_SM,
-        text_color=TEXT_SECONDARY,
-    ).pack(pady=(14, 2))
+        sep_dot,
+        text="✦",
+        width=24,
+        height=24,
+        text_color=PRIMARY,
+        font=("Segoe UI Symbol", 10),
+    ).place(relx=0.5, rely=0.5, anchor="center")
+    sep_right = ctk.CTkFrame(
+        sep_container,
+        height=1,
+        corner_radius=0,
+        fg_color=DIVIDER,
+        border_width=0,
+    )
+    sep_right.pack(side="left", fill="x", expand=True)
+
+    footer_frame = ctk.CTkFrame(card, fg_color="transparent")
+    footer_frame.pack(padx=28, pady=(4, 16), fill="x")
+    ctk.CTkLabel(
+        footer_frame,
+        text=f"Sistema AXIA  ·  v{APP_VERSION}",
+        font=CAPTION,
+        text_color=TEXT_MUTED,
+    ).pack(pady=(0, 1))
+    ctk.CTkLabel(
+        footer_frame,
+        text="© 2026 Axia Comunicaciones · Todos los derechos reservados",
+        font=TEXT_XS,
+        text_color=TEXT_MUTED,
+    ).pack(pady=(0, 0))
 
     app.bind("<Return>", lambda _event: iniciar_sesion())
     app.mainloop()
