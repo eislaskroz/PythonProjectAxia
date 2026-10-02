@@ -1,29 +1,29 @@
-"""Servicio de correo saliente para documentos operativos AXIA.
+"""Cliente del relay de correo de AXIA.
 
-El módulo usa únicamente la librería estándar de Python y toma toda la
-configuración SMTP desde variables de entorno. Ninguna contraseña se almacena
-en el código fuente.
+AXIA DESKTOP NO conoce credenciales SMTP. Todos los envíos salen por la Edge
+Function ``axia-mail-relay`` de Supabase. Las credenciales y el remitente se
+configuran exclusivamente como secretos del lado servidor.
 """
 from __future__ import annotations
 
+import base64
 import mimetypes
 import os
-import smtplib
-import ssl
 from dataclasses import dataclass
-from email.message import EmailMessage
 from pathlib import Path
 from typing import Iterable
+
+import requests
 
 from core.environment import cargar_entorno
 from core.logger import configurar_logger
 
 logger = configurar_logger(__name__)
 
-
 _TRUE_VALUES = {"1", "true", "yes", "si", "sí", "on"}
 _AUTORIZACION_LEVANTAMIENTOS = "gte.ventas@axiacomunicaciones.mx"
-_BCC_AUDITORIA = "eislaskroz@gmail.com"
+_RELAY_FUNCTION = "axia-mail-relay"
+_MAX_ATTACHMENT_BYTES = 12 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -47,44 +47,42 @@ def _split_addresses(value: str | None) -> list[str]:
     return [item.strip() for item in normalizado.split(",") if item.strip()]
 
 
-def _mail_config() -> dict:
+def _relay_config() -> dict:
     cargar_entorno()
+    supabase_url = (os.getenv("SUPABASE_URL") or "").strip()
+    base = supabase_url.rstrip("/")
+    endpoint = (os.getenv("AXIA_MAIL_RELAY_URL") or "").strip()
+    if not endpoint and base:
+        endpoint = f"{base}/functions/v1/{_RELAY_FUNCTION}"
     return {
         "enabled": _env_bool("AXIA_MAIL_ENABLED", True),
-        "host": (os.getenv("AXIA_SMTP_HOST") or "").strip(),
-        "port": int((os.getenv("AXIA_SMTP_PORT") or "587").strip()),
-        "user": (os.getenv("AXIA_SMTP_USER") or os.getenv("AXIA_MAIL_FROM") or "").strip(),
-        "password": os.getenv("AXIA_SMTP_PASSWORD") or "",
-        "sender": (os.getenv("AXIA_MAIL_FROM") or os.getenv("AXIA_SMTP_USER") or "").strip(),
-        "to": _split_addresses(os.getenv("AXIA_MAIL_TO")),
-        "cc": _split_addresses(os.getenv("AXIA_MAIL_CC")),
-        "use_ssl": _env_bool("AXIA_SMTP_SSL", False),
-        "use_starttls": _env_bool("AXIA_SMTP_STARTTLS", True),
-        "timeout": max(3, int((os.getenv("AXIA_SMTP_TIMEOUT") or "12").strip())),
+        "endpoint": endpoint,
+        "timeout": max(5, int((os.getenv("AXIA_MAIL_RELAY_TIMEOUT") or "30").strip())),
     }
 
 
 def _validar_config(config: dict) -> str | None:
     if not config["enabled"]:
         return "El envío automático de correo está desactivado."
-    if not config["host"]:
-        return "Falta configurar AXIA_SMTP_HOST en el archivo .env."
-    if not config["sender"]:
-        return "Falta configurar AXIA_MAIL_FROM en el archivo .env."
-    if not config["to"]:
-        return "Falta configurar AXIA_MAIL_TO en el archivo .env."
-    if config["user"] and not config["password"]:
-        return "Falta configurar AXIA_SMTP_PASSWORD en el archivo .env."
+    if not config["endpoint"]:
+        return "No fue posible construir la URL del relay de correo."
+    if not (os.getenv("SUPABASE_KEY") or "").strip():
+        return "Falta la clave pública de Supabase requerida para invocar el relay."
     return None
 
 
-def _adjuntar_archivo(msg: EmailMessage, ruta: Path) -> None:
-    mime, _encoding = mimetypes.guess_type(ruta.name)
-    if mime:
-        maintype, subtype = mime.split("/", 1)
-    else:
-        maintype, subtype = "application", "octet-stream"
-    msg.add_attachment(ruta.read_bytes(), maintype=maintype, subtype=subtype, filename=ruta.name)
+def _attachment_payload(ruta: Path) -> dict:
+    if not ruta.is_file():
+        raise FileNotFoundError(f"No existe el adjunto: {ruta}")
+    size = ruta.stat().st_size
+    if size > _MAX_ATTACHMENT_BYTES:
+        raise ValueError(f"El adjunto {ruta.name} excede el máximo de 12 MB.")
+    mime = mimetypes.guess_type(ruta.name)[0] or "application/octet-stream"
+    return {
+        "filename": ruta.name,
+        "contentType": mime,
+        "contentBase64": base64.b64encode(ruta.read_bytes()).decode("ascii"),
+    }
 
 
 def enviar_correo(
@@ -95,17 +93,18 @@ def enviar_correo(
     to: Iterable[str] | None = None,
     cc: Iterable[str] | None = None,
     bcc: Iterable[str] | None = None,
+    flow: str = "operational",
 ) -> MailResult:
-    """Envía un correo por SMTP sin comprometer el flujo principal de AXIA.
+    """Solicita al relay central de AXIA el envío de un correo.
 
-    Devuelve un resultado estructurado; las excepciones de red/autenticación se
-    registran y se convierten en ``MailResult(sent=False)`` para que el guardado
-    del documento nunca se revierta por una falla del correo.
+    La aplicación sólo transmite contenido y destinatarios. El servidor aplica
+    una allowlist de destinatarios y es el único componente que conoce SMTP,
+    contraseña, remitente y BCC de auditoría.
     """
     try:
-        config = _mail_config()
+        config = _relay_config()
     except Exception as exc:
-        logger.exception("Configuración SMTP inválida.")
+        logger.exception("Configuración del relay de correo inválida.")
         return MailResult(False, "CONFIG_ERROR", str(exc))
 
     error_config = _validar_config(config)
@@ -113,67 +112,66 @@ def enviar_correo(
         logger.warning("Correo AXIA no enviado: %s", error_config)
         return MailResult(False, "NOT_CONFIGURED", error_config)
 
-    destinatarios = list(to) if to is not None else list(config["to"])
-    copias = list(cc) if cc is not None else list(config["cc"])
-    copias_ocultas = list(bcc) if bcc is not None else []
-    # Auditoría AXIA: la cuenta personal indicada recibe siempre copia oculta.
-    copias_ocultas.append(_BCC_AUDITORIA)
-    destinatarios = [str(x).strip() for x in destinatarios if str(x).strip()]
-    copias = [str(x).strip() for x in copias if str(x).strip()]
-    copias_ocultas = [str(x).strip() for x in copias_ocultas if str(x).strip()]
-    # Evita duplicados entre To/CC/BCC conservando el orden.
-    vistos = set()
-    destinatarios = [x for x in destinatarios if not (x.lower() in vistos or vistos.add(x.lower()))]
-    copias = [x for x in copias if not (x.lower() in vistos or vistos.add(x.lower()))]
-    copias_ocultas = [x for x in copias_ocultas if not (x.lower() in vistos or vistos.add(x.lower()))]
+    destinatarios = [str(x).strip() for x in (to or []) if str(x).strip()]
+    copias = [str(x).strip() for x in (cc or []) if str(x).strip()]
+    # BCC deliberadamente no se transmite: se controla sólo en el servidor.
+    if bcc:
+        logger.info("BCC solicitado por cliente ignorado; el relay controla BCC de auditoría.")
 
-    msg = EmailMessage()
-    msg["From"] = config["sender"]
-    msg["To"] = ", ".join(destinatarios)
-    if copias:
-        msg["Cc"] = ", ".join(copias)
-    msg["Subject"] = subject
-    msg.set_content(body)
+    if not destinatarios:
+        return MailResult(False, "NO_RECIPIENTS", "No hay destinatarios para el correo.")
 
     try:
-        for archivo in attachments:
-            ruta = Path(archivo)
-            if not ruta.is_file():
-                return MailResult(False, "ATTACHMENT_MISSING", f"No existe el adjunto: {ruta}")
-            _adjuntar_archivo(msg, ruta)
+        adjuntos = [_attachment_payload(Path(archivo)) for archivo in attachments]
+    except FileNotFoundError as exc:
+        return MailResult(False, "ATTACHMENT_MISSING", str(exc))
+    except ValueError as exc:
+        return MailResult(False, "ATTACHMENT_TOO_LARGE", str(exc))
+    except Exception as exc:
+        logger.exception("No fue posible preparar los adjuntos del correo.")
+        return MailResult(False, "ATTACHMENT_ERROR", str(exc))
 
-        # BCC sólo forma parte de la lista SMTP; nunca se agrega como encabezado.
-        receptores = destinatarios + copias + copias_ocultas
-        context = ssl.create_default_context()
-        if config["use_ssl"]:
-            smtp = smtplib.SMTP_SSL(
-                config["host"], config["port"], timeout=config["timeout"], context=context
-            )
-        else:
-            smtp = smtplib.SMTP(config["host"], config["port"], timeout=config["timeout"])
+    payload = {
+        "flow": str(flow or "operational")[:64],
+        "subject": str(subject or "")[:240],
+        "text": str(body or ""),
+        "to": destinatarios,
+        "cc": copias,
+        "attachments": adjuntos,
+    }
+    public_key = (os.getenv("SUPABASE_KEY") or "").strip()
+    headers = {
+        "Authorization": f"Bearer {public_key}",
+        "apikey": public_key,
+        "Content-Type": "application/json",
+        "X-AXIA-Client": "desktop",
+    }
 
-        with smtp:
-            smtp.ehlo()
-            if not config["use_ssl"] and config["use_starttls"]:
-                smtp.starttls(context=context)
-                smtp.ehlo()
-            if config["user"]:
-                smtp.login(config["user"], config["password"])
-            smtp.send_message(msg, from_addr=config["sender"], to_addrs=receptores)
-
-        logger.info(
-            "Correo AXIA enviado. Asunto=%s Para=%s CC=%s BCC=%s",
-            subject, ",".join(destinatarios), ",".join(copias), ",".join(copias_ocultas),
+    try:
+        response = requests.post(
+            config["endpoint"], headers=headers, json=payload, timeout=config["timeout"]
         )
-        return MailResult(True, "SENT", f"Enviado a {', '.join(destinatarios)}")
-    except smtplib.SMTPAuthenticationError as exc:
-        logger.exception("Falló la autenticación SMTP de AXIA.")
-        return MailResult(False, "AUTH_ERROR", f"El servidor rechazó las credenciales SMTP ({exc.smtp_code}).")
-    except (smtplib.SMTPException, OSError, TimeoutError) as exc:
-        logger.exception("No fue posible enviar el correo SMTP de AXIA.")
+        try:
+            data = response.json()
+        except Exception:
+            data = {}
+        if response.ok and data.get("ok"):
+            request_id = str(data.get("requestId") or "")
+            logger.info("Correo AXIA aceptado por relay. Asunto=%s requestId=%s", subject, request_id)
+            return MailResult(True, "SENT", f"Envío central aceptado. ID: {request_id}".strip())
+
+        detail = str(data.get("error") or data.get("detail") or response.text or f"HTTP {response.status_code}")
+        logger.error("Relay AXIA rechazó correo. HTTP=%s detalle=%s", response.status_code, detail)
+        status = "RELAY_NOT_DEPLOYED" if response.status_code == 404 else "RELAY_ERROR"
+        return MailResult(False, status, detail[:500])
+    except requests.Timeout:
+        logger.exception("Timeout invocando relay de correo AXIA.")
+        return MailResult(False, "TIMEOUT", "El relay de correo no respondió a tiempo.")
+    except requests.RequestException as exc:
+        logger.exception("No fue posible conectar con el relay de correo AXIA.")
         return MailResult(False, "SEND_ERROR", str(exc))
     except Exception as exc:
-        logger.exception("Error inesperado enviando correo AXIA.")
+        logger.exception("Error inesperado invocando relay de correo AXIA.")
         return MailResult(False, "UNEXPECTED_ERROR", str(exc))
 
 
@@ -185,7 +183,6 @@ def enviar_levantamiento_pdf(
     usuario: str = "",
     folio_origen: str = "",
 ) -> MailResult:
-    """Envía el PDF de un levantamiento recién guardado o actualizado."""
     folio = str(registro.get("lev_folio") or "SIN-FOLIO").strip().upper()
     cliente = str(registro.get("lev_cliente") or "Sin cliente").strip()
     tipo = str(registro.get("lev_tipo_levantamiento") or registro.get("lev_tipo") or "Levantamiento").strip()
@@ -196,34 +193,19 @@ def enviar_levantamiento_pdf(
 
     subject = f"AXIA | {accion} | {folio} | {cliente} | {tipo}"
     lineas = [
-        f"{accion} en AXIA DESKTOP.",
-        "",
-        f"Folio: {folio}",
+        f"{accion} en AXIA DESKTOP.", "", f"Folio: {folio}",
         *([f"Versión generada a partir de: {folio_origen}"] if actualizado and folio_origen else []),
-        f"Cliente: {cliente}",
-        f"Tipo: {tipo}",
+        f"Cliente: {cliente}", f"Tipo: {tipo}",
     ]
-    if modalidad:
-        lineas.append(f"Modalidad: {modalidad}")
-    if fecha:
-        lineas.append(f"Fecha de levantamiento: {fecha}")
-    if tecnico:
-        lineas.append(f"Técnico: {tecnico}")
-    if usuario:
-        lineas.append(f"Registrado por: {usuario}")
-    lineas.extend([
-        "",
-        "Se adjunta el PDF generado automáticamente por AXIA DESKTOP.",
-        "",
-        "Este es un mensaje automático; favor de no responder a esta cuenta.",
-    ])
+    if modalidad: lineas.append(f"Modalidad: {modalidad}")
+    if fecha: lineas.append(f"Fecha de levantamiento: {fecha}")
+    if tecnico: lineas.append(f"Técnico: {tecnico}")
+    if usuario: lineas.append(f"Registrado por: {usuario}")
+    lineas.extend(["", "Se adjunta el PDF generado automáticamente por AXIA DESKTOP.", "", "Este es un mensaje automático; favor de no responder a esta cuenta."])
 
     return enviar_correo(
-        subject=subject,
-        body="\n".join(lineas),
-        attachments=[ruta_pdf],
-        to=[_AUTORIZACION_LEVANTAMIENTOS],
-        cc=[],
+        subject=subject, body="\n".join(lineas), attachments=[ruta_pdf],
+        to=[_AUTORIZACION_LEVANTAMIENTOS], cc=[], flow="levantamiento_registrado",
     )
 
 
@@ -233,11 +215,6 @@ def enviar_levantamiento_validacion_ventas(
     *,
     usuario: str = "",
 ) -> MailResult:
-    """Envía un levantamiento a Ventas para su revisión/cotización.
-
-    El destinatario de este flujo es deliberadamente fijo para evitar que una
-    variable general de notificaciones desvíe una validación comercial.
-    """
     folio = str(registro.get("lev_folio") or "SIN-FOLIO").strip().upper()
     cliente = str(registro.get("lev_cliente") or "Sin cliente").strip()
     tipo = str(registro.get("lev_tipo_levantamiento") or registro.get("lev_tipo") or "Levantamiento").strip()
@@ -246,29 +223,15 @@ def enviar_levantamiento_validacion_ventas(
 
     subject = f"AXIA | Levantamiento para validar/cotizar | {folio} | {cliente} | {tipo}"
     lineas = [
-        "Se envía un levantamiento validado desde AXIA DESKTOP para revisión del área de Ventas.",
-        "",
-        f"Folio: {folio}",
-        f"Cliente: {cliente}",
-        f"Tipo: {tipo}",
+        "Se envía un levantamiento validado desde AXIA DESKTOP para revisión del área de Ventas.", "",
+        f"Folio: {folio}", f"Cliente: {cliente}", f"Tipo: {tipo}",
     ]
-    if modalidad:
-        lineas.append(f"Modalidad: {modalidad}")
-    if fecha:
-        lineas.append(f"Fecha de levantamiento: {fecha}")
-    if usuario:
-        lineas.append(f"Validado por: {usuario}")
-    lineas.extend([
-        "",
-        "Se adjunta el PDF del levantamiento para su revisión y proceso de cotización.",
-        "",
-        "Este es un mensaje automático; favor de no responder a esta cuenta.",
-    ])
+    if modalidad: lineas.append(f"Modalidad: {modalidad}")
+    if fecha: lineas.append(f"Fecha de levantamiento: {fecha}")
+    if usuario: lineas.append(f"Validado por: {usuario}")
+    lineas.extend(["", "Se adjunta el PDF del levantamiento para su revisión y proceso de cotización.", "", "Este es un mensaje automático; favor de no responder a esta cuenta."])
 
     return enviar_correo(
-        subject=subject,
-        body="\n".join(lineas),
-        attachments=[ruta_pdf],
-        to=[_AUTORIZACION_LEVANTAMIENTOS],
-        cc=[],
+        subject=subject, body="\n".join(lineas), attachments=[ruta_pdf],
+        to=[_AUTORIZACION_LEVANTAMIENTOS], cc=[], flow="levantamiento_validacion_ventas",
     )

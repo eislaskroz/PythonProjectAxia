@@ -54,6 +54,81 @@ def _titulo_sin_numeracion(titulo: str) -> str:
     texto = str(titulo or "")
     return re.sub(r"^(\s*(?:[^\w\d]\s*)*)\d+\s*[.\-:]\s*", r"\1", texto).strip()
 
+
+def _abrir_selector_dias_horario(parent, variable):
+    """Selector reutilizable: varios días y un mismo horario de inicio/fin."""
+    dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+    actual = str(variable.get() or "").strip()
+    seleccion_actual = set()
+    hora_inicio, hora_fin = "09:00", "18:00"
+    if actual:
+        partes = re.split(r"\s*[·|]\s*", actual, maxsplit=1)
+        texto_dias = partes[0]
+        seleccion_actual = {d for d in dias if d.lower() in texto_dias.lower()}
+        m = re.search(r"(\d{1,2}:\d{2})\s*(?:a|-)\s*(\d{1,2}:\d{2})", actual, re.I)
+        if m:
+            hora_inicio, hora_fin = m.group(1), m.group(2)
+    if not seleccion_actual:
+        seleccion_actual = set(dias[:5])
+
+    win = ctk.CTkToplevel(parent)
+    win.title("Días y horario permitido")
+    win.geometry("520x420")
+    win.resizable(False, False)
+    try:
+        win.transient(parent.winfo_toplevel())
+        win.grab_set()
+    except Exception:
+        pass
+
+    ctk.CTkLabel(win, text="Días y horario permitido para trabajo", font=("Montserrat", 16, "bold")).pack(anchor="w", padx=22, pady=(20, 5))
+    ctk.CTkLabel(win, text="Selecciona los días. El horario será el mismo para todos.", font=FORM_FIELD_FONT, text_color=TEXT_SECONDARY).pack(anchor="w", padx=22, pady=(0, 12))
+
+    caja_dias = ctk.CTkFrame(win, fg_color="#F7F9FC", corner_radius=12)
+    caja_dias.pack(fill="x", padx=22, pady=(0, 14))
+    vars_dias = {}
+    for i, dia in enumerate(dias):
+        vd = ctk.BooleanVar(value=dia in seleccion_actual)
+        vars_dias[dia] = vd
+        ctk.CTkCheckBox(caja_dias, text=dia, variable=vd, font=FORM_FIELD_FONT).grid(row=i//4, column=i%4, sticky="w", padx=12, pady=10)
+
+    horas = [f"{h:02d}" for h in range(24)]
+    minutos = [f"{m:02d}" for m in range(0, 60, 5)]
+    hi_h, hi_m = (hora_inicio.split(":") + ["00"])[:2]
+    hf_h, hf_m = (hora_fin.split(":") + ["00"])[:2]
+    if hi_m not in minutos: hi_m = "00"
+    if hf_m not in minutos: hf_m = "00"
+
+    caja_hora = ctk.CTkFrame(win, fg_color="transparent")
+    caja_hora.pack(fill="x", padx=22, pady=4)
+    ctk.CTkLabel(caja_hora, text="Hora de inicio", font=("Montserrat", 11, "bold")).grid(row=0, column=0, columnspan=3, sticky="w", pady=(0,4))
+    ctk.CTkLabel(caja_hora, text="Hora de término", font=("Montserrat", 11, "bold")).grid(row=0, column=4, columnspan=3, sticky="w", padx=(35,0), pady=(0,4))
+    vi_h, vi_m, vf_h, vf_m = ctk.StringVar(value=hi_h), ctk.StringVar(value=hi_m), ctk.StringVar(value=hf_h), ctk.StringVar(value=hf_m)
+    ctk.CTkOptionMenu(caja_hora, variable=vi_h, values=horas, width=75).grid(row=1,column=0)
+    ctk.CTkLabel(caja_hora, text=":", font=("Montserrat", 16, "bold")).grid(row=1,column=1,padx=4)
+    ctk.CTkOptionMenu(caja_hora, variable=vi_m, values=minutos, width=75).grid(row=1,column=2)
+    ctk.CTkOptionMenu(caja_hora, variable=vf_h, values=horas, width=75).grid(row=1,column=4,padx=(35,0))
+    ctk.CTkLabel(caja_hora, text=":", font=("Montserrat", 16, "bold")).grid(row=1,column=5,padx=4)
+    ctk.CTkOptionMenu(caja_hora, variable=vf_m, values=minutos, width=75).grid(row=1,column=6)
+
+    def guardar():
+        elegidos = [d for d in dias if vars_dias[d].get()]
+        if not elegidos:
+            messagebox.showwarning("Horario de trabajo", "Selecciona al menos un día.", parent=win)
+            return
+        inicio = f"{vi_h.get()}:{vi_m.get()}"
+        fin = f"{vf_h.get()}:{vf_m.get()}"
+        if inicio >= fin:
+            messagebox.showwarning("Horario de trabajo", "La hora de término debe ser posterior a la hora de inicio.", parent=win)
+            return
+        variable.set(f"{', '.join(elegidos)} · {inicio} a {fin}")
+        win.destroy()
+
+    botones = ctk.CTkFrame(win, fg_color="transparent")
+    botones.pack(fill="x", padx=22, pady=(22,18))
+    ctk.CTkButton(botones, text="Cancelar", fg_color="#64748B", command=win.destroy, width=120).pack(side="right", padx=(8,0))
+    ctk.CTkButton(botones, text="Aplicar horario", fg_color=PRIMARY, command=guardar, width=150).pack(side="right")
+
 from app_context import obtener_usuario_actual
 from services.movimientos_service import registrar_movimiento
 from services.materiales_catalogo_service import obtener_materiales_por_especialidad, UNIDADES_MATERIAL
@@ -239,7 +314,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     var_riesgo_comun = ctk.StringVar(value="Bajo")
     # Equipo de Protección Personal (EPP) común a TODOS los levantamientos.
     # Si se requiere, se captura un listado estructurado para conservarlo en el JSON técnico.
-    var_requiere_epp = ctk.StringVar(value="No")
+    var_requiere_epp = ctk.StringVar(value="Sí" if not (registro_editar or borrador) else "No")
 
     # Catálogos de asignación obtenidos directamente de db_usuarios.
     tecnicos_disponibles = obtener_tecnicos_responsables()
@@ -2285,7 +2360,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         entry_rvd(seccion_rvd_necesidad, "Área o zona de instalación", var_rvd_area_instalacion, "Ej. oficinas planta baja", 0, 4)
 
         seccion_rvd_sitio = crear_seccion_rvd("📍 2. Condiciones del sitio y ruta", fila_textos + 1)
-        entry_rvd(seccion_rvd_sitio, "Horario permitido para trabajo", var_rvd_horario_trabajo, "Ej. 9:00 a 18:00", 0, 0)
+        widget_rvd_horario = entry_rvd(seccion_rvd_sitio, "Horario permitido para trabajo", var_rvd_horario_trabajo, "Haz clic para seleccionar días y horario", 0, 0)
+        widget_rvd_horario.configure(cursor="hand2")
+        widget_rvd_horario.bind("<Button-1>", lambda _e: _abrir_selector_dias_horario(widget_rvd_horario, var_rvd_horario_trabajo))
+        widget_rvd_horario.bind("<Key>", lambda _e: "break")
         option_rvd(seccion_rvd_sitio, "Acceso para instalación", var_rvd_acceso, ["Fácil acceso", "Difícil acceso", "Requiere maniobra"], 0, 1)
         entry_rvd(seccion_rvd_sitio, "Altura de trabajo", var_rvd_altura_trabajo, "Ej. 3 m", 0, 2, ancho_corto=True)
         option_rvd(seccion_rvd_sitio, "¿Requiere permiso del sitio?", var_rvd_permiso, ["Sí", "No"], 0, 3)
@@ -3337,7 +3415,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         if var_requiere_epp.get() == "Sí":
             epp_detalle_frame.grid()
             if not epp_items:
-                agregar_epp(None)
+                # EPP base obligatorio para todo levantamiento nuevo.
+                agregar_epp({"epp": "Casco de seguridad", "cantidad": "1"})
+                agregar_epp({"epp": "Botas de seguridad", "cantidad": "1"})
+                agregar_epp({"epp": "Chaleco reflejante / alta visibilidad", "cantidad": "1"})
         else:
             epp_detalle_frame.grid_remove()
         try:

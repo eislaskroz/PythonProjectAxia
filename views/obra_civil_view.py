@@ -115,7 +115,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
     var_nombre_proyecto = ctk.StringVar()
     var_dias_trabajo = ctk.StringVar()
     var_personas_considerar = ctk.StringVar()
-    var_requiere_epp = ctk.StringVar(value="No")
+    var_requiere_epp = ctk.StringVar(value="Sí" if not borrador else "No")
     epp_items = []
 
     var_superficie = ctk.StringVar(value="Sí")
@@ -493,7 +493,10 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
     def vis_epp_obra(*_):
         if var_requiere_epp.get()=="Sí":
             epp_rows.grid()
-            if not epp_items: agregar_epp_obra(None)
+            if not epp_items:
+                agregar_epp_obra({"epp":"Casco de seguridad","cantidad":"1"})
+                agregar_epp_obra({"epp":"Botas de seguridad","cantidad":"1"})
+                agregar_epp_obra({"epp":"Chaleco reflejante / alta visibilidad","cantidad":"1"})
         else: epp_rows.grid_remove()
         try:
             validar_preview()
