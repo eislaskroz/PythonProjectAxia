@@ -23,6 +23,7 @@ from services.cotizaciones_service import (
 from services.axia_pdf_engine import AxiaPdfEngine
 from services.usuarios_service import obtener_nombres_usuarios_por_tipos, obtener_usuarios_por_tipos
 from ui.colors import WHITE, TEXT_PRIMARY, TEXT_SECONDARY, SECONDARY, BUTTON_HOVER
+from ui.iconos import cargar_icono
 from ui.fonts import TITLE_MD, TEXT_MD, TEXT_SM, BUTTON_FONT
 from ui.native_table import NativeTreeTable
 from ui.numeric_masks import aplicar_mascara_numerica, MONEY, NUMBER, INTEGER
@@ -104,20 +105,25 @@ def mostrar_cotizaciones(parent, app=None):
     scroll.grid(row=1, column=0, sticky="nsew", padx=12, pady=5)
     for col in range(4): scroll.grid_columnconfigure(col, weight=1)
 
+    icono_detalle = cargar_icono("detalle.png", (18, 18), blanco=True)
+    icono_lapiz = cargar_icono("lapiz.png", (18, 18), blanco=True)
+    icono_guardar = cargar_icono("guardar.png", (18, 18), blanco=True)
+    icono_finalizar = cargar_icono("finalizar.png", (18, 18), blanco=True)
+
     acciones = ctk.CTkFrame(detalle_card, fg_color="transparent")
     acciones.grid(row=2, column=0, sticky="ew", padx=14, pady=(4,10)); acciones.grid_columnconfigure(0, weight=1)
     lbl_total = ctk.CTkLabel(acciones, text="Total: $0.00 MXN", font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="e")
     lbl_total.grid(row=0, column=0, sticky="e", padx=(0,10))
-    btn_pdf = ctk.CTkButton(acciones, text="👁 PDF Cotización (Preview)", width=170, fg_color="#334155", hover_color=BUTTON_HOVER,
+    btn_pdf = ctk.CTkButton(acciones, text="PDF Cotización (Preview)", image=icono_detalle, compound="left", width=185, fg_color="#334155", hover_color=BUTTON_HOVER,
                             font=BUTTON_FONT, state="disabled")
     btn_pdf.grid(row=0, column=1, padx=(0,8))
-    btn_modificar = ctk.CTkButton(acciones, text="✎ Modificar cotización", width=165, fg_color="#0F766E", hover_color=BUTTON_HOVER,
+    btn_modificar = ctk.CTkButton(acciones, text="Modificar cotización", image=icono_lapiz, compound="left", width=180, fg_color="#0F766E", hover_color=BUTTON_HOVER,
                                   font=BUTTON_FONT, state="disabled")
     btn_modificar.grid(row=0, column=2, padx=(0,8))
-    btn_guardar = ctk.CTkButton(acciones, text="💾 Guardar cotización", width=175, fg_color=SECONDARY, hover_color=BUTTON_HOVER,
+    btn_guardar = ctk.CTkButton(acciones, text="Guardar cotización", image=icono_guardar, compound="left", width=190, fg_color=SECONDARY, hover_color=BUTTON_HOVER,
                                 font=BUTTON_FONT, state="disabled")
     btn_guardar.grid(row=0, column=3, padx=(0,8))
-    btn_finalizar = ctk.CTkButton(acciones, text="✓ Finalizar cotización", width=170, fg_color="#15803D", hover_color=BUTTON_HOVER,
+    btn_finalizar = ctk.CTkButton(acciones, text="Finalizar cotización", image=icono_finalizar, compound="left", width=185, fg_color="#15803D", hover_color=BUTTON_HOVER,
                                   font=BUTTON_FONT, state="disabled")
     btn_finalizar.grid(row=0, column=4)
     lbl_validacion = ctk.CTkLabel(acciones, text="Carga un levantamiento para iniciar la cotización.",

@@ -3,6 +3,7 @@ from tkinter import messagebox
 
 from ui.theme import aplicar_estilo_ventana
 from ui.assets import cargar_logo_axia, configurar_icono_app
+from ui.iconos import cargar_icono
 from app_context import establecer_usuario_actual
 from core.background_tasks import run_async
 from utils import centrar_ventana
@@ -189,10 +190,10 @@ def abrir_login():
         text_color=TEXT_MUTED,
     ).pack(pady=(0, 14))
 
-    # Iconos tipográficos: evita depender de archivos gráficos externos.
-    icono_usuario = None
-    icono_cerrar = None
-    icono_ver = None
+    # Iconos gráficos del diseño validado; el cargador es tolerante a recursos faltantes.
+    icono_usuario = cargar_icono("usuario.png", (20, 20))
+    icono_cerrar = cargar_icono("cerrar.png", (20, 20))
+    icono_ver = cargar_icono("ver.png", (20, 20))
 
     # =================================================
     # CAMPO USUARIO (con label + icono y focus ring)
@@ -220,7 +221,7 @@ def abrir_login():
 
     user_icon = ctk.CTkLabel(
         usuario_row,
-        text="👤",
+        text="" if icono_usuario else "👤",
         image=icono_usuario,
         width=42,
         anchor="center",
@@ -293,7 +294,7 @@ def abrir_login():
 
     btn_ver_password = ctk.CTkButton(
         password_row,
-        text="👁",
+        text="" if icono_ver else "👁",
         image=icono_ver,
         compound="center",
         width=44,

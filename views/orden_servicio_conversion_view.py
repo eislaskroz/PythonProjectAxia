@@ -3,6 +3,9 @@
 import json
 from datetime import datetime, timezone
 import customtkinter as ctk
+from ui.iconos import cargar_icono
+_AXIA_ICON_BUSCAR = cargar_icono("buscar.png", (18, 18))
+_AXIA_ICON_BUSCAR_BLANCO = cargar_icono("buscar.png", (16, 16), blanco=True)
 from utils import centrar_ventana
 from tkinter import messagebox
 

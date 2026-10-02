@@ -12,6 +12,9 @@ cli_estado, cli_cp, cli_correo y cli_notas.
 """
 
 import customtkinter as ctk
+from ui.iconos import cargar_icono
+_AXIA_ICON_BUSCAR = cargar_icono("buscar.png", (18, 18))
+_AXIA_ICON_BUSCAR_BLANCO = cargar_icono("buscar.png", (16, 16), blanco=True)
 from tkinter import messagebox
 from ui.native_combobox import NativeComboBox
 
