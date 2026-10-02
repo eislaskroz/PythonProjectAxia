@@ -96,8 +96,12 @@ def mostrar_clientes_admin(parent, app):
     entry_busqueda = ctk.CTkEntry(
         barra,
         textvariable=var_busqueda,
+                height=42,
+        corner_radius=12,
+        fg_color="#F8FAFC",
+        border_color="#D9E2EC",
+        border_width=1,
         placeholder_text="Buscar cliente por razón social, RFC, contacto, teléfono, correo o municipio...",
-        height=38,
     )
     entry_busqueda.grid(row=0, column=0, sticky="ew", padx=(0, 5))
 

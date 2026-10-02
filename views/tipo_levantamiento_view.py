@@ -12,6 +12,7 @@ Esto permite que AXIA cargue formularios dedicados por área.
 """
 
 import customtkinter as ctk
+from ui.iconos import cargar_icono
 from tkinter import messagebox
 
 from ui.colors import WHITE, PRIMARY, SECONDARY, TEXT_PRIMARY, TEXT_SECONDARY, BUTTON_HOVER
@@ -20,17 +21,17 @@ from services.movimientos_service import registrar_movimiento
 
 
 TIPOS_LEVANTAMIENTO = [
-    {"nombre": "Seguridad y Monitoreo", "habilitado": True, "icono": "📹"},
-    {"nombre": "Redes Voz y Datos", "habilitado": True, "icono": "🌐"},
-    {"nombre": "Control de Accesos", "habilitado": True, "icono": "🚪"},
-    {"nombre": "Enlaces Inalámbricos", "habilitado": True, "icono": "📡"},
-    {"nombre": "Tecnología, Equipos y Periféricos", "habilitado": True, "icono": "💻"},
-    {"nombre": "Electricidad", "habilitado": True, "icono": "🔌"},
-    {"nombre": "Paneles Solares", "habilitado": True, "icono": "☀️"},
-    {"nombre": "Plantas de Energía", "habilitado": True, "icono": "⚡"},
-    {"nombre": "Obra Civil", "habilitado": True, "icono": "🏗️"},
+    {"nombre": "Seguridad y Monitoreo", "habilitado": True, "icono": "📹", "icono_archivo": "1.png"},
+    {"nombre": "Redes Voz y Datos", "habilitado": True, "icono": "🌐", "icono_archivo": "2.png"},
+    {"nombre": "Control de Accesos", "habilitado": True, "icono": "🚪", "icono_archivo": "3.png"},
+    {"nombre": "Enlaces Inalámbricos", "habilitado": True, "icono": "📡", "icono_archivo": "4.png"},
+    {"nombre": "Tecnología, Equipos y Periféricos", "habilitado": True, "icono": "💻", "icono_archivo": "10.png"},
+    {"nombre": "Electricidad", "habilitado": True, "icono": "🔌", "icono_archivo": "5.png"},
+    {"nombre": "Paneles Solares", "habilitado": True, "icono": "☀️", "icono_archivo": "6.png"},
+    {"nombre": "Plantas de Energía", "habilitado": True, "icono": "⚡", "icono_archivo": "7.png"},
+    {"nombre": "Obra Civil", "habilitado": True, "icono": "🏗️", "icono_archivo": "8.png"},
     # Se conserva el módulo ya implementado para no perder funcionalidad.
-    {"nombre": "Aires Acondicionados", "habilitado": True, "icono": "❄️"},
+    {"nombre": "Aires Acondicionados", "habilitado": True, "icono": "❄️", "icono_archivo": "9.png"},
 ]
 
 
@@ -113,9 +114,12 @@ def mostrar_selector_tipo_levantamiento(parent, app, aco=None):
         item.grid(row=fila, column=columna, sticky="nsew", padx=5, pady=5)
         item.grid_columnconfigure(0, weight=1)
 
+        icono_tipo = cargar_icono(tipo.get("icono_archivo", ""), (24, 24)) if tipo.get("icono_archivo") else None
         ctk.CTkLabel(
             item,
-            text=f"{tipo['icono']} {tipo['nombre']}",
+            text=tipo["nombre"] if icono_tipo else f"{tipo['icono']} {tipo['nombre']}",
+            image=icono_tipo,
+            compound="left",
             font=("Montserrat", 16, "bold"),
             text_color=PRIMARY if tipo["habilitado"] else "#64748B"
         ).pack(anchor="w", padx=9, pady=(10, 8))

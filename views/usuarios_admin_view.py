@@ -84,8 +84,12 @@ def mostrar_usuarios_admin(parent, app):
     entry_busqueda = ctk.CTkEntry(
         barra,
         textvariable=var_busqueda,
+                height=42,
+        corner_radius=12,
+        fg_color="#F8FAFC",
+        border_color="#D9E2EC",
+        border_width=1,
         placeholder_text="Buscar usuario por nickname, nombre, apellido o correo empresarial...",
-        height=38,
     )
     entry_busqueda.grid(row=0, column=0, sticky="ew", padx=(0, 5))
 

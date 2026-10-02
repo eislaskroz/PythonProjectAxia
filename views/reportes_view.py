@@ -205,8 +205,12 @@ def crear_bloque_reporte(parent, reporte):
     entry_busqueda = ctk.CTkEntry(
         barra,
         textvariable=var_busqueda,
+                height=42,
+        corner_radius=12,
+        fg_color="#F8FAFC",
+        border_color="#D9E2EC",
+        border_width=1,
         placeholder_text=reporte["placeholder"],
-        height=36,
     )
     entry_busqueda.grid(row=0, column=0, sticky="ew", padx=(0, 4))
 

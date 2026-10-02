@@ -114,16 +114,16 @@ def mostrar_cotizaciones(parent, app=None):
     acciones.grid(row=2, column=0, sticky="ew", padx=14, pady=(4,10)); acciones.grid_columnconfigure(0, weight=1)
     lbl_total = ctk.CTkLabel(acciones, text="Total: $0.00 MXN", font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="e")
     lbl_total.grid(row=0, column=0, sticky="e", padx=(0,10))
-    btn_pdf = ctk.CTkButton(acciones, text="PDF Cotización (Preview)", image=icono_detalle, compound="left", width=185, fg_color="#334155", hover_color=BUTTON_HOVER,
+    btn_pdf = ctk.CTkButton(acciones, text="PDF Cotización (Preview)", image=icono_detalle, compound="left", width=185, height=42, corner_radius=10, fg_color="#2563EB", hover_color="#1D4ED8", text_color=WHITE, border_width=0,
                             font=BUTTON_FONT, state="disabled")
     btn_pdf.grid(row=0, column=1, padx=(0,8))
-    btn_modificar = ctk.CTkButton(acciones, text="Modificar cotización", image=icono_lapiz, compound="left", width=180, fg_color="#0F766E", hover_color=BUTTON_HOVER,
+    btn_modificar = ctk.CTkButton(acciones, text="Modificar cotización", image=icono_lapiz, compound="left", width=180, height=42, corner_radius=10, fg_color="#2563EB", hover_color="#1D4ED8", text_color=WHITE, border_width=0,
                                   font=BUTTON_FONT, state="disabled")
     btn_modificar.grid(row=0, column=2, padx=(0,8))
-    btn_guardar = ctk.CTkButton(acciones, text="Guardar cotización", image=icono_guardar, compound="left", width=190, fg_color=SECONDARY, hover_color=BUTTON_HOVER,
+    btn_guardar = ctk.CTkButton(acciones, text="Guardar cotización", image=icono_guardar, compound="left", width=190, height=42, corner_radius=10, fg_color=SECONDARY, hover_color=BUTTON_HOVER, text_color=WHITE, border_width=0,
                                 font=BUTTON_FONT, state="disabled")
     btn_guardar.grid(row=0, column=3, padx=(0,8))
-    btn_finalizar = ctk.CTkButton(acciones, text="Finalizar cotización", image=icono_finalizar, compound="left", width=185, fg_color="#15803D", hover_color=BUTTON_HOVER,
+    btn_finalizar = ctk.CTkButton(acciones, text="Finalizar cotización", image=icono_finalizar, compound="left", width=185, height=42, corner_radius=10, fg_color="#15803D", hover_color=BUTTON_HOVER, text_color=WHITE, border_width=0,
                                   font=BUTTON_FONT, state="disabled")
     btn_finalizar.grid(row=0, column=4)
     lbl_validacion = ctk.CTkLabel(acciones, text="Carga un levantamiento para iniciar la cotización.",

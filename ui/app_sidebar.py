@@ -112,7 +112,7 @@ def _crear_fondo_sidebar(tipo, size=(230, 900)):
     alto=max(600, int(size[1] or 900))
     with Image.open(ruta) as src:
         base = ImageOps.fit(src.convert("RGB"), (ancho, alto), method=Image.Resampling.LANCZOS)
-    base = ImageEnhance.Brightness(base).enhance(0.34).convert("RGBA")
+    base = ImageEnhance.Brightness(base).enhance(0.28).convert("RGBA")
     # Velo corporativo para conservar contraste de menú y botones.
     velo = Image.new("RGBA", (ancho, alto), (15, 35, 55, 105))
     base = Image.alpha_composite(base, velo)
