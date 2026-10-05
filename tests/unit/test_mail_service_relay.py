@@ -29,7 +29,7 @@ def test_mail_uses_relay_without_smtp(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(mail.requests, "post", fake_post)
     result = mail.enviar_correo(
         subject="Prueba", body="Contenido", attachments=[pdf],
-        to=["gte.ventas@axiacomunicaciones.mx"], flow="levantamiento_registrado",
+        to=["coord.operaciones@axiacomunicaciones.mx"], flow="levantamiento_registrado",
     )
     assert result.sent is True
     assert captured["url"].endswith("/functions/v1/axia-mail-relay")

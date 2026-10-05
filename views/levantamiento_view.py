@@ -726,6 +726,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     manual_widgets = {"cliente": None, "sucursal": None, "encargado": None}
     sucursales_por_nombre = {}
     contactos_por_nombre = {}
+    OPCION_PRINCIPAL = "PRINCIPAL / DATOS DEL CLIENTE"
     seleccion_catalogo = {"id_cliente": None, "id_sucursal": None, "id_contacto": None}
 
     def _id_cliente(cliente_db):
@@ -757,26 +758,46 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             if entry:
                 entry.configure(state="disabled")
 
+    def _restaurar_datos_cliente_principal():
+        """Restaura los datos maestros de db_clientes como fuente principal."""
+        cliente_db = clientes_por_nombre.get(str(var_cliente.get() or var_cliente_selector.get() or "").strip())
+        if not cliente_db:
+            return
+        seleccion_catalogo["id_sucursal"] = None
+        seleccion_catalogo["id_contacto"] = None
+        var_contacto.set(str(cliente_db.get("cli_contacto") or "").strip())
+        var_telefono.set(str(cliente_db.get("cli_telefono") or "").strip())
+        var_correo.set(str(cliente_db.get("cli_correo") or "").strip())
+        var_direccion.set(construir_direccion_cliente(cliente_db))
+        var_direccion_sucursal.set("")
+        var_ubicacion.set(str(cliente_db.get("cli_municipio") or "").strip())
+        var_encargado_sucursal.set("Contacto principal del cliente")
+        if combo_encargado["widget"] is not None:
+            combo_encargado["widget"].configure(values=["Contacto principal del cliente"])
+
     def cargar_contactos_sucursal(nombre_sucursal=None, id_contacto_preferido=None):
         nombre = str(nombre_sucursal or var_sucursal.get() or "").strip()
+        if nombre == OPCION_PRINCIPAL or nombre == "Sin sucursales registradas":
+            contactos_por_nombre.clear()
+            _restaurar_datos_cliente_principal()
+            return
         sucursal = sucursales_por_nombre.get(nombre)
         contactos_por_nombre.clear()
         seleccion_catalogo["id_sucursal"] = _id_sucursal(sucursal) if sucursal else None
         seleccion_catalogo["id_contacto"] = None
         var_encargado_sucursal.set("")
-        var_contacto.set("")
         if sucursal:
-            # Conservamos la dirección fiscal del cliente y mostramos además el
-            # domicilio operativo completo de la sucursal seleccionada.
             var_ubicacion.set(_nombre_sucursal(sucursal))
             var_direccion_sucursal.set(construir_domicilio_sucursal(sucursal))
-            # Los contactos deben consultarse cuando SÍ existe una sucursal.
-            # En FIX21 este bloque quedó accidentalmente dentro del ``else`` y
-            # por eso el combo siempre terminaba en "Sin encargados registrados".
+            # Al elegir explícitamente una sucursal, sus datos tienen prioridad.
+            var_contacto.set("")
+            var_telefono.set(str(sucursal.get("suc_telefono") or "").strip())
+            var_correo.set(str(sucursal.get("suc_correo") or "").strip())
             for contacto in obtener_contactos_por_sucursal(_id_sucursal(sucursal)) or []:
                 contactos_por_nombre[_nombre_contacto(contacto)] = contacto
         else:
-            var_direccion_sucursal.set("")
+            _restaurar_datos_cliente_principal()
+            return
         opciones = list(contactos_por_nombre.keys()) or ["Sin encargados registrados"]
         if combo_encargado["widget"] is not None:
             combo_encargado["widget"].configure(values=opciones)
@@ -809,7 +830,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         sucursales_por_nombre.clear()
         for sucursal in obtener_sucursales_por_cliente(id_cliente) or []:
             sucursales_por_nombre[_nombre_sucursal(sucursal)] = sucursal
-        opciones = list(sucursales_por_nombre.keys()) or ["Sin sucursales registradas"]
+        opciones = [OPCION_PRINCIPAL] + list(sucursales_por_nombre.keys())
         if combo_sucursal["widget"] is not None:
             combo_sucursal["widget"].configure(values=opciones)
         elegido = None
@@ -818,10 +839,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 if str(_id_sucursal(sucursal)) == str(id_sucursal_preferida):
                     elegido = nombre_opcion
                     break
-        if not elegido and sucursales_por_nombre:
-            elegido = next(iter(sucursales_por_nombre))
-        var_sucursal.set(elegido or opciones[0])
-        cargar_contactos_sucursal(var_sucursal.get(), id_contacto_preferido=id_contacto_preferido)
+        # Sin una sucursal previamente guardada, nunca elegimos una automáticamente.
+        elegido = elegido or OPCION_PRINCIPAL
+        var_sucursal.set(elegido)
+        cargar_contactos_sucursal(elegido, id_contacto_preferido=id_contacto_preferido)
 
     def cargar_aco_desde_campo():
         """Busca el ACO capturado y autollena cliente, sucursal y encargado catalogados."""
@@ -895,9 +916,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         if not cliente_db:
             return
         var_cliente.set(nombre)
-        var_contacto.set("")
-        var_telefono.set("")
-        var_correo.set("")
+        # db_clientes es siempre la fuente principal al seleccionar un cliente.
+        var_contacto.set(str(cliente_db.get("cli_contacto") or "").strip())
+        var_telefono.set(str(cliente_db.get("cli_telefono") or "").strip())
+        var_correo.set(str(cliente_db.get("cli_correo") or "").strip())
         var_direccion.set(construir_direccion_cliente(cliente_db))
         var_ubicacion.set(cliente_db.get("cli_municipio", "") or "")
         cargar_sucursales_cliente(_id_cliente(cliente_db))
@@ -2208,7 +2230,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
         seccion_aa_necesidad = crear_seccion_aa("❄️ 1. Necesidad inicial del servicio", fila_textos)
         registrar_seccion_aa("necesidad", seccion_aa_necesidad)
-        option_aa(seccion_aa_necesidad, "¿Qué se necesita realizar?", var_aa_necesidad, ["Instalación nueva", "Reemplazo", "Reubicación", "Ampliación", "Diagnóstico previo"], 0, 0)
+        option_aa(seccion_aa_necesidad, "¿Qué se necesita realizar?", var_aa_necesidad, ["Instalación nueva", "Mantenimiento", "Reemplazo", "Reubicación", "Ampliación", "Diagnóstico previo"], 0, 0)
         entry_aa(seccion_aa_necesidad, "¿Cuántos equipos se requieren?", var_aa_cantidad_equipos, "Ej. 2", 0, 1, ancho_corto=True)
         entry_aa(seccion_aa_necesidad, "¿Qué área se va a climatizar?", var_aa_area_climatizar, "Ej. oficina principal", 0, 2)
         option_aa(seccion_aa_necesidad, "Tipo de área", var_aa_tipo_area, ["Oficina", "SITE", "Sala de juntas", "Bodega", "Comedor", "Local", "Otro"], 0, 3)
@@ -2337,7 +2359,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             return option
 
         seccion_rvd_necesidad = crear_seccion_rvd("🌐 1. Necesidad inicial y alcance", fila_textos)
-        option_rvd(seccion_rvd_necesidad, "¿Qué se necesita realizar?", var_rvd_necesidad, ["Instalación nueva", "Ampliación", "Reubicación", "Remodelación", "Diagnóstico previo"], 0, 0)
+        option_rvd(seccion_rvd_necesidad, "¿Qué se necesita realizar?", var_rvd_necesidad, ["Instalación nueva", "Mantenimiento", "Ampliación", "Reubicación", "Remodelación", "Diagnóstico previo"], 0, 0)
         widget_rvd_tipo_servicio = option_rvd(seccion_rvd_necesidad, "Tipo de servicio", var_rvd_tipo_servicio, ["Datos", "Voz", "Voz y datos", "Fibra óptica", "Mixto"], 0, 1)
         widget_rvd_nodos = entry_rvd(seccion_rvd_necesidad, "¿Cuántos nodos de datos se requieren?", var_rvd_cantidad_nodos, "Ej. 12", 0, 2, ancho_corto=True)
         widget_rvd_voz = entry_rvd(seccion_rvd_necesidad, "¿Cuántos puntos de voz se requieren?", var_rvd_cantidad_telefonia, "Ej. 4", 0, 3, ancho_corto=True)
@@ -2521,7 +2543,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             return option
 
         seccion_pe_necesidad = crear_seccion_pe("⚡ 1. Necesidad inicial del respaldo eléctrico", fila_textos)
-        option_pe(seccion_pe_necesidad, "¿Qué se necesita realizar?", var_pe_necesidad, ["Instalación nueva", "Reemplazo", "Ampliación", "Reubicación", "Diagnóstico previo"], 0, 0)
+        option_pe(seccion_pe_necesidad, "¿Qué se necesita realizar?", var_pe_necesidad, ["Instalación nueva", "Mantenimiento", "Reemplazo", "Ampliación", "Reubicación", "Diagnóstico previo"], 0, 0)
         option_pe(seccion_pe_necesidad, "Tipo de planta requerida", var_pe_tipo_planta, ["Diésel", "Gas", "Gasolina", "Híbrida", "Por validar"], 0, 1)
         entry_pe(seccion_pe_necesidad, "Capacidad estimada", var_pe_capacidad, "Ej. 30 kW", 0, 2, ancho_corto=True)
         entry_pe(seccion_pe_necesidad, "Carga a respaldar", var_pe_carga_respaldar, "Ej. SITE, CCTV, oficinas", 0, 3)
@@ -2597,7 +2619,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             return option
 
         seccion_ele_necesidad = crear_seccion_ele("🔌 1. Necesidad inicial y alcance eléctrico", fila_textos)
-        option_ele(seccion_ele_necesidad, "¿Qué se necesita realizar?", var_ele_necesidad, ["Instalación nueva", "Ampliación", "Reubicación", "Corrección", "Diagnóstico previo"], 0, 0)
+        option_ele(seccion_ele_necesidad, "¿Qué se necesita realizar?", var_ele_necesidad, ["Instalación nueva", "Mantenimiento", "Ampliación", "Reubicación", "Corrección", "Diagnóstico previo"], 0, 0)
         tipos_servicio_electricidad = sorted([
             "Alimentador", "Alimentador principal", "Base de medición",
             "Circuito dedicado", "Cometida eléctrica", "Contactos",

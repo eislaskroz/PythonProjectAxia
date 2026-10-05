@@ -6,6 +6,7 @@ Los valores se conservan con la nomenclatura operativa proporcionada por AXIA.
 TIPOS_COPLES = [
     "Opresor", "Compresión", "Roscado", "Combinación", "PVC Rígido",
     "Polietileno", "Ducto Polietileno Alta Densidad",
+    "Conduit", "Conduit Galvanizado", "Conduit PD", "Conduit PG",
 ]
 
 TIPOS_TUBOS = [
@@ -42,6 +43,7 @@ TIPOS_CONECTORES = [
     "Regletas o clemas de conexión", "Torsión (Capuchones)",
     "Presión o empalme rápido (Wago)", "Anillo y Horquilla", "Pala y Bala",
     "Mecánicos y de compresión (C y H)", "Cilíndricos e impermeables",
+    "Liquatite", "Conduit PVC", "Conduit galvanizado",
 ]
 
 TIPOS_ABRAZADERAS = [

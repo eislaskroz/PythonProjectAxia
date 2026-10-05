@@ -68,7 +68,7 @@ FORMULARIOS_DETALLADOS_EXTRA = {
         "tipo_sistema": "Seguridad",
         "secciones": [
             ("🚪 1. Necesidad inicial y alcance", [
-                ("necesidad", "option", "¿Qué se necesita realizar?", ["Instalación nueva", "Ampliación", "Reubicación", "Reparación", "Diagnóstico previo"], "Instalación nueva"),
+                ("necesidad", "option", "¿Qué se necesita realizar?", ["Instalación nueva", "Mantenimiento", "Ampliación", "Reubicación", "Reparación", "Diagnóstico previo"], "Instalación nueva"),
                 ("tipo_control", "option", "Tipo de control de acceso", ["Peatonal", "Vehicular", "Peatonal y vehicular", "SITE / área restringida", "Por validar"], "Peatonal"),
                 ("cantidad_accesos", "entry", "Cantidad de accesos", "Ej. 3", ""),
                 ("ubicacion_accesos", "entry", "Ubicación de accesos", "Ej. recepción / almacén", ""),
@@ -125,7 +125,7 @@ FORMULARIOS_DETALLADOS_EXTRA = {
         "tipo_sistema": "Infraestructura",
         "secciones": [
             ("📡 1. Necesidad inicial y alcance", [
-                ("necesidad", "option", "¿Qué se necesita realizar?", ["Enlace punto a punto", "Punto multipunto", "Ampliación", "Reubicación", "Diagnóstico"], "Enlace punto a punto"),
+                ("necesidad", "option", "¿Qué se necesita realizar?", ["Enlace punto a punto", "Mantenimiento", "Punto multipunto", "Ampliación", "Reubicación", "Diagnóstico"], "Enlace punto a punto"),
                 ("sitio_origen", "entry", "Sitio origen", "Ej. corporativo", ""),
                 ("sitio_destino", "entry", "Sitio destino", "Ej. almacén", ""),
                 ("distancia", "entry", "Distancia aproximada", "Ej. 1.5 km", ""),

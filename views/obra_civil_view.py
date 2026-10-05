@@ -162,6 +162,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
 
     sucursales_por_nombre = {}
     contactos_por_nombre = {}
+    OPCION_PRINCIPAL = "PRINCIPAL / DATOS DEL CLIENTE"
     combo_sucursal = {"widget": None}
     combo_encargado = {"widget": None}
     seleccion_catalogo = {"id_cliente": datos_aco.get("id_cliente"), "id_sucursal": datos_aco.get("id_sucursal"), "id_contacto": datos_aco.get("id_contacto")}
@@ -195,15 +196,43 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
             var_telefono.set(str(contacto.get("con_telefono") or "").strip())
             var_correo.set(str(contacto.get("con_correo") or "").strip())
 
+    def _restaurar_datos_cliente_principal():
+        cliente_db = clientes_por_nombre.get(str(var_cliente.get() or var_cliente_selector.get() or "").strip())
+        if not cliente_db:
+            return
+        seleccion_catalogo["id_sucursal"] = None
+        seleccion_catalogo["id_contacto"] = None
+        var_contacto.set(str(cliente_db.get("cli_contacto") or "").strip())
+        var_telefono.set(str(cliente_db.get("cli_telefono") or "").strip())
+        var_correo.set(str(cliente_db.get("cli_correo") or "").strip())
+        var_direccion.set(construir_direccion_cliente(cliente_db))
+        var_encargado_sucursal.set("Contacto principal del cliente")
+        if combo_encargado["widget"] is not None:
+            combo_encargado["widget"].configure(values=["Contacto principal del cliente"])
+
     def cargar_contactos(nombre=None, id_contacto_preferido=None):
-        sucursal = sucursales_por_nombre.get(str(nombre or var_sucursal.get() or "").strip())
+        etiqueta = str(nombre or var_sucursal.get() or "").strip()
+        if etiqueta == OPCION_PRINCIPAL or etiqueta == "Sin sucursales registradas":
+            contactos_por_nombre.clear()
+            _restaurar_datos_cliente_principal()
+            return
+        sucursal = sucursales_por_nombre.get(etiqueta)
         contactos_por_nombre.clear()
         seleccion_catalogo["id_sucursal"] = _id_sucursal(sucursal) if sucursal else None
         seleccion_catalogo["id_contacto"] = None
         if sucursal:
-            # La dirección visible del levantamiento es la fiscal del cliente.
+            # La sucursal fue elegida explícitamente: sus datos tienen prioridad.
+            var_contacto.set("")
+            var_telefono.set(str(sucursal.get("suc_telefono") or "").strip())
+            var_correo.set(str(sucursal.get("suc_correo") or "").strip())
+            domicilio_sucursal = construir_domicilio_sucursal(sucursal)
+            if domicilio_sucursal:
+                var_direccion.set(domicilio_sucursal)
             for contacto in obtener_contactos_por_sucursal(_id_sucursal(sucursal)) or []:
                 contactos_por_nombre[_nombre_contacto(contacto)] = contacto
+        else:
+            _restaurar_datos_cliente_principal()
+            return
         opciones = list(contactos_por_nombre) or ["Sin encargados registrados"]
         if combo_encargado["widget"] is not None:
             combo_encargado["widget"].configure(values=opciones)
@@ -224,7 +253,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         sucursales_por_nombre.clear()
         for sucursal in obtener_sucursales_por_cliente(id_cliente) or []:
             sucursales_por_nombre[_nombre_sucursal(sucursal)] = sucursal
-        opciones = list(sucursales_por_nombre) or ["Sin sucursales registradas"]
+        opciones = [OPCION_PRINCIPAL] + list(sucursales_por_nombre)
         if combo_sucursal["widget"] is not None:
             combo_sucursal["widget"].configure(values=opciones)
         elegido = None
@@ -233,10 +262,9 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
                 if str(_id_sucursal(sucursal)) == str(id_sucursal_preferida):
                     elegido = etiqueta
                     break
-        if not elegido and sucursales_por_nombre:
-            elegido = next(iter(sucursales_por_nombre))
-        var_sucursal.set(elegido or opciones[0])
-        cargar_contactos(var_sucursal.get(), id_contacto_preferido)
+        elegido = elegido or OPCION_PRINCIPAL
+        var_sucursal.set(elegido)
+        cargar_contactos(elegido, id_contacto_preferido)
 
     contenedor = ctk.CTkFrame(parent, fg_color="transparent")
     contenedor.pack(fill="both", expand=True, padx=7, pady=5)
@@ -396,8 +424,11 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         if not cliente_db:
             return
         var_cliente.set(nombre_cliente)
-        var_contacto.set("")
-        var_encargado_sucursal.set("")
+        # db_clientes es siempre la fuente principal al seleccionar un cliente.
+        var_contacto.set(str(cliente_db.get("cli_contacto") or "").strip())
+        var_telefono.set(str(cliente_db.get("cli_telefono") or "").strip())
+        var_correo.set(str(cliente_db.get("cli_correo") or "").strip())
+        var_encargado_sucursal.set("Contacto principal del cliente")
         var_direccion.set(construir_direccion_cliente(cliente_db))
         cargar_sucursales(_id_cliente(cliente_db))
         validar_preview()

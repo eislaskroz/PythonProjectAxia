@@ -11,6 +11,7 @@ CATALOGO_HERRAMIENTAS = {
         "Flexómetro / cinta métrica", "Nivel de burbuja", "Nivel láser", "Linterna",
         "Escalera de tijera", "Escalera de extensión", "Andamio", "Juego de desarmadores",
         "Juego de llaves combinadas", "Juego de dados y matraca", "Llave ajustable",
+        "Llave Perico", "Llave Allen", "Llave Inglesa/Stylson",
         "Pinzas universales", "Pinzas de punta", "Pinzas de corte", "Martillo",
         "Taladro / rotomartillo", "Atornillador inalámbrico", "Brocas y puntas",
         "Aspiradora / sopladora", "Extensión eléctrica", "Generador portátil de apoyo",

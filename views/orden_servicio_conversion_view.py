@@ -569,7 +569,7 @@ def mostrar_conversion_orden_servicio(parent, app):
         folio = str(registro_pdf.get("lev_folio") or "SIN-FOLIO").strip().upper()
         if not messagebox.askyesno(
             "Validar levantamiento",
-            f"Se enviará el PDF de {folio} a gte.ventas@axiacomunicaciones.mx para revisión/cotización.\n\n¿Continuar?",
+            f"Se enviará el PDF de {folio} a coord.operaciones@axiacomunicaciones.mx para revisión/cotización.\n\n¿Continuar?",
         ):
             return
 
@@ -623,7 +623,7 @@ def mostrar_conversion_orden_servicio(parent, app):
             )
             messagebox.showinfo(
                 "Levantamiento enviado",
-                f"El levantamiento {folio} fue enviado correctamente a:\n\ngte.ventas@axiacomunicaciones.mx",
+                f"El levantamiento {folio} fue enviado correctamente a:\n\ncoord.operaciones@axiacomunicaciones.mx",
             )
 
         def error(exc):

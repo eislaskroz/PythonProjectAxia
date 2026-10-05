@@ -21,7 +21,7 @@ from core.logger import configurar_logger
 logger = configurar_logger(__name__)
 
 _TRUE_VALUES = {"1", "true", "yes", "si", "sí", "on"}
-_AUTORIZACION_LEVANTAMIENTOS = "gte.ventas@axiacomunicaciones.mx"
+_AUTORIZACION_LEVANTAMIENTOS = "coord.operaciones@axiacomunicaciones.mx"
 _RELAY_FUNCTION = "axia-mail-relay"
 _MAX_ATTACHMENT_BYTES = 12 * 1024 * 1024
 

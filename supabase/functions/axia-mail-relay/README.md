@@ -15,7 +15,7 @@ supabase secrets set \
   AXIA_SMTP_SSL="0" \
   AXIA_MAIL_FROM="CUENTA@DOMINIO" \
   AXIA_MAIL_FROM_NAME="AXIA Comunicaciones" \
-  AXIA_MAIL_ALLOWED_RECIPIENTS="gte.ventas@axiacomunicaciones.mx" \
+  AXIA_MAIL_ALLOWED_RECIPIENTS="coord.operaciones@axiacomunicaciones.mx" \
   AXIA_MAIL_BCC="CORREO_AUDITORIA@DOMINIO"
 ```
 
