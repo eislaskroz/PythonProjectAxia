@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 from io import BytesIO
 from html import escape
 from pathlib import Path
@@ -1143,6 +1144,37 @@ def _material_rows(detail: Mapping[str, Any]) -> list[list[Any]]:
             for x in _dynamic_rows(detail, "materiales_miscelaneos")]
 
 
+def _civil_concept_rows(detail: Mapping[str, Any]) -> list[list[Any]]:
+    """Reconstruye conceptos de Obra Civil enviados por FIELD sin exponer claves técnicas."""
+    sources = [detail]
+    compat = detail.get("compatibilidad_axia_field")
+    if isinstance(compat, Mapping):
+        sources.append(compat)
+
+    merged: dict[str, Any] = {}
+    for source in sources:
+        for key, value in source.items():
+            merged.setdefault(str(key), value)
+
+    indexes = sorted({
+        int(match.group(1))
+        for key in merged
+        for match in [re.match(r"^civil_concept_(\d+)_", key, re.IGNORECASE)]
+        if match
+    })
+    rows: list[list[Any]] = []
+    for index in indexes:
+        prefix = f"civil_concept_{index}_"
+        label_value = merged.get(prefix + "label")
+        type_value = merged.get(prefix + "type")
+        quantity = merged.get(prefix + "quantity")
+        unit = merged.get(prefix + "unit")
+        # El ID es interno y deliberadamente no se imprime.
+        if any(v not in (None, "") for v in (label_value, type_value, quantity, unit)):
+            rows.append([label_value, type_value, quantity, unit])
+    return rows
+
+
 def _tool_rows(detail: Mapping[str, Any]) -> list[list[Any]]:
     return [[x.get("categoria"), x.get("herramienta") or x.get("nombre"), x.get("cantidad"), x.get("observaciones")]
             for x in _dynamic_rows(detail, "herramientas")]
@@ -1307,14 +1339,44 @@ def generar_pdf_levantamiento_maestro(
                     # registro; únicamente se ocultan en el PDF Preview.
                     if tipo.casefold() == "obra civil" and str(key) == "compatibilidad_axia_field":
                         patrones_ocultos = (
-                            re.compile(r"^civil_misc_\d+_unit$", re.IGNORECASE),
-                            re.compile(r"^common_epp_\d+_name$", re.IGNORECASE),
-                            re.compile(r"^civil_concept_\d+_id$", re.IGNORECASE),
+                            # Las partidas repetibles de FIELD se muestran más abajo
+                            # en tablas legibles; aquí ocultamos TODA la familia indexada
+                            # para evitar claves técnicas como civil_misc_0_quantity.
+                            re.compile(r"^civil_misc_\d+_", re.IGNORECASE),
+                            re.compile(r"^common_epp_\d+_", re.IGNORECASE),
+                            re.compile(r"^civil_concept_\d+_", re.IGNORECASE),
+                            re.compile(r"^common_material_\d+_", re.IGNORECASE),
                         )
-                        value = {
-                            k: v for k, v in value.items()
-                            if not any(p.match(str(k)) for p in patrones_ocultos)
+                        claves_ocultas = {
+                            "common_material_count",
+                            "common_material_required",
+                            "common_estimated_days",
+                            "common_estimated_hours",
+                            "common_project_duration",
                         }
+                        # Compatibilidad AXIA FIELD debe ser legible para el usuario final.
+                        # Las claves técnicas en inglés se usan para reconstruir las tablas
+                        # formateadas del PDF, pero no deben mostrarse crudas en esta sección.
+                        prefijos_tecnicos_ingles = (
+                            "common_",
+                            "civil_",
+                            "wants_",
+                            "height_",
+                            "risk_",
+                            "temp_",
+                        )
+                        claves_tecnicas_ingles = {"risk", "height"}
+
+                        def _ocultar_clave_field(clave: Any) -> bool:
+                            normalizada = str(clave).strip().casefold().replace(" ", "_")
+                            return (
+                                normalizada in claves_ocultas
+                                or normalizada in claves_tecnicas_ingles
+                                or normalizada.startswith(prefijos_tecnicos_ingles)
+                                or any(p.match(str(clave)) for p in patrones_ocultos)
+                            )
+
+                        value = {k: v for k, v in value.items() if not _ocultar_clave_field(k)}
                         if not value:
                             continue
                     _append_mapping_section(story, _section_name(str(key)), value, width, normal, label, header)
@@ -1341,6 +1403,16 @@ def generar_pdf_levantamiento_maestro(
             [1.05*inch,1.15*inch,.65*inch,.95*inch,.95*inch,2.15*inch], normal, header
         ))
         story.append(Spacer(1, 7))
+
+    if tipo.casefold() == "obra civil":
+        civil_concepts = _civil_concept_rows(detail)
+        if civil_concepts:
+            story.append(_section_matrix_table(
+                "Conceptos de Obra Civil",
+                ["Concepto", "Tipo", "Cantidad", "Unidad"], civil_concepts,
+                [3.65*inch,1.25*inch,.85*inch,1.15*inch], normal, header
+            ))
+            story.append(Spacer(1, 7))
 
     materials = _material_rows(detail)
     if materials:
