@@ -1301,6 +1301,22 @@ def generar_pdf_levantamiento_maestro(
                 if key in SPECIAL_ROOT_KEYS:
                     continue
                 if isinstance(value, Mapping):
+                    # Obra Civil / AXIA FIELD: estas claves planas son metadatos
+                    # auxiliares que ya se representan en las tablas estructuradas
+                    # de materiales, EPP y conceptos. Se conservan intactas en el
+                    # registro; únicamente se ocultan en el PDF Preview.
+                    if tipo.casefold() == "obra civil" and str(key) == "compatibilidad_axia_field":
+                        patrones_ocultos = (
+                            re.compile(r"^civil_misc_\d+_unit$", re.IGNORECASE),
+                            re.compile(r"^common_epp_\d+_name$", re.IGNORECASE),
+                            re.compile(r"^civil_concept_\d+_id$", re.IGNORECASE),
+                        )
+                        value = {
+                            k: v for k, v in value.items()
+                            if not any(p.match(str(k)) for p in patrones_ocultos)
+                        }
+                        if not value:
+                            continue
                     _append_mapping_section(story, _section_name(str(key)), value, width, normal, label, header)
 
     # Partidas dinámicas comunes. En Seguridad y Monitoreo solo aplican
