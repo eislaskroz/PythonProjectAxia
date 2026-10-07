@@ -2743,6 +2743,19 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
         secciones_extra_frames = []
         extra_widgets = {}
+        ti_switch_vars = {}
+        ti_contenedores_opcionales = {}
+
+        def _es_seccion_ti_opcional(titulo):
+            return (
+                tipo_levantamiento == "Tecnología, Equipos y Periféricos"
+                and ("Identificación y características generales" in titulo or "Requerimientos para suministro" in titulo)
+            )
+
+        def _ti_opcional_activa(titulo):
+            var = ti_switch_vars.get(titulo)
+            return bool(var and var.get())
+
         indice_visual = 0
         for indice_seccion, (titulo_sec, campos_sec) in enumerate(FORMULARIOS_DETALLADOS_EXTRA[tipo_levantamiento]["secciones"]):
             if tipo_levantamiento in ("Control de Accesos", "Enlaces Inalámbricos") and "Cableado, canalización e infraestructura requerida" in titulo_sec:
@@ -2750,6 +2763,32 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             seccion_extra = crear_seccion_extra(titulo_sec, fila_textos + indice_visual)
             indice_visual += 1
             secciones_extra_frames.append(seccion_extra)
+
+            contenedor_campos = seccion_extra
+            if _es_seccion_ti_opcional(titulo_sec):
+                switch_var = ctk.BooleanVar(value=False)
+                ti_switch_vars[titulo_sec] = switch_var
+                contenedor_campos = ctk.CTkFrame(seccion_extra, fg_color="transparent")
+                for col in range(5):
+                    contenedor_campos.grid_columnconfigure(col, weight=1, uniform="extra_cols")
+                contenedor_campos.grid(row=1, column=0, columnspan=5, sticky="ew", padx=0, pady=(0, 2))
+                ti_contenedores_opcionales[titulo_sec] = contenedor_campos
+
+                def _alternar_opcional(_titulo=titulo_sec, _frame=contenedor_campos, _var=switch_var):
+                    if _var.get():
+                        _frame.grid()
+                    else:
+                        _frame.grid_remove()
+
+                switch = ctk.CTkSwitch(
+                    seccion_extra, text="Agregar información adicional", variable=switch_var,
+                    command=_alternar_opcional, font=("Montserrat", 10, "bold"),
+                    onvalue=True, offvalue=False
+                )
+                switch.grid(row=0, column=3, columnspan=2, sticky="e", padx=(6, 12), pady=(5, 3))
+                extra_widgets[f"__switch__{titulo_sec}"] = switch
+                _alternar_opcional()
+
             campos_visibles = [campo for campo in campos_sec if campo[0] not in {"dias_trabajo", "personas_trabajo", "personas_considerar"}]
             for indice_campo, (clave, tipo_campo, etiqueta, opciones_placeholder, _default) in enumerate(campos_visibles):
                 fila_campo = indice_campo // 5
@@ -2758,9 +2797,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 etiqueta_lower = etiqueta.lower()
                 es_corto = any(palabra in etiqueta_lower for palabra in ("cantidad", "días", "personas", "metros", "distancia", "altura", "capacidad", "consumo", "área", "ancho"))
                 if tipo_campo == "option":
-                    extra_widgets[clave] = option_extra(seccion_extra, etiqueta, variable, opciones_placeholder, fila_campo, columna_campo)
+                    extra_widgets[clave] = option_extra(contenedor_campos, etiqueta, variable, opciones_placeholder, fila_campo, columna_campo)
                 else:
-                    extra_widgets[clave] = entry_extra(seccion_extra, etiqueta, variable, opciones_placeholder, fila_campo, columna_campo, ancho_corto=es_corto)
+                    extra_widgets[clave] = entry_extra(contenedor_campos, etiqueta, variable, opciones_placeholder, fila_campo, columna_campo, ancho_corto=es_corto)
 
         # La canalización de estos formularios se captura en la sección dinámica común.
 
@@ -2817,7 +2856,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             categoria = item["categoria"].get().strip()
             tipo = item["tipo"].get().strip()
             cantidad = item["cantidad"].get().strip()
-            if not (categoria or tipo or cantidad):
+            # Una fila recien creada trae categoria/tipo por defecto. Sin cantidad
+            # no representa una captura real y nunca debe llegar a Supabase/PDF.
+            if not cantidad:
                 continue
             filas.append({
                 "categoria": categoria,
@@ -2963,6 +3004,15 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
         def actualizar_requiere_canalizacion(*_):
             habilitado = var_requiere_canalizacion.get() == "Sí"
+            if not habilitado:
+                # NO canalizacion significa NO datos de canalizacion. Limpiamos
+                # cualquier partida visible/heredada para impedir informacion ficticia.
+                for item in canalizacion_materiales_items:
+                    for key in ("cantidad", "especificacion"):
+                        try:
+                            item[key].set("")
+                        except Exception:
+                            pass
             for item in canalizacion_materiales_items:
                 for w in item.get("widgets", []):
                     estado = "normal" if habilitado else "disabled"
@@ -3236,6 +3286,25 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         item_material["widgets"].append(btn_eliminar)
         materiales_miscelaneos_items.append(item_material)
 
+    # En Tecnología se ofrece un catálogo rápido de insumos/consumibles.
+    # La captura manual se conserva para cualquier material no contemplado.
+    if tipo_levantamiento == "Tecnología, Equipos y Periféricos":
+        _insumos_ti = sorted(
+            obtener_materiales_por_especialidad(tipo_levantamiento),
+            key=lambda x: str(x.get("nombre") or "").casefold(),
+        )
+        _insumos_por_nombre = {str(x.get("nombre") or ""): x for x in _insumos_ti if x.get("nombre")}
+        _var_insumo_catalogo = ctk.StringVar(value=(next(iter(_insumos_por_nombre), "")))
+        _combo_insumo_catalogo = NativeComboBox(
+            seccion_misc, variable=_var_insumo_catalogo,
+            values=list(_insumos_por_nombre.keys()), height=31
+        )
+        _combo_insumo_catalogo.grid(row=998, column=0, columnspan=3, sticky="ew", padx=5, pady=(5, 2))
+        ctk.CTkButton(
+            seccion_misc, text="➕ Agregar insumo del catálogo", height=31, fg_color=PRIMARY,
+            command=lambda: agregar_material_miscelaneo(_insumos_por_nombre.get(_var_insumo_catalogo.get()))
+        ).grid(row=998, column=3, columnspan=2, sticky="ew", padx=5, pady=(5, 2))
+
     ctk.CTkButton(
         seccion_misc, text="➕ Agregar otro material", height=32, fg_color=PRIMARY,
         command=lambda: agregar_material_miscelaneo(None)
@@ -3404,6 +3473,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     btn_agregar_epp.grid(row=1000, column=0, columnspan=2, sticky="w", padx=5, pady=(4, 5))
 
     def obtener_epp_json():
+        # Tecnología, Equipos y Periféricos es un formulario de suministro:
+        # EPP no aplica y nunca debe guardarse/restaurarse.
+        if tipo_levantamiento == "Tecnología, Equipos y Periféricos":
+            return []
         if var_requiere_epp.get() != "Sí":
             return []
         resultado = []
@@ -3434,10 +3507,16 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         return "; ".join(lineas)
 
     def actualizar_visibilidad_epp(*_):
+        if tipo_levantamiento == "Tecnología, Equipos y Periféricos":
+            var_requiere_epp.set("No") if var_requiere_epp.get() != "No" else None
+            seccion_epp.grid_remove()
+            return
         if var_requiere_epp.get() == "Sí":
             epp_detalle_frame.grid()
-            if not epp_items:
-                # EPP base obligatorio para todo levantamiento nuevo.
+            # Los EPP base se precargan EXCLUSIVAMENTE al crear un levantamiento.
+            # En edición primero se restauran las partidas guardadas; nunca debemos
+            # insertar de nuevo Casco/Botas/Chaleco y duplicar cantidades existentes.
+            if not registro_editar and not epp_items:
                 agregar_epp({"epp": "Casco de seguridad", "cantidad": "1"})
                 agregar_epp({"epp": "Botas de seguridad", "cantidad": "1"})
                 agregar_epp({"epp": "Chaleco reflejante / alta visibilidad", "cantidad": "1"})
@@ -3557,7 +3636,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         command=lambda: agregar_herramienta(None)
     ).grid(row=1000, column=0, columnspan=2, sticky="w", padx=5, pady=(4, 5))
 
+    if tipo_levantamiento == "Tecnología, Equipos y Periféricos":
+        seccion_herramientas.grid_remove()
+
     def obtener_herramientas_json():
+        # Herramientas no aplican al formulario de suministro de Tecnología.
+        if tipo_levantamiento == "Tecnología, Equipos y Periféricos":
+            return []
         resultado = []
         for item in herramientas_items:
             herramienta = item["herramienta"].get().strip()
@@ -4095,9 +4180,15 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             }
             for titulo_sec, campos_sec in FORMULARIOS_DETALLADOS_EXTRA[tipo_levantamiento]["secciones"]:
                 nombre_sec = titulo_sec.split(". ", 1)[-1].lower().replace(" ", "_").replace(",", "").replace("/", "_")
+                seccion_opcional_ti_apagada = (
+                    tipo_levantamiento == "Tecnología, Equipos y Periféricos"
+                    and _es_seccion_ti_opcional(titulo_sec)
+                    and not _ti_opcional_activa(titulo_sec)
+                )
                 detalle["secciones"][nombre_sec] = {
                     clave: (
-                        var_dias_trabajo_general.get().strip() if clave == "dias_trabajo"
+                        "" if seccion_opcional_ti_apagada
+                        else var_dias_trabajo_general.get().strip() if clave == "dias_trabajo"
                         else var_personas_considerar_general.get().strip() if clave in {"personas_trabajo", "personas_considerar"}
                         else vars_extra[clave].get().strip()
                     )
@@ -4352,15 +4443,22 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         for titulo_sec, campos_sec in FORMULARIOS_DETALLADOS_EXTRA[tipo_levantamiento]["secciones"]:
             if tipo_levantamiento in ("Control de Accesos", "Enlaces Inalámbricos") and "Cableado, canalización e infraestructura requerida" in titulo_sec:
                 continue
-            lineas.append(f"--- {_titulo_sin_numeracion(titulo_sec)} ---")
+            seccion_ti_opcional = (
+                tipo_levantamiento == "Tecnología, Equipos y Periféricos"
+                and _es_seccion_ti_opcional(titulo_sec)
+            )
+            if seccion_ti_opcional and not _ti_opcional_activa(titulo_sec):
+                continue
+            lineas_sec = []
             for clave, _tipo_campo, etiqueta, _opciones_placeholder, _default in campos_sec:
-                if clave == "dias_trabajo":
-                    valor = var_dias_trabajo_general.get().strip() or "No definido"
-                elif clave in {"personas_trabajo", "personas_considerar"}:
-                    valor = var_personas_considerar_general.get().strip() or "No definido"
-                else:
-                    valor = vars_extra[clave].get().strip() or "No definido"
-                lineas.append(f"{etiqueta}: {valor}")
+                if clave == "dias_trabajo": valor = var_dias_trabajo_general.get().strip()
+                elif clave in {"personas_trabajo", "personas_considerar"}: valor = var_personas_considerar_general.get().strip()
+                else: valor = vars_extra[clave].get().strip()
+                if seccion_ti_opcional and not valor: continue
+                lineas_sec.append(f"{etiqueta}: {valor or 'No definido'}")
+            if seccion_ti_opcional and not lineas_sec: continue
+            lineas.append(f"--- {_titulo_sin_numeracion(titulo_sec)} ---")
+            lineas.extend(lineas_sec)
             lineas.append("")
         resumen_canalizacion = construir_resumen_canalizacion_materiales()
         if resumen_canalizacion:
@@ -4515,7 +4613,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     return False
         except (TypeError, ValueError):
             return False
-        if var_requiere_epp.get() == "Sí":
+        if tipo_levantamiento != "Tecnología, Equipos y Periféricos" and var_requiere_epp.get() == "Sí":
             epp = obtener_epp_json()
             if not epp:
                 return False
@@ -4705,7 +4803,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         except (TypeError, ValueError):
             falta("Horas estimadas" if var_duracion_proyecto.get() == "Un día" else "Días estimados", True)
 
-        if var_requiere_epp.get() == "Sí":
+        if tipo_levantamiento != "Tecnología, Equipos y Periféricos" and var_requiere_epp.get() == "Sí":
             epp = obtener_epp_json()
             falta("Equipo de protección personal", not epp)
             for item in epp:
@@ -5287,7 +5385,20 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 if not var_rvd_tierra_tornillos_cobre.get().strip(): var_rvd_tierra_tornillos_cobre.set("0")
 
         # Listas dinámicas que forman parte del formulario original.
-        for fila in detalle.get("canalizacion_materiales", []) if isinstance(detalle.get("canalizacion_materiales"), list) else []:
+        # Restaura primero la decisión explícita de canalización. Los formatos
+        # históricos pueden guardarla en cualquiera de estos dos bloques.
+        _canal_cfg = {}
+        for _canal_key in ("canalizacion_cableado_materiales", "cableado_canalizacion_consumibles"):
+            _candidate = detalle.get(_canal_key)
+            if isinstance(_candidate, dict) and _candidate.get("requiere") not in (None, ""):
+                _canal_cfg = _candidate
+                break
+        if _canal_cfg:
+            var_requiere_canalizacion.set(str(_canal_cfg.get("requiere") or "No"))
+        _filas_canal_guardadas = detalle.get("canalizacion_materiales", []) if isinstance(detalle.get("canalizacion_materiales"), list) else []
+        if var_requiere_canalizacion.get() == "No":
+            _filas_canal_guardadas = []
+        for fila in _filas_canal_guardadas:
             try:
                 categoria_guardada = str(fila.get("categoria") or "Tubo")
                 categoria_guardada = {"Canalización": "Canaleta", "Conector": "Conectores"}.get(categoria_guardada, categoria_guardada)
@@ -5343,11 +5454,12 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             if ruta and ruta not in archivos_adjuntos_levantamiento:
                 archivos_adjuntos_levantamiento.append(ruta)
 
-        for fila in detalle.get("herramientas", []) if isinstance(detalle.get("herramientas"), list) else []:
-            try:
-                agregar_herramienta(fila)
-            except Exception:
-                logger.debug("No fue posible restaurar una herramienta.", exc_info=True)
+        if tipo_levantamiento != "Tecnología, Equipos y Periféricos":
+            for fila in detalle.get("herramientas", []) if isinstance(detalle.get("herramientas"), list) else []:
+                try:
+                    agregar_herramienta(fila)
+                except Exception:
+                    logger.debug("No fue posible restaurar una herramienta.", exc_info=True)
 
         # Equipos dañados de Seguridad/Reparación.
         equipos_danados_guardados = _json_list(registro.get("lev_equipos_danados_json"))
@@ -5384,6 +5496,17 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             pass
 
     _cargar_registro_edicion()
+
+    # Tecnología: los bloques opcionales permanecen cerrados en registros nuevos.
+    # En edición/borrador se abren automáticamente sólo si ya contienen datos reales.
+    if tipo_levantamiento == "Tecnología, Equipos y Periféricos":
+        for _titulo_ti, _switch_var in ti_switch_vars.items():
+            _campos_ti = next((c for t, c in FORMULARIOS_DETALLADOS_EXTRA[tipo_levantamiento]["secciones"] if t == _titulo_ti), [])
+            _tiene_datos = any(vars_extra[clave].get().strip() for clave, *_ in _campos_ti if clave in vars_extra)
+            _switch_var.set(bool(_tiene_datos))
+            _frame_ti = ti_contenedores_opcionales.get(_titulo_ti)
+            if _frame_ti is not None:
+                (_frame_ti.grid if _tiene_datos else _frame_ti.grid_remove)()
 
     # Expone al contenedor principal una captura segura del formulario actual.
     # Se usa para autoguardado local antes de cerrar la sesión por inactividad.
@@ -5703,6 +5826,71 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 _homologar_controles_levantamiento(child)
         except Exception:
             pass
+
+    # =================================================
+    # EDICION SEGURA POR SECCIONES
+    # =================================================
+    # Al abrir una revision, cada bloque queda protegido. El usuario habilita
+    # solamente la seccion que necesita modificar; al volver a bloquearla se
+    # restauran los estados previos de sus controles (incluidos estados
+    # condicionales que ya estaban deshabilitados).
+    if registro_editar:
+        def _descendientes(widget):
+            for child in widget.winfo_children():
+                yield child
+                yield from _descendientes(child)
+
+        def _es_control_editable(widget):
+            return isinstance(widget, (ctk.CTkEntry, ctk.CTkTextbox, NativeComboBox, ctk.CTkButton, ctk.CTkSwitch))
+
+        def _instalar_bloqueo_seccion(frame):
+            controles = [w for w in _descendientes(frame) if _es_control_editable(w)]
+            if not controles:
+                return
+            estados = {}
+            for w in controles:
+                try:
+                    estados[w] = str(w.cget("state"))
+                except Exception:
+                    estados[w] = "normal"
+
+            desbloqueada = {"value": False}
+
+            def aplicar():
+                editable = desbloqueada["value"]
+                for w in controles:
+                    if w is boton:
+                        continue
+                    try:
+                        w.configure(state=estados.get(w, "normal") if editable else "disabled")
+                    except Exception:
+                        pass
+                boton.configure(
+                    text="🔒 Bloquear sección" if editable else "✏️ Habilitar edición",
+                    fg_color="#64748B" if editable else "#1F4E79",
+                    hover_color="#475569" if editable else "#173B5C",
+                )
+
+            def alternar():
+                desbloqueada["value"] = not desbloqueada["value"]
+                aplicar()
+
+            boton = ctk.CTkButton(
+                frame, text="✏️ Habilitar edición", width=145, height=27,
+                corner_radius=8, fg_color="#1F4E79", hover_color="#173B5C",
+                font=("Montserrat", 10, "bold"), command=alternar
+            )
+            try:
+                boton.place(relx=0.992, y=5, anchor="ne")
+                boton.lift()
+            except Exception:
+                return
+            aplicar()
+
+        # Cada frame directo del cuerpo representa un bloque/seccion visual.
+        for _seccion in form_body.winfo_children():
+            if isinstance(_seccion, ctk.CTkFrame):
+                _instalar_bloqueo_seccion(_seccion)
 
     _homologar_controles_levantamiento(form_body)
 

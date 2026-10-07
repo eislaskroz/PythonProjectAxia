@@ -65,17 +65,25 @@ CATALOGO_EQUIPOS = {
         {"familia": "Estructura", "subfamilias": ["Mástil", "Torre", "Herraje", "Gabinete exterior"], "caracteristicas": "Altura, carga al viento, material, anclaje"},
     ],
     "Tecnología, Equipos y Periféricos": [
-        {"familia": "Computadora", "subfamilias": ["Escritorio", "All-in-One", "Workstation", "Mini PC", "Thin client"], "caracteristicas": "Procesador, RAM, almacenamiento, gráficos, sistema operativo, garantía"},
-        {"familia": "Laptop", "subfamilias": ["Oficina", "Ejecutiva", "Workstation móvil", "Rugged", "Gaming"], "caracteristicas": "Procesador, RAM, SSD, pantalla, batería, puertos, garantía"},
-        {"familia": "Servidor", "subfamilias": ["Torre", "Rack", "Blade", "NAS"], "caracteristicas": "CPU, RAM ECC, almacenamiento, RAID, fuentes, red, licenciamiento"},
-        {"familia": "Impresora", "subfamilias": ["Láser", "Inyección de tinta", "Multifuncional", "Térmica", "Etiquetas", "Gran formato"], "caracteristicas": "Color/mono, ppm, dúplex, red, consumible, volumen mensual"},
-        {"familia": "Monitor", "subfamilias": ["Oficina", "Profesional", "Curvo", "Touch", "Videoconferencia"], "caracteristicas": "Pulgadas, resolución, panel, frecuencia, entradas, montaje VESA"},
-        {"familia": "Red", "subfamilias": ["Router", "Switch", "Access Point", "Firewall", "Módem", "Adaptador"], "caracteristicas": "Puertos, velocidad, Wi-Fi, PoE, administración, VPN, throughput"},
-        {"familia": "Periférico", "subfamilias": ["Teclado", "Mouse", "Webcam", "Diadema", "Bocinas", "Docking", "Lector", "Escáner"], "caracteristicas": "Conectividad, compatibilidad, alimentación, resolución o funciones"},
-        {"familia": "Almacenamiento", "subfamilias": ["HDD", "SSD SATA", "SSD NVMe", "Externo", "Memoria USB", "Tarjeta SD", "NAS"], "caracteristicas": "Capacidad, interfaz, velocidad, formato, uso y garantía"},
-        {"familia": "Memoria", "subfamilias": ["RAM DDR4", "RAM DDR5", "ECC", "SO-DIMM"], "caracteristicas": "Capacidad, velocidad, latencia, voltaje, compatibilidad"},
-        {"familia": "Energía", "subfamilias": ["UPS", "Regulador", "No-break", "Multicontacto", "Cargador", "Fuente de poder"], "caracteristicas": "VA/W, voltaje, autonomía, conectores, protecciones"},
-        {"familia": "Software/Licencia", "subfamilias": ["Sistema operativo", "Ofimática", "Antivirus", "Respaldo", "Diseño", "Licencia CAL"], "caracteristicas": "Edición, vigencia, usuarios/dispositivos, modalidad, compatibilidad"},
+        {"familia": "Accesorios", "subfamilias": ["Base para laptop", "Base para monitor", "Docking station", "Hub USB", "Lector de tarjetas", "Soporte de pared", "Soporte VESA"], "caracteristicas": "Compatibilidad, conexiones, material, capacidad y montaje"},
+        {"familia": "Almacenamiento", "subfamilias": ["Disco duro externo", "HDD", "Memoria USB", "NAS", "SSD NVMe", "SSD SATA", "Tarjeta microSD", "Tarjeta SD"], "caracteristicas": "Capacidad, interfaz, velocidad, formato, uso y garantía"},
+        {"familia": "Audio", "subfamilias": ["Audífonos", "Barra de sonido", "Bocinas", "Diadema", "Interfaz de audio", "Micrófono"], "caracteristicas": "Conectividad, potencia, patrón, canales, alimentación y compatibilidad"},
+        {"familia": "Componentes", "subfamilias": ["Fuente de poder", "Gabinete", "Memoria RAM", "Procesador", "Tarjeta de red", "Tarjeta de video", "Tarjeta madre"], "caracteristicas": "Formato, capacidad, interfaz, potencia y compatibilidad"},
+        {"familia": "Computadora", "subfamilias": ["All-in-One", "Escritorio", "Mini PC", "Thin client", "Workstation"], "caracteristicas": "Procesador, RAM, almacenamiento, gráficos, sistema operativo, garantía"},
+        {"familia": "Energía", "subfamilias": ["Cargador", "Fuente de poder", "Multicontacto", "No-break", "PDU", "Regulador", "UPS"], "caracteristicas": "VA/W, voltaje, autonomía, conectores y protecciones"},
+        {"familia": "Gaming", "subfamilias": ["Consola", "Control", "Monitor gaming", "Silla gaming", "Teclado/Mouse gaming"], "caracteristicas": "Plataforma, conectividad, resolución, frecuencia y compatibilidad"},
+        {"familia": "Impresión y digitalización", "subfamilias": ["Escáner", "Impresora de etiquetas", "Impresora gran formato", "Impresora inyección de tinta", "Impresora láser", "Impresora térmica", "Multifuncional", "Plotter"], "caracteristicas": "Color/mono, ppm, dúplex, red, consumible, tamaño y volumen mensual"},
+        {"familia": "Laptop", "subfamilias": ["Ejecutiva", "Gaming", "Oficina", "Rugged", "Workstation móvil"], "caracteristicas": "Procesador, RAM, SSD, pantalla, batería, puertos y garantía"},
+        {"familia": "Monitores y Pantallas", "subfamilias": ["Digital Signage", "Monitor curvo", "Monitor de escritorio", "Monitor portátil", "Monitor profesional", "Pantalla / TV", "Pantalla comercial", "Pantalla interactiva", "Smart TV", "Videowall"], "caracteristicas": "Pulgadas, resolución, panel, frecuencia, HDR, entradas, VESA y operación"},
+        {"familia": "Periféricos", "subfamilias": ["Cámara web", "Escáner", "Lector biométrico", "Lector de código de barras", "Mouse", "Tableta digitalizadora", "Teclado"], "caracteristicas": "Conectividad, compatibilidad, alimentación, resolución y funciones"},
+        {"familia": "Punto de Venta", "subfamilias": ["Cajón de dinero", "Impresora de tickets", "Lector de código de barras", "Monitor touch", "Terminal POS"], "caracteristicas": "Interfaces, tamaño, compatibilidad, alimentación y montaje"},
+        {"familia": "Proyección", "subfamilias": ["Pantalla de proyección", "Proyector", "Proyector láser", "Soporte para proyector"], "caracteristicas": "Lúmenes, resolución, tiro, entradas, tamaño y montaje"},
+        {"familia": "Redes y conectividad", "subfamilias": ["Access Point", "Adaptador de red", "Firewall", "Módem", "Router", "Switch"], "caracteristicas": "Puertos, velocidad, Wi-Fi, PoE, administración, VPN y throughput"},
+        {"familia": "Servidor", "subfamilias": ["Blade", "NAS", "Rack", "Torre"], "caracteristicas": "CPU, RAM ECC, almacenamiento, RAID, fuentes, red y licenciamiento"},
+        {"familia": "Software y Licencias", "subfamilias": ["Antivirus", "Diseño", "Licencia CAL", "Ofimática", "Respaldo", "Sistema operativo"], "caracteristicas": "Edición, vigencia, usuarios/dispositivos, modalidad y compatibilidad"},
+        {"familia": "Tablets y Movilidad", "subfamilias": ["E-reader", "Smartphone", "Tablet", "Tablet industrial"], "caracteristicas": "Pantalla, almacenamiento, conectividad, batería, protección y sistema operativo"},
+        {"familia": "Videoconferencia", "subfamilias": ["Barra de videoconferencia", "Cámara PTZ", "Controlador táctil", "Kit de sala", "Speakerphone"], "caracteristicas": "Resolución, encuadre, micrófonos, conexiones, plataforma y tamaño de sala"},
+        {"familia": "Otro", "subfamilias": ["Otro / especificar"], "caracteristicas": "Descripción, compatibilidad y características técnicas requeridas"},
     ],
     "Paneles Solares": [
         {"familia": "Panel fotovoltaico", "subfamilias": ["Monocristalino", "Bifacial", "Flexible"], "caracteristicas": "Wp, eficiencia, Voc, Isc, dimensiones"},
@@ -97,13 +105,13 @@ def obtener_familias_por_especialidad(especialidad):
 
 
 def obtener_nombres_familias(especialidad):
-    return [item["familia"] for item in obtener_familias_por_especialidad(especialidad)] or ["Otro"]
+    return sorted([item["familia"] for item in obtener_familias_por_especialidad(especialidad)], key=str.casefold) or ["Otro"]
 
 
 def obtener_subfamilias(especialidad, familia):
     for item in obtener_familias_por_especialidad(especialidad):
         if item["familia"] == familia:
-            return item.get("subfamilias", []) or ["Otro"]
+            return sorted(item.get("subfamilias", []) or ["Otro"], key=str.casefold)
     return ["Otro"]
 
 

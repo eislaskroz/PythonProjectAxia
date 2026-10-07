@@ -847,7 +847,7 @@ def generar_pdf_seguridad_instalacion(
         ))
         story.append(Spacer(1, 7))
 
-    tools = _tool_rows(detail)
+    tools = [] if tipo.casefold() == "tecnología, equipos y periféricos".casefold() else _tool_rows(detail)
     if tools:
         story.append(_section_matrix_table(
             "Herramientas", ["Categoría", "Herramienta", "Cantidad", "Especificación / observaciones"],
@@ -856,6 +856,8 @@ def generar_pdf_seguridad_instalacion(
         story.append(Spacer(1, 7))
 
     requiere_epp, epp_rows = _epp_rows(detail)
+    if tipo.casefold() == "tecnología, equipos y periféricos".casefold():
+        requiere_epp, epp_rows = "No", []
     if requiere_epp.casefold() in {"sí", "si"} or epp_rows:
         story.append(_section_title("Equipo de Protección Personal (EPP)", width, header))
         if epp_rows:
@@ -865,9 +867,8 @@ def generar_pdf_seguridad_instalacion(
             ))
         story.append(Spacer(1, 7))
 
-    # 8) Descripción final dinámica.
-    description = registro.get("lev_descripcion") or registro.get("lev_observaciones") or ""
-    story.append(_description_table(str(description), width, normal, header))
+    # La descripción detallada se conserva en el registro, pero no se imprime:
+    # repite información ya presentada en las secciones estructuradas del PDF.
     _append_anotacion_plano(story, registro, width, header)
     _append_archivos_adjuntos(story, registro, width, normal, header)
     _append_evidencias_fotograficas(story, registro, width, header)
@@ -1023,6 +1024,21 @@ def _visible_declarative_sections(tipo: str, sections: Mapping[str, Any]) -> lis
     vio/capturó, no imprimir bloques ocultos con valores por defecto como "No aplica".
     """
     items = [(str(k), v) for k, v in sections.items() if isinstance(v, Mapping)]
+
+    # Control de Accesos y Enlaces Inalámbricos migraron la canalización a la
+    # captura dinámica común. Los registros históricos pueden conservar el bloque
+    # declarativo antiguo con valores por defecto (UTP, canaleta, EMT, etc.). Ese
+    # bloque ya no forma parte de la interfaz y nunca debe reaparecer en el PDF.
+    if tipo.casefold() in {"control de accesos", "enlaces inalámbricos", "enlaces inalambricos"}:
+        items = [
+            (key, value) for key, value in items
+            if not (
+                "cableado" in key.casefold()
+                and "canalizacion" in key.casefold().replace("ó", "o")
+                and "infraestructura" in key.casefold()
+            )
+        ]
+
     if tipo.casefold() != "tecnología, equipos y periféricos".casefold():
         return items
 
@@ -1069,7 +1085,19 @@ def _visible_declarative_sections(tipo: str, sections: Mapping[str, Any]) -> lis
         # Compatibilidad con registros antiguos: si no hay acción reconocible, no ocultamos datos.
         return items
 
-    return [(key, value) for key, value in items if key.casefold() in {x.casefold() for x in allowed}]
+    visible = [(key, value) for key, value in items if key.casefold() in {x.casefold() for x in allowed}]
+    optional_sections = {"identificación_y_características_generales", "requerimientos_para_suministro"}
+    cleaned = []
+    for key, value in visible:
+        data = dict(value)
+        if "tipo_de_solicitud_y_alcance" in key.casefold():
+            for obsolete in ("cantidad_equipos", "Cantidad de equipos o productos", "Cantidad de equipos"):
+                data.pop(obsolete, None)
+        if key.casefold() in {x.casefold() for x in optional_sections}:
+            data = {k: v for k, v in data.items() if v not in (None, "") and str(v).strip()}
+            if not data: continue
+        cleaned.append((key, data))
+    return cleaned
 
 
 def _find_resources(value: Any) -> tuple[str, str]:
@@ -1199,10 +1227,20 @@ def _epp_rows(detail: Mapping[str, Any]) -> tuple[str, list[list[Any]]]:
 
 
 def _canal_rows(detail: Mapping[str, Any]) -> list[list[Any]]:
+    # La decisión explícita NO tiene prioridad absoluta: nunca reconstruimos
+    # canalización desde datos históricos o desde otro bloque con `partidas`.
+    for key in ("canalizacion_cableado_materiales", "cableado_canalizacion_consumibles"):
+        cfg = detail.get(key)
+        if isinstance(cfg, Mapping) and str(cfg.get("requiere") or "").strip().casefold() == "no":
+            return []
+
     entries = _dynamic_rows(detail, "canalizacion_materiales")
     if not entries:
-        # Compatibilidad con los bloques que almacenan las partidas dentro de la sección.
-        for value in detail.values():
+        # Compatibilidad únicamente con bloques conocidos de canalización. Antes
+        # se tomaba cualquier mapping con `partidas`, lo que podía confundir EPP
+        # u otros catálogos con canalización y generar información ficticia.
+        for key in ("canalizacion_cableado_materiales", "cableado_canalizacion_consumibles"):
+            value = detail.get(key)
             if isinstance(value, Mapping) and isinstance(value.get("partidas"), (list, tuple)):
                 entries = [dict(x) for x in value.get("partidas", []) if isinstance(x, Mapping)]
                 if entries:
@@ -1423,7 +1461,7 @@ def generar_pdf_levantamiento_maestro(
         ))
         story.append(Spacer(1, 7))
 
-    tools = _tool_rows(detail)
+    tools = [] if tipo.casefold() == "tecnología, equipos y periféricos".casefold() else _tool_rows(detail)
     if tools:
         story.append(_section_matrix_table(
             "Herramientas",
@@ -1433,6 +1471,8 @@ def generar_pdf_levantamiento_maestro(
         story.append(Spacer(1, 7))
 
     requiere_epp, epp_rows = _epp_rows(detail)
+    if tipo.casefold() == "tecnología, equipos y periféricos".casefold():
+        requiere_epp, epp_rows = "No", []
     if requiere_epp.casefold() in {"sí", "si"} or epp_rows:
         story.append(_section_title("Equipo de Protección Personal (EPP)", width, header))
         if epp_rows:
@@ -1444,13 +1484,9 @@ def generar_pdf_levantamiento_maestro(
             story.append(_key_value_table([["¿Se requiere EPP?", requiere_epp, "Detalle", "Pendiente de especificar"]], [1.55*inch,1.90*inch,1.55*inch,1.90*inch], normal, label))
         story.append(Spacer(1, 7))
 
-    # En Aires Acondicionados la información técnica ya se presenta de forma
-    # estructurada en las secciones anteriores del PDF. La descripción detallada
-    # duplicaría esos datos, por lo que se conserva en el registro pero no se
-    # imprime en el PDF. Para los demás tipos de levantamiento se mantiene el
-    # comportamiento actual para no alterar otros formatos.
-    if tipo.casefold() != "aires acondicionados":
-        story.append(_description_table(_description_for(registro, detail), width, normal, header))
+    # La descripción detallada se conserva en Supabase para compatibilidad y
+    # consulta interna, pero se omite del PDF en todos los tipos de levantamiento
+    # porque duplica la información estructurada de las secciones anteriores.
     _append_anotacion_plano(story, registro, width, header)
     _append_archivos_adjuntos(story, registro, width, normal, header)
     _append_evidencias_fotograficas(story, registro, width, header)

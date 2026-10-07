@@ -7,6 +7,26 @@ from __future__ import annotations
 
 from tkinter import ttk
 from typing import Any, Callable, Iterable
+import unicodedata
+
+
+def _sort_key(value: Any) -> str:
+    """Clave alfabetica estable, ignorando acentos y mayusculas."""
+    text = str(value or "").strip()
+    normalized = unicodedata.normalize("NFKD", text)
+    return "".join(ch for ch in normalized if not unicodedata.combining(ch)).casefold()
+
+
+def _sorted_values(values: Iterable[Any] | None) -> tuple[Any, ...]:
+    """Ordena catalogos sin perder placeholders operativos al inicio."""
+    items = list(values or ())
+    if len(items) < 2:
+        return tuple(items)
+    # Los textos de seleccion no son elementos del catalogo y deben quedar arriba.
+    leading = []
+    while items and _sort_key(items[0]).startswith(("seleccion", "elige", "--")):
+        leading.append(items.pop(0))
+    return tuple(leading + sorted(items, key=_sort_key))
 
 
 def _install_safe_customtkinter_mousewheel() -> None:
@@ -94,7 +114,7 @@ class NativeComboBox(ttk.Combobox):
 
         ttk_kwargs: dict[str, Any] = {
             "textvariable": variable,
-            "values": tuple(values or ()),
+            "values": _sorted_values(values),
             "state": self._map_state(state),
             "height": self._axia_dropdown_rows,
         }
@@ -108,6 +128,10 @@ class NativeComboBox(ttk.Combobox):
 
         super().__init__(master, **ttk_kwargs)
         self.bind("<<ComboboxSelected>>", self._on_selected, add="+")
+        self.bind("<KeyPress>", self._on_keypress, add="+")
+        self.bind("<MouseWheel>", self._on_mousewheel, add="+")
+        self.bind("<Button-4>", self._on_mousewheel, add="+")
+        self.bind("<Button-5>", self._on_mousewheel, add="+")
 
     @staticmethod
     def _map_state(state: Any) -> str:
@@ -122,6 +146,37 @@ class NativeComboBox(ttk.Combobox):
         if callable(self._axia_command):
             self._axia_command(self.get())
 
+    def _on_keypress(self, event=None):
+        """Selecciona la primera opcion que inicia con la tecla pulsada."""
+        char = str(getattr(event, "char", "") or "").strip()
+        if not char or not char.isprintable():
+            return None
+        needle = _sort_key(char)
+        values = list(self.cget("values") or ())
+        for index, value in enumerate(values):
+            if _sort_key(value).startswith(needle):
+                self.current(index)
+                self._on_selected()
+                return "break"
+        return None
+
+    def _on_mousewheel(self, event=None):
+        """Impide que la rueda cambie un selector que conserva el foco a distancia."""
+        try:
+            x, y = self.winfo_pointerxy()
+            under_pointer = self.winfo_containing(x, y)
+            if under_pointer is self:
+                return None
+            # Si el puntero esta sobre un hijo real del combobox, tambien se permite.
+            current = under_pointer
+            while current is not None and hasattr(current, "master"):
+                if current is self:
+                    return None
+                current = current.master
+        except Exception:
+            pass
+        return "break"
+
     def configure(self, cnf=None, **kwargs):
         if cnf:
             kwargs.update(cnf)
@@ -133,7 +188,7 @@ class NativeComboBox(ttk.Combobox):
         if "state" in kwargs:
             kwargs["state"] = self._map_state(kwargs["state"])
         if "values" in kwargs:
-            kwargs["values"] = tuple(kwargs["values"] or ())
+            kwargs["values"] = _sorted_values(kwargs["values"])
         if "width" in kwargs:
             raw_width = kwargs.pop("width")
             if raw_width is not None:

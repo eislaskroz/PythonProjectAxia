@@ -13,8 +13,7 @@ FORMULARIOS_DETALLADOS_EXTRA = {
         "secciones": [
             ("🧭 1. Tipo de solicitud y alcance", [
                 ("accion_ti", "option", "¿Qué deseas realizar?", ["Revisión", "Mantenimiento", "Reparación", "Suministro", "Suministro e instalación"], "Suministro"),
-                ("categoria_equipo", "option", "Categoría del equipo o producto", ["Computadora", "Laptop", "Servidor", "Impresora", "Monitor", "Router", "Switch", "Access Point", "Telefonía", "Periférico", "Almacenamiento", "Energía/UPS", "Software/Licencia", "Otro"], "Computadora"),
-                ("cantidad_equipos", "entry", "Cantidad de equipos o productos", "Ej. 2", ""),
+                ("categoria_equipo", "option", "Categoría del equipo o producto", ["Accesorios", "Almacenamiento", "Audio", "Componentes", "Computadoras", "Energía y respaldo", "Gaming", "Impresión y digitalización", "Laptops", "Monitores y pantallas", "Periféricos", "Proyección", "Punto de venta", "Redes y conectividad", "Servidores", "Software y licencias", "Tablets y movilidad", "Videoconferencia", "Otro / especificar"], "Computadoras"),
                 ("ubicacion_servicio", "entry", "Ubicación donde se requiere", "Ej. oficina administrativa", ""),
                 ("prioridad_solicitud", "option", "Prioridad requerida", ["Normal", "Alta", "Urgente", "Por validar"], "Normal"),
             ]),
@@ -44,10 +43,12 @@ FORMULARIOS_DETALLADOS_EXTRA = {
             ]),
             ("📦 5. Requerimientos para suministro", [
                 ("especificaciones_minimas", "entry", "Especificaciones mínimas requeridas", "Procesador, RAM, capacidad, puertos, etc.", ""),
-                ("marca_abierta", "option", "¿Se acepta cualquier marca equivalente?", ["Sí", "No", "Por validar"], "Sí"),
+                ("marca_abierta", "option", "¿Se acepta cualquier marca equivalente?", ["Sí", "No", "Por validar"], ""),
                 ("presupuesto_referencia", "entry", "Presupuesto de referencia", "Opcional", ""),
                 ("incluye_accesorios", "entry", "Accesorios requeridos", "Cables, adaptadores, consumibles, etc.", ""),
                 ("licenciamiento", "entry", "Licenciamiento o software requerido", "Sistema operativo, antivirus, suite, etc.", ""),
+            ]),
+            ("📅 Fecha requerida de entrega", [
                 ("fecha_requerida", "date", "Fecha requerida de entrega", "YYYY-MM-DD", ""),
             ]),
             ("✅ 6. Instalación, configuración, pruebas y entrega", [

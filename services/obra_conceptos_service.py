@@ -31,7 +31,15 @@ def obtener_conceptos_obra(activos=True):
             COLUMNAS_OBRA_CONCEPTOS,
             aplicar,
         )
-        return respuesta.data or []
+        data = respuesta.data or []
+        return sorted(
+            data,
+            key=lambda item: (
+                str(item.get("obra_tipo") or "").casefold(),
+                str(item.get("obra_concepto") or item.get("obra_partida") or "").casefold(),
+                str(item.get("obra_partida") or "").casefold(),
+            ),
+        )
     except Exception:
         logger.exception("No fue posible consultar el catálogo de conceptos de obra civil.")
         return []
@@ -48,4 +56,7 @@ def obtener_tipos_concepto_obra(conceptos=None):
 def filtrar_conceptos_por_tipo(tipo, conceptos=None):
     conceptos = conceptos if conceptos is not None else obtener_conceptos_obra()
     tipo_norm = str(tipo or "").strip()
-    return [item for item in conceptos if str(item.get("obra_tipo") or "").strip() == tipo_norm]
+    return sorted(
+        [item for item in conceptos if str(item.get("obra_tipo") or "").strip() == tipo_norm],
+        key=lambda item: str(item.get("obra_concepto") or item.get("obra_partida") or "").casefold(),
+    )
