@@ -292,7 +292,7 @@ class NavigationController:
         logger.info("Cargando vista: Levantamiento")
         self.limpiar_contenido()
 
-        titulo = "Levantamiento Seguridad y Monitoreo" if tipo_levantamiento == "Seguridad y Monitoreo" else "Generar Levantamiento"
+        titulo = f"Levantamiento {tipo_levantamiento}" if tipo_levantamiento else "Generar Levantamiento"
 
         self.cambiar_titulo(
             titulo,

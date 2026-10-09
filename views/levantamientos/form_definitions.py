@@ -69,7 +69,7 @@ FORMULARIOS_DETALLADOS_EXTRA = {
         "tipo_sistema": "Seguridad",
         "secciones": [
             ("🚪 1. Necesidad inicial y alcance", [
-                ("necesidad", "option", "¿Qué se necesita realizar?", ["Instalación nueva", "Mantenimiento", "Ampliación", "Reubicación", "Reparación", "Diagnóstico previo"], "Instalación nueva"),
+                ("necesidad", "option", "¿Qué se necesita realizar?", ["Instalación", "Mantenimiento", "Ampliación", "Reubicación", "Reparación", "Diagnóstico"], "Instalación"),
                 ("tipo_control", "option", "Tipo de control de acceso", ["Peatonal", "Vehicular", "Peatonal y vehicular", "SITE / área restringida", "Por validar"], "Peatonal"),
                 ("cantidad_accesos", "entry", "Cantidad de accesos", "Ej. 3", ""),
                 ("ubicacion_accesos", "entry", "Ubicación de accesos", "Ej. recepción / almacén", ""),
@@ -183,7 +183,7 @@ FORMULARIOS_DETALLADOS_EXTRA = {
         "tipo_sistema": "Energía",
         "secciones": [
             ("☀️ 1. Necesidad inicial y consumo", [
-                ("necesidad", "option", "¿Qué se necesita realizar?", ["Sistema nuevo", "Ampliación", "Diagnóstico", "Mantenimiento", "Reubicación"], "Sistema nuevo"),
+                ("necesidad", "option", "¿Qué se necesita realizar?", ["Instalación", "Ampliación", "Diagnóstico", "Mantenimiento", "Reubicación"], "Instalación"),
                 ("tipo_sistema", "option", "Tipo de sistema", ["Interconectado", "Aislado", "Híbrido", "Por validar"], "Interconectado"),
                 ("consumo_mensual", "entry", "Consumo mensual", "Ej. 850 kWh", ""),
                 ("recibo_cfe", "option", "¿Cuenta con recibo CFE?", ["Sí", "No"], "Sí"),

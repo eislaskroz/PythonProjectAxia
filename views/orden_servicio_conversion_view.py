@@ -113,7 +113,7 @@ def mostrar_conversion_orden_servicio(parent, app):
     lbl_resultados.grid(row=0, column=0, sticky="ew", padx=10, pady=(9, 4))
     tabla = NativeTreeTable(
         panel_lista,
-        columns=(("folio", "Folio", 105), ("cliente", "Cliente", 190), ("tipo", "Tipo", 150),
+        columns=(("folio", "Folio", 105), ("cliente", "Cliente", 190), ("tipo", "Trabajo", 125), ("nombre", "Nombre del servicio", 220),
                  ("estatus", "Estatus", 75), ("fecha", "Fecha", 105)),
         height=20,
     )
@@ -301,7 +301,8 @@ def mostrar_conversion_orden_servicio(parent, app):
         lbl_resultados.configure(text=f"Levantamientos ({len(registros)})")
         tabla.set_rows(registros, value_factory=lambda r: (
             _valor(r, "lev_folio"), _valor(r, "lev_cliente"),
-            " / ".join(filter(None, [_valor(r, "lev_tipo"), _valor(r, "lev_modalidad_operativa")])),
+            _valor(r, "lev_modalidad_operativa") or _valor(r, "lev_tipo"),
+            (_valor(r, "lev_descripcion") or "")[:90],
             _valor(r, "lev_estatus"), _valor(r, "lev_fecha_programada", "lev_fecha_realizacion", "fecha_registro"),
         ))
 

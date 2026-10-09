@@ -363,7 +363,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     # Campos dedicados del formulario Aires Acondicionados.
     # El flujo va desde necesidad inicial, condiciones del sitio, equipo requerido,
     # infraestructura, instalación, entrega y pruebas finales.
-    var_aa_necesidad = ctk.StringVar(value="Instalación nueva")
+    var_aa_necesidad = ctk.StringVar(value="Instalación")
     var_aa_cantidad_equipos = ctk.StringVar()
     var_aa_area_climatizar = ctk.StringVar()
     var_aa_tipo_area = ctk.StringVar(value="Oficina")
@@ -409,7 +409,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     # Campos dedicados del formulario Redes de Voz y Datos.
     # El flujo va desde necesidad inicial, alcance, condiciones del sitio,
     # materiales, rack/energía, instalación, pruebas y entrega.
-    var_rvd_necesidad = ctk.StringVar(value="Instalación nueva")
+    var_rvd_necesidad = ctk.StringVar(value="Instalación")
     var_rvd_tipo_servicio = ctk.StringVar(value="Datos")
     var_rvd_cantidad_nodos = ctk.StringVar()
     var_rvd_cantidad_telefonia = ctk.StringVar()
@@ -473,7 +473,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
     # Campos dedicados del formulario Plantas de Energía.
     # Flujo: necesidad -> carga -> sitio -> combustible -> transferencia -> instalación, pruebas y entrega.
-    var_pe_necesidad = ctk.StringVar(value="Instalación nueva")
+    var_pe_necesidad = ctk.StringVar(value="Instalación")
     var_pe_tipo_planta = ctk.StringVar(value="Diésel")
     var_pe_capacidad = ctk.StringVar()
     var_pe_carga_respaldar = ctk.StringVar()
@@ -505,7 +505,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
     # Campos dedicados del formulario Electricidad.
     # Flujo detallado: necesidad -> carga -> tablero -> canalización -> protecciones -> instalación, pruebas y entrega.
-    var_ele_necesidad = ctk.StringVar(value="Instalación nueva")
+    var_ele_necesidad = ctk.StringVar(value="Instalación")
     var_ele_area = ctk.StringVar()
     var_ele_tipo_servicio = ctk.StringVar(value="Contactos")
     var_ele_cantidad_puntos = ctk.StringVar()
@@ -1478,7 +1478,17 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     var_desea_notas_cliente.trace_add("write", actualizar_notas_cliente)
     actualizar_notas_cliente()
 
-    fila_inicio_operativa = 5 + desplazamiento_filas
+    # Identificación corta común. Usa lev_descripcion, columna ya existente.
+    var_nombre_servicio = ctk.StringVar()
+    contenedor_nombre = _crear_contenedor_campo(5 + desplazamiento_filas, 0, colspan=5)
+    _label_campo(contenedor_nombre, "Nombre del servicio *")
+    ctk.CTkEntry(
+        contenedor_nombre, textvariable=var_nombre_servicio,
+        placeholder_text="Ej. Mantenimiento de cámaras del almacén",
+        height=FORM_CONTROL_HEIGHT, font=FORM_FIELD_FONT,
+    ).pack(fill="x")
+
+    fila_inicio_operativa = 6 + desplazamiento_filas
 
     if not es_especializado:
         campo_option(
@@ -2230,7 +2240,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
         seccion_aa_necesidad = crear_seccion_aa("❄️ 1. Necesidad inicial del servicio", fila_textos)
         registrar_seccion_aa("necesidad", seccion_aa_necesidad)
-        option_aa(seccion_aa_necesidad, "¿Qué se necesita realizar?", var_aa_necesidad, ["Instalación nueva", "Mantenimiento", "Reemplazo", "Reubicación", "Ampliación", "Diagnóstico previo"], 0, 0)
+        option_aa(seccion_aa_necesidad, "¿Qué se necesita realizar?", var_aa_necesidad, ["Instalación", "Mantenimiento", "Reemplazo", "Reubicación", "Ampliación", "Diagnóstico"], 0, 0)
         entry_aa(seccion_aa_necesidad, "¿Cuántos equipos se requieren?", var_aa_cantidad_equipos, "Ej. 2", 0, 1, ancho_corto=True)
         entry_aa(seccion_aa_necesidad, "¿Qué área se va a climatizar?", var_aa_area_climatizar, "Ej. oficina principal", 0, 2)
         option_aa(seccion_aa_necesidad, "Tipo de área", var_aa_tipo_area, ["Oficina", "SITE", "Sala de juntas", "Bodega", "Comedor", "Local", "Otro"], 0, 3)
@@ -2359,13 +2369,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             return option
 
         seccion_rvd_necesidad = crear_seccion_rvd("🌐 1. Necesidad inicial y alcance", fila_textos)
-        option_rvd(seccion_rvd_necesidad, "¿Qué se necesita realizar?", var_rvd_necesidad, ["Instalación nueva", "Mantenimiento", "Ampliación", "Reubicación", "Remodelación", "Diagnóstico previo"], 0, 0)
+        option_rvd(seccion_rvd_necesidad, "¿Qué se necesita realizar?", var_rvd_necesidad, ["Instalación", "Mantenimiento", "Ampliación", "Reubicación", "Remodelación", "Diagnóstico"], 0, 0)
         widget_rvd_tipo_servicio = option_rvd(seccion_rvd_necesidad, "Tipo de servicio", var_rvd_tipo_servicio, ["Datos", "Voz", "Voz y datos", "Fibra óptica", "Mixto"], 0, 1)
         widget_rvd_nodos = entry_rvd(seccion_rvd_necesidad, "¿Cuántos nodos de datos se requieren?", var_rvd_cantidad_nodos, "Ej. 12", 0, 2, ancho_corto=True)
         widget_rvd_voz = entry_rvd(seccion_rvd_necesidad, "¿Cuántos puntos de voz se requieren?", var_rvd_cantidad_telefonia, "Ej. 4", 0, 3, ancho_corto=True)
 
         def actualizar_campos_tipo_servicio_rvd(*_args):
-            instalacion_nueva = var_rvd_necesidad.get() == "Instalación nueva"
+            instalacion_nueva = var_rvd_necesidad.get() == "Instalación"
             tipo_servicio = var_rvd_tipo_servicio.get()
             habilitar_nodos = not (instalacion_nueva and tipo_servicio == "Voz")
             habilitar_voz = not (instalacion_nueva and tipo_servicio == "Datos")
@@ -2543,7 +2553,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             return option
 
         seccion_pe_necesidad = crear_seccion_pe("⚡ 1. Necesidad inicial del respaldo eléctrico", fila_textos)
-        option_pe(seccion_pe_necesidad, "¿Qué se necesita realizar?", var_pe_necesidad, ["Instalación nueva", "Mantenimiento", "Reemplazo", "Ampliación", "Reubicación", "Diagnóstico previo"], 0, 0)
+        option_pe(seccion_pe_necesidad, "¿Qué se necesita realizar?", var_pe_necesidad, ["Instalación", "Mantenimiento", "Reemplazo", "Ampliación", "Reubicación", "Diagnóstico"], 0, 0)
         option_pe(seccion_pe_necesidad, "Tipo de planta requerida", var_pe_tipo_planta, ["Diésel", "Gas", "Gasolina", "Híbrida", "Por validar"], 0, 1)
         entry_pe(seccion_pe_necesidad, "Capacidad estimada", var_pe_capacidad, "Ej. 30 kW", 0, 2, ancho_corto=True)
         entry_pe(seccion_pe_necesidad, "Carga a respaldar", var_pe_carga_respaldar, "Ej. SITE, CCTV, oficinas", 0, 3)
@@ -2619,7 +2629,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             return option
 
         seccion_ele_necesidad = crear_seccion_ele("🔌 1. Necesidad inicial y alcance eléctrico", fila_textos)
-        option_ele(seccion_ele_necesidad, "¿Qué se necesita realizar?", var_ele_necesidad, ["Instalación nueva", "Mantenimiento", "Ampliación", "Reubicación", "Corrección", "Diagnóstico previo"], 0, 0)
+        option_ele(seccion_ele_necesidad, "¿Qué se necesita realizar?", var_ele_necesidad, ["Instalación", "Mantenimiento", "Ampliación", "Reubicación", "Corrección", "Diagnóstico"], 0, 0)
         tipos_servicio_electricidad = sorted([
             "Alimentador", "Alimentador principal", "Base de medición",
             "Circuito dedicado", "Cometida eléctrica", "Contactos",
@@ -4782,6 +4792,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 return True
 
         falta("Cliente", vacia(var_cliente))
+        falta("Nombre del servicio", not var_nombre_servicio.get().strip())
         falta("Notas sobre el cliente", var_desea_notas_cliente.get() == "Sí" and vacia(var_notas_cliente))
         falta("Anotación tipo plano", var_desea_anotacion_plano.get() == "Sí" and not var_anotacion_plano_base64.get().strip())
         falta("Evidencia fotográfica", var_desea_evidencias.get() == "Sí" and not evidencias_levantamiento)
@@ -4902,6 +4913,25 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 falta("Canalización / materiales", not canalizacion_materiales_completa())
         return faltan
 
+    def modalidad_seleccionada():
+        """Obtiene la acción real del formulario, sin asumir Instalación."""
+        if tipo_levantamiento == "Seguridad y Monitoreo":
+            return var_modalidad_levantamiento.get().strip()
+        por_especialidad = {
+            "Aires Acondicionados": var_aa_necesidad,
+            "Redes Voz y Datos": var_rvd_necesidad,
+            "Plantas de Energía": var_pe_necesidad,
+            "Electricidad": var_ele_necesidad,
+        }
+        if tipo_levantamiento in por_especialidad:
+            return por_especialidad[tipo_levantamiento].get().strip()
+        if tipo_levantamiento in FORMULARIOS_DETALLADOS_EXTRA:
+            clave = "accion_ti" if tipo_levantamiento == "Tecnología, Equipos y Periféricos" else "necesidad"
+            variable = vars_extra.get(clave)
+            if variable:
+                return variable.get().strip()
+        return var_tipo.get().strip()
+
     def titulo_pdf_levantamiento():
         titulos = {
             "Seguridad y Monitoreo": "Levantamiento Seguridad y Monitoreo",
@@ -4976,11 +5006,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
     def registro_pdf_levantamiento(folio_override=""):
         """Construye la fuente única del PDF con la misma forma que Supabase."""
-        modalidad = (
-            var_modalidad_levantamiento.get().strip()
-            if tipo_levantamiento == "Seguridad y Monitoreo"
-            else ("Instalación" if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else var_tipo.get().strip())
-        )
+        modalidad = modalidad_seleccionada()
         detalle = obtener_detalle_tecnico_json() if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else {}
         detalle = dict(detalle or {})
         detalle["datos_generales_axia"] = {}
@@ -5045,7 +5071,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "lev_notas": var_notas_cliente.get().strip(),
             "lev_estatus": var_estatus.get().strip(),
             "lev_prioridad": var_prioridad.get().strip(),
-            "lev_descripcion": txt_descripcion.get("1.0", "end").strip(),
+            "lev_descripcion": var_nombre_servicio.get().strip(),
             "lev_observaciones": txt_observaciones.get("1.0", "end").strip(),
             "lev_descripcion_fallas": descripcion_fallas,
             "lev_detalle_tecnico_json": json.dumps(detalle, ensure_ascii=False) if detalle else "",
@@ -5124,11 +5150,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
     def registro_pdf_levantamiento(folio_override=""):
         """Construye la fuente única del PDF con la misma forma que Supabase."""
-        modalidad = (
-            var_modalidad_levantamiento.get().strip()
-            if tipo_levantamiento == "Seguridad y Monitoreo"
-            else ("Instalación" if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else var_tipo.get().strip())
-        )
+        modalidad = modalidad_seleccionada()
         detalle = obtener_detalle_tecnico_json() if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else {}
         detalle = dict(detalle or {})
         detalle["datos_generales_axia"] = {}
@@ -5179,7 +5201,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "lev_notas": var_notas_cliente.get().strip(),
             "lev_estatus": var_estatus.get().strip(),
             "lev_prioridad": var_prioridad.get().strip(),
-            "lev_descripcion": txt_descripcion.get("1.0", "end").strip(),
+            "lev_descripcion": var_nombre_servicio.get().strip(),
             "lev_observaciones": txt_observaciones.get("1.0", "end").strip(),
             "lev_descripcion_fallas": descripcion_fallas,
             "lev_detalle_tecnico_json": json.dumps(detalle, ensure_ascii=False) if detalle else "",
@@ -5295,6 +5317,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             var_cliente_selector.set(cliente_guardado)
 
         # Textos generales.
+        var_nombre_servicio.set(str(registro.get("lev_descripcion") or ""))
         nota_guardada = str(registro.get("lev_notas") or "").strip()
         var_desea_notas_cliente.set("Sí" if nota_guardada else "No")
         var_notas_cliente.set(nota_guardada)
@@ -5310,6 +5333,12 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         evidencias_existentes = _json_list(registro.get("lev_evidencias_json"))
         if evidencias_existentes:
             var_desea_evidencias.set("Sí")
+
+        # Valores históricos: se mantienen en BD, pero se muestran con la etiqueta homologada.
+        normalizar_modalidad = {"Instalación nueva": "Instalación", "Sistema nuevo": "Instalación", "Diagnóstico previo": "Diagnóstico"}
+        for variable in (var_aa_necesidad, var_rvd_necesidad, var_pe_necesidad, var_ele_necesidad):
+            if variable.get() in normalizar_modalidad:
+                variable.set(normalizar_modalidad[variable.get()])
 
         # Aplana el detalle técnico y usa los nombres de las variables del formulario
         # para restaurar todos los campos especializados sin duplicar cada formulario.
@@ -5539,20 +5568,20 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             return
         cliente = var_cliente.get().strip()
         aco_numero = var_aco.get().strip()
-        descripcion = txt_descripcion.get("1.0", "end").strip()
+        descripcion = var_nombre_servicio.get().strip()
         if tipo_levantamiento == "Seguridad y Monitoreo":
-            descripcion = construir_resumen_cctv().strip() or "Levantamiento de Seguridad y Monitoreo"
+            descripcion = var_nombre_servicio.get().strip()
         elif tipo_levantamiento == "Aires Acondicionados":
-            descripcion = construir_resumen_aires_acondicionados().strip() or "Levantamiento de Aires Acondicionados"
+            descripcion = var_nombre_servicio.get().strip()
         elif tipo_levantamiento == "Redes Voz y Datos":
-            descripcion = construir_resumen_redes_voz_datos().strip() or "Levantamiento de Redes Voz y Datos"
+            descripcion = var_nombre_servicio.get().strip()
         elif tipo_levantamiento in FORMULARIOS_DETALLADOS_EXTRA:
-            descripcion = construir_resumen_formulario_detallado().strip() or f"Levantamiento de {tipo_levantamiento}"
+            descripcion = var_nombre_servicio.get().strip()
 
-        if not cliente or (tipo_levantamiento not in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS and not descripcion):
+        if not cliente or not descripcion:
             messagebox.showwarning(
                 "Campos obligatorios",
-                "Debes capturar cliente" + (" y descripción." if tipo_levantamiento not in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else ".")
+                "Debes capturar cliente y Nombre del servicio."
             )
             return
 
@@ -5571,13 +5600,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             observaciones = f"Tipo específico de levantamiento: Seguridad y Monitoreo / {var_modalidad_levantamiento.get()}\n{observaciones}".strip()
         elif resumen_aa:
             requerimientos = f"{requerimientos}\n{resumen_aa}".strip()
-            observaciones = f"Tipo específico de levantamiento: Aires Acondicionados / Instalación\n{observaciones}".strip()
+            observaciones = f"Tipo específico de levantamiento: Aires Acondicionados / {modalidad_seleccionada()}\n{observaciones}".strip()
         elif resumen_rvd:
             requerimientos = f"{requerimientos}\n{resumen_rvd}".strip()
-            observaciones = f"Tipo específico de levantamiento: Redes Voz y Datos / Instalación\n{observaciones}".strip()
+            observaciones = f"Tipo específico de levantamiento: Redes Voz y Datos / {modalidad_seleccionada()}\n{observaciones}".strip()
         elif resumen_extra:
             requerimientos = f"{requerimientos}\n{resumen_extra}".strip()
-            observaciones = f"Tipo específico de levantamiento: {tipo_levantamiento} / Instalación\n{observaciones}".strip()
+            observaciones = f"Tipo específico de levantamiento: {tipo_levantamiento} / {modalidad_seleccionada()}\n{observaciones}".strip()
 
         if resumen_equipos:
             requerimientos = f"{requerimientos}\n\n{resumen_equipos}".strip()
@@ -5620,7 +5649,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         }
 
         if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS:
-            modalidad_operativa = (var_modalidad_levantamiento.get().strip() or "Instalación") if tipo_levantamiento == "Seguridad y Monitoreo" else "Instalación"
+            modalidad_operativa = modalidad_seleccionada()
             detalle_tecnico = obtener_detalle_tecnico_json()
             detalle_tecnico["recursos_proyectados"] = {
                 "dias_trabajo": var_dias_trabajo_general.get().strip(),
