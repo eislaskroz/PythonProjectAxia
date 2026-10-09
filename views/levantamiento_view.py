@@ -6021,7 +6021,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             actualizar_estado_preview()
 
     variables_preview = [
-        var_folio, var_cliente, var_modalidad_levantamiento, var_desea_notas_cliente, var_notas_cliente,
+        var_nombre_servicio, var_folio, var_cliente, var_modalidad_levantamiento, var_desea_notas_cliente, var_notas_cliente,
         var_dias_trabajo_general, var_personas_considerar_general,
         var_desea_anotacion_plano, var_anotacion_plano_base64, var_desea_evidencias,
         var_cctv_requiere_camaras, var_cctv_cantidad_camaras, var_cctv_dias_retencion,

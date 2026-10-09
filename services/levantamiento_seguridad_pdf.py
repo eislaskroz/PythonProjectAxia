@@ -706,7 +706,7 @@ def generar_pdf_seguridad_instalacion(
         ["CLIENTE", registro.get("lev_cliente"), "FECHA", registro.get("lev_fecha_programada") or registro.get("fecha_registro")],
         ["DIRECCIÓN FISCAL", registro.get("lev_direccion"), "CONTACTO", registro.get("lev_contacto")],
         ["DIRECCIÓN SUCURSAL", registro.get("lev_direccion_sucursal") or registro.get("lev_ubicacion"), "CORREO", registro.get("lev_correo")],
-        ["TIPO DE TRABAJO", modalidad or "Instalación", "DURACIÓN", duracion],
+        ["TIPO DE TRABAJO", modalidad or "No especificado", "DURACIÓN", duracion],
         [recurso_etiqueta, recurso_valor, "PERSONAS ESTIMADAS", registro.get("lev_personas_considerar") or cctv.get("personas_considerar") or "No definido"],
     ]
     if registro.get("lev_notas"):
@@ -1272,7 +1272,7 @@ def _general_story(registro: Mapping[str, Any], detail: Mapping[str, Any], story
         ["CLIENTE", registro.get("lev_cliente"), "FECHA", registro.get("lev_fecha_programada") or registro.get("fecha_registro")],
         ["DIRECCIÓN FISCAL", registro.get("lev_direccion"), "CONTACTO", registro.get("lev_contacto")],
         ["DIRECCIÓN SUCURSAL", registro.get("lev_direccion_sucursal") or registro.get("lev_ubicacion"), "CORREO", registro.get("lev_correo")],
-        ["TIPO DE TRABAJO", modalidad or "Instalación", "DURACIÓN", duracion],
+        ["TIPO DE TRABAJO", modalidad or "No especificado", "DURACIÓN", duracion],
     ]
     days, people = _find_resources(detail)
     days = days or _text(registro.get("lev_dias_trabajo"), "")

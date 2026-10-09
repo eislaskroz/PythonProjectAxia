@@ -341,7 +341,33 @@ def normalizar_registro_levantamiento(registro: Mapping[str, Any] | None) -> dic
     stored_modalidad = str(out.get("lev_modalidad_operativa") or "").strip()
     if stored_modalidad in {"NEW_CLIENT", "EXISTING_CLIENT", "EXISTING_ACO"}:
         stored_modalidad = ""
-    modalidad = str(detail.get("sec_work_type") or detail.get("modalidad_operativa") or detail.get("modalidad") or stored_modalidad or "Instalación").strip()
+    # La selección del formulario especializado tiene prioridad sobre el valor
+    # histórico de la columna, que en versiones anteriores podía ser fijo.
+    acciones = {
+        "Seguridad y Monitoreo": ("sec_work_type",),
+        "Tecnología, Equipos y Periféricos": ("accion_ti", "necesidad"),
+        "Redes Voz y Datos": ("necesidad",),
+        "Aires Acondicionados": ("necesidad",),
+        "Plantas de Energía": ("necesidad",),
+        "Electricidad": ("necesidad",),
+        "Control de Accesos": ("necesidad",),
+        "Enlaces Inalámbricos": ("necesidad",),
+        "Paneles Solares": ("necesidad",),
+    }
+    def _buscar_accion(obj):
+        if not isinstance(obj, dict):
+            return ""
+        for key in acciones.get(tipo, ("necesidad",)):
+            value = obj.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        for value in obj.values():
+            if isinstance(value, dict):
+                found = _buscar_accion(value)
+                if found:
+                    return found
+        return ""
+    modalidad = str(_buscar_accion(detail) or detail.get("modalidad_operativa") or detail.get("modalidad") or stored_modalidad).strip()
     if modalidad:
         out["lev_modalidad_operativa"] = modalidad
         detail.setdefault("modalidad_operativa", modalidad)
