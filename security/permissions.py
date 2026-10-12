@@ -191,7 +191,7 @@ def puede_convertir_cotizacion_a_orden(usuario_activo) -> bool:
 
 
 def puede_ver_almacen(usuario_activo) -> bool:
-    """Reserva de permiso para el futuro módulo de Almacén (rol 8)."""
+    """Acceso al módulo inicial de Almacén (rol 8 y administrador)."""
     return _es_rol(usuario_activo, ADMINISTRADOR, ALMACEN)
 
 def puede_avanzar_flujo_operativo(usuario_activo) -> bool:

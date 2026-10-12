@@ -63,6 +63,7 @@ from security.permissions import (
     puede_generar_levantamiento,
     puede_cotizar_levantamientos,
     puede_ver_compras,
+    puede_ver_almacen,
     puede_generar_orden_servicio,
     puede_ver_auditoria,
     puede_ver_reportes,
@@ -340,6 +341,9 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
             "🛒 Compras",
             callbacks["compras"]
         )
+
+    if puede_ver_almacen(usuario_activo):
+        crear_boton_sidebar(sidebar, "📦 Almacén", callbacks["almacen"])
 
     if puede_inicio:
         crear_boton_sidebar(

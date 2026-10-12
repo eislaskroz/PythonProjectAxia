@@ -224,7 +224,7 @@ class AxiaApp(ctk.CTk):
             if tipo == COMPRAS:
                 self.navigation.mostrar_compras()
             elif tipo == ALMACEN:
-                self.navigation.mostrar_mi_usuario()
+                self.navigation.mostrar_almacen()
             else:
                 self.navigation.mostrar_inicio_aco()
 
@@ -577,6 +577,7 @@ class AxiaApp(ctk.CTk):
             "admin_levantamientos": self.navigation.mostrar_admin_levantamientos,
             "cotizaciones": self.navigation.mostrar_cotizaciones,
             "compras": self.navigation.mostrar_compras,
+            "almacen": self.navigation.mostrar_almacen,
             "admin_ordenes_servicio": self.navigation.mostrar_admin_ordenes_servicio,
             "admin_ordenes_trabajo": self.navigation.mostrar_admin_ordenes_trabajo,
             "admin_bitacoras": self.navigation.mostrar_admin_bitacoras,

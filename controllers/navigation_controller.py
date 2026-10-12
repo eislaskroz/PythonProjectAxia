@@ -36,6 +36,7 @@ from security.permissions import (
     puede_modificar_levantamientos,
     puede_cotizar_levantamientos,
     puede_ver_compras,
+    puede_ver_almacen,
     puede_entrar_inicio_aco,
     puede_generar_levantamiento,
     puede_generar_bitacora,
@@ -458,10 +459,24 @@ class NavigationController:
         from views.cotizaciones_view import mostrar_cotizaciones
         mostrar_cotizaciones(parent=self.content, app=self.app)
 
+    def mostrar_almacen(self):
+        """Primera etapa: consulta de catálogo ELEVENTA, sin modificar existencias."""
+        if not self._verificar_permiso(
+            puede_ver_almacen,
+            "Tu nivel de usuario no tiene permiso para acceder al módulo de Almacén.",
+        ):
+            return
+        self._registrar_vista("mostrar_almacen")
+        self.limpiar_contenido()
+        self.cambiar_titulo("Almacén", "Catálogo inicial de ELEVENTA · Consulta y preparación de migración")
+        from views.almacen_view import mostrar_almacen
+        mostrar_almacen(parent=self.content, app=self.app)
+
     def mostrar_compras(self):
         """Muestra la bandeja de cotizaciones finalizadas pendientes de Compras."""
         if not self._verificar_permiso(
             puede_ver_compras,
+    puede_ver_almacen,
             "Tu nivel de usuario no tiene permiso para acceder al módulo de Compras.",
         ):
             return
