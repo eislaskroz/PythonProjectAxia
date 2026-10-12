@@ -476,7 +476,7 @@ class AxiaApp(ctk.CTk):
             text_color=TEXT_MUTED,
             font=(FONT_FAMILY, 9),
         )
-        version_tag.pack(side="right")
+        version_tag.pack(side="right", padx=(15, 0))
 
     @staticmethod
     def _fecha_hora_es():

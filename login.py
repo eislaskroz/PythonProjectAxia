@@ -388,13 +388,23 @@ def abrir_login():
             return {"acceso": False, "usuario": None, "ubicacion": ubicacion}
 
         def login_correcto(resultado):
-            from security.login_guard import registrar_exito, registrar_fallo
+            from security.login_guard import registrar_exito, registrar_fallo_detallado
             if not resultado["acceso"]:
-                restante = registrar_fallo(nickname)
-                mensaje = "Usuario o contraseña incorrectos"
-                if restante > 0:
-                    mensaje += "\n\nEl acceso quedó bloqueado temporalmente por seguridad."
-                messagebox.showerror("Acceso denegado", mensaje)
+                fallo = registrar_fallo_detallado(nickname)
+                intento = fallo["intento"]
+                maximo = fallo["maximo"]
+                if fallo["restante"] > 0:
+                    messagebox.showerror(
+                        "Usuario bloqueado",
+                        f"Intento {intento}/{maximo}\n\n"
+                        f"Usuario bloqueado por {fallo['minutos']} minutos."
+                    )
+                else:
+                    messagebox.showwarning(
+                        "Credenciales incorrectas",
+                        f"Intento {intento}/{maximo}\n\n"
+                        "Usuario o contraseña incorrectos."
+                    )
                 return
             registrar_exito(nickname)
 

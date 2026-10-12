@@ -8,10 +8,10 @@ logger = configurar_logger(__name__)
 _FILE = user_data_dir() / "login_guard.json"
 
 def _settings():
-    try: max_attempts=max(3,int(os.getenv("AXIA_LOGIN_MAX_ATTEMPTS","5")))
-    except ValueError: max_attempts=5
-    try: lock_minutes=max(1,int(os.getenv("AXIA_LOGIN_LOCK_MINUTES","15")))
-    except ValueError: lock_minutes=15
+    try: max_attempts=max(3,int(os.getenv("AXIA_LOGIN_MAX_ATTEMPTS","3")))
+    except ValueError: max_attempts=3
+    try: lock_minutes=max(1,int(os.getenv("AXIA_LOGIN_LOCK_MINUTES","10")))
+    except ValueError: lock_minutes=10
     return max_attempts, lock_minutes
 
 def _load():
@@ -30,10 +30,15 @@ def estado(nickname):
     return remaining
 
 def registrar_fallo(nickname):
+    """Compatibilidad: devuelve los segundos de bloqueo tras registrar un fallo."""
+    return registrar_fallo_detallado(nickname)["restante"]
+
+def registrar_fallo_detallado(nickname):
     key=str(nickname or '').strip().casefold(); data=_load(); item=data.get(key,{})
     attempts=int(item.get('attempts',0))+1; maximum,minutes=_settings(); item={'attempts':attempts,'locked_until':0}
     if attempts>=maximum: item={'attempts':0,'locked_until':time.time()+minutes*60}
-    data[key]=item; _save(data); return estado(nickname)
+    data[key]=item; _save(data)
+    return {"intento": min(attempts, maximum), "maximo": maximum, "restante": estado(nickname), "minutos": minutes}
 
 def registrar_exito(nickname):
     key=str(nickname or '').strip().casefold(); data=_load()
