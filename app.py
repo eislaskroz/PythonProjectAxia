@@ -358,8 +358,9 @@ class AxiaApp(ctk.CTk):
         header_body = ctk.CTkFrame(self.header, fg_color="transparent")
         header_body.pack(fill="both", padx=22, pady=(10, 14))
 
+        # Indicadores y menú a la izquierda; identificación de vista a la derecha.
         left_block = ctk.CTkFrame(header_body, fg_color="transparent")
-        left_block.pack(side="left", fill="both", expand=True)
+        left_block.pack(side="right", fill="both", expand=True, padx=(20, 0))
 
         # Breadcrumb decorativo (no funcional, solo contexto visual)
         label_breadcrumb = ctk.CTkLabel(
@@ -367,9 +368,10 @@ class AxiaApp(ctk.CTk):
             text="◎  AXIA  /  Panel  /  Vista actual",
             font=TEXT_XS,
             text_color=TEXT_MUTED,
-            anchor="w",
+            anchor="e",
+            justify="right",
         )
-        label_breadcrumb.pack(fill="x", anchor="w", pady=(0, 2))
+        label_breadcrumb.pack(fill="x", anchor="e", pady=(0, 2))
         self.breadcrumb_label = label_breadcrumb
 
         self.label_titulo = ctk.CTkLabel(
@@ -377,22 +379,25 @@ class AxiaApp(ctk.CTk):
             text="Sistema AXIA",
             font=TITLE_LG,
             text_color=TEXT_PRIMARY,
-            anchor="w",
+            anchor="e",
+            justify="right",
         )
-        self.label_titulo.pack(fill="x", anchor="w", pady=(0, 1))
+        self.label_titulo.pack(fill="x", anchor="e", pady=(0, 1))
 
         self.label_subtitulo = ctk.CTkLabel(
             left_block,
             text="Gestión operativa centralizada",
             font=TEXT_SM,
             text_color=TEXT_SECONDARY,
-            anchor="w",
+            anchor="e",
+            justify="right",
         )
-        self.label_subtitulo.pack(fill="x", anchor="w")
+        self.label_subtitulo.pack(fill="x", anchor="e")
 
-        # Bloque derecho decorativo: tarjeta de estado + fecha
+        # Bloque izquierdo: estado, fecha en español y control del menú.
         right_block = ctk.CTkFrame(header_body, fg_color="transparent")
-        right_block.pack(side="right", fill="y")
+        right_block.pack(side="left", fill="y")
+        self.header_controls_host = right_block
 
         # Tarjeta de estado superior
         status_card = ctk.CTkFrame(
@@ -442,8 +447,7 @@ class AxiaApp(ctk.CTk):
         env_lbl.pack()
 
         # Tarjeta secundaria: hora / fecha
-        import datetime as _dt
-        fecha_texto = _dt.datetime.now().strftime("%A, %d de %B · %H:%M")
+        fecha_texto = self._fecha_hora_es()
         info_card = ctk.CTkFrame(
             right_block,
             corner_radius=12,
@@ -463,6 +467,8 @@ class AxiaApp(ctk.CTk):
             anchor="w",
         )
         calendar_label.pack(side="left", fill="x", expand=True)
+        self.header_calendar_label = calendar_label
+        self.after(30000, self._actualizar_reloj_header)
 
         version_tag = ctk.CTkLabel(
             info_row,
@@ -471,6 +477,24 @@ class AxiaApp(ctk.CTk):
             font=(FONT_FAMILY, 9),
         )
         version_tag.pack(side="right")
+
+    @staticmethod
+    def _fecha_hora_es():
+        """Fecha en español sin modificar el locale global del sistema."""
+        from datetime import datetime
+        now = datetime.now()
+        dias = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
+        meses = ("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre")
+        return f"{dias[now.weekday()].capitalize()}, {now.day} de {meses[now.month - 1]} de {now.year} · {now:%H:%M}"
+
+    def _actualizar_reloj_header(self):
+        """Mantiene actualizada la hora mientras la ventana siga abierta."""
+        try:
+            if self.header_calendar_label.winfo_exists():
+                self.header_calendar_label.configure(text="📅  " + self._fecha_hora_es())
+                self.after(30000, self._actualizar_reloj_header)
+        except Exception:
+            pass
 
     # =====================================================
     # MÉTODO: crear_area_contenido()
@@ -578,6 +602,26 @@ class AxiaApp(ctk.CTk):
         )
         # Ajusta el shell al área real disponible (incluye escalado DPI de Windows).
         install_responsive_shell(self, self.sidebar)
+        # Control del menú lateral sin reconstruir las vistas activas.
+        self._sidebar_visible = True
+        self._sidebar_toggle = ctk.CTkButton(
+            self.header_controls_host, text="☰  Ocultar menú", width=150,
+            command=self.alternar_sidebar, fg_color="#123C58",
+            hover_color="#17648A", corner_radius=9,
+        )
+        self._sidebar_toggle.pack(side="top", anchor="w", pady=(7, 0))
+
+    def alternar_sidebar(self):
+        """Oculta/muestra el sidebar conservando navegación y formularios."""
+        self._sidebar_visible = not self._sidebar_visible
+        if self._sidebar_visible:
+            self.sidebar.grid(row=0, column=0, sticky="ns")
+            self._sidebar_toggle.configure(text="☰  Ocultar menú")
+        else:
+            self.sidebar.grid_remove()
+            self._sidebar_toggle.configure(text="☰  Mostrar menú")
+        self.layout.update_idletasks()
+
 
     # =====================================================
     # MÉTODOS DE COMPATIBILIDAD TEMPORAL

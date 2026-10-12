@@ -703,6 +703,7 @@ def generar_pdf_seguridad_instalacion(
     general_rows = [
         ["NOMBRE DE LEVANTAMIENTO", tipo_master or "Seguridad y Monitoreo",
          "FOLIO LEVANTAMIENTO", registro.get("lev_folio") or "Pendiente"],
+        *([["NOMBRE DEL SERVICIO", registro.get("lev_descripcion"), "", ""]] if str(registro.get("lev_descripcion") or "").strip() else []),
         ["CLIENTE", registro.get("lev_cliente"), "FECHA", registro.get("lev_fecha_programada") or registro.get("fecha_registro")],
         ["DIRECCIÓN FISCAL", registro.get("lev_direccion"), "CONTACTO", registro.get("lev_contacto")],
         ["DIRECCIÓN SUCURSAL", registro.get("lev_direccion_sucursal") or registro.get("lev_ubicacion"), "CORREO", registro.get("lev_correo")],
@@ -1269,6 +1270,7 @@ def _general_story(registro: Mapping[str, Any], detail: Mapping[str, Any], story
     general_rows = [
         ["NOMBRE DE LEVANTAMIENTO", tipo,
          "FOLIO LEVANTAMIENTO", registro.get("lev_folio") or "Pendiente"],
+        *([["NOMBRE DEL SERVICIO", registro.get("lev_descripcion"), "", ""]] if str(registro.get("lev_descripcion") or "").strip() else []),
         ["CLIENTE", registro.get("lev_cliente"), "FECHA", registro.get("lev_fecha_programada") or registro.get("fecha_registro")],
         ["DIRECCIÓN FISCAL", registro.get("lev_direccion"), "CONTACTO", registro.get("lev_contacto")],
         ["DIRECCIÓN SUCURSAL", registro.get("lev_direccion_sucursal") or registro.get("lev_ubicacion"), "CORREO", registro.get("lev_correo")],

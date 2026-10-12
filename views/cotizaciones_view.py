@@ -58,10 +58,39 @@ def mostrar_cotizaciones(parent, app=None):
     root = ctk.CTkFrame(parent, fg_color="transparent")
     root.pack(fill="both", expand=True, padx=14, pady=(4, 12))
     root.grid_columnconfigure(0, weight=1)
-    root.grid_rowconfigure(1, weight=1)
+    root.grid_rowconfigure(2, weight=1)
+
+    # La barra de control permanece visible; las bandejas se pueden plegar sin
+    # reconstruir el formulario ni perder valores de la cotización activa.
+    barra_bandejas = ctk.CTkFrame(root, fg_color="transparent")
+    barra_bandejas.grid(row=0, column=0, sticky="ew", pady=(0, 4))
+    barra_bandejas.grid_columnconfigure(0, weight=1)
+    ctk.CTkLabel(
+        barra_bandejas, text="Selección de cotizaciones y levantamientos",
+        font=TEXT_SM, text_color=TEXT_SECONDARY, anchor="w",
+    ).grid(row=0, column=0, sticky="w")
 
     superior = ctk.CTkFrame(root, fg_color="transparent")
-    superior.grid(row=0, column=0, sticky="ew", pady=(0, 8))
+    superior.grid(row=1, column=0, sticky="ew", pady=(0, 8))
+    bandejas_visibles = {"valor": True}
+
+    def mostrar_bandejas(visible=None):
+        if visible is None:
+            visible = not bandejas_visibles["valor"]
+        bandejas_visibles["valor"] = bool(visible)
+        if visible:
+            superior.grid(row=1, column=0, sticky="ew", pady=(0, 8))
+            btn_bandejas.configure(text="▲ Ocultar paneles")
+        else:
+            superior.grid_remove()
+            btn_bandejas.configure(text="▼ Mostrar paneles")
+
+    btn_bandejas = ctk.CTkButton(
+        barra_bandejas, text="▲ Ocultar paneles", width=180, height=34,
+        font=BUTTON_FONT, fg_color="#123C57", hover_color="#1D5678",
+        command=mostrar_bandejas,
+    )
+    btn_bandejas.grid(row=0, column=1, sticky="e", padx=(8, 0))
     superior.grid_columnconfigure(0, weight=1, uniform="top")
     superior.grid_columnconfigure(1, weight=1, uniform="top")
 
@@ -93,7 +122,7 @@ def mostrar_cotizaciones(parent, app=None):
     tabla.grid(row=1, column=0, sticky="ew", padx=10, pady=(0,6))
 
     detalle_card = ctk.CTkFrame(root, fg_color=WHITE, corner_radius=16)
-    detalle_card.grid(row=1, column=0, sticky="nsew"); detalle_card.grid_columnconfigure(0, weight=1); detalle_card.grid_rowconfigure(1, weight=1)
+    detalle_card.grid(row=2, column=0, sticky="nsew"); detalle_card.grid_columnconfigure(0, weight=1); detalle_card.grid_rowconfigure(1, weight=1)
     info = ctk.CTkFrame(detalle_card, fg_color="transparent")
     info.grid(row=0, column=0, sticky="ew", padx=14, pady=(8,3)); info.grid_columnconfigure(0, weight=1)
     lbl_titulo = ctk.CTkLabel(info, text="Selecciona un levantamiento", font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="w")
@@ -593,6 +622,7 @@ def mostrar_cotizaciones(parent, app=None):
         lbl_titulo.configure(text=f"{_texto(reg,'lev_folio')} · {_texto(reg,'lev_cliente')}")
         lbl_detalle.configure(text="Cotización comercial ligada al levantamiento preautorizado.")
         render(reg)
+        mostrar_bandejas(False)
 
     def cargar_cotizacion_seleccionada():
         cot = tabla_cot.selected_payload()
@@ -610,6 +640,7 @@ def mostrar_cotizaciones(parent, app=None):
             lbl_titulo.configure(text=f"{_texto(cot,'cot_folio')} · {_texto(cot,'cot_cliente')}")
             lbl_detalle.configure(text=f"{_texto(cot,'cot_folio')} · Cotización guardada pendiente de Compras. Usa Modificar para habilitar cambios.")
             render(reg)
+            mostrar_bandejas(False)
 
         run_async(parent.winfo_toplevel(), tarea, ok,
                   lambda e: messagebox.showerror("No fue posible abrir la cotización", str(e)))
