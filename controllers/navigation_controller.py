@@ -460,7 +460,7 @@ class NavigationController:
         mostrar_cotizaciones(parent=self.content, app=self.app)
 
     def mostrar_almacen(self):
-        """Primera etapa: consulta de catálogo ELEVENTA, sin modificar existencias."""
+        """Etapa 2: entradas/salidas de prueba y Kardex; servidor con bloqueo por aprobación."""
         if not self._verificar_permiso(
             puede_ver_almacen,
             "Tu nivel de usuario no tiene permiso para acceder al módulo de Almacén.",
@@ -468,7 +468,7 @@ class NavigationController:
             return
         self._registrar_vista("mostrar_almacen")
         self.limpiar_contenido()
-        self.cambiar_titulo("Almacén", "Catálogo inicial de ELEVENTA · Consulta y preparación de migración")
+        self.cambiar_titulo("Almacén", "Catálogo, entradas, salidas y Kardex · Etapa 2")
         from views.almacen_view import mostrar_almacen
         mostrar_almacen(parent=self.content, app=self.app)
 
