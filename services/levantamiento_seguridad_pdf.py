@@ -1127,16 +1127,44 @@ def _is_resource_key(key: str) -> bool:
     return k in RESOURCE_KEYS_DAYS or k in RESOURCE_KEYS_PEOPLE
 
 
+def _filter_pdf_dependencies(mapping: Mapping[str, Any]) -> dict[str, Any]:
+    """No imprimir detalles de componentes expresamente rechazados.
+
+    Se aplica sobre una copia: no altera el JSON ni los datos históricos.
+    """
+    data = dict(mapping)
+    def denied(*names):
+        return any(str(data.get(name, "")).strip().casefold() in {"no", "false", "0"} for name in names)
+    groups = (
+        (("rack_requerido", "requiere_rack"), ("tipo_rack", "rack_modalidad", "modalidad_rack", "cantidad_rack", "cantidad_kit_rack", "rack_organizadores", "rack_organizadores_verticales", "rack_organizadores_horizontales", "rack_charolas", "rack_pdu", "rack_panel_parcheo")),
+        (("gabinete_requerido", "requiere_gabinete"), ("tipo_gabinete", "ubicacion_gabinete", "ubicacion_rack_gabinete")),
+        (("ups_requerida", "requiere_ups", "ups"), ("tipo_ups", "detalle_ups", "capacidad_ups")),
+        (("contacto_regulado", "requiere_contacto_regulado"), ("detalle_contacto_regulado", "tipo_contacto_regulado")),
+        (("tierra_fisica", "requiere_tierra_fisica"), ("detalle_tierra_fisica", "tipo_tierra_fisica")),
+        (("switch_requerido", "requiere_switch"), ("tipo_switch", "puertos_switch", "switch_tipo", "switch_puertos")),
+        (("patch_panel_requerido", "requiere_patch_panel"), ("tipo_patch_panel", "cantidad_patch_panel")),
+    )
+    for controls, children in groups:
+        if denied(*controls):
+            for key in children:
+                data.pop(key, None)
+            if "tierra_fisica" in controls:
+                for key in list(data):
+                    if str(key).startswith("tierra_"):
+                        data.pop(key, None)
+    return data
+
+
 def _mapping_rows(mapping: Mapping[str, Any]) -> list[list[Any]]:
     """Convierte un bloque técnico en filas etiqueta/valor de dos pares por fila."""
     pairs: list[tuple[str, Any]] = []
-    for key, value in mapping.items():
+    for key, value in _filter_pdf_dependencies(mapping).items():
         if _is_resource_key(key) or key in {"partidas"}:
             continue
         if isinstance(value, (Mapping, list, tuple)):
             continue
-        if value in (None, ""):
-            value = "No aplica"
+        if value is None or (isinstance(value, str) and value.strip().casefold() in {"", "no aplica", "n/a", "no requerido"}):
+            continue
         pairs.append((_humanize(key), value))
     rows: list[list[Any]] = []
     for i in range(0, len(pairs), 2):
