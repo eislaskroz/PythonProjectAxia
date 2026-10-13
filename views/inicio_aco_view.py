@@ -1,4 +1,4 @@
-from core.error_reporting import show_operation_error
+﻿from core.error_reporting import show_operation_error
 """
 =========================================================
 MÓDULO: inicio_aco_view.py
@@ -14,6 +14,8 @@ Permite:
 
 import customtkinter as ctk
 from tkinter import messagebox
+from pathlib import Path
+from PIL import Image
 from ui.native_combobox import NativeComboBox
 from core.background_tasks import run_async
 from utils import centrar_ventana
@@ -98,75 +100,198 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
         descripcion="El usuario abrió la vista inicial de ACO"
     )
 
+    # El contenedor raíz debe expandirse verticalmente para que los bloques
+    # puedan llegar hasta la parte inferior de la pantalla sin afectar la lógica.
+    parent.grid_rowconfigure(0, weight=0)
+    parent.grid_rowconfigure(1, weight=1)
+    parent.grid_columnconfigure(0, weight=1)
+
     # =================================================
     # PANEL SUPERIOR: ACCESO ACO + VALIDACIÓN + LEVANTAMIENTO
     # =================================================
 
+    panel_dinamico = ctk.CTkFrame(
+        parent,
+        fg_color=WHITE,
+        corner_radius=30,
+        border_width=3,
+        border_color="#a7b4c6"
+    )
+    panel_dinamico.grid(
+        row=0,
+        column=0,
+        sticky="nsew",
+        padx=18,
+        pady=(10, 14)
+    )
+    panel_dinamico.grid_rowconfigure(0, weight=1)
+    panel_dinamico.grid_columnconfigure(0, weight=1)
+
     panel_superior = ctk.CTkFrame(
         parent,
-        height=150,
+        height=290,
         fg_color="transparent"
     )
-    panel_superior.pack(
-        fill="x",
+    panel_superior.grid(
+        row=1,
+        column=0,
+        sticky="nsew",
         padx=18,
-        pady=(10, 0)
+        pady=(0, 0)
     )
-    panel_superior.pack_propagate(False)
+    panel_superior.grid_propagate(False)
 
     # Tres zonas equilibradas en una sola franja superior.
+    # Se amplía la distribución para que cada tarjeta cubra mejor el ancho
+    # disponible sin alterar la lógica de validación ni navegación.
     panel_superior.grid_columnconfigure(0, weight=4)
-    panel_superior.grid_columnconfigure(1, weight=3)
+    panel_superior.grid_columnconfigure(1, weight=4)
     panel_superior.grid_columnconfigure(2, weight=3)
     panel_superior.grid_rowconfigure(0, weight=1)
 
-    panel_aco_opciones = ctk.CTkFrame(panel_superior, fg_color="transparent")
-    panel_aco_opciones.grid(row=0, column=0, sticky="nsew", padx=(0, 14))
+    panel_aco_opciones = ctk.CTkFrame(
+        panel_superior,
+        fg_color="#f8fafc",
+        corner_radius=22,
+        border_width=2,
+        border_color="#b7c0ce"
+    )
+    panel_aco_opciones.grid(row=0, column=0, sticky="nsew", padx=(0, 14), ipady=34)
+    panel_aco_opciones.grid_columnconfigure(0, weight=1)
+    panel_aco_opciones.grid_rowconfigure(0, weight=0)
+    panel_aco_opciones.grid_rowconfigure(1, weight=1)
+    panel_aco_opciones.grid_rowconfigure(2, weight=1)
 
     ctk.CTkLabel(
         panel_aco_opciones,
         text="¿Tienes ACO asignado?",
         font=TITLE_MD,
         text_color=TEXT_PRIMARY
-    ).pack(pady=(2, 1))
+    ).grid(row=0, column=0, sticky="w", padx=18, pady=(16, 4))
 
     ctk.CTkLabel(
         panel_aco_opciones,
         text="El ACO conecta levantamientos, órdenes de servicio y bitácoras operativas.",
         font=TEXT_MD,
         text_color=TEXT_SECONDARY,
-        justify="center"
-    ).pack(pady=(0, 7))
+        justify="left",
+        wraplength=500
+    ).grid(row=1, column=0, sticky="ew", padx=18, pady=(0, 10))
 
     frame_botones = ctk.CTkFrame(panel_aco_opciones, fg_color="transparent")
-    frame_botones.pack()
+    frame_botones.grid(row=2, column=0, sticky="ew", padx=18, pady=(0, 10))
+    frame_botones.grid_columnconfigure(0, weight=1)
+    frame_botones.grid_columnconfigure(1, weight=1)
 
     # Centro: validación del ACO siempre visible para evitar un segundo bloque
     # vertical y aprovechar mejor el ancho disponible.
-    panel_validar_aco = ctk.CTkFrame(panel_superior, fg_color="transparent")
-    panel_validar_aco.grid(row=0, column=1, sticky="nsew", padx=14)
+    panel_validar_aco = ctk.CTkFrame(
+        panel_superior,
+        fg_color="#f8fafc",
+        corner_radius=22,
+        border_width=2,
+        border_color="#b7c0ce"
+    )
+    panel_validar_aco.grid(row=0, column=1, sticky="nsew", padx=14, ipady=34)
+    panel_validar_aco.grid_columnconfigure(0, weight=1)
+    panel_validar_aco.grid_rowconfigure(0, weight=0)
+    panel_validar_aco.grid_rowconfigure(1, weight=1)
+    panel_validar_aco.grid_rowconfigure(2, weight=0)
 
     ctk.CTkLabel(
         panel_validar_aco,
         text="Captura el número de ACO",
         font=TITLE_MD,
         text_color=TEXT_PRIMARY
-    ).pack(pady=(2, 7))
+    ).grid(row=0, column=0, sticky="w", padx=18, pady=(16, 8))
 
     var_aco_superior = ctk.StringVar()
     var_aco_superior.trace_add(
         "write", lambda *_: normalizar_aco_visual(var_aco_superior)
     )
 
-    entry_aco_top = ctk.CTkEntry(
+    frame_entrada_aco = ctk.CTkFrame(
         panel_validar_aco,
-        textvariable=var_aco_superior,
-        width=360,
-        height=42,
-        corner_radius=12,
-        placeholder_text="Ejemplo: ACO-0001"
+        fg_color="#eef4fb",
+        corner_radius=20,
+        border_width=1,
+        border_color="#cbd5e1"
     )
-    entry_aco_top.pack(pady=(0, 7))
+    frame_entrada_aco.grid(row=1, column=0, sticky="ew", padx=18, pady=(0, 10), ipady=3)
+    frame_entrada_aco.grid_columnconfigure(1, weight=1)
+
+    carpeta_iconos = Path(__file__).resolve().parent.parent / "assets" / "iconos"
+    ruta_icono_lupa = carpeta_iconos / "lupa.png"
+    if not ruta_icono_lupa.exists():
+        ruta_icono_lupa = carpeta_iconos / "buscar.png"
+
+    icono_lupa = None
+    if ruta_icono_lupa.exists():
+        with Image.open(ruta_icono_lupa) as imagen_lupa:
+            imagen_lupa = imagen_lupa.convert("RGBA")
+        icono_lupa = ctk.CTkImage(
+            light_image=imagen_lupa,
+            dark_image=imagen_lupa,
+            size=(26, 26)
+        )
+
+    if icono_lupa:
+        ctk.CTkLabel(
+            frame_entrada_aco,
+            text="",
+            image=icono_lupa
+        ).grid(row=0, column=0, padx=(14, 8), pady=10)
+
+    entry_aco_top = ctk.CTkEntry(
+        frame_entrada_aco,
+        textvariable=var_aco_superior,
+        height=40,
+        corner_radius=10,
+        border_width=1,
+        border_color="#d8e2ef",
+        fg_color=WHITE,
+        font=TEXT_MD
+    )
+    entry_aco_top.grid(row=0, column=1, sticky="ew", padx=(0, 10), pady=7)
+
+    placeholder_aco = ctk.CTkLabel(
+        entry_aco_top,
+        text="Captura el número",
+        font=TEXT_MD,
+        text_color=TEXT_SECONDARY,
+        fg_color=WHITE
+    )
+    placeholder_aco.place(x=12, rely=0.5, anchor="w")
+
+    estado_entrada_aco = {"cursor": False}
+
+    def actualizar_placeholder_aco(*_):
+        if var_aco_superior.get() or estado_entrada_aco["cursor"]:
+            placeholder_aco.place_forget()
+        else:
+            placeholder_aco.place(x=12, rely=0.5, anchor="w")
+
+    def entrar_area_busqueda_aco(_evento=None):
+        estado_entrada_aco["cursor"] = True
+        actualizar_placeholder_aco()
+
+    def salir_area_busqueda_aco(_evento=None):
+        def comprobar_cursor_fuera():
+            x, y = frame_entrada_aco.winfo_pointerxy()
+            izquierda = frame_entrada_aco.winfo_rootx()
+            arriba = frame_entrada_aco.winfo_rooty()
+            estado_entrada_aco["cursor"] = (
+                izquierda <= x < izquierda + frame_entrada_aco.winfo_width()
+                and arriba <= y < arriba + frame_entrada_aco.winfo_height()
+            )
+            actualizar_placeholder_aco()
+
+        frame_entrada_aco.after_idle(comprobar_cursor_fuera)
+
+    var_aco_superior.trace_add("write", actualizar_placeholder_aco)
+    for widget_busqueda in (frame_entrada_aco, entry_aco_top, placeholder_aco):
+        widget_busqueda.bind("<Enter>", entrar_area_busqueda_aco, add="+")
+        widget_busqueda.bind("<Leave>", salir_area_busqueda_aco, add="+")
 
     btn_validar_aco_top = ctk.CTkButton(
         panel_validar_aco,
@@ -179,18 +304,27 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
         font=BUTTON_FONT,
         command=lambda: validar_aco_superior()
     )
-    btn_validar_aco_top.pack()
+    btn_validar_aco_top.grid(row=2, column=0, sticky="ew", padx=18, pady=(0, 6))
 
     # Derecha: levantamiento independiente de permisos/estado del ACO.
-    acceso_levantamiento = ctk.CTkFrame(panel_superior, fg_color="transparent")
-    acceso_levantamiento.grid(row=0, column=2, sticky="nsew", padx=(14, 0))
+    acceso_levantamiento = ctk.CTkFrame(
+        panel_superior,
+        fg_color="#f8fafc",
+        corner_radius=22,
+        border_width=2,
+        border_color="#b7c0ce"
+    )
+    acceso_levantamiento.grid(row=0, column=2, sticky="nsew", padx=(14, 0), ipady=34)
+    acceso_levantamiento.grid_columnconfigure(0, weight=1)
+    acceso_levantamiento.grid_rowconfigure(0, weight=0)
+    acceso_levantamiento.grid_rowconfigure(1, weight=1)
 
     ctk.CTkLabel(
         acceso_levantamiento,
         text="Generar levantamiento",
         font=TITLE_MD,
         text_color=TEXT_PRIMARY
-    ).pack(pady=(10, 7))
+    ).grid(row=0, column=0, sticky="w", padx=18, pady=(16, 8))
 
     def abrir_selector_levantamiento_directo():
         registrar_movimiento(
@@ -213,23 +347,11 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
         hover_color=BUTTON_HOVER,
         font=BUTTON_FONT,
         command=abrir_selector_levantamiento_directo
-    ).pack()
+    ).grid(row=1, column=0, sticky="ew", padx=18, pady=(0, 10))
 
     # =================================================
     # PANEL DINÁMICO PRINCIPAL
     # =================================================
-
-    panel_dinamico = ctk.CTkFrame(
-        parent,
-        fg_color=WHITE,
-        corner_radius=22
-    )
-    panel_dinamico.pack(
-        fill="both",
-        expand=True,
-        padx=18,
-        pady=(8, 12)
-    )
 
     # =================================================
     # MENSAJE INICIAL
@@ -244,11 +366,28 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
 
         ctk.CTkLabel(
             panel_dinamico,
+            text="Selecciona para continuar",
+            font=TITLE_MD,
+            text_color=TEXT_PRIMARY,
+            justify="left",
+            anchor="w"
+        ).pack(
+            anchor="w",
+            padx=28,
+            pady=(24, 8)
+        )
+
+        ctk.CTkLabel(
+            panel_dinamico,
             text="Selecciona una opción para comenzar.",
             font=TEXT_MD,
-            text_color=TEXT_SECONDARY
+            text_color=TEXT_SECONDARY,
+            justify="left",
+            anchor="w"
         ).pack(
-            pady=110
+            anchor="w",
+            padx=28,
+            pady=(0, 20)
         )
 
     # =================================================
@@ -373,15 +512,17 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             ctk.CTkButton(
                 panel_dinamico,
                 text=texto,
-                width=340,
-                height=46,
+                width=420,
+                height=48,
                 corner_radius=12,
                 fg_color=SECONDARY,
                 hover_color=BUTTON_HOVER,
                 font=BUTTON_FONT,
                 command=comando
             ).pack(
-                pady=4
+                pady=5,
+                padx=120,
+                fill="x"
             )
 
     # =================================================
@@ -397,17 +538,19 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
         # El contenido desplazable ocupa toda el área útil que deja la barra lateral.
         # La botonera queda fuera del scroll para permanecer visible en todo momento.
         contenedor_aco = ctk.CTkFrame(panel_dinamico, fg_color="transparent")
-        contenedor_aco.pack(fill="both", expand=True, padx=10, pady=(10, 8))
+        contenedor_aco.pack(fill="both", expand=True, padx=12, pady=(12, 10))
+        contenedor_aco.grid_rowconfigure(0, weight=1)
+        contenedor_aco.grid_columnconfigure(0, weight=1)
 
         form = ctk.CTkScrollableFrame(
             contenedor_aco,
             fg_color="#f1f5f9",
-            corner_radius=16,
+            corner_radius=18,
         )
-        form.pack(fill="both", expand=True, padx=0, pady=(0, 8))
+        form.grid(row=0, column=0, sticky="nsew", padx=4, pady=(0, 10))
 
-        barra_acciones = ctk.CTkFrame(contenedor_aco, fg_color="transparent", height=54)
-        barra_acciones.pack(fill="x", padx=4, pady=(0, 2))
+        barra_acciones = ctk.CTkFrame(contenedor_aco, fg_color="transparent", height=58)
+        barra_acciones.pack(fill="x", padx=6, pady=(0, 2))
         barra_acciones.pack_propagate(False)
 
         var_aco = ctk.StringVar(value="Se asigna automáticamente al guardar")
@@ -1002,7 +1145,8 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     ).grid(
         row=0,
         column=0,
-        padx=5
+        padx=5,
+        sticky="ew"
     )
 
     ctk.CTkButton(
@@ -1020,7 +1164,8 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     ).grid(
         row=0,
         column=1,
-        padx=5
+        padx=5,
+        sticky="ew"
     )
 
     if aco_validado:

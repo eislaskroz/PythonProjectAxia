@@ -2,10 +2,9 @@
 
 import json
 from datetime import datetime, timezone
+from pathlib import Path
 import customtkinter as ctk
-from ui.iconos import cargar_icono
-_AXIA_ICON_BUSCAR = cargar_icono("buscar.png", (18, 18))
-_AXIA_ICON_BUSCAR_BLANCO = cargar_icono("buscar.png", (16, 16), blanco=True)
+from PIL import Image
 from utils import centrar_ventana
 from tkinter import messagebox
 
@@ -95,9 +94,72 @@ def mostrar_conversion_orden_servicio(parent, app):
     ).grid(row=1, column=0, columnspan=4, sticky="ew", padx=12, pady=(0, 8))
 
     var_busqueda = ctk.StringVar()
-    entrada = ctk.CTkEntry(busqueda, textvariable=var_busqueda, height=40,
-                           placeholder_text="Folio, ACO, cliente, técnico o tipo de levantamiento")
-    entrada.grid(row=2, column=0, sticky="ew", padx=(12, 5), pady=(0, 10))
+    buscador = ctk.CTkFrame(
+        busqueda,
+        fg_color="#F8FAFC",
+        corner_radius=12,
+        border_width=1,
+        border_color="#D9E2EC",
+    )
+    buscador.grid(row=2, column=0, sticky="ew", padx=(12, 5), pady=(0, 10))
+    buscador.grid_columnconfigure(1, weight=1)
+
+    carpeta_iconos = Path(__file__).resolve().parent.parent / "assets" / "iconos"
+    with Image.open(carpeta_iconos / "buscar.png") as imagen_buscar:
+        imagen_buscar = imagen_buscar.convert("RGBA")
+    icono_buscar = ctk.CTkImage(light_image=imagen_buscar, dark_image=imagen_buscar, size=(20, 20))
+    imagen_buscar_blanca = Image.new("RGBA", imagen_buscar.size, (255, 255, 255, 0))
+    imagen_buscar_blanca.putalpha(imagen_buscar.getchannel("A"))
+    icono_buscar_blanco = ctk.CTkImage(light_image=imagen_buscar_blanca, dark_image=imagen_buscar_blanca, size=(16, 16))
+    with Image.open(carpeta_iconos / "reciente.png") as imagen_reciente:
+        imagen_reciente = imagen_reciente.convert("RGBA")
+    imagen_reciente_blanca = Image.new("RGBA", imagen_reciente.size, (255, 255, 255, 0))
+    imagen_reciente_blanca.putalpha(imagen_reciente.getchannel("A"))
+    icono_reciente = ctk.CTkImage(light_image=imagen_reciente_blanca, dark_image=imagen_reciente_blanca, size=(16, 16))
+
+    ctk.CTkLabel(
+        buscador,
+        text="",
+        image=icono_buscar,
+        width=28,
+        height=38,
+        anchor="center",
+    ).grid(row=0, column=0, sticky="ns", padx=(12, 8), pady=6)
+
+    entrada = ctk.CTkEntry(
+        buscador,
+        textvariable=var_busqueda,
+        height=38,
+        fg_color="transparent",
+        border_width=0,
+        font=TEXT_MD,
+    )
+    entrada.grid(row=0, column=1, sticky="ew", padx=(0, 12), pady=6)
+
+    placeholder = ctk.CTkLabel(
+        buscador,
+        text="Realiza tu búsqueda",
+        font=TEXT_MD,
+        text_color="#64748B",
+        anchor="w",
+        justify="left",
+    )
+    placeholder.place(in_=entrada, relx=0.02, rely=0.5, anchor="w")
+
+    def _placeholder_busqueda(event=None):
+        valor = var_busqueda.get()
+        tiene_texto = bool(valor.strip())
+        tiene_foco = (entrada.focus_get() == entrada)
+        if tiene_texto or tiene_foco:
+            placeholder.place_forget()
+        else:
+            placeholder.place(in_=entrada, relx=0.02, rely=0.5, anchor="w")
+
+    var_busqueda.trace_add("write", lambda *_: _placeholder_busqueda())
+    entrada.bind("<FocusIn>", _placeholder_busqueda)
+    entrada.bind("<FocusOut>", _placeholder_busqueda)
+    entrada.bind("<KeyRelease>", _placeholder_busqueda)
+    _placeholder_busqueda()
 
     cuerpo = ctk.CTkFrame(contenedor, fg_color="transparent")
     cuerpo.grid(row=1, column=0, sticky="nsew")
@@ -652,10 +714,10 @@ def mostrar_conversion_orden_servicio(parent, app):
             logger.exception("No fue posible generar el PDF homologado del levantamiento.")
             messagebox.showerror("Preview PDF", f"No fue posible generar el PDF del levantamiento.\n\n{exc}")
 
-    ctk.CTkButton(busqueda, text="🔎 Buscar", width=130, height=40, fg_color=SECONDARY,
-                  hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=ejecutar_busqueda).grid(row=2, column=1, padx=4, pady=(0, 10))
-    ctk.CTkButton(busqueda, text="↻ Recientes", width=135, height=40, fg_color="#334155",
-                  hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=lambda: (var_busqueda.set(""), ejecutar_busqueda())).grid(row=2, column=2, padx=(0, 12), pady=(0, 10))
+    ctk.CTkButton(busqueda, text="Buscar", image=icono_buscar_blanco, compound="left", width=130, height=40, corner_radius=10, fg_color="#2563EB",
+                  hover_color="#1D4ED8", text_color=WHITE, hover=True, font=BUTTON_FONT, command=ejecutar_busqueda).grid(row=2, column=1, padx=4, pady=(0, 10))
+    ctk.CTkButton(busqueda, text="Recientes", image=icono_reciente, compound="left", width=135, height=40, corner_radius=10, fg_color="#334155",
+                  hover_color="#475569", text_color=WHITE, hover=True, font=BUTTON_FONT, command=lambda: (var_busqueda.set(""), ejecutar_busqueda())).grid(row=2, column=2, padx=(0, 12), pady=(0, 10))
     entrada.bind("<Return>", lambda _e: ejecutar_busqueda())
 
     # Barra fija: queda visible aunque el usuario haga scroll en el formulario.
@@ -663,32 +725,135 @@ def mostrar_conversion_orden_servicio(parent, app):
     acciones.grid(row=1, column=0, sticky="ew", padx=8, pady=(4, 10))
     acciones.grid_columnconfigure(0, weight=1)
 
-    fila_consulta = ctk.CTkFrame(acciones, fg_color="transparent")
-    fila_consulta.grid(row=0, column=0, sticky="e", pady=(0, 5))
-    ctk.CTkButton(fila_consulta, text="📥 Cargar seleccionado", width=180, command=cargar_seleccion).pack(side="left", padx=4)
-    btn_preview = ctk.CTkButton(fila_consulta, text="👁 PDF Levantamiento", width=180, command=previsualizar_levantamiento, state="disabled")
+    carpeta_iconos = Path(__file__).resolve().parent.parent / "assets" / "iconos"
+
+    def cargar_icono_boton(nombre):
+        with Image.open(carpeta_iconos / nombre) as imagen:
+            imagen = imagen.convert("RGBA")
+        icono_blanco = Image.new("RGBA", imagen.size, (255, 255, 255, 0))
+        icono_blanco.putalpha(imagen.getchannel("A"))
+        return ctk.CTkImage(
+            light_image=icono_blanco,
+            dark_image=icono_blanco,
+            size=(18, 18)
+        )
+
+    icono_detalle = cargar_icono_boton("detalle.png")
+    icono_pdf = cargar_icono_boton("pdf.png")
+    icono_editar = cargar_icono_boton("lapiz.png")
+    icono_guardar = cargar_icono_boton("guardar.png")
+    icono_votar = cargar_icono_boton("votar.png")
+
+    fila_superior = ctk.CTkFrame(acciones, fg_color="transparent")
+    fila_superior.grid(row=0, column=0, sticky="e", pady=(0, 6))
+
+    ctk.CTkButton(
+        fila_superior,
+        text="Cargar seleccionado",
+        image=icono_detalle,
+        compound="left",
+        width=200,
+        height=40,
+        corner_radius=10,
+        fg_color="#2563EB",
+        hover_color="#1D4ED8",
+        text_color=WHITE,
+        font=("Segoe UI Semibold", 12),
+        border_width=0,
+        hover=True,
+        command=cargar_seleccion,
+    ).pack(side="left", padx=4)
+
+    btn_preview = ctk.CTkButton(
+        fila_superior,
+        text="PDF Levantamiento",
+        image=icono_pdf,
+        compound="left",
+        width=200,
+        height=40,
+        corner_radius=10,
+        fg_color="#2563EB",
+        hover_color="#1D4ED8",
+        text_color=WHITE,
+        font=("Segoe UI Semibold", 12),
+        border_width=0,
+        hover=True,
+        command=previsualizar_levantamiento,
+        state="disabled",
+    )
     btn_preview.pack(side="left", padx=4)
 
-    fila_edicion = ctk.CTkFrame(acciones, fg_color="transparent")
-    fila_edicion.grid(row=1, column=0, sticky="e")
-    btn_editar = ctk.CTkButton(fila_edicion, text="✎ Editar", width=125, command=abrir_editor_origen, state="disabled")
+    btn_editar = ctk.CTkButton(
+        fila_superior,
+        text="Editar",
+        image=icono_editar,
+        compound="left",
+        width=140,
+        height=40,
+        corner_radius=10,
+        fg_color="#3B82F6",
+        hover_color="#2563EB",
+        text_color=WHITE,
+        font=("Segoe UI Semibold", 12),
+        border_width=0,
+        hover=True,
+        command=abrir_editor_origen,
+        state="disabled",
+    )
     btn_editar.pack(side="left", padx=4)
-    btn_guardar = ctk.CTkButton(fila_edicion, text="💾 Guardar", width=125, command=guardar_cambios, state="disabled")
+
+    fila_inferior = ctk.CTkFrame(acciones, fg_color="transparent")
+    fila_inferior.grid(row=1, column=0, sticky="e")
+
+    btn_guardar = ctk.CTkButton(
+        fila_inferior,
+        text="Guardar",
+        image=icono_guardar,
+        compound="left",
+        width=140,
+        height=40,
+        corner_radius=10,
+        fg_color=SECONDARY,
+        hover_color=BUTTON_HOVER,
+        text_color=WHITE,
+        font=BUTTON_FONT,
+        border_width=0,
+        hover=True,
+        command=guardar_cambios,
+        state="disabled",
+    )
     btn_guardar.pack(side="left", padx=4)
     btn_validar = ctk.CTkButton(
-        fila_edicion,
-        text="✓ Validar Levantamiento",
-        width=180,
+        fila_inferior,
+        text="Validar Levantamiento",
+        image=icono_votar,
+        compound="left",
+        width=200,
+        height=40,
+        corner_radius=10,
         fg_color=SECONDARY,
         hover_color=BUTTON_HOVER,
         command=validar_levantamiento_ventas,
         state="disabled",
     )
     btn_validar.pack(side="left", padx=4)
-    # Se habilita al cargar un LEV sólo si su cotización está finalizada y el
-    # usuario es Administrador o Jefe de Operaciones.
-    btn_convertir = ctk.CTkButton(fila_edicion, text="✓ Convertir a OT", width=170, fg_color=SECONDARY,
-                                  hover_color=BUTTON_HOVER, command=validar_y_convertir, state="disabled")
+    btn_convertir = ctk.CTkButton(
+        fila_inferior,
+        text="Convertir a OT",
+        image=icono_votar,
+        compound="left",
+        width=180,
+        height=40,
+        corner_radius=10,
+        fg_color=SECONDARY,
+        hover_color=BUTTON_HOVER,
+        text_color=WHITE,
+        font=BUTTON_FONT,
+        border_width=0,
+        hover=True,
+        command=validar_y_convertir,
+        state="disabled",
+    )
     btn_convertir.pack(side="left", padx=4)
 
     _set_modo_edicion(False)

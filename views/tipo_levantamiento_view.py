@@ -14,6 +14,8 @@ Esto permite que AXIA cargue formularios dedicados por área.
 import customtkinter as ctk
 from ui.iconos import cargar_icono
 from tkinter import messagebox
+from pathlib import Path
+from PIL import Image
 
 from ui.colors import WHITE, PRIMARY, SECONDARY, TEXT_PRIMARY, TEXT_SECONDARY, BUTTON_HOVER
 from ui.fonts import TITLE_MD, TEXT_MD, TEXT_SM, BUTTON_FONT
@@ -21,17 +23,17 @@ from services.movimientos_service import registrar_movimiento
 
 
 TIPOS_LEVANTAMIENTO = [
-    {"nombre": "Seguridad y Monitoreo", "habilitado": True, "icono": "📹", "icono_archivo": "1.png"},
-    {"nombre": "Redes Voz y Datos", "habilitado": True, "icono": "🌐", "icono_archivo": "2.png"},
-    {"nombre": "Control de Accesos", "habilitado": True, "icono": "🚪", "icono_archivo": "3.png"},
-    {"nombre": "Enlaces Inalámbricos", "habilitado": True, "icono": "📡", "icono_archivo": "4.png"},
-    {"nombre": "Tecnología, Equipos y Periféricos", "habilitado": True, "icono": "💻", "icono_archivo": "10.png"},
-    {"nombre": "Electricidad", "habilitado": True, "icono": "🔌", "icono_archivo": "5.png"},
-    {"nombre": "Paneles Solares", "habilitado": True, "icono": "☀️", "icono_archivo": "6.png"},
-    {"nombre": "Plantas de Energía", "habilitado": True, "icono": "⚡", "icono_archivo": "7.png"},
-    {"nombre": "Obra Civil", "habilitado": True, "icono": "🏗️", "icono_archivo": "8.png"},
+    {"nombre": "Seguridad y Monitoreo", "habilitado": True, "icono_archivo": "1.png"},
+    {"nombre": "Redes Voz y Datos", "habilitado": True, "icono_archivo": "2.png"},
+    {"nombre": "Control de Accesos", "habilitado": True, "icono_archivo": "3.png"},
+    {"nombre": "Enlaces Inalámbricos", "habilitado": True, "icono_archivo": "4.png"},
+    {"nombre": "Tecnología, Equipos y Periféricos", "habilitado": True, "icono_archivo": "10.png", "icono": "💻"},
+    {"nombre": "Electricidad", "habilitado": True, "icono_archivo": "5.png"},
+    {"nombre": "Paneles Solares", "habilitado": True, "icono_archivo": "6.png"},
+    {"nombre": "Plantas de Energía", "habilitado": True, "icono_archivo": "7.png"},
+    {"nombre": "Obra Civil", "habilitado": True, "icono_archivo": "8.png"},
     # Se conserva el módulo ya implementado para no perder funcionalidad.
-    {"nombre": "Aires Acondicionados", "habilitado": True, "icono": "❄️", "icono_archivo": "9.png"},
+    {"nombre": "Aires Acondicionados", "habilitado": True, "icono_archivo": "9.png", "icono": "❄️"},
 ]
 
 
@@ -117,7 +119,7 @@ def mostrar_selector_tipo_levantamiento(parent, app, aco=None):
         icono_tipo = cargar_icono(tipo.get("icono_archivo", ""), (24, 24)) if tipo.get("icono_archivo") else None
         ctk.CTkLabel(
             item,
-            text=tipo["nombre"] if icono_tipo else f"{tipo['icono']} {tipo['nombre']}",
+            text=tipo["nombre"] if icono_tipo else f"{tipo.get('icono', '')} {tipo['nombre']}".strip(),
             image=icono_tipo,
             compound="left",
             font=("Montserrat", 16, "bold"),
@@ -138,9 +140,28 @@ def mostrar_selector_tipo_levantamiento(parent, app, aco=None):
 
     barra = ctk.CTkFrame(card, fg_color="transparent")
     barra.pack(pady=(0, 12))
+
+    carpeta_iconos = Path(__file__).resolve().parent.parent / "assets" / "iconos"
+
+    def cargar_icono_barra(nombre):
+        with Image.open(carpeta_iconos / nombre) as imagen:
+            imagen = imagen.convert("RGBA")
+        icono_blanco = Image.new("RGBA", imagen.size, (255, 255, 255, 0))
+        icono_blanco.putalpha(imagen.getchannel("A"))
+        return ctk.CTkImage(
+            light_image=icono_blanco,
+            dark_image=icono_blanco,
+            size=(18, 18)
+        )
+
+    icono_atras = cargar_icono_barra("f2.png")
+    icono_inicio = cargar_icono_barra("f1.png")
+
     ctk.CTkButton(
         barra,
-        text="⬅ Atrás",
+        text="Atrás",
+        image=icono_atras,
+        compound="left",
         width=120,
         height=40,
         corner_radius=12,
@@ -151,7 +172,9 @@ def mostrar_selector_tipo_levantamiento(parent, app, aco=None):
     ).grid(row=0, column=0, padx=4)
     ctk.CTkButton(
         barra,
-        text="↩ Regresar a Inicio ACO",
+        text="Regresar a Inicio ACO",
+        image=icono_inicio,
+        compound="left",
         width=210,
         height=40,
         corner_radius=12,

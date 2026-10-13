@@ -11,11 +11,13 @@ Los botones permanecen fijos; solo el formulario se desplaza.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 import customtkinter as ctk
 from ui.iconos import cargar_icono
 _AXIA_ICON_BUSCAR = cargar_icono("buscar.png", (18, 18))
 _AXIA_ICON_BUSCAR_BLANCO = cargar_icono("buscar.png", (16, 16), blanco=True)
 from tkinter import messagebox
+from PIL import Image
 
 from core.background_tasks import run_async
 from core.search_utils import normalizar_termino_busqueda
@@ -50,9 +52,72 @@ def mostrar_admin_operational_editor(parent, app, config):
     ctk.CTkLabel(search, text=config.get("subtitulo", "Busca un registro, revísalo y habilita la edición solo cuando sea necesario."),
                  font=TEXT_MD, text_color=TEXT_SECONDARY, anchor="w").grid(row=1, column=0, columnspan=3, sticky="ew", padx=12, pady=(0, 8))
     var_search = ctk.StringVar()
-    ent_search = ctk.CTkEntry(search, textvariable=var_search, height=40,
-                              placeholder_text=f"Folio {config['prefijo']}, ACO, cliente o descripción")
-    ent_search.grid(row=2, column=0, sticky="ew", padx=(12, 5), pady=(0, 10))
+    buscador = ctk.CTkFrame(
+        search,
+        fg_color="#F8FAFC",
+        corner_radius=12,
+        border_width=1,
+        border_color="#D9E2EC",
+    )
+    buscador.grid(row=2, column=0, sticky="ew", padx=(12, 5), pady=(0, 10))
+    buscador.grid_columnconfigure(1, weight=1)
+
+    carpeta_iconos = Path(__file__).resolve().parent.parent / "assets" / "iconos"
+    with Image.open(carpeta_iconos / "buscar.png") as imagen_buscar:
+        imagen_buscar = imagen_buscar.convert("RGBA")
+    icono_buscar = ctk.CTkImage(light_image=imagen_buscar, dark_image=imagen_buscar, size=(20, 20))
+    imagen_buscar_blanca = Image.new("RGBA", imagen_buscar.size, (255, 255, 255, 0))
+    imagen_buscar_blanca.putalpha(imagen_buscar.getchannel("A"))
+    icono_buscar_blanco = ctk.CTkImage(light_image=imagen_buscar_blanca, dark_image=imagen_buscar_blanca, size=(16, 16))
+    with Image.open(carpeta_iconos / "reciente.png") as imagen_reciente:
+        imagen_reciente = imagen_reciente.convert("RGBA")
+    imagen_reciente_blanca = Image.new("RGBA", imagen_reciente.size, (255, 255, 255, 0))
+    imagen_reciente_blanca.putalpha(imagen_reciente.getchannel("A"))
+    icono_reciente = ctk.CTkImage(light_image=imagen_reciente_blanca, dark_image=imagen_reciente_blanca, size=(16, 16))
+
+    ctk.CTkLabel(
+        buscador,
+        text="",
+        image=icono_buscar,
+        width=28,
+        height=38,
+        anchor="center",
+    ).grid(row=0, column=0, sticky="ns", padx=(12, 8), pady=6)
+
+    ent_search = ctk.CTkEntry(
+        buscador,
+        textvariable=var_search,
+        height=38,
+        fg_color="transparent",
+        border_width=0,
+        font=("Segoe UI", 13),
+    )
+    ent_search.grid(row=0, column=1, sticky="ew", padx=(0, 12), pady=6)
+
+    placeholder = ctk.CTkLabel(
+        buscador,
+        text="Realiza tu búsqueda",
+        font=("Segoe UI", 13),
+        text_color="#64748B",
+        anchor="w",
+        justify="left",
+    )
+    placeholder.place(in_=ent_search, relx=0.02, rely=0.5, anchor="w")
+
+    def _placeholder_busqueda(event=None):
+        valor = var_search.get()
+        tiene_texto = bool(valor.strip())
+        tiene_foco = ent_search.focus_get() == ent_search
+        if tiene_texto or tiene_foco:
+            placeholder.place_forget()
+        else:
+            placeholder.place(in_=ent_search, relx=0.02, rely=0.5, anchor="w")
+
+    var_search.trace_add("write", lambda *_: _placeholder_busqueda())
+    ent_search.bind("<FocusIn>", _placeholder_busqueda)
+    ent_search.bind("<FocusOut>", _placeholder_busqueda)
+    ent_search.bind("<KeyRelease>", _placeholder_busqueda)
+    _placeholder_busqueda()
 
     body = ctk.CTkFrame(root, fg_color="transparent")
     body.grid(row=1, column=0, sticky="nsew")
@@ -284,27 +349,56 @@ def mostrar_admin_operational_editor(parent, app, config):
             return
         config["accion"](record, status, search_records)
 
-    ctk.CTkButton(search, text="🔎 Buscar", width=130, height=40, fg_color=SECONDARY,
-                  hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=search_records).grid(row=2, column=1, padx=4, pady=(0, 10))
-    ctk.CTkButton(search, text="↻ Recientes", width=135, height=40, fg_color="#334155",
-                  hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=lambda: (var_search.set(""), search_records())).grid(row=2, column=2, padx=(0, 12), pady=(0, 10))
+    ctk.CTkButton(search, text="Buscar", image=icono_buscar_blanco, compound="left", width=130, height=40, corner_radius=10, fg_color="#2563EB",
+                  hover_color="#1D4ED8", text_color=WHITE, font=BUTTON_FONT, command=search_records).grid(row=2, column=1, padx=4, pady=(0, 10))
+    ctk.CTkButton(search, text="Recientes", image=icono_reciente, compound="left", width=135, height=40, corner_radius=10, fg_color="#334155",
+                  hover_color="#475569", text_color=WHITE, font=BUTTON_FONT, command=lambda: (var_search.set(""), search_records())).grid(row=2, column=2, padx=(0, 12), pady=(0, 10))
     ent_search.bind("<Return>", lambda _e: search_records())
 
     actions = ctk.CTkFrame(shell, fg_color=WHITE, corner_radius=0)
     actions.grid(row=1, column=0, sticky="ew", padx=8, pady=(4, 10))
     actions.grid_columnconfigure((0, 1), weight=1)
-    ctk.CTkButton(actions, text="📥 Cargar seleccionado", command=load_selected).grid(row=0, column=0, sticky="ew", padx=4, pady=4)
-    btn_pdf = ctk.CTkButton(actions, text=config["pdf_text"], command=preview_pdf, state="disabled")
+
+    carpeta_iconos = Path(__file__).resolve().parent.parent / "assets" / "iconos"
+
+    def cargar_icono_boton(nombre):
+        with Image.open(carpeta_iconos / nombre) as imagen:
+            imagen = imagen.convert("RGBA")
+        icono_blanco = Image.new("RGBA", imagen.size, (255, 255, 255, 0))
+        icono_blanco.putalpha(imagen.getchannel("A"))
+        return ctk.CTkImage(
+            light_image=icono_blanco,
+            dark_image=icono_blanco,
+            size=(18, 18)
+        )
+
+    icono_detalle = cargar_icono_boton("detalle.png")
+    icono_pdf = cargar_icono_boton("pdf.png")
+    icono_editar = cargar_icono_boton("lapiz.png")
+    icono_guardar = cargar_icono_boton("guardar.png")
+    icono_votar = cargar_icono_boton("votar.png")
+
+    ctk.CTkButton(actions, text="Cargar seleccionado", image=icono_detalle, compound="left", width=190, height=40, corner_radius=10,
+                  fg_color="#2563EB", hover_color="#1D4ED8", text_color=WHITE,
+                  border_width=0, font=BUTTON_FONT, command=load_selected).grid(row=0, column=0, sticky="ew", padx=4, pady=4)
+    btn_pdf = ctk.CTkButton(actions, text=config["pdf_text"], image=icono_pdf, compound="left", width=190, height=40, corner_radius=10,
+                           fg_color="#2563EB", hover_color="#1D4ED8", text_color=WHITE,
+                           border_width=0, font=BUTTON_FONT, command=preview_pdf, state="disabled")
     btn_pdf.grid(row=0, column=1, sticky="ew", padx=4, pady=4)
     row_actions = ctk.CTkFrame(actions, fg_color="transparent")
     row_actions.grid(row=1, column=0, columnspan=2, sticky="ew")
     row_actions.grid_columnconfigure((0, 1, 2), weight=1)
-    btn_edit = ctk.CTkButton(row_actions, text="✎ Editar", command=lambda: set_edit_mode(True), state="disabled")
+    btn_edit = ctk.CTkButton(row_actions, text="Editar", image=icono_editar, compound="left", width=140, height=40, corner_radius=10,
+                            fg_color="#3B82F6", hover_color="#2563EB", text_color=WHITE,
+                            border_width=0, font=BUTTON_FONT, command=lambda: set_edit_mode(True), state="disabled")
     btn_edit.grid(row=0, column=0, sticky="ew", padx=4, pady=4)
-    btn_save = ctk.CTkButton(row_actions, text="💾 Guardar", command=save_changes, state="disabled")
+    btn_save = ctk.CTkButton(row_actions, text="Guardar", image=icono_guardar, compound="left", width=140, height=40, corner_radius=10,
+                            fg_color=SECONDARY, hover_color=BUTTON_HOVER, text_color=WHITE,
+                            border_width=0, font=BUTTON_FONT, command=save_changes, state="disabled")
     btn_save.grid(row=0, column=1, sticky="ew", padx=4, pady=4)
-    btn_action = ctk.CTkButton(row_actions, text=config["accion_text"], fg_color=SECONDARY,
-                               hover_color=BUTTON_HOVER, command=final_action, state="disabled")
+    btn_action = ctk.CTkButton(row_actions, text=config["accion_text"], image=icono_votar, compound="left", width=170, height=40, corner_radius=10,
+                              fg_color=SECONDARY, hover_color=BUTTON_HOVER, text_color=WHITE,
+                              border_width=0, font=BUTTON_FONT, command=final_action, state="disabled")
     btn_action.grid(row=0, column=2, sticky="ew", padx=4, pady=4)
 
     search_records()

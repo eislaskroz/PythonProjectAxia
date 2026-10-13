@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import customtkinter as ctk
 from tkinter import messagebox, filedialog
+from pathlib import Path
+from PIL import Image
 
 from app_context import obtener_usuario_actual
 from core.background_tasks import run_async
@@ -143,17 +145,41 @@ def mostrar_cotizaciones(parent, app=None):
     acciones.grid(row=2, column=0, sticky="ew", padx=14, pady=(4,10)); acciones.grid_columnconfigure(0, weight=1)
     lbl_total = ctk.CTkLabel(acciones, text="Total: $0.00 MXN", font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="e")
     lbl_total.grid(row=0, column=0, sticky="e", padx=(0,10))
-    btn_pdf = ctk.CTkButton(acciones, text="PDF Cotización (Preview)", image=icono_detalle, compound="left", width=185, height=42, corner_radius=10, fg_color="#2563EB", hover_color="#1D4ED8", text_color=WHITE, border_width=0,
-                            font=BUTTON_FONT, state="disabled")
+
+    carpeta_iconos = Path(__file__).resolve().parent.parent / "assets" / "iconos"
+
+    def cargar_icono_boton(nombre):
+        with Image.open(carpeta_iconos / nombre) as imagen:
+            imagen = imagen.convert("RGBA")
+        icono_blanco = Image.new("RGBA", imagen.size, (255, 255, 255, 0))
+        icono_blanco.putalpha(imagen.getchannel("A"))
+        return ctk.CTkImage(
+            light_image=icono_blanco,
+            dark_image=icono_blanco,
+            size=(18, 18)
+        )
+
+    icono_detalle = cargar_icono_boton("detalle.png")
+    icono_lapiz = cargar_icono_boton("lapiz.png")
+    icono_votar = cargar_icono_boton("votar.png")
+    icono_finalizar = cargar_icono_boton("finalizar.png")
+    icono_abrir = cargar_icono_boton("abrir.png")
+
+    btn_pdf = ctk.CTkButton(acciones, text="PDF Cotización (Preview)", image=icono_detalle, compound="left", width=185, height=42, corner_radius=10,
+                            fg_color="#2563EB", hover_color="#1D4ED8", text_color=WHITE,
+                            border_width=0, font=BUTTON_FONT, state="disabled")
     btn_pdf.grid(row=0, column=1, padx=(0,8))
-    btn_modificar = ctk.CTkButton(acciones, text="Modificar cotización", image=icono_lapiz, compound="left", width=180, height=42, corner_radius=10, fg_color="#2563EB", hover_color="#1D4ED8", text_color=WHITE, border_width=0,
-                                  font=BUTTON_FONT, state="disabled")
+    btn_modificar = ctk.CTkButton(acciones, text="Modificar cotización", image=icono_lapiz, compound="left", width=180, height=42, corner_radius=10,
+                                  fg_color="#2563EB", hover_color="#1D4ED8", text_color=WHITE,
+                                  border_width=0, font=BUTTON_FONT, state="disabled")
     btn_modificar.grid(row=0, column=2, padx=(0,8))
-    btn_guardar = ctk.CTkButton(acciones, text="Guardar cotización", image=icono_guardar, compound="left", width=190, height=42, corner_radius=10, fg_color=SECONDARY, hover_color=BUTTON_HOVER, text_color=WHITE, border_width=0,
-                                font=BUTTON_FONT, state="disabled")
+    btn_guardar = ctk.CTkButton(acciones, text="Guardar cotización", image=icono_votar, compound="left", width=190, height=42, corner_radius=10,
+                                fg_color=SECONDARY, hover_color=BUTTON_HOVER, text_color=WHITE,
+                                border_width=0, font=BUTTON_FONT, state="disabled")
     btn_guardar.grid(row=0, column=3, padx=(0,8))
-    btn_finalizar = ctk.CTkButton(acciones, text="Finalizar cotización", image=icono_finalizar, compound="left", width=185, height=42, corner_radius=10, fg_color="#15803D", hover_color=BUTTON_HOVER, text_color=WHITE, border_width=0,
-                                  font=BUTTON_FONT, state="disabled")
+    btn_finalizar = ctk.CTkButton(acciones, text="Finalizar cotización", image=icono_finalizar, compound="left", width=185, height=42, corner_radius=10,
+                                  fg_color="#2563EB", hover_color="#1D4ED8", text_color=WHITE,
+                                  border_width=0, font=BUTTON_FONT, state="disabled")
     btn_finalizar.grid(row=0, column=4)
     lbl_validacion = ctk.CTkLabel(acciones, text="Carga un levantamiento para iniciar la cotización.",
                                   font=TEXT_SM, text_color=TEXT_SECONDARY, anchor="e")
@@ -681,11 +707,14 @@ def mostrar_cotizaciones(parent, app=None):
                   lambda e:messagebox.showerror("No fue posible consultar cotizaciones",str(e)))
 
     ctk.CTkButton(
-        bandeja_cot, text="✎ Abrir cotización seleccionada", height=38, font=BUTTON_FONT,
-        fg_color="#0F766E", hover_color=BUTTON_HOVER, command=cargar_cotizacion_seleccionada
+        bandeja_cot, text="Abrir cotización seleccionada", image=icono_abrir, compound="left", height=42, width=220, corner_radius=10,
+        font=BUTTON_FONT, fg_color="#2563EB", hover_color="#1D4ED8", text_color=WHITE,
+        border_width=0, command=cargar_cotizacion_seleccionada
     ).grid(row=2,column=0,sticky="ew",padx=10,pady=(0,8))
     ctk.CTkButton(
-        bandeja,text="📥 Cargar levantamiento seleccionado",height=38,font=BUTTON_FONT,command=cargar_seleccion
+        bandeja,text="Cargar levantamiento seleccionado",image=icono_votar,compound="left",height=42,width=220,corner_radius=10,
+        font=BUTTON_FONT, fg_color="#2563EB", hover_color="#1D4ED8", text_color=WHITE,
+        border_width=0, command=cargar_seleccion
     ).grid(row=2,column=0,sticky="ew",padx=10,pady=(0,8))
     btn_guardar.configure(command=guardar); btn_pdf.configure(command=pdf); btn_modificar.configure(command=modificar); btn_finalizar.configure(command=finalizar)
     refrescar()

@@ -1,3 +1,4 @@
+
 """
 =========================================================
 MÓDULO: views/usuarios_admin_view.py
@@ -11,6 +12,8 @@ from ui.iconos import cargar_icono
 _AXIA_ICON_BUSCAR = cargar_icono("buscar.png", (18, 18))
 _AXIA_ICON_BUSCAR_BLANCO = cargar_icono("buscar.png", (16, 16), blanco=True)
 from tkinter import messagebox
+from pathlib import Path
+from PIL import Image
 
 from app_context import obtener_usuario_actual
 from security.permissions import puede_administrar_usuarios
@@ -58,7 +61,10 @@ def mostrar_usuarios_admin(parent, app):
 
     usuario_activo = obtener_usuario_actual()
     if not puede_administrar_usuarios(usuario_activo):
-        messagebox.showerror("Acceso denegado", "Tu nivel de usuario no tiene permiso para administrar usuarios.")
+        messagebox.showerror(
+            "Acceso denegado",
+            "Tu nivel de usuario no tiene permiso para administrar usuarios."
+        )
         app.mostrar_vista_inicio_aco()
         return
 
@@ -81,21 +87,78 @@ def mostrar_usuarios_admin(parent, app):
     barra.grid_columnconfigure(0, weight=1)
 
     var_busqueda = ctk.StringVar()
-    entry_busqueda = ctk.CTkEntry(
-        barra,
-        textvariable=var_busqueda,
-                height=42,
-        corner_radius=12,
-        fg_color="#F8FAFC",
-        border_color="#D9E2EC",
-        border_width=1,
-        placeholder_text="Buscar usuario por nickname, nombre, apellido o correo empresarial...",
+    carpeta_iconos = Path(__file__).resolve().parent.parent / "assets" / "iconos"
+    with Image.open(carpeta_iconos / "buscar.png") as imagen_buscar:
+        imagen_buscar = imagen_buscar.convert("RGBA")
+    icono_buscar = ctk.CTkImage(
+        light_image=imagen_buscar,
+        dark_image=imagen_buscar,
+        size=(20, 20)
     )
-    entry_busqueda.grid(row=0, column=0, sticky="ew", padx=(0, 5))
+    imagen_buscar_blanca = Image.new("RGBA", imagen_buscar.size, (255, 255, 255, 0))
+    imagen_buscar_blanca.putalpha(imagen_buscar.getchannel("A"))
+    icono_buscar_blanco = ctk.CTkImage(
+        light_image=imagen_buscar_blanca,
+        dark_image=imagen_buscar_blanca,
+        size=(16, 16)
+    )
+
+    buscador = ctk.CTkFrame(
+        barra,
+        fg_color="#F8FAFC",
+        corner_radius=12,
+        border_width=1,
+        border_color="#D9E2EC",
+    )
+    buscador.grid(row=0, column=0, sticky="ew", padx=(0, 5))
+    buscador.grid_columnconfigure(1, weight=1)
+
+    ctk.CTkLabel(
+        buscador,
+        text="",
+        image=icono_buscar,
+        width=28,
+        height=38,
+        anchor="center",
+    ).grid(row=0, column=0, sticky="ns", padx=(12, 8), pady=6)
+
+    entry_busqueda = ctk.CTkEntry(
+        buscador,
+        textvariable=var_busqueda,
+        height=38,
+        fg_color="transparent",
+        border_width=0,
+        font=("Segoe UI", 13),
+    )
+    entry_busqueda.grid(row=0, column=1, sticky="ew", padx=(0, 12), pady=6)
+
+    placeholder_busqueda = ctk.CTkLabel(
+        buscador,
+        text="Buscar usuario por nickname, nombre, apellido o correo empresarial...",
+        font=("Segoe UI", 13),
+        text_color="#64748B",
+        anchor="w",
+        justify="left",
+    )
+    placeholder_busqueda.place(in_=entry_busqueda, relx=0.02, rely=0.5, anchor="w")
+
+    def actualizar_placeholder_busqueda(*_):
+        if var_busqueda.get().strip() or entry_busqueda.focus_get() == entry_busqueda:
+            placeholder_busqueda.place_forget()
+        else:
+            placeholder_busqueda.place(in_=entry_busqueda, relx=0.02, rely=0.5, anchor="w")
+
+    var_busqueda.trace_add("write", actualizar_placeholder_busqueda)
+    entry_busqueda.bind("<FocusIn>", actualizar_placeholder_busqueda)
+    entry_busqueda.bind("<FocusOut>", actualizar_placeholder_busqueda)
+    entry_busqueda.bind("<KeyRelease>", actualizar_placeholder_busqueda)
+    actualizar_placeholder_busqueda()
 
     btn_buscar = ctk.CTkButton(
         barra,
-        text="🔎 Buscar",
+        text="Buscar",
+        image=icono_buscar_blanco,
+        compound="left",
         width=120,
         height=38,
         fg_color=SECONDARY,
@@ -111,25 +174,56 @@ def mostrar_usuarios_admin(parent, app):
     cuerpo.grid_columnconfigure(1, weight=2)
     cuerpo.grid_rowconfigure(0, weight=1)
 
-    panel_resultados = ctk.CTkFrame(cuerpo, fg_color=WHITE, corner_radius=16)
-    panel_resultados.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
+    panel_resultados = ctk.CTkFrame(
+        cuerpo,
+        fg_color=WHITE,
+        corner_radius=16,
+    )
+    panel_resultados.grid(
+        row=0,
+        column=0,
+        sticky="nsew",
+        padx=(0, 6),
+    )
     panel_resultados.grid_rowconfigure(1, weight=1)
     panel_resultados.grid_columnconfigure(0, weight=1)
+
     lbl_resultados = ctk.CTkLabel(
         panel_resultados, text="Resultados (0)", font=("Montserrat", 16, "bold"),
         text_color=TEXT_PRIMARY, anchor="w",
     )
-    lbl_resultados.grid(row=0, column=0, sticky="ew", padx=9, pady=(8, 4))
+    lbl_resultados.grid(
+        row=0,
+        column=0,
+        sticky="ew",
+        padx=9,
+        pady=(8, 4),
+    )
+
     tabla_resultados = NativeTreeTable(
         panel_resultados,
-        columns=(("nickname", "Usuario", 120), ("nombre", "Nombre completo", 210), ("tipo", "Tipo", 70)),
+        columns=(
+            ("nickname", "Usuario", 120),
+            ("nombre", "Nombre completo", 210),
+            ("tipo", "Tipo", 70),
+        ),
         on_select=lambda usuario: cargar_en_formulario(usuario),
         on_open=lambda usuario: cargar_en_formulario(usuario),
         height=18,
     )
-    tabla_resultados.grid(row=1, column=0, sticky="nsew", padx=8, pady=(0, 8))
+    tabla_resultados.grid(
+        row=1,
+        column=0,
+        sticky="nsew",
+        padx=8,
+        pady=(0, 8),
+    )
 
-    panel_formulario = ctk.CTkScrollableFrame(cuerpo, fg_color=WHITE, corner_radius=16)
+    panel_formulario = ctk.CTkScrollableFrame(
+        cuerpo,
+        fg_color=WHITE,
+        corner_radius=16,
+    )
     panel_formulario.grid(row=0, column=1, sticky="nsew")
 
     ctk.CTkLabel(
@@ -139,7 +233,10 @@ def mostrar_usuarios_admin(parent, app):
         text_color=TEXT_PRIMARY,
     ).pack(anchor="w", padx=10, pady=(9, 3))
 
-    form_grid = ctk.CTkFrame(panel_formulario, fg_color="transparent")
+    form_grid = ctk.CTkFrame(
+        panel_formulario,
+        fg_color="transparent",
+    )
     form_grid.pack(fill="x", padx=10, pady=(0, 6))
     form_grid.grid_columnconfigure(0, weight=1)
     form_grid.grid_columnconfigure(1, weight=1)
@@ -148,16 +245,50 @@ def mostrar_usuarios_admin(parent, app):
     for indice, (campo, etiqueta, obligatorio) in enumerate(CAMPOS_USUARIO):
         fila = indice // 3
         columna = indice % 3
-        wrapper = ctk.CTkFrame(form_grid, fg_color="transparent")
-        wrapper.grid(row=fila, column=columna, sticky="ew", padx=(0, 4) if columna == 0 else ((8, 8) if columna == 1 else (8, 0)), pady=2)
+
+        wrapper = ctk.CTkFrame(
+            form_grid,
+            fg_color="transparent",
+        )
+        wrapper.grid(
+            row=fila,
+            column=columna,
+            sticky="ew",
+            padx=(0, 4) if columna == 0 else (
+                (8, 8) if columna == 1 else (8, 0)
+            ),
+            pady=2,
+        )
         wrapper.grid_columnconfigure(0, weight=1)
 
         texto = f"{etiqueta}{' *' if obligatorio else ''}"
-        icono = "🔐" if campo == "usu_password" else ("👤" if campo in ("usu_nickname", "usu_nombre", "usu_apellido") else ("📄" if campo in ("usu_rfc", "usu_curp", "usu_imss", "usu_ine") else ("✉️" if campo == "usu_correo" else ("📍" if campo in ("usu_calle", "usu_numero", "usu_colonia", "usu_municipio", "usu_estado", "usu_cp") else "•"))))
-        ctk.CTkLabel(wrapper, text=f"{icono} {texto}", font=TEXT_SM, text_color=TEXT_PRIMARY).grid(row=0, column=0, sticky="w")
+        icono = (
+            "✉️"
+            if campo == "usu_correo"
+            else (
+                "📍"
+                if campo in (
+                    "usu_calle",
+                    "usu_numero",
+                    "usu_colonia",
+                    "usu_municipio",
+                    "usu_estado",
+                    "usu_cp",
+                )
+                else "•"
+            )
+        )
+
+        ctk.CTkLabel(
+            wrapper,
+            text=f"{icono} {texto}",
+            font=TEXT_SM,
+            text_color=TEXT_PRIMARY,
+        ).grid(row=0, column=0, sticky="w")
 
         var = ctk.StringVar()
         estado["variables"][campo] = var
+
         entry = ctk.CTkEntry(
             wrapper,
             textvariable=var,
@@ -165,18 +296,74 @@ def mostrar_usuarios_admin(parent, app):
             show="*" if campo == "usu_password" else None,
         )
         entry.grid(row=1, column=0, sticky="ew", pady=(1, 0))
+
         if "fecha" in campo.lower():
-            entry.bind("<Button-1>", lambda _event, var=var: abrir_selector_fecha(wrapper, var))
+            entry.bind(
+                "<Button-1>",
+                lambda _event, var=var: abrir_selector_fecha(wrapper, var),
+            )
+
         entry.configure(state="disabled")
         estado["entradas"][campo] = entry
 
-    acciones = ctk.CTkFrame(panel_formulario, fg_color="transparent")
-    acciones.pack(fill="x", padx=10, pady=(2, 9))
+    # =====================================================
+    # BOTONES DE ACCIÓN CENTRADOS
+    # =====================================================
 
+    acciones = ctk.CTkFrame(
+        panel_formulario,
+        fg_color="transparent",
+    )
+    acciones.pack(fill="x", padx=10, pady=(8, 12))
 
+    # Columnas laterales flexibles para centrar los botones
+    acciones.grid_columnconfigure(0, weight=1)
+    acciones.grid_columnconfigure(1, weight=0)
+    acciones.grid_columnconfigure(2, weight=0)
+    acciones.grid_columnconfigure(3, weight=1)
+
+    # Cargar iconos desde assets/iconos
+    carpeta_iconos = (
+        Path(__file__).resolve().parent.parent
+        / "assets"
+        / "iconos"
+    )
+
+    def cargar_icono_blanco(nombre_archivo):
+        ruta_icono = carpeta_iconos / nombre_archivo
+
+        if not ruta_icono.exists():
+            return None
+
+        imagen = Image.open(ruta_icono).convert("RGBA")
+
+        # Convertir el icono a blanco conservando su transparencia
+        transparencia = imagen.getchannel("A")
+        imagen_blanca = Image.new(
+            "RGBA",
+            imagen.size,
+            (255, 255, 255, 255),
+        )
+        imagen_blanca.putalpha(transparencia)
+
+        return ctk.CTkImage(
+            light_image=imagen_blanca,
+            dark_image=imagen_blanca,
+            size=(18, 18),
+        )
+
+    # Icono de Guardar nuevo
+    icono_guardar = cargar_icono_blanco("guardar.png")
+
+    # Icono de Actualizar seleccionado
+    icono_actualizar = cargar_icono_blanco("limpiar.png")
+
+    # Botón 1: Guardar nuevo
     btn_guardar = ctk.CTkButton(
         acciones,
-        text="💾 Guardar nuevo",
+        text="Guardar nuevo",
+        image=icono_guardar,
+        compound="left",
         width=150,
         height=38,
         fg_color=SECONDARY,
@@ -184,11 +371,18 @@ def mostrar_usuarios_admin(parent, app):
         font=BUTTON_FONT,
         command=lambda: guardar_nuevo(),
     )
-    btn_guardar.pack(side="left", padx=4)
+    btn_guardar.grid(
+        row=0,
+        column=1,
+        padx=(0, 6),
+    )
 
+    # Botón 2: Actualizar seleccionado
     btn_actualizar = ctk.CTkButton(
         acciones,
-        text="⚠️ Actualizar seleccionado",
+        text="Actualizar seleccionado",
+        image=icono_actualizar,
+        compound="left",
         width=190,
         height=38,
         fg_color=SECONDARY,
@@ -196,45 +390,59 @@ def mostrar_usuarios_admin(parent, app):
         font=BUTTON_FONT,
         command=lambda: actualizar_seleccionado(),
     )
-    btn_actualizar.pack(side="left", padx=4)
+    btn_actualizar.grid(
+        row=0,
+        column=2,
+        padx=(6, 0),
+    )
 
     def bloquear_formulario():
         """Bloquea todos los campos para evitar ediciones accidentales."""
         for entry in estado["entradas"].values():
             entry.configure(state="disabled")
+
         estado["modo"] = "lectura"
-        btn_guardar.configure(text="💾 Guardar nuevo")
-        btn_actualizar.configure(text="⚠️ Actualizar seleccionado")
+        btn_guardar.configure(text="Guardar nuevo")
+        btn_actualizar.configure(text="Actualizar seleccionado")
 
     def desbloquear_formulario(modo):
         """Desbloquea campos únicamente cuando se va a crear o actualizar."""
         estado["modo"] = modo
+
         for entry in estado["entradas"].values():
             entry.configure(state="normal")
+
         if modo == "nuevo":
-            btn_guardar.configure(text="✅ Confirmar guardado")
-            btn_actualizar.configure(text="⚠️ Actualizar seleccionado")
+            btn_guardar.configure(text="✓ Confirmar guardado")
+            btn_actualizar.configure(text="Actualizar seleccionado")
+
         elif modo == "editar":
-            btn_guardar.configure(text="💾 Guardar nuevo")
-            btn_actualizar.configure(text="✅ Confirmar actualización")
+            btn_guardar.configure(text="Guardar nuevo")
+            btn_actualizar.configure(text="✓ Confirmar actualización")
 
     def datos_formulario():
-        datos = {campo: variable.get().strip() for campo, variable in estado["variables"].items()}
+        datos = {
+            campo: variable.get().strip()
+            for campo, variable in estado["variables"].items()
+        }
         datos["confirmar_password"] = datos.get("usu_password", "")
         return datos
 
     def limpiar_formulario():
         estado["seleccionado"] = None
+
         for variable in estado["variables"].values():
             variable.set("")
 
     def cargar_en_formulario(usuario):
         estado["seleccionado"] = usuario
+
         for campo, variable in estado["variables"].items():
             if campo == "usu_password":
                 variable.set("")
             else:
                 variable.set(str(usuario.get(campo, "") or ""))
+
         bloquear_formulario()
 
     def crear_item_resultado(usuario, texto):
@@ -260,35 +468,56 @@ def mostrar_usuarios_admin(parent, app):
         )
         label.pack(fill="x", padx=5, pady=4, anchor="w")
 
-        item.bind("<Button-1>", lambda _event, seleccionado=usuario: cargar_en_formulario(seleccionado))
-        label.bind("<Button-1>", lambda _event, seleccionado=usuario: cargar_en_formulario(seleccionado))
+        item.bind(
+            "<Button-1>",
+            lambda _event, seleccionado=usuario: cargar_en_formulario(seleccionado),
+        )
+        label.bind(
+            "<Button-1>",
+            lambda _event, seleccionado=usuario: cargar_en_formulario(seleccionado),
+        )
 
     def pintar_resultados():
-        lbl_resultados.configure(text=f"Resultados ({len(estado['resultados'])})")
+        lbl_resultados.configure(
+            text=f"Resultados ({len(estado['resultados'])})"
+        )
+
         tabla_resultados.set_rows(
             estado["resultados"],
             value_factory=lambda usuario: (
                 usuario.get("usu_nickname", "-"),
-                f"{usuario.get('usu_nombre', '')} {usuario.get('usu_apellido', '')}".strip(),
+                f"{usuario.get('usu_nombre', '')} "
+                f"{usuario.get('usu_apellido', '')}".strip(),
                 usuario.get("usu_tipo", "-"),
             ),
         )
 
     def cargar_resultados(termino=""):
         termino = (termino or "").strip()
+
         if not termino:
             estado["resultados"] = []
             pintar_resultados()
-            messagebox.showwarning("Búsqueda requerida", "Ingresa un dato para buscar usuarios.")
+            messagebox.showwarning(
+                "Búsqueda requerida",
+                "Ingresa un dato para buscar usuarios.",
+            )
             return
+
         try:
             estado["resultados"] = buscar_usuarios(termino)
+
         except UsuarioServiceError as error:
             estado["resultados"] = []
             pintar_resultados()
-            messagebox.showerror("Error al consultar usuarios", str(error))
+            messagebox.showerror(
+                "Error al consultar usuarios",
+                str(error),
+            )
             return
+
         pintar_resultados()
+
         if not estado["resultados"]:
             messagebox.showinfo(
                 "Sin coincidencias",
@@ -302,6 +531,7 @@ def mostrar_usuarios_admin(parent, app):
             return
 
         exito, mensaje, _ = crear_usuario_admin(datos_formulario())
+
         if exito:
             messagebox.showinfo("Usuarios", mensaje)
             limpiar_formulario()
@@ -312,8 +542,12 @@ def mostrar_usuarios_admin(parent, app):
 
     def actualizar_seleccionado():
         seleccionado = estado.get("seleccionado")
+
         if not seleccionado:
-            messagebox.showwarning("Usuarios", "Selecciona un usuario de la lista.")
+            messagebox.showwarning(
+                "Usuarios",
+                "Selecciona un usuario de la lista.",
+            )
             return
 
         if estado.get("modo") != "editar":
@@ -332,6 +566,7 @@ def mostrar_usuarios_admin(parent, app):
             seleccionado.get("id_usuario"),
             datos_formulario(),
         )
+
         if exito:
             messagebox.showinfo("Usuarios", mensaje)
             bloquear_formulario()
@@ -339,6 +574,10 @@ def mostrar_usuarios_admin(parent, app):
         else:
             messagebox.showerror("Usuarios", mensaje)
 
-    entry_busqueda.bind("<Return>", lambda _event: cargar_resultados(var_busqueda.get()))
+    entry_busqueda.bind(
+        "<Return>",
+        lambda _event: cargar_resultados(var_busqueda.get()),
+    )
+
     bloquear_formulario()
     pintar_resultados()
