@@ -428,7 +428,7 @@ def _crear_menu_acordeon(sidebar, menu_host, opciones, direccion):
             fila.pack_propagate(False)
             fila.grid_propagate(False)
             fila.grid_columnconfigure(2, weight=1)
-            marca = ctk.CTkFrame(fila, width=3, fg_color="transparent", corner_radius=2)
+            marca = ctk.CTkFrame(fila, width=3, height=24, fg_color="transparent", corner_radius=2)
             marca.grid(row=0, column=0, sticky="ns", padx=(0, 4), pady=6)
             boton_icono = ctk.CTkLabel(
                 fila, text=icono, width=26, font=("Segoe UI Emoji", 15),
@@ -456,7 +456,7 @@ def _crear_menu_acordeon(sidebar, menu_host, opciones, direccion):
         fila.pack_propagate(False)
         fila.grid_propagate(False)
         fila.grid_columnconfigure(2, weight=1)
-        marca = ctk.CTkFrame(fila, width=3, fg_color="transparent", corner_radius=2)
+        marca = ctk.CTkFrame(fila, width=3, height=24, fg_color="transparent", corner_radius=2)
         marca.grid(row=0, column=0, sticky="ns", padx=(1, 4), pady=7)
         boton_icono = ctk.CTkLabel(fila, text=icono, width=31, font=("Segoe UI Emoji", 16), text_color=acento)
         boton_icono.grid(row=0, column=1, sticky="nsew")
