@@ -231,6 +231,252 @@ def crear_boton_sidebar(parent, texto, comando=None, habilitado=True):
 
 
 
+
+# =====================================================
+# ORGANIZACIÓN VISUAL DEL MENÚ (SIN MODIFICAR PERMISOS)
+# =====================================================
+def _opciones_menu_por_rol(usuario_activo, callbacks):
+    """Agrupa las mismas opciones, permisos y callbacks del menú original.
+
+    La agrupación es solo presentación. El controlador de navegación continúa
+    validando los permisos cuando se abre cada módulo.
+    """
+    puede_consulta = puede_consultar_procesos(usuario_activo)
+    tipo_usuario = obtener_tipo_usuario(usuario_activo)
+    opciones = {
+        "operaciones": [],
+        "administracion": [],
+        "sistema": [],
+    }
+
+    if puede_generar_levantamiento(usuario_activo):
+        opciones["operaciones"].append((
+            "levantamientos", "📋", "Levantamientos",
+            callbacks["admin_levantamientos"] if puede_consulta else callbacks["levantamiento"],
+        ))
+    if puede_entrar_inicio_aco(usuario_activo):
+        opciones["operaciones"].append((
+            "aco", "🏠", "ACO", callbacks["inicio_aco"],
+        ))
+    if puede_consulta:
+        opciones["operaciones"].append((
+            "ordenes_trabajo", "🛠️", "Órdenes de trabajo",
+            callbacks["admin_ordenes_trabajo"],
+        ))
+    if puede_ver_bitacoras_operativas(usuario_activo):
+        callback_bitacoras = (
+            callbacks["bitacora_avance"] if tipo_usuario == OPERADOR
+            else callbacks["admin_bitacoras"]
+        )
+        opciones["operaciones"].append((
+            "bitacoras", "📊", "Bitácoras operativas", callback_bitacoras,
+        ))
+    if puede_generar_orden_servicio(usuario_activo):
+        callback_os = (
+            callbacks["orden_servicio"] if tipo_usuario == OPERADOR
+            else callbacks["admin_ordenes_servicio"] if puede_consulta
+            else callbacks["orden_servicio"]
+        )
+        opciones["operaciones"].append((
+            "ordenes_servicio", "🧾", "Órdenes de servicio", callback_os,
+        ))
+
+    if puede_cotizar_levantamientos(usuario_activo):
+        opciones["administracion"].append((
+            "cotizaciones", "💲", "Cotizaciones", callbacks["cotizaciones"],
+        ))
+    if puede_ver_compras(usuario_activo):
+        opciones["administracion"].append((
+            "compras", "🛒", "Compras", callbacks["compras"],
+        ))
+    if puede_ver_almacen(usuario_activo):
+        opciones["administracion"].append((
+            "almacen", "📦", "Almacén", callbacks["almacen"],
+        ))
+
+    if puede_ver_reportes(usuario_activo):
+        opciones["sistema"].append((
+            "reportes", "📈", "Reportes", callbacks["reportes"],
+        ))
+    if puede_ver_auditoria(usuario_activo):
+        opciones["sistema"].append((
+            "auditoria", "🛡️", "Auditoría", callbacks["auditoria"],
+        ))
+    if puede_administrar_usuarios(usuario_activo):
+        opciones["sistema"].append((
+            "usuarios", "👥", "Usuarios", callbacks["usuarios"],
+        ))
+    if puede_administrar_clientes(usuario_activo):
+        opciones["sistema"].append((
+            "clientes", "🏢", "Clientes", callbacks["clientes"],
+        ))
+
+    direccion = (
+        ("direccion_general", "📊", "Dirección General", callbacks["direccion_general"])
+        if puede_ver_direccion_general(usuario_activo) else None
+    )
+    return opciones, direccion
+
+
+def _crear_menu_acordeon(sidebar, menu_host, opciones, direccion):
+    """Dibuja un acordeón navegable, resaltando el módulo seleccionado."""
+    secciones = (
+        ("operaciones", "⚒", "Operaciones"),
+        ("administracion", "▣", "Administración"),
+        ("sistema", "⚙", "Sistema y Control"),
+    )
+    color_cabecera = "#183247"
+    color_cabecera_abierta = "#20506D"
+    color_hover = "#286184"
+    color_item = "#10293F"
+    color_item_hover = "#20506D"
+    color_seleccion = "#135C85"
+    acento = "#70D7FB"
+    paneles = {}
+    botones = {}
+    estado = {"seccion": None, "opcion": None}
+
+    def _refrescar():
+        """Actualiza contraste y visibilidad sin reconstruir los botones."""
+        for key, (cabecera, contenido, flecha) in paneles.items():
+            abierto = estado["seccion"] == key
+            cabecera.configure(fg_color=color_cabecera_abierta if abierto else color_cabecera)
+            flecha.configure(text="▾" if abierto else "▸")
+            if abierto:
+                if not contenido.winfo_manager():
+                    contenido.pack(fill="x", padx=0, pady=(1, 3))
+            else:
+                contenido.pack_forget()
+        for key, (fila, icono, etiqueta, marca) in botones.items():
+            marcado = estado["opcion"] == key
+            fila.configure(fg_color=color_seleccion if marcado else color_item)
+            icono.configure(text_color=WHITE if marcado else "#CFECFB")
+            etiqueta.configure(text_color=WHITE if marcado else "#DCEAF4")
+            marca.configure(fg_color=acento if marcado else "transparent")
+
+    def _abrir_seccion(key):
+        estado["seccion"] = None if estado["seccion"] == key else key
+        _refrescar()
+
+    def _navegar(seccion, opcion, callback):
+        estado["seccion"] = seccion
+        estado["opcion"] = opcion
+        _refrescar()
+        callback()  # Se llama exactamente al callback original (sin parámetros nuevos).
+
+    def _vincular_fila(widgets, click, fondo, hover):
+        """Las tres zonas de cada fila responden al clic y al hover."""
+        def _hover(_event=None):
+            fondo.configure(fg_color=hover)
+
+        def _salir(_event=None):
+            _refrescar()
+
+        for widget in widgets:
+            widget.bind("<Button-1>", lambda _event, fn=click: fn())
+            widget.bind("<Enter>", _hover)
+            widget.bind("<Leave>", _salir)
+            widget.bind("<Return>", lambda _event, fn=click: fn())
+            widget.bind("<space>", lambda _event, fn=click: fn())
+            try:
+                widget.configure(cursor="hand2")
+            except (tk.TclError, ValueError):
+                pass
+
+    for clave, simbolo, titulo in secciones:
+        items = opciones[clave]
+        if not items:
+            continue  # No se muestran encabezados vacíos a roles sin permiso.
+
+        bloque = ctk.CTkFrame(menu_host, fg_color="transparent", corner_radius=0)
+        bloque.pack(fill="x", padx=(3, 3), pady=(3, 3))
+        encabezado = ctk.CTkFrame(
+            bloque, height=43, fg_color=color_cabecera, corner_radius=10,
+        )
+        encabezado.pack(fill="x")
+        encabezado.pack_propagate(False)
+        encabezado.grid_propagate(False)
+        encabezado.grid_columnconfigure(1, weight=1)
+        cab_icono = ctk.CTkLabel(
+            encabezado, text=simbolo, width=31, font=("Segoe UI Symbol", 17),
+            text_color=acento,
+        )
+        cab_icono.grid(row=0, column=0, padx=(5, 1), sticky="nsew")
+        cab_texto = ctk.CTkLabel(
+            encabezado, text=titulo, font=BUTTON_FONT,
+            text_color=WHITE, anchor="w",
+        )
+        cab_texto.grid(row=0, column=1, sticky="nsew")
+        cab_flecha = ctk.CTkLabel(
+            encabezado, text="▸", width=22, font=("Segoe UI Symbol", 17),
+            text_color="#D7E8F3",
+        )
+        cab_flecha.grid(row=0, column=2, padx=(0, 4), sticky="nsew")
+
+        contenedor = ctk.CTkFrame(bloque, fg_color="transparent", corner_radius=0)
+        paneles[clave] = (encabezado, contenedor, cab_flecha)
+        _vincular_fila(
+            (encabezado, cab_icono, cab_texto, cab_flecha),
+            lambda k=clave: _abrir_seccion(k), encabezado, color_hover,
+        )
+
+        for ident, icono, nombre, callback in items:
+            fila = ctk.CTkFrame(
+                contenedor, height=37, fg_color=color_item, corner_radius=8,
+            )
+            fila.pack(fill="x", padx=(15, 1), pady=(2, 1))
+            fila.pack_propagate(False)
+            fila.grid_propagate(False)
+            fila.grid_columnconfigure(2, weight=1)
+            marca = ctk.CTkFrame(fila, width=3, fg_color="transparent", corner_radius=2)
+            marca.grid(row=0, column=0, sticky="ns", padx=(0, 4), pady=6)
+            boton_icono = ctk.CTkLabel(
+                fila, text=icono, width=26, font=("Segoe UI Emoji", 15),
+                text_color="#CFECFB",
+            )
+            boton_icono.grid(row=0, column=1, sticky="nsew")
+            boton_texto = ctk.CTkLabel(
+                fila, text=nombre, font=("Segoe UI", 12),
+                text_color="#DCEAF4", anchor="w",
+            )
+            boton_texto.grid(row=0, column=2, padx=(3, 2), sticky="nsew")
+            botones[ident] = (fila, boton_icono, boton_texto, marca)
+            _vincular_fila(
+                (fila, boton_icono, boton_texto, marca),
+                lambda k=clave, o=ident, fn=callback: _navegar(k, o, fn),
+                fila, color_item_hover,
+            )
+
+    if direccion is not None:
+        ident, icono, nombre, callback = direccion
+        separador = ctk.CTkFrame(menu_host, height=1, fg_color="#466177")
+        separador.pack(fill="x", padx=11, pady=(9, 6))
+        fila = ctk.CTkFrame(menu_host, height=43, fg_color=color_cabecera, corner_radius=10)
+        fila.pack(fill="x", padx=3, pady=(0, 4))
+        fila.pack_propagate(False)
+        fila.grid_propagate(False)
+        fila.grid_columnconfigure(2, weight=1)
+        marca = ctk.CTkFrame(fila, width=3, fg_color="transparent", corner_radius=2)
+        marca.grid(row=0, column=0, sticky="ns", padx=(1, 4), pady=7)
+        boton_icono = ctk.CTkLabel(fila, text=icono, width=31, font=("Segoe UI Emoji", 16), text_color=acento)
+        boton_icono.grid(row=0, column=1, sticky="nsew")
+        boton_texto = ctk.CTkLabel(fila, text=nombre, font=BUTTON_FONT, text_color=WHITE, anchor="w")
+        boton_texto.grid(row=0, column=2, sticky="nsew")
+        botones[ident] = (fila, boton_icono, boton_texto, marca)
+        _vincular_fila(
+            (fila, boton_icono, boton_texto, marca),
+            lambda o=ident, fn=callback: _navegar(None, o, fn),
+            fila, color_hover,
+        )
+
+    # Para el rol Administrador se abre Operaciones; otros roles ven primero
+    # la primera sección permitida (Compras, Almacén, etc.).
+    estado["seccion"] = next(iter(paneles), None)
+    _refrescar()
+    sidebar._axia_menu_activar = _navegar
+    sidebar._axia_menu_estado = estado
+
+
 # =====================================================
 # FUNCIÓN: crear_app_sidebar()
 # =====================================================
@@ -312,129 +558,23 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
     # disponible internamente mediante app_context.
 
     # =================================================
-    # BOTONES PRINCIPALES
+    # NAVEGACIÓN EN SECCIONES DESPLEGABLES
     # =================================================
     usuario_es_admin = es_admin(usuario_activo)
-    puede_inicio = puede_entrar_inicio_aco(usuario_activo)
-    puede_consulta = puede_consultar_procesos(usuario_activo)
+    opciones, direccion = _opciones_menu_por_rol(usuario_activo, callbacks)
 
-    # Orden visual homologado al flujo operativo vigente:
-    # LEVANTAMIENTO -> ACO -> ORDEN DE TRABAJO -> BITÁCORA -> ORDEN DE SERVICIO.
-    if puede_generar_levantamiento(usuario_activo):
-        crear_boton_sidebar(
-            sidebar,
-            "📋 Levantamientos",
-            callbacks["admin_levantamientos"] if puede_consulta else callbacks["levantamiento"]
-        )
-
-    # Etapa comercial: después de la preautorización del levantamiento y antes de ACO.
-    if puede_cotizar_levantamientos(usuario_activo):
-        crear_boton_sidebar(
-            sidebar,
-            "💲 Cotizaciones",
-            callbacks["cotizaciones"]
-        )
-
-    if puede_ver_compras(usuario_activo):
-        crear_boton_sidebar(
-            sidebar,
-            "🛒 Compras",
-            callbacks["compras"]
-        )
-
-    if puede_ver_almacen(usuario_activo):
-        crear_boton_sidebar(sidebar, "📦 Almacén", callbacks["almacen"])
-
-    if puede_inicio:
-        crear_boton_sidebar(
-            sidebar,
-            "🏠 ACO",
-            callbacks["inicio_aco"]
-        )
-
-    if puede_consulta:
-        crear_boton_sidebar(
-            sidebar,
-            "🛠️ Órdenes de trabajo",
-            callbacks["admin_ordenes_trabajo"]
-        )
-
-    # Las Bitácoras Operativas forman parte del trabajo del Operador (usu_tipo=4).
-    # Para ese rol el menú abre directamente el FORMULARIO OPERATIVO de captura;
-    # los perfiles con permiso de consulta administrativa conservan la vista de
-    # búsqueda/edición de bitácoras registradas.
-    if puede_ver_bitacoras_operativas(usuario_activo):
-        tipo_usuario = obtener_tipo_usuario(usuario_activo)
-        callback_bitacoras = (
-            callbacks["bitacora_avance"]
-            if tipo_usuario == OPERADOR
-            else callbacks["admin_bitacoras"]
-        )
-        crear_boton_sidebar(
-            sidebar,
-            "📊 Bitácoras operativas",
-            callback_bitacoras
-        )
-
-    # La captura operativa de Orden de Servicio también está disponible para
-    # Operador (usu_tipo=4). Los roles de gestión conservan la vista administrativa.
-    if puede_generar_orden_servicio(usuario_activo):
-        tipo_usuario = obtener_tipo_usuario(usuario_activo)
-        callback_os = (
-            callbacks["orden_servicio"]
-            if tipo_usuario == OPERADOR
-            else callbacks["admin_ordenes_servicio"]
-            if puede_consulta
-            else callbacks["orden_servicio"]
-        )
-        crear_boton_sidebar(
-            sidebar,
-            "🧾 Órdenes de servicio",
-            callback_os
-        )
-
-    if puede_ver_direccion_general(usuario_activo):
-        crear_boton_sidebar(
-            sidebar,
-            "📊 Dirección General",
-            callbacks["direccion_general"]
-        )
-
-    if puede_ver_reportes(usuario_activo):
-        crear_boton_sidebar(
-            sidebar,
-            "📈 Reportes",
-            callbacks["reportes"]
-        )
-
-    if puede_ver_auditoria(usuario_activo):
-        crear_boton_sidebar(
-            sidebar,
-            "🛡️ Auditoría",
-            callbacks["auditoria"]
-        )
-
-    if puede_administrar_usuarios(usuario_activo):
-        crear_boton_sidebar(
-            sidebar,
-            "👥 Usuarios",
-            callbacks["usuarios"]
-        )
-
-    if puede_administrar_clientes(usuario_activo):
-        crear_boton_sidebar(
-            sidebar,
-            "🏢 Clientes",
-            callbacks["clientes"]
-        )
-
-    # =================================================
-    # ESPACIO FLEXIBLE
-    # =================================================
-    ctk.CTkLabel(
+    # El menú es desplazable; el logo y los controles de sesión permanecen
+    # siempre a la vista aunque la ventana se utilice en tamaño reducido.
+    menu_scroll = ctk.CTkScrollableFrame(
         sidebar,
-        text=""
-    ).pack(expand=True)
+        width=215,
+        fg_color="transparent",
+        corner_radius=0,
+        scrollbar_button_color="#4A6880",
+        scrollbar_button_hover_color="#70D7FB",
+    )
+    menu_scroll.pack(side="top", fill="both", expand=True, padx=(5, 3), pady=(2, 4))
+    _crear_menu_acordeon(sidebar, menu_scroll, opciones, direccion)
 
     # =================================================
     # MI USUARIO Y ACCIONES DE SESIÓN
