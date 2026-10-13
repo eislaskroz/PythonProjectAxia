@@ -8,7 +8,7 @@ cada vez que los fabricantes renuevan sus líneas de producto.
 # Catálogo visible homologado. Las marcas reales se presentan en orden alfabético;
 # las opciones de control permanecen en los extremos para facilitar la captura.
 _MARCAS_BASE = [
-    "Hikvision", "Dahua", "Axis", "Hanwha", "Bosch", "ZKTeco",
+    "Hikvision", "Dahua", "Axis", "Hanwha", "Bosch", "ZKTeco", "Ruijie",
     "Ubiquiti", "MikroTik", "Cisco", "Aruba", "TP-Link", "Panduit", "Tripp Lite",
     "APC", "Schneider Electric", "Siemens", "ABB", "Eaton", "Generac", "Cummins",
     "Carrier", "York", "Daikin", "Midea", "LG", "Samsung", "Sungrow", "Huawei",
