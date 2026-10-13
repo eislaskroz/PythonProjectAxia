@@ -31,7 +31,7 @@ import customtkinter as ctk
 import tkinter as tk
 import sys
 from pathlib import Path
-from PIL import Image, ImageEnhance, ImageOps, ImageTk
+from PIL import Image, ImageEnhance, ImageOps, ImageTk, ImageDraw
 
 # =====================================================
 # IMPORTACIÓN DE RECURSOS VISUALES
@@ -93,7 +93,7 @@ def _ruta_recurso_sidebar(nombre):
     base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent))
     return base / "assets" / nombre
 
-def _crear_fondo_sidebar(tipo, size=(230, 900)):
+def _imagen_fondo_sidebar(tipo, size=(230, 900)):
     """Crea un wallpaper que cubre TODO el sidebar sin deformar la imagen.
 
     Se usa recorte tipo cover y un velo azul oscuro para que textos/botones
@@ -116,7 +116,13 @@ def _crear_fondo_sidebar(tipo, size=(230, 900)):
     # Velo corporativo para conservar contraste de menú y botones.
     velo = Image.new("RGBA", (ancho, alto), (15, 35, 55, 105))
     base = Image.alpha_composite(base, velo)
-    return ImageTk.PhotoImage(base)
+    return base
+
+
+def _crear_fondo_sidebar(tipo, size=(230, 900)):
+    fondo = _imagen_fondo_sidebar(tipo, size)
+    return ImageTk.PhotoImage(fondo) if fondo is not None else None
+
 
 def _redibujar_fondo_sidebar(sidebar):
     tipo = getattr(sidebar, "_axia_sidebar_tipo", None)
@@ -146,6 +152,10 @@ def _redibujar_fondo_sidebar(sidebar):
                 label.lower(hijos[0])
             except Exception:
                 pass
+        # El menú usa la misma imagen; actualizarlo al cambiar especialidad.
+        refrescar_menu = getattr(sidebar, "_axia_menu_redibujar", None)
+        if callable(refrescar_menu):
+            refrescar_menu()
     except Exception:
         logger.debug("No se pudo redibujar fondo temático del sidebar.", exc_info=True)
 
@@ -319,168 +329,186 @@ def _opciones_menu_por_rol(usuario_activo, callbacks):
 
 
 def _crear_menu_acordeon(sidebar, menu_host, opciones, direccion):
-    """Menú acordeón V2: botones planos, sin marcos blancos ni lógica nueva.
+    """Acordeón sobre lienzo ilustrado.
 
-    Los permisos/callbacks siguen siendo los mismos que entrega
-    _opciones_menu_por_rol(). El resaltado es solo estado visual.
+    Tk/CustomTkinter no ofrece transparencia alfa real en CTkScrollableFrame:
+    "transparent" puede heredar un blanco del contenedor superior. Este menú
+    dibuja el wallpaper directamente sobre un Canvas y superpone pastillas RGBA,
+    sin crear frames opacos entre el usuario y la imagen corporativa.
     """
     secciones = (
         ("operaciones", "", "Operaciones"),
         ("administracion", "", "Administración"),
         ("sistema", "", "Sistema y Control"),
     )
-
-    # Paleta corporativa discreta: el azul claro aparece solo en los acentos.
-    fondo_menu = "#0E2539"
-    fondo_cabecera = "#18384F"
-    fondo_cabecera_abierta = "#21506C"
-    hover_cabecera = "#2A5C79"
-    fondo_opcion = "#10293D"
-    hover_opcion = "#22465F"
-    fondo_activo = "#1A526F"
+    blanco = "#F3FAFF"
+    secundario = "#C9E1F0"
     acento = "#70D7FB"
-    color_texto = "#E2EDF5"
-    color_texto_secundario = "#CBDDEA"
-
-    paneles = {}
-    botones = {}
     estado = {"seccion": None, "opcion": None}
+    cache_pastillas = {}
+    referencias_imagen = []
+    canvas = menu_host
 
-    def _refrescar():
-        """Actualiza visibilidad y selección sin reconstruir controles."""
-        for clave, (cabecera, contenido, flecha) in paneles.items():
-            abierto = estado["seccion"] == clave
-            cabecera.configure(fg_color=fondo_cabecera_abierta if abierto else fondo_cabecera)
-            flecha.configure(text="▾" if abierto else "▸")
-            if abierto:
-                if not contenido.winfo_manager():
-                    contenido.pack(fill="x", pady=(2, 5))
-            else:
-                contenido.pack_forget()
-
-        for clave, (boton, marca) in botones.items():
-            marcado = estado["opcion"] == clave
-            boton.configure(
-                fg_color=fondo_activo if marcado else fondo_opcion,
-                text_color="#FFFFFF" if marcado else color_texto_secundario,
+    def _pastilla(ancho, alto, estilo):
+        clave = (ancho, alto, estilo)
+        if clave not in cache_pastillas:
+            colores = {
+                "cabecera": (23, 56, 77, 220),
+                "cabecera_abierta": (31, 78, 103, 224),
+                "cabecera_hover": (38, 96, 125, 238),
+                "opcion": (13, 39, 59, 125),
+                "opcion_hover": (33, 76, 99, 208),
+                "opcion_activa": (24, 85, 115, 235),
+            }
+            img = Image.new("RGBA", (ancho, alto), (0, 0, 0, 0))
+            draw = ImageDraw.Draw(img)
+            draw.rounded_rectangle(
+                (0, 0, ancho - 1, alto - 1), radius=9 if estilo.startswith("cabecera") else 7,
+                fill=colores[estilo],
             )
-            # El acento se coloca con .place(): no agranda las filas ni
-            # modifica la rejilla, a diferencia de los marcadores anteriores.
-            if marcado:
-                marca.place(x=3, rely=0.5, anchor="w")
-            else:
-                marca.place_forget()
+            cache_pastillas[clave] = ImageTk.PhotoImage(img, master=canvas)
+        return cache_pastillas[clave]
 
-    def _abrir_seccion(clave):
-        estado["seccion"] = None if estado["seccion"] == clave else clave
-        _refrescar()
+    def _fondo_menu(ancho, alto):
+        # Mostrar la misma imagen del sidebar, alineada a su posición vertical.
+        try:
+            lateral_ancho = max(220, sidebar.winfo_width())
+            lateral_alto = max(600, sidebar.winfo_height())
+            fondo = _imagen_fondo_sidebar(
+                getattr(sidebar, "_axia_sidebar_tipo", None),
+                (lateral_ancho, lateral_alto),
+            )
+            if fondo is None:
+                raise ValueError("Wallpaper no disponible")
+            origen_x = max(0, canvas.winfo_rootx() - sidebar.winfo_rootx())
+            origen_y = max(0, canvas.winfo_rooty() - sidebar.winfo_rooty())
+            lienzo = Image.new("RGB", (ancho, alto), "#0E2539")
+            # Repetir la imagen si el contenido supera la altura del sidebar.
+            y = 0
+            while y < alto:
+                inicio = (origen_y + y) % lateral_alto
+                tramo = min(alto - y, lateral_alto - inicio)
+                recorte = fondo.crop((origen_x, inicio, origen_x + ancho, inicio + tramo))
+                lienzo.paste(recorte.convert("RGB"), (0, y))
+                y += tramo
+            # Sombra tenue, sin un panel sólido que tape la ilustración.
+            velo = Image.new("RGBA", (ancho, alto), (5, 18, 32, 35))
+            lienzo = Image.alpha_composite(lienzo.convert("RGBA"), velo)
+            return ImageTk.PhotoImage(lienzo, master=canvas)
+        except Exception:
+            logger.debug("Fondo del menú no disponible.", exc_info=True)
+            return None
 
     def _navegar(seccion, opcion, callback):
         estado["seccion"] = seccion
         estado["opcion"] = opcion
-        _refrescar()
-        callback()  # Callback original sin modificaciones de parámetros.
+        _redibujar()
+        callback()  # Callback original, sin modificar firma ni permisos.
 
-    for clave, simbolo, titulo in secciones:
-        items = opciones[clave]
-        if not items:
-            continue  # No mostrar grupos sin permisos.
+    def _abrir_seccion(clave):
+        estado["seccion"] = None if estado["seccion"] == clave else clave
+        _redibujar()
 
-        bloque = ctk.CTkFrame(menu_host, fg_color="transparent", corner_radius=0,
-                              border_width=0)
-        bloque.pack(fill="x", padx=(2, 4), pady=(2, 2))
+    def _redibujar():
+        if not canvas.winfo_exists():
+            return
+        fraccion = canvas.yview()[0] if canvas.find_all() else 0.0
+        canvas.delete("all")
+        referencias_imagen.clear()
+        ancho = max(185, canvas.winfo_width())
+        margen = 6
+        fila_ancho = ancho - 2 * margen - 3
+        y = 7
+        filas = []
+        for clave, simbolo, titulo in secciones:
+            items = opciones[clave]
+            if not items:
+                continue
+            abierta = estado["seccion"] == clave
+            filas.append(("cabecera", clave, simbolo, titulo, None, margen, y, fila_ancho, 44,
+                          "cabecera_abierta" if abierta else "cabecera"))
+            y += 51
+            if abierta:
+                for identificador, icono, nombre, callback in items:
+                    seleccionada = estado["opcion"] == identificador
+                    filas.append(("opcion", identificador, icono, nombre,
+                                  (clave, identificador, callback), margen + 12, y, fila_ancho - 12, 36,
+                                  "opcion_activa" if seleccionada else "opcion"))
+                    y += 40
+                y += 7
+            else:
+                y += 2
+        if direccion is not None:
+            identificador, icono, nombre, callback = direccion
+            y += 11
+            filas.append(("separador", None, None, None, None, margen + 8, y, fila_ancho - 16, 1, None))
+            y += 15
+            seleccionada = estado["opcion"] == identificador
+            filas.append(("opcion", identificador, icono, nombre,
+                          (None, identificador, callback), margen, y, fila_ancho, 44,
+                          "opcion_activa" if seleccionada else "cabecera"))
+            y += 54
+        alto = max(y + 12, canvas.winfo_height())
+        imagen_fondo = _fondo_menu(ancho, alto)
+        if imagen_fondo is not None:
+            referencias_imagen.append(imagen_fondo)
+            canvas.create_image(0, 0, image=imagen_fondo, anchor="nw")
+        else:
+            canvas.create_rectangle(0, 0, ancho, alto, fill="#0E2539", outline="")
+        for indice, (tipo, ident, simbolo, titulo, accion, x, top, w, h, estilo) in enumerate(filas):
+            if tipo == "separador":
+                canvas.create_line(x, top, x + w, top, fill="#375A70", width=1)
+                continue
+            etiqueta = f"accion_{indice}"
+            fondo_normal = _pastilla(w, h, estilo)
+            sprite = canvas.create_image(x, top, image=fondo_normal, anchor="nw", tags=(etiqueta,))
+            canvas.create_text(x + 17, top + h // 2, text=simbolo,
+                               fill=blanco if tipo == "cabecera" else secundario,
+                               font=("Segoe UI Symbol", 15), anchor="w", tags=(etiqueta,))
+            activo = estado["opcion"] == ident and tipo == "opcion"
+            canvas.create_text(x + 47, top + h // 2, text=titulo, anchor="w",
+                               font=("Segoe UI", 11, "bold" if tipo == "cabecera" or activo else "normal"),
+                               fill=blanco if tipo == "cabecera" or activo else secundario,
+                               tags=(etiqueta,))
+            if tipo == "cabecera":
+                canvas.create_text(x + w - 17, top + h // 2,
+                                   text="▾" if estado["seccion"] == ident else "▸",
+                                   font=("Segoe UI", 13), fill=secundario,
+                                   anchor="center", tags=(etiqueta,))
+            if activo:
+                canvas.create_rectangle(x + 3, top + 7, x + 6, top + h - 7,
+                                        fill=acento, outline="", tags=(etiqueta,))
+            if tipo == "cabecera":
+                funcion = lambda _event, k=ident: _abrir_seccion(k)
+            else:
+                seccion, opcion, callback = accion
+                funcion = lambda _event, k=seccion, o=opcion, fn=callback: _navegar(k, o, fn)
+            canvas.tag_bind(etiqueta, "<Button-1>", funcion)
+            canvas.tag_bind(etiqueta, "<Enter>", lambda _event, item=sprite, ww=w, hh=h, t=tipo, sel=activo:
+                            (canvas.itemconfigure(item, image=_pastilla(ww, hh,
+                                "cabecera_hover" if t == "cabecera" else
+                                "opcion_activa" if sel else "opcion_hover")),
+                             canvas.configure(cursor="hand2")))
+            canvas.tag_bind(etiqueta, "<Leave>", lambda _event, item=sprite, normal=fondo_normal:
+                            (canvas.itemconfigure(item, image=normal), canvas.configure(cursor="")))
+        canvas.configure(scrollregion=(0, 0, ancho, alto))
+        canvas.yview_moveto(fraccion)
 
-        # Una cabecera = un botón. Sin marcos anidados ni bordes contrastantes.
-        cabecera = ctk.CTkButton(
-            bloque,
-            text=f"{simbolo}   {titulo}",
-            height=42,
-            anchor="w",
-            fg_color=fondo_cabecera,
-            hover_color=hover_cabecera,
-            text_color=color_texto,
-            border_width=0,
-            corner_radius=9,
-            font=BUTTON_FONT,
-            command=lambda k=clave: _abrir_seccion(k),
-        )
-        cabecera.pack(fill="x", pady=(1, 1))
+    def _wheel(event):
+        paso = int(-event.delta / 120) if event.delta else 0
+        if paso:
+            canvas.yview_scroll(paso, "units")
+        return "break"
 
-        # Flecha alineada a la derecha, también permite desplegar/cerrar.
-        flecha = ctk.CTkLabel(
-            cabecera, text="▸", width=20, height=26,
-            font=("Segoe UI Symbol", 15),
-            text_color="#B5D0DF", fg_color="transparent",
-        )
-        flecha.place(relx=1, x=-6, rely=0.5, anchor="e")
-        flecha.bind("<Button-1>", lambda _e, k=clave: _abrir_seccion(k))
-        try:
-            flecha.configure(cursor="hand2")
-        except (tk.TclError, ValueError):
-            pass
-
-        contenido = ctk.CTkFrame(
-            bloque, fg_color="transparent", corner_radius=0, border_width=0,
-        )
-        paneles[clave] = (cabecera, contenido, flecha)
-
-        for ident, icono, nombre, callback in items:
-            boton = ctk.CTkButton(
-                contenido,
-                text=f"{icono}   {nombre}",
-                height=34,
-                anchor="w",
-                corner_radius=6,
-                fg_color=fondo_opcion,
-                hover_color=hover_opcion,
-                text_color=color_texto_secundario,
-                border_width=0,
-                font=("Segoe UI", 12),
-                command=lambda k=clave, o=ident, fn=callback: _navegar(k, o, fn),
-            )
-            boton.pack(fill="x", padx=(12, 1), pady=(1, 1))
-
-            # Único indicador decorativo: línea celeste solo en el activo.
-            # Usamos un marco Tk sin borde para evitar el contorno anti-alias
-            # de un CTkFrame adicional y evitar alteraciones de geometría.
-            marca = tk.Frame(
-                boton, width=3, height=23, bg=acento,
-                borderwidth=0, highlightthickness=0,
-            )
-            botones[ident] = (boton, marca)
-
-    if direccion is not None:
-        ident, icono, nombre, callback = direccion
-        separador = ctk.CTkFrame(
-            menu_host, height=1, fg_color="#304B60", corner_radius=0,
-            border_width=0,
-        )
-        separador.pack(fill="x", padx=13, pady=(9, 7))
-        boton = ctk.CTkButton(
-            menu_host,
-            text=f"{icono}   {nombre}",
-            height=42,
-            anchor="w",
-            fg_color=fondo_cabecera,
-            hover_color=hover_cabecera,
-            text_color=color_texto,
-            border_width=0,
-            corner_radius=9,
-            font=BUTTON_FONT,
-            command=lambda o=ident, fn=callback: _navegar(None, o, fn),
-        )
-        boton.pack(fill="x", padx=(4, 5), pady=(0, 5))
-        marca = tk.Frame(
-            boton, width=3, height=23, bg=acento,
-            borderwidth=0, highlightthickness=0,
-        )
-        botones[ident] = (boton, marca)
-
-    # La primera sección permitida comienza desplegada como antes.
-    estado["seccion"] = next(iter(paneles), None)
-    _refrescar()
+    canvas.bind("<MouseWheel>", _wheel, add="+")
+    canvas.bind("<Button-4>", lambda _e: (canvas.yview_scroll(-1, "units"), "break")[-1], add="+")
+    canvas.bind("<Button-5>", lambda _e: (canvas.yview_scroll(1, "units"), "break")[-1], add="+")
+    canvas.bind("<Configure>", lambda _event: _redibujar(), add="+")
+    estado["seccion"] = next((k for k, _, _ in secciones if opciones[k]), None)
     sidebar._axia_menu_activar = _navegar
     sidebar._axia_menu_estado = estado
+    sidebar._axia_menu_redibujar = _redibujar
+    _redibujar()
 
 
 # =====================================================
@@ -571,16 +599,23 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
 
     # El menú es desplazable; el logo y los controles de sesión permanecen
     # siempre a la vista aunque la ventana se utilice en tamaño reducido.
-    menu_scroll = ctk.CTkScrollableFrame(
-        sidebar,
-        width=215,
-        fg_color="#0E2539",
-        corner_radius=10,
-        border_width=0,
-        scrollbar_button_color="#36556C",
-        scrollbar_button_hover_color="#70D7FB",
+    # Canvas con imagen de fondo + scrollbar: evita que CTkScrollableFrame
+    # herede el color claro del panel, lo que ocurría en la V3.
+    menu_marco = ctk.CTkFrame(sidebar, fg_color="#10283D", corner_radius=0, border_width=0)
+    menu_marco.pack(side="top", fill="both", expand=True, padx=(5, 3), pady=(2, 4))
+    menu_scroll = tk.Canvas(
+        menu_marco, background="#0E2539", borderwidth=0,
+        highlightthickness=0, relief="flat", takefocus=True,
     )
-    menu_scroll.pack(side="top", fill="both", expand=True, padx=(5, 3), pady=(2, 4))
+    barra_scroll = ctk.CTkScrollbar(
+        menu_marco, orientation="vertical", width=9,
+        command=menu_scroll.yview,
+        fg_color="#10283D", button_color="#36556C",
+        button_hover_color="#70D7FB",
+    )
+    menu_scroll.configure(yscrollcommand=barra_scroll.set)
+    barra_scroll.pack(side="right", fill="y", padx=(1, 0))
+    menu_scroll.pack(side="left", fill="both", expand=True)
     _crear_menu_acordeon(sidebar, menu_scroll, opciones, direccion)
 
     # =================================================
