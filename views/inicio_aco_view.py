@@ -118,7 +118,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
         border_color="#a7b4c6"
     )
     panel_dinamico.grid(
-        row=0,
+        row=1,
         column=0,
         sticky="nsew",
         padx=18,
@@ -133,7 +133,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
         fg_color="transparent"
     )
     panel_superior.grid(
-        row=1,
+        row=0,
         column=0,
         sticky="nsew",
         padx=18,
@@ -550,8 +550,8 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
         form.grid(row=0, column=0, sticky="nsew", padx=4, pady=(0, 10))
 
         barra_acciones = ctk.CTkFrame(contenedor_aco, fg_color="transparent", height=58)
-        barra_acciones.pack(fill="x", padx=6, pady=(0, 2))
-        barra_acciones.pack_propagate(False)
+        barra_acciones.grid(row=1, column=0, sticky="ew", padx=6, pady=(0, 2))
+        barra_acciones.grid_propagate(False)
 
         var_aco = ctk.StringVar(value="Se asigna automáticamente al guardar")
         var_cliente = ctk.StringVar()

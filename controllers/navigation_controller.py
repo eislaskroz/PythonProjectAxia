@@ -476,7 +476,6 @@ class NavigationController:
         """Muestra la bandeja de cotizaciones finalizadas pendientes de Compras."""
         if not self._verificar_permiso(
             puede_ver_compras,
-    puede_ver_almacen,
             "Tu nivel de usuario no tiene permiso para acceder al módulo de Compras.",
         ):
             return
