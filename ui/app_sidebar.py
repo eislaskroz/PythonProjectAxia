@@ -337,9 +337,9 @@ def _crear_menu_acordeon(sidebar, menu_host, opciones, direccion):
     sin crear frames opacos entre el usuario y la imagen corporativa.
     """
     secciones = (
-        ("operaciones", "", "Operaciones"),
-        ("administracion", "", "Administración"),
-        ("sistema", "", "Sistema y Control"),
+        ("operaciones", "•", "Operaciones"),
+        ("administracion", "•", "Administración"),
+        ("sistema", "•", "Sistema y Control"),
     )
     blanco = "#F3FAFF"
     secundario = "#C9E1F0"
