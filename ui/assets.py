@@ -100,7 +100,7 @@ def cargar_logo_axia(size=(210, 210)):
     # └── assets/
     #     └── LogoAxia-Full.png
 
-    ruta_logo = ruta_proyecto / "assets" / "LogoAxia-Full.png"
+    ruta_logo = ruta_proyecto / "assets" / "LogoAxia-Full.ico"
 
     # =====================================================
     # CARGAR IMAGEN
