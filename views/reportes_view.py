@@ -15,6 +15,8 @@ from ui.iconos import cargar_icono
 _AXIA_ICON_BUSCAR = cargar_icono("buscar.png", (18, 18))
 _AXIA_ICON_BUSCAR_BLANCO = cargar_icono("buscar.png", (16, 16), blanco=True)
 from tkinter import messagebox
+from pathlib import Path
+from PIL import Image
 
 from app_context import obtener_usuario_actual
 from security.permissions import puede_ver_reportes
@@ -190,6 +192,22 @@ def crear_bloque_reporte(parent, reporte):
     barra.pack(fill="x", padx=11, pady=(0, 5))
     barra.grid_columnconfigure(0, weight=1)
 
+    carpeta_iconos = Path(__file__).resolve().parent.parent / "assets" / "iconos"
+
+    def cargar_icono_boton(nombre):
+        with Image.open(carpeta_iconos / nombre) as imagen:
+            imagen = imagen.convert("RGBA")
+        icono_blanco = Image.new("RGBA", imagen.size, (255, 255, 255, 0))
+        icono_blanco.putalpha(imagen.getchannel("A"))
+        return ctk.CTkImage(
+            light_image=icono_blanco,
+            dark_image=icono_blanco,
+            size=(16, 16)
+        )
+
+    icono_detalle = cargar_icono_boton("detalle.png")
+    icono_exportar = cargar_icono_boton("exportar.png")
+
     var_busqueda = ctk.StringVar()
     _actualizando_busqueda = {"activo": False}
     def _a_mayusculas(*_args):
@@ -202,21 +220,74 @@ def crear_bloque_reporte(parent, reporte):
             var_busqueda.set(mayus)
             _actualizando_busqueda["activo"] = False
     var_busqueda.trace_add("write", _a_mayusculas)
-    entry_busqueda = ctk.CTkEntry(
+    buscador = ctk.CTkFrame(
         barra,
-        textvariable=var_busqueda,
-                height=42,
+        height=44,
         corner_radius=12,
         fg_color="#F8FAFC",
         border_color="#D9E2EC",
         border_width=1,
-        placeholder_text=reporte["placeholder"],
     )
-    entry_busqueda.grid(row=0, column=0, sticky="ew", padx=(0, 4))
+    buscador.grid_propagate(False)
+    buscador.grid(row=0, column=0, sticky="ew", padx=(0, 4))
+    buscador.grid_columnconfigure(1, weight=1)
+
+    with Image.open(carpeta_iconos / "buscar.png") as imagen_buscar:
+        imagen_buscar = imagen_buscar.convert("RGBA")
+    icono_buscar = ctk.CTkImage(light_image=imagen_buscar, dark_image=imagen_buscar, size=(20, 20))
+    imagen_buscar_blanca = Image.new("RGBA", imagen_buscar.size, (255, 255, 255, 0))
+    imagen_buscar_blanca.putalpha(imagen_buscar.getchannel("A"))
+    icono_buscar_blanco = ctk.CTkImage(light_image=imagen_buscar_blanca, dark_image=imagen_buscar_blanca, size=(16, 16))
+
+    ctk.CTkLabel(
+        buscador,
+        text="",
+        image=icono_buscar,
+        width=28,
+        height=36,
+        anchor="center",
+    ).grid(row=0, column=0, sticky="ns", padx=(12, 8), pady=4)
+
+    entry_busqueda = ctk.CTkEntry(
+        buscador,
+        textvariable=var_busqueda,
+        height=36,
+        fg_color="transparent",
+        border_width=0,
+        font=("Segoe UI", 13),
+    )
+    entry_busqueda.grid(row=0, column=1, sticky="ew", padx=(0, 12), pady=4)
+
+    placeholder = ctk.CTkLabel(
+        buscador,
+        text="Realiza tu búsqueda",
+        font=("Segoe UI", 13),
+        text_color="#64748B",
+        anchor="w",
+        justify="left",
+    )
+    placeholder.place(in_=entry_busqueda, relx=0.02, rely=0.5, anchor="w")
+
+    def _placeholder_busqueda(event=None):
+        valor = var_busqueda.get()
+        tiene_texto = bool(valor.strip())
+        tiene_foco = entry_busqueda.focus_get() == entry_busqueda
+        if tiene_texto or tiene_foco:
+            placeholder.place_forget()
+        else:
+            placeholder.place(in_=entry_busqueda, relx=0.02, rely=0.5, anchor="w")
+
+    var_busqueda.trace_add("write", lambda *_: _placeholder_busqueda())
+    entry_busqueda.bind("<FocusIn>", _placeholder_busqueda)
+    entry_busqueda.bind("<FocusOut>", _placeholder_busqueda)
+    entry_busqueda.bind("<KeyRelease>", _placeholder_busqueda)
+    _placeholder_busqueda()
 
     ctk.CTkButton(
         barra,
-        text="🔎 Buscar",
+        text="Buscar",
+        image=icono_buscar_blanco,
+        compound="left",
         width=110,
         height=36,
         fg_color=SECONDARY,
@@ -289,8 +360,10 @@ def crear_bloque_reporte(parent, reporte):
             acciones_fila.grid(row=0, column=len(reporte["campos"]), sticky="e", padx=4, pady=2)
             ctk.CTkButton(
                 acciones_fila,
-                text="👁",
-                width=36,
+                text="Detalle",
+                image=icono_detalle,
+                compound="left",
+                width=76,
                 height=28,
                 fg_color="#64748B",
                 hover_color="#475569",
@@ -298,8 +371,10 @@ def crear_bloque_reporte(parent, reporte):
             ).pack(side="left", padx=(0, 2))
             ctk.CTkButton(
                 acciones_fila,
-                text="⬇",
-                width=36,
+                text="Exportar",
+                image=icono_exportar,
+                compound="left",
+                width=82,
                 height=28,
                 fg_color=SECONDARY,
                 hover_color=BUTTON_HOVER,

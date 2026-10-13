@@ -1,8 +1,10 @@
-"""Bandeja de Compras AXIA."""
+﻿"""Bandeja de Compras AXIA."""
 from __future__ import annotations
 
 import customtkinter as ctk
 from tkinter import messagebox
+from pathlib import Path
+from PIL import Image
 
 from app_context import obtener_usuario_actual
 from core.background_tasks import run_async
@@ -219,8 +221,19 @@ def mostrar_compras(parent, app=None):
     )
     btn_convertir.grid(row=0, column=2, padx=(8, 0))
 
+    ruta_icono_actualizar = Path(__file__).resolve().parent.parent / "assets" / "iconos" / "limpiar.png"
+    with Image.open(ruta_icono_actualizar) as imagen_actualizar:
+        imagen_actualizar = imagen_actualizar.convert("RGBA")
+    icono_actualizar_blanco = Image.new("RGBA", imagen_actualizar.size, (255, 255, 255, 0))
+    icono_actualizar_blanco.putalpha(imagen_actualizar.getchannel("A"))
+    icono_actualizar = ctk.CTkImage(
+        light_image=icono_actualizar_blanco,
+        dark_image=icono_actualizar_blanco,
+        size=(18, 18)
+    )
+
     ctk.CTkButton(
-        pie, text="↻ Actualizar", width=145, height=38, fg_color=SECONDARY,
+        pie, text="Actualizar", image=icono_actualizar, compound="left", width=165, height=42, fg_color=SECONDARY,
         hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=cargar,
     ).grid(row=0, column=3, padx=(8, 0))
 

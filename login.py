@@ -1,5 +1,7 @@
-import customtkinter as ctk
+﻿import customtkinter as ctk
 from tkinter import messagebox
+from pathlib import Path
+from PIL import Image
 
 from ui.theme import aplicar_estilo_ventana
 from ui.assets import cargar_logo_axia, configurar_icono_app
@@ -190,10 +192,9 @@ def abrir_login():
         text_color=TEXT_MUTED,
     ).pack(pady=(0, 14))
 
-    # Iconos gráficos del diseño validado; el cargador es tolerante a recursos faltantes.
-    icono_usuario = cargar_icono("usuario.png", (20, 20))
-    icono_cerrar = cargar_icono("cerrar.png", (20, 20))
-    icono_ver = cargar_icono("ver.png", (20, 20))
+    icono_usuario = cargar_icono("usuario.png", (20, 20), color=PRIMARY)
+    icono_cerrar = cargar_icono("cerrar.png", (20, 20), color=PRIMARY)
+    icono_ver = cargar_icono("ver.png", (20, 20), color=PRIMARY)
 
     # =================================================
     # CAMPO USUARIO (con label + icono y focus ring)
@@ -279,7 +280,7 @@ def abrir_login():
 
     pass_icon = ctk.CTkLabel(
         password_row,
-        text="🔒",
+        text="",
         image=icono_cerrar,
         width=42,
         anchor="center",

@@ -536,8 +536,8 @@ class NavigationController:
                 "campos_estatus": ["os_estatus"], "campos_fecha": ["os_fecha", "fecha_registro"],
                 "obtener_todos": obtener_ordenes_servicio, "buscar": buscar_ordenes_servicio,
                 "actualizar": actualizar_orden_servicio, "id_field": "id_orden",
-                "pdf_config": pdf_config, "pdf_text": "👁 PDF Orden de Servicio",
-                "accion_text": "✓ Finalizar OT", "accion": finalizar_ot,
+                "pdf_config": pdf_config, "pdf_text": "PDF Orden de Servicio",
+                "accion_text": "Finalizar OT", "accion": finalizar_ot,
                 "campos": [
                     {"key":"os_folio","label":"Folio OS","readonly":True},
                     {"key":"os_folio_ot","label":"OT de origen","readonly":True},
@@ -610,8 +610,8 @@ class NavigationController:
                 "campos_estatus": ["ot_estatus"], "campos_fecha": ["ot_fecha", "fecha_registro", "created_at"],
                 "obtener_todos": obtener_ordenes_trabajo, "buscar": buscar_ordenes_trabajo,
                 "actualizar": actualizar_orden_trabajo, "id_field": "ot_id",
-                "pdf_config": pdf_config_ot, "pdf_text": "👁 PDF Orden de Trabajo",
-                "accion_text": "✓ Convertir a OS", "accion": convertir_ot_a_os,
+                "pdf_config": pdf_config_ot, "pdf_text": "PDF Orden de Trabajo",
+                "accion_text": "Convertir a OS", "accion": convertir_ot_a_os,
                 "campos": [
                     {"key":"ot_folio","label":"Folio OT","readonly":True},
                     {"key":"ot_folio_levantamiento","label":"Levantamiento origen","readonly":True},
@@ -700,8 +700,8 @@ class NavigationController:
                 "campos_estatus": ["bit_estatus"], "campos_fecha": ["bit_fecha", "fecha_registro"],
                 "obtener_todos": obtener_bitacoras, "buscar": buscar_bitacoras,
                 "actualizar": actualizar_bitacora, "id_field": "id_bitacora",
-                "pdf_config": pdf_config_bit, "pdf_text": "👁 PDF Bitácora",
-                "accion_text": "✓ Asignar a OT", "accion": asignar_a_ot,
+                "pdf_config": pdf_config_bit, "pdf_text": "PDF Bitácora",
+                "accion_text": "Asignar a OT", "accion": asignar_a_ot,
                 "campos": [
                     {"key":"bit_folio","label":"Folio Bitácora","readonly":True},
                     {"key":"bit_ot_folio","label":"Orden de Trabajo asignada","readonly":True},

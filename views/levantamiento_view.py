@@ -1,4 +1,4 @@
-from core.error_reporting import show_operation_error
+﻿from core.error_reporting import show_operation_error
 """
 =========================================================
 MÓDULO: levantamiento_view.py
@@ -21,6 +21,7 @@ from datetime import datetime
 
 import customtkinter as ctk
 from tkinter import messagebox, ttk, filedialog
+from PIL import Image
 from ui.native_combobox import NativeComboBox
 
 from ui.colors import (
@@ -5939,9 +5940,29 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     barra_botones = ctk.CTkFrame(frame_botones, fg_color="transparent")
     barra_botones.pack(anchor="center", pady=4)
 
+    carpeta_iconos = Path(__file__).resolve().parent.parent / "assets" / "iconos"
+
+    def cargar_icono_boton(nombre):
+        with Image.open(carpeta_iconos / nombre) as imagen:
+            imagen = imagen.convert("RGBA")
+        icono_blanco = Image.new("RGBA", imagen.size, (255, 255, 255, 0))
+        icono_blanco.putalpha(imagen.getchannel("A"))
+        return ctk.CTkImage(
+            light_image=icono_blanco,
+            dark_image=icono_blanco,
+            size=(18, 18)
+        )
+
+    icono_atras = cargar_icono_boton("f2.png")
+    icono_guardar = cargar_icono_boton("guardar.png")
+    icono_detalle = cargar_icono_boton("detalle.png")
+    icono_cancelar = cargar_icono_boton("cancelar.png")
+
     ctk.CTkButton(
         barra_botones,
-        text="⬅ Atrás",
+        text="Atrás",
+        image=icono_atras,
+        compound="left",
         width=120,
         height=38,
         corner_radius=10,
@@ -5953,7 +5974,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
     btn_guardar_levantamiento = ctk.CTkButton(
         barra_botones,
-        text="💾 Guardar Nueva Versión" if registro_editar else "💾 Guardar Levantamiento",
+        text="Guardar Nueva Versión" if registro_editar else "Guardar Levantamiento",
+        image=icono_guardar,
+        compound="left",
         width=210,
         height=38,
         corner_radius=10,
@@ -5967,7 +5990,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
     btn_preview_levantamiento = ctk.CTkButton(
         barra_botones,
-        text="👁 Preview PDF",
+        text="Preview PDF",
+        image=icono_detalle,
+        compound="left",
         width=165,
         height=38,
         corner_radius=10,
@@ -6087,7 +6112,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
     ctk.CTkButton(
         barra_botones,
-        text="↩ Cancelar",
+        text="Cancelar",
+        image=icono_cancelar,
+        compound="left",
         width=130,
         height=38,
         corner_radius=10,

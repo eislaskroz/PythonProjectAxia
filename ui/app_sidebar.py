@@ -47,7 +47,6 @@ from ui.colors import (
 )
 
 from ui.fonts import (
-    FONT_FAMILY,
     TEXT_SM,
     BUTTON_FONT
 )
@@ -172,13 +171,14 @@ def crear_boton_sidebar(parent, texto, comando=None, habilitado=True):
     partes = texto.split(" ", 1)
     icono = partes[0] if len(partes) > 1 else ""
     etiqueta = partes[1] if len(partes) > 1 else texto
+    color_normal = "#183247" if habilitado else "#1e293b"
 
     fila = ctk.CTkFrame(
         parent,
         width=214,
         height=40,
         corner_radius=10,
-        fg_color="transparent" if habilitado else "#1e293b",
+        fg_color=color_normal,
     )
     fila.pack(pady=2, padx=9, fill="x")
     fila.pack_propagate(False)
@@ -203,7 +203,7 @@ def crear_boton_sidebar(parent, texto, comando=None, habilitado=True):
         fila,
         text=etiqueta,
         height=40,
-        font=(FONT_FAMILY, 13),
+        font=BUTTON_FONT,
         text_color=color_texto,
         anchor="w",
     )
@@ -217,7 +217,7 @@ def crear_boton_sidebar(parent, texto, comando=None, habilitado=True):
             fila.configure(fg_color=BUTTON_HOVER)
 
         def leave(_event=None):
-            fila.configure(fg_color="transparent")
+            fila.configure(fg_color=color_normal)
 
         for widget in (fila, lbl_icono, lbl_texto):
             widget.bind("<Button-1>", ejecutar)
