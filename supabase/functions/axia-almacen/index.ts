@@ -75,11 +75,11 @@ Deno.serve(async (request: Request) => {
       const password = String(data.password ?? '');
       if (!nickname || nickname.length > 120 || password.length < 1 || password.length > 1024)
         return reply(400, {ok:false, error:'Credenciales inválidas.'});
-      // El bloqueo se mantiene en Postgres (no depende de la instancia Edge).
-      const { data: allowed, error: limitError } = await db.rpc('axia_almacen_intento_login',
-        { p_nickname: nickname, p_correcto: false });
+      // El control de intentos solo penaliza credenciales fallidas (no cada acceso).
+      const {data: allowed, error: limitError} = await db.rpc('axia_almacen_lab_login_permitido',
+        {p_nickname:nickname});
       if (limitError) throw limitError;
-      if (!allowed) return reply(429, {ok:false, error:'Demasiados intentos. Reintenta después de 15 minutos.'});
+      if (!allowed) return reply(429,{ok:false,error:'Demasiados intentos. Reintenta después de 15 minutos.'});
       const { data: usuario, error } = await db.from('db_usuarios')
         .select('id_usuario,usu_nickname,usu_nombre,usu_apellido,usu_tipo,usu_password')
         .ilike('usu_nickname', nickname.replace(/[%_\\]/g, '\\$&')).limit(1).maybeSingle();
@@ -92,8 +92,13 @@ Deno.serve(async (request: Request) => {
           valid = await bcrypt.compare(password, hash.replace(/^\$2y\$/, '$2a$'));
         }
       }
-      if (!valid) return reply(401, {ok:false, error:'Credenciales incorrectas, rol no autorizado o contraseña antigua no migrada.'});
-      const { data: reset, error: resetError } = await db.rpc('axia_almacen_intento_login',
+      if (!valid) {
+        const {error: badAttemptError} = await db.rpc('axia_almacen_lab_registrar_login',
+          {p_nickname:nickname,p_correcto:false});
+        if (badAttemptError) throw badAttemptError;
+        return reply(401, {ok:false, error:'Credenciales incorrectas, rol no autorizado o contraseña antigua no migrada.'});
+      }
+      const { data: reset, error: resetError } = await db.rpc('axia_almacen_lab_registrar_login',
         { p_nickname: nickname, p_correcto: true });
       if (resetError) throw resetError;
       if (!reset) return reply(429, {ok:false, error:'Cuenta bloqueada temporalmente.'});
@@ -101,11 +106,15 @@ Deno.serve(async (request: Request) => {
     }
     const session = await verificarToken(String(request.headers.get('x-axia-almacen-session') ?? ''));
     const usuario = await obtenerUsuarioPorId(session.uid);
-    if (accion === 'catalogo') {
+    const laboratorio = accion.endsWith('_lab');
+    const accionBase = laboratorio ? accion.slice(0,-4) : accion;
+    const tablaProductos = laboratorio ? 'axia_almacen_lab_productos' : 'axia_almacen_productos';
+    const tablaMovimientos = laboratorio ? 'axia_almacen_lab_movimientos' : 'axia_almacen_movimientos';
+    if (accionBase === 'catalogo') {
       const listado: Record<string, unknown>[] = [];
       for (let start = 0; start < 20000; start += 1000) {
-        const {data: rows, error} = await db.from('axia_almacen_productos')
-          .select('codigo,nombre,departamento,costo,precio_venta,minimo,maximo,saldo')
+        const {data: rows, error} = await db.from(tablaProductos)
+          .select(laboratorio ? 'codigo,nombre,departamento,costo,precio_venta,minimo,maximo,saldo,saldo_exportado' : 'codigo,nombre,departamento,costo,precio_venta,minimo,maximo,saldo')
           .order('codigo').range(start, start + 999);
         if (error) throw error;
         listado.push(...(rows ?? []));
@@ -114,17 +123,17 @@ Deno.serve(async (request: Request) => {
       const result = listado.map((p) => ({
         codigo: p.codigo, producto: p.nombre, departamento: p.departamento,
         costo: p.costo, venta: p.precio_venta, minimo:p.minimo, maximo:p.maximo,
-        saldo:p.saldo,
+        saldo:p.saldo, saldo_exportado: laboratorio ? p.saldo_exportado : null,
       }));
       return reply(200, {ok:true, resultado: result});
     }
-    if (accion === 'kardex') {
+    if (accionBase === 'kardex') {
       const codigo = String(data.codigo ?? '').trim();
-      let query = db.from('axia_almacen_movimientos')
+      let query = db.from(tablaMovimientos)
         .select('id,tipo,cantidad,saldo_anterior,saldo_nuevo,motivo,referencia,destinatario,responsable_id,responsable,fecha,producto_id')
         .order('fecha', {ascending:false}).limit(200);
       if (codigo) {
-        const {data: product, error} = await db.from('axia_almacen_productos').select('id').eq('codigo', codigo).maybeSingle();
+        const {data: product, error} = await db.from(tablaProductos).select('id').eq('codigo', codigo).maybeSingle();
         if (error) throw error;
         if (!product) return reply(200,{ok:true,resultado:[]});
         query = query.eq('producto_id', product.id);
@@ -133,7 +142,7 @@ Deno.serve(async (request: Request) => {
       if (error) throw error;
       // Evita una consulta por registro al mapear códigos.
       const ids = [...new Set((rows ?? []).map((r) => r.producto_id))];
-      const { data: products, error: pe } = ids.length ? await db.from('axia_almacen_productos').select('id,codigo,nombre').in('id',ids)
+      const { data: products, error: pe } = ids.length ? await db.from(tablaProductos).select('id,codigo,nombre').in('id',ids)
         : {data:[],error:null};
       if (pe) throw pe;
       const index = new Map((products ?? []).map((p) => [p.id,p]));
@@ -141,7 +150,7 @@ Deno.serve(async (request: Request) => {
         ...r, codigo:index.get(r.producto_id)?.codigo ?? '', producto:index.get(r.producto_id)?.nombre ?? '',
       }))});
     }
-    if (accion === 'registrar') {
+    if (accionBase === 'registrar') {
       const codigo = String(data.codigo ?? '').trim();
       const tipo = String(data.tipo ?? '').trim().toUpperCase();
       const cantidad = Number(data.cantidad);
@@ -157,7 +166,8 @@ Deno.serve(async (request: Request) => {
           !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idempotencia)) {
         return reply(400, {ok:false,error:'Datos incompletos o inválidos.'});
       }
-      const {data: registrado, error} = await db.rpc('axia_almacen_registrar_movimiento', {
+      const {data: registrado, error} = await db.rpc(
+        laboratorio ? 'axia_almacen_lab_registrar_movimiento' : 'axia_almacen_registrar_movimiento', {
         p_codigo:codigo,p_tipo:tipo,p_cantidad:cantidad,p_motivo:motivo,
         p_referencia:referencia,p_destinatario:destinatario,
         p_responsable_id:String(usuario.id_usuario),
@@ -165,6 +175,7 @@ Deno.serve(async (request: Request) => {
       });
       if (error) {
         const msg = String(error.message ?? '');
+        if (msg.includes('LAB_NO_HABILITADO')) return reply(409,{ok:false,error:'El laboratorio no está habilitado. Activa la configuración de PRUEBAS después de validar la instalación.'});
         if (msg.includes('ALMACEN_NO_HABILITADO')) return reply(409,{ok:false,error:'Los movimientos reales aún NO están autorizados. Se necesita catálogo validado y fecha de corte.'});
         if (msg.includes('EXISTENCIA_INSUFICIENTE')) return reply(409,{ok:false,error:'Existencia insuficiente para la salida solicitada.'});
         if (msg.includes('IDEMPOTENCIA_CON_DATOS_DISTINTOS')) return reply(409,{ok:false,error:'Solicitud duplicada con datos diferentes.'});

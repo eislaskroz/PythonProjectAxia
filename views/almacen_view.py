@@ -1,4 +1,4 @@
-"""AXIA Almacén · Etapa 2: catálogo, entradas, salidas y Kardex.
+"""AXIA Almacén · Etapa 3: catálogo, entradas, salidas y Kardex.
 
 Por defecto es un simulador EFÍMERO. Para conectar con Supabase se requiere:
   - SQL de migración y Edge Function desplegados;
@@ -47,16 +47,27 @@ def mostrar_almacen(parent, app=None):
     cab = ctk.CTkFrame(root, fg_color=WHITE, corner_radius=14)
     cab.grid(row=0, column=0, sticky='ew', pady=(0, 8))
     cab.grid_columnconfigure(0, weight=1)
-    ctk.CTkLabel(cab, text='AXIA ALMACÉN · Entradas, salidas y Kardex', font=TITLE_MD,
+    ctk.CTkLabel(cab, text='AXIA ALMACÉN · Entradas, salidas y Kardex · Etapa 3', font=TITLE_MD,
                  text_color=TEXT_PRIMARY, anchor='w').grid(row=0, column=0, sticky='ew', padx=14, pady=(10, 3))
-    banner = ('PRUEBAS EN MEMORIA: saldos iniciados en cero; se pierden al cerrar esta pantalla. '
-              'NO se modifican datos reales ni las existencias exportadas de ELEVENTA.'
-              if not servicio.remoto else
-              'SERVIDOR SUPABASE: acceso protegido. Los movimientos permanecen BLOQUEADOS hasta la autorización del inventario.')
+    if not servicio.remoto:
+        banner = ('SIMULADOR LOCAL: saldos en cero; se pierden al cerrar esta pantalla. '
+                  'No modifica Supabase ni las existencias de ELEVENTA.')
+    elif servicio.laboratorio:
+        banner = ('LABORATORIO SUPABASE: movimientos de PRUEBA guardados entre sesiones. '
+                  'Saldos iniciales en cero y tablas SEPARADAS. No afecta inventario real.')
+    else:
+        banner = ('INVENTARIO REAL: movimiento BLOQUEADO hasta contar con autorizacion '
+                  'formal de Almacen, corte fisico y activacion segura.')
     ctk.CTkLabel(cab, text=banner, font=TEXT_MD, text_color='#A65E09',
                  wraplength=1150, justify='left', anchor='w').grid(row=1, column=0, sticky='ew', padx=14, pady=(0, 9))
 
-    tabs = ctk.CTkTabview(root, fg_color=WHITE)
+    tabs = ctk.CTkTabview(
+        root, fg_color=WHITE, segmented_button_fg_color='#E2E8F0',
+        segmented_button_selected_color='#BFDBFE',
+        segmented_button_selected_hover_color='#93C5FD',
+        segmented_button_unselected_color='#E2E8F0',
+        segmented_button_unselected_hover_color='#CBD5E1',
+        text_color='#111827')
     tabs.grid(row=1, column=0, sticky='nsew')
     t_catalogo = tabs.add('Catálogo')
     t_entrada = tabs.add('Entrada')
@@ -75,7 +86,7 @@ def mostrar_almacen(parent, app=None):
     contador.grid(row=0, column=1, padx=8)
     ctk.CTkButton(barra, text='Actualizar', width=105, command=lambda: cargar_catalogo()).grid(row=0, column=2)
     ayuda = ctk.CTkLabel(t_catalogo, text='Selecciona un producto para cargar su código en Entrada y Salida. '
-             'El saldo de prueba es independiente de la existencia exportada.',
+             'El saldo operativo es independiente de la existencia exportada.',
              text_color=TEXT_SECONDARY, anchor='w')
     ayuda.grid(row=1, column=0, sticky='ew', padx=8, pady=(0, 4))
     tabla = NativeTreeTable(t_catalogo, columns=(
@@ -234,8 +245,9 @@ def mostrar_almacen(parent, app=None):
                         f'Cantidad: {formatear_cantidad(cantidad)}\n'
                         f'Motivo: {payload["motivo"]}\nReferencia: {payload["referencia"] or "—"}\n'
                         f'Recibe / origen: {payload["destinatario"] or "—"}\n\n'
-                        + ('MODO PRUEBAS: no se guardará ningún dato real.' if not servicio.remoto
-                           else 'MOVIMIENTO REAL: el servidor validará permisos y existencias.'))
+                        + ('SIMULADOR LOCAL: sin persistencia.' if not servicio.remoto
+                           else ('LABORATORIO: persistirá solo en las tablas de PRUEBAS.'
+                                 if servicio.laboratorio else 'MOVIMIENTO REAL: el servidor validará permisos y existencias.')))
         if not messagebox.askyesno('Confirmar movimiento', confirmacion):
             return
         firma = (codigo, tipo, str(cantidad), payload['motivo'],
@@ -251,7 +263,8 @@ def mostrar_almacen(parent, app=None):
             status.configure(text=f'{tipo} registrada. Saldo posterior: {mov.get("saldo_nuevo")}', text_color='#15803D')
             messagebox.showinfo('Movimiento registrado',
                 ('Movimiento de PRUEBA registrado en memoria.\nNo se modificó ELEVENTA ni Supabase.\n\n'
-                 if not servicio.remoto else 'Movimiento registrado en Supabase.\n\n')
+                 if not servicio.remoto else ('Movimiento de laboratorio registrado en Supabase.\nNo afecta el inventario real.\n\n'
+                 if servicio.laboratorio else 'Movimiento registrado en el inventario real de Supabase.\n\n'))
                 + f'Código: {codigo}\nCantidad: {formatear_cantidad(cantidad)}\n'
                   f'Saldo resultante: {mov.get("saldo_nuevo")}')
             cargar_catalogo()

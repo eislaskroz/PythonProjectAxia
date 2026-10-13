@@ -1,4 +1,4 @@
-"""Almacén AXIA: simulador efímero y cliente del servicio protegido.
+"""Almacén AXIA: simulador efímero y cliente seguro (laboratorio persistente).
 
 La simulación NO persiste datos y NO consume existencias de ELEVENTA.
 En producción únicamente la Edge Function es capaz de ordenar la transacción.
@@ -128,12 +128,16 @@ class AlmacenRemoto:
     """
     remoto = True
 
-    def __init__(self):
+    def __init__(self, laboratorio: bool = False):
         from supabase_config import SUPABASE_URL, SUPABASE_KEY
         self.endpoint = SUPABASE_URL.rstrip('/') + '/functions/v1/axia-almacen'
         self.anon_key = SUPABASE_KEY
         self.token = None
         self._usuario_id = None
+        # El ambiente se define en el cliente y se codifica en acciones distintas.
+        # Las tablas de produccion NO son manipuladas por la modalidad laboratorio.
+        self.laboratorio = laboratorio
+        self._sufijo = '_lab' if laboratorio else ''
 
     def _peticion(self, accion: str, payload: dict | None = None, *, autenticar=False):
         import requests
@@ -164,15 +168,15 @@ class AlmacenRemoto:
         self._usuario_id = str(expected_id)
 
     def catalogo(self):
-        return self._peticion('catalogo')
+        return self._peticion('catalogo' + self._sufijo)
 
     def kardex(self, codigo=None):
-        return self._peticion('kardex', {'codigo': codigo or None})
+        return self._peticion('kardex' + self._sufijo, {'codigo': codigo or None})
 
     def registrar(self, *, codigo, tipo, cantidad, motivo, referencia, destinatario, usuario, idempotencia=None):
         if str(usuario.get('id_usuario')) != self._usuario_id:
             raise PermissionError('Se ha cambiado de usuario. Inicia sesión otra vez.')
-        return self._peticion('registrar', {
+        return self._peticion('registrar' + self._sufijo, {
             'codigo': str(codigo), 'tipo': str(tipo).upper(),
             'cantidad': str(cantidad_valida(cantidad)),
             'motivo': str(motivo).strip(), 'referencia': str(referencia).strip(),
@@ -185,8 +189,12 @@ def crear_almacen():
     # Sólo la activación deliberada permite conectarse a Supabase; por defecto
     # el módulo es un simulador sin persistencia ni alteración de inventario.
     modo = os.getenv('AXIA_ALMACEN_MODO', 'simulador').lower().strip()
+    if modo == 'remoto_pruebas':
+        return AlmacenRemoto(laboratorio=True)
     if modo == 'remoto':
-        return AlmacenRemoto()
+        # Aun si se selecciona modo real, la RPC de produccion permanece
+        # cerrada por axia_almacen_config hasta autorizacion formal.
+        return AlmacenRemoto(laboratorio=False)
     if modo != 'simulador':
-        raise ValueError('AXIA_ALMACEN_MODO inválido. Usa simulador o remoto.')
+        raise ValueError('AXIA_ALMACEN_MODO inválido. Usa simulador o remoto_pruebas.')
     return AlmacenSimulador()
