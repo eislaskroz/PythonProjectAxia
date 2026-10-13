@@ -319,158 +319,164 @@ def _opciones_menu_por_rol(usuario_activo, callbacks):
 
 
 def _crear_menu_acordeon(sidebar, menu_host, opciones, direccion):
-    """Dibuja un acordeón navegable, resaltando el módulo seleccionado."""
+    """Menú acordeón V2: botones planos, sin marcos blancos ni lógica nueva.
+
+    Los permisos/callbacks siguen siendo los mismos que entrega
+    _opciones_menu_por_rol(). El resaltado es solo estado visual.
+    """
     secciones = (
-        ("operaciones", "⚒", "Operaciones"),
-        ("administracion", "▣", "Administración"),
-        ("sistema", "⚙", "Sistema y Control"),
+        ("operaciones", "", "Operaciones"),
+        ("administracion", "", "Administración"),
+        ("sistema", "", "Sistema y Control"),
     )
-    color_cabecera = "#183247"
-    color_cabecera_abierta = "#20506D"
-    color_hover = "#286184"
-    color_item = "#10293F"
-    color_item_hover = "#20506D"
-    color_seleccion = "#135C85"
+
+    # Paleta corporativa discreta: el azul claro aparece solo en los acentos.
+    fondo_menu = "#0E2539"
+    fondo_cabecera = "#18384F"
+    fondo_cabecera_abierta = "#21506C"
+    hover_cabecera = "#2A5C79"
+    fondo_opcion = "#10293D"
+    hover_opcion = "#22465F"
+    fondo_activo = "#1A526F"
     acento = "#70D7FB"
+    color_texto = "#E2EDF5"
+    color_texto_secundario = "#CBDDEA"
+
     paneles = {}
     botones = {}
     estado = {"seccion": None, "opcion": None}
 
     def _refrescar():
-        """Actualiza contraste y visibilidad sin reconstruir los botones."""
-        for key, (cabecera, contenido, flecha) in paneles.items():
-            abierto = estado["seccion"] == key
-            cabecera.configure(fg_color=color_cabecera_abierta if abierto else color_cabecera)
+        """Actualiza visibilidad y selección sin reconstruir controles."""
+        for clave, (cabecera, contenido, flecha) in paneles.items():
+            abierto = estado["seccion"] == clave
+            cabecera.configure(fg_color=fondo_cabecera_abierta if abierto else fondo_cabecera)
             flecha.configure(text="▾" if abierto else "▸")
             if abierto:
                 if not contenido.winfo_manager():
-                    contenido.pack(fill="x", padx=0, pady=(1, 3))
+                    contenido.pack(fill="x", pady=(2, 5))
             else:
                 contenido.pack_forget()
-        for key, (fila, icono, etiqueta, marca) in botones.items():
-            marcado = estado["opcion"] == key
-            fila.configure(fg_color=color_seleccion if marcado else color_item)
-            icono.configure(text_color=WHITE if marcado else "#CFECFB")
-            etiqueta.configure(text_color=WHITE if marcado else "#DCEAF4")
-            marca.configure(fg_color=acento if marcado else "transparent")
 
-    def _abrir_seccion(key):
-        estado["seccion"] = None if estado["seccion"] == key else key
+        for clave, (boton, marca) in botones.items():
+            marcado = estado["opcion"] == clave
+            boton.configure(
+                fg_color=fondo_activo if marcado else fondo_opcion,
+                text_color="#FFFFFF" if marcado else color_texto_secundario,
+            )
+            # El acento se coloca con .place(): no agranda las filas ni
+            # modifica la rejilla, a diferencia de los marcadores anteriores.
+            if marcado:
+                marca.place(x=3, rely=0.5, anchor="w")
+            else:
+                marca.place_forget()
+
+    def _abrir_seccion(clave):
+        estado["seccion"] = None if estado["seccion"] == clave else clave
         _refrescar()
 
     def _navegar(seccion, opcion, callback):
         estado["seccion"] = seccion
         estado["opcion"] = opcion
         _refrescar()
-        callback()  # Se llama exactamente al callback original (sin parámetros nuevos).
-
-    def _vincular_fila(widgets, click, fondo, hover):
-        """Las tres zonas de cada fila responden al clic y al hover."""
-        def _hover(_event=None):
-            fondo.configure(fg_color=hover)
-
-        def _salir(_event=None):
-            _refrescar()
-
-        for widget in widgets:
-            widget.bind("<Button-1>", lambda _event, fn=click: fn())
-            widget.bind("<Enter>", _hover)
-            widget.bind("<Leave>", _salir)
-            widget.bind("<Return>", lambda _event, fn=click: fn())
-            widget.bind("<space>", lambda _event, fn=click: fn())
-            try:
-                widget.configure(cursor="hand2")
-            except (tk.TclError, ValueError):
-                pass
+        callback()  # Callback original sin modificaciones de parámetros.
 
     for clave, simbolo, titulo in secciones:
         items = opciones[clave]
         if not items:
-            continue  # No se muestran encabezados vacíos a roles sin permiso.
+            continue  # No mostrar grupos sin permisos.
 
-        bloque = ctk.CTkFrame(menu_host, fg_color="transparent", corner_radius=0)
-        bloque.pack(fill="x", padx=(3, 3), pady=(3, 3))
-        encabezado = ctk.CTkFrame(
-            bloque, height=43, fg_color=color_cabecera, corner_radius=10,
-        )
-        encabezado.pack(fill="x")
-        encabezado.pack_propagate(False)
-        encabezado.grid_propagate(False)
-        encabezado.grid_columnconfigure(1, weight=1)
-        cab_icono = ctk.CTkLabel(
-            encabezado, text=simbolo, width=31, font=("Segoe UI Symbol", 17),
-            text_color=acento,
-        )
-        cab_icono.grid(row=0, column=0, padx=(5, 1), sticky="nsew")
-        cab_texto = ctk.CTkLabel(
-            encabezado, text=titulo, font=BUTTON_FONT,
-            text_color=WHITE, anchor="w",
-        )
-        cab_texto.grid(row=0, column=1, sticky="nsew")
-        cab_flecha = ctk.CTkLabel(
-            encabezado, text="▸", width=22, font=("Segoe UI Symbol", 17),
-            text_color="#D7E8F3",
-        )
-        cab_flecha.grid(row=0, column=2, padx=(0, 4), sticky="nsew")
+        bloque = ctk.CTkFrame(menu_host, fg_color="transparent", corner_radius=0,
+                              border_width=0)
+        bloque.pack(fill="x", padx=(2, 4), pady=(2, 2))
 
-        contenedor = ctk.CTkFrame(bloque, fg_color="transparent", corner_radius=0)
-        paneles[clave] = (encabezado, contenedor, cab_flecha)
-        _vincular_fila(
-            (encabezado, cab_icono, cab_texto, cab_flecha),
-            lambda k=clave: _abrir_seccion(k), encabezado, color_hover,
+        # Una cabecera = un botón. Sin marcos anidados ni bordes contrastantes.
+        cabecera = ctk.CTkButton(
+            bloque,
+            text=f"{simbolo}   {titulo}",
+            height=42,
+            anchor="w",
+            fg_color=fondo_cabecera,
+            hover_color=hover_cabecera,
+            text_color=color_texto,
+            border_width=0,
+            corner_radius=9,
+            font=BUTTON_FONT,
+            command=lambda k=clave: _abrir_seccion(k),
         )
+        cabecera.pack(fill="x", pady=(1, 1))
+
+        # Flecha alineada a la derecha, también permite desplegar/cerrar.
+        flecha = ctk.CTkLabel(
+            cabecera, text="▸", width=20, height=26,
+            font=("Segoe UI Symbol", 15),
+            text_color="#B5D0DF", fg_color="transparent",
+        )
+        flecha.place(relx=1, x=-6, rely=0.5, anchor="e")
+        flecha.bind("<Button-1>", lambda _e, k=clave: _abrir_seccion(k))
+        try:
+            flecha.configure(cursor="hand2")
+        except (tk.TclError, ValueError):
+            pass
+
+        contenido = ctk.CTkFrame(
+            bloque, fg_color="transparent", corner_radius=0, border_width=0,
+        )
+        paneles[clave] = (cabecera, contenido, flecha)
 
         for ident, icono, nombre, callback in items:
-            fila = ctk.CTkFrame(
-                contenedor, height=37, fg_color=color_item, corner_radius=8,
+            boton = ctk.CTkButton(
+                contenido,
+                text=f"{icono}   {nombre}",
+                height=34,
+                anchor="w",
+                corner_radius=6,
+                fg_color=fondo_opcion,
+                hover_color=hover_opcion,
+                text_color=color_texto_secundario,
+                border_width=0,
+                font=("Segoe UI", 12),
+                command=lambda k=clave, o=ident, fn=callback: _navegar(k, o, fn),
             )
-            fila.pack(fill="x", padx=(15, 1), pady=(2, 1))
-            fila.pack_propagate(False)
-            fila.grid_propagate(False)
-            fila.grid_columnconfigure(2, weight=1)
-            marca = ctk.CTkFrame(fila, width=3, height=24, fg_color="transparent", corner_radius=2)
-            marca.grid(row=0, column=0, sticky="ns", padx=(0, 4), pady=6)
-            boton_icono = ctk.CTkLabel(
-                fila, text=icono, width=26, font=("Segoe UI Emoji", 15),
-                text_color="#CFECFB",
+            boton.pack(fill="x", padx=(12, 1), pady=(1, 1))
+
+            # Único indicador decorativo: línea celeste solo en el activo.
+            # Usamos un marco Tk sin borde para evitar el contorno anti-alias
+            # de un CTkFrame adicional y evitar alteraciones de geometría.
+            marca = tk.Frame(
+                boton, width=3, height=23, bg=acento,
+                borderwidth=0, highlightthickness=0,
             )
-            boton_icono.grid(row=0, column=1, sticky="nsew")
-            boton_texto = ctk.CTkLabel(
-                fila, text=nombre, font=("Segoe UI", 12),
-                text_color="#DCEAF4", anchor="w",
-            )
-            boton_texto.grid(row=0, column=2, padx=(3, 2), sticky="nsew")
-            botones[ident] = (fila, boton_icono, boton_texto, marca)
-            _vincular_fila(
-                (fila, boton_icono, boton_texto, marca),
-                lambda k=clave, o=ident, fn=callback: _navegar(k, o, fn),
-                fila, color_item_hover,
-            )
+            botones[ident] = (boton, marca)
 
     if direccion is not None:
         ident, icono, nombre, callback = direccion
-        separador = ctk.CTkFrame(menu_host, height=1, fg_color="#466177")
-        separador.pack(fill="x", padx=11, pady=(9, 6))
-        fila = ctk.CTkFrame(menu_host, height=43, fg_color=color_cabecera, corner_radius=10)
-        fila.pack(fill="x", padx=3, pady=(0, 4))
-        fila.pack_propagate(False)
-        fila.grid_propagate(False)
-        fila.grid_columnconfigure(2, weight=1)
-        marca = ctk.CTkFrame(fila, width=3, height=24, fg_color="transparent", corner_radius=2)
-        marca.grid(row=0, column=0, sticky="ns", padx=(1, 4), pady=7)
-        boton_icono = ctk.CTkLabel(fila, text=icono, width=31, font=("Segoe UI Emoji", 16), text_color=acento)
-        boton_icono.grid(row=0, column=1, sticky="nsew")
-        boton_texto = ctk.CTkLabel(fila, text=nombre, font=BUTTON_FONT, text_color=WHITE, anchor="w")
-        boton_texto.grid(row=0, column=2, sticky="nsew")
-        botones[ident] = (fila, boton_icono, boton_texto, marca)
-        _vincular_fila(
-            (fila, boton_icono, boton_texto, marca),
-            lambda o=ident, fn=callback: _navegar(None, o, fn),
-            fila, color_hover,
+        separador = ctk.CTkFrame(
+            menu_host, height=1, fg_color="#304B60", corner_radius=0,
+            border_width=0,
         )
+        separador.pack(fill="x", padx=13, pady=(9, 7))
+        boton = ctk.CTkButton(
+            menu_host,
+            text=f"{icono}   {nombre}",
+            height=42,
+            anchor="w",
+            fg_color=fondo_cabecera,
+            hover_color=hover_cabecera,
+            text_color=color_texto,
+            border_width=0,
+            corner_radius=9,
+            font=BUTTON_FONT,
+            command=lambda o=ident, fn=callback: _navegar(None, o, fn),
+        )
+        boton.pack(fill="x", padx=(4, 5), pady=(0, 5))
+        marca = tk.Frame(
+            boton, width=3, height=23, bg=acento,
+            borderwidth=0, highlightthickness=0,
+        )
+        botones[ident] = (boton, marca)
 
-    # Para el rol Administrador se abre Operaciones; otros roles ven primero
-    # la primera sección permitida (Compras, Almacén, etc.).
+    # La primera sección permitida comienza desplegada como antes.
     estado["seccion"] = next(iter(paneles), None)
     _refrescar()
     sidebar._axia_menu_activar = _navegar
@@ -568,9 +574,10 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
     menu_scroll = ctk.CTkScrollableFrame(
         sidebar,
         width=215,
-        fg_color="transparent",
-        corner_radius=0,
-        scrollbar_button_color="#4A6880",
+        fg_color="#0E2539",
+        corner_radius=10,
+        border_width=0,
+        scrollbar_button_color="#36556C",
         scrollbar_button_hover_color="#70D7FB",
     )
     menu_scroll.pack(side="top", fill="both", expand=True, padx=(5, 3), pady=(2, 4))
