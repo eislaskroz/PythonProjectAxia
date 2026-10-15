@@ -718,6 +718,13 @@ def generar_pdf_seguridad_instalacion(
     story.append(_key_value_table(general_rows, [1.35*inch, 2.75*inch, 1.18*inch, 1.62*inch], normal, label))
     story.append(Spacer(1, 7))
 
+    # En registros anteriores pueden existir datos de rack pese a haber marcado
+    # infraestructura reutilizable. El PDF debe respetar la selección actual.
+    infra_reutilizable = str(infra.get("existe_infraestructura") or "").strip().casefold() in {"sí", "si", "yes", "true", "1"}
+    if infra_reutilizable:
+        rack = {}
+        materiales_rack_tierra = []
+
     # 2) Infraestructura existente y rack/energía en paralelo.
     left = _key_value_table([
         ["Existe infraestructura", infra.get("existe_infraestructura")],
@@ -732,21 +739,24 @@ def generar_pdf_seguridad_instalacion(
         ["Contacto regulado", rack.get("contacto_regulado"), rack.get("detalle_contacto_regulado") or "No aplica"],
         ["Tierra física", rack.get("tierra_fisica"), rack.get("detalle_tierra_fisica") or "No aplica"],
     ]
-    right_data = [[_p(a, label, ""), _p(b, normal, ""), _p(c, normal, "")] for a,b,c in right_rows]
-    right = Table(right_data, colWidths=[1.25*inch, .72*inch, 1.38*inch])
-    right.setStyle(TableStyle([
-        ("GRID", (0,0), (-1,-1), .45, BORDER),
-        ("BACKGROUND", (0,0), (0,-1), LIGHT_BLUE),
-        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-        ("LEFTPADDING", (0,0), (-1,-1), 3),
-        ("RIGHTPADDING", (0,0), (-1,-1), 3),
-        ("TOPPADDING", (0,0), (-1,-1), 2.5),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 2.5),
-    ]))
-    pair = Table([[left, right]], colWidths=[3.35*inch, 3.45*inch])
-    pair.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "TOP"), ("LEFTPADDING", (0,0), (-1,-1), 0), ("RIGHTPADDING", (0,0), (-1,-1), 0)]))
-    story.append(pair)
-    story.append(Spacer(1, 5))
+    if infra_reutilizable:
+        story.append(left)
+    else:
+        right_data = [[_p(a, label, ""), _p(b, normal, ""), _p(c, normal, "")] for a,b,c in right_rows]
+        right = Table(right_data, colWidths=[1.25*inch, .72*inch, 1.38*inch])
+        right.setStyle(TableStyle([
+            ("GRID", (0,0), (-1,-1), .45, BORDER),
+            ("BACKGROUND", (0,0), (0,-1), LIGHT_BLUE),
+            ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+            ("LEFTPADDING", (0,0), (-1,-1), 3),
+            ("RIGHTPADDING", (0,0), (-1,-1), 3),
+            ("TOPPADDING", (0,0), (-1,-1), 2.5),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 2.5),
+        ]))
+        pair = Table([[left, right]], colWidths=[3.35*inch, 3.45*inch])
+        pair.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "TOP"), ("LEFTPADDING", (0,0), (-1,-1), 0), ("RIGHTPADDING", (0,0), (-1,-1), 0)]))
+        story.append(pair)
+        story.append(Spacer(1, 5))
 
     rack_tierra_rows = []
     for item in materiales_rack_tierra:
@@ -784,17 +794,15 @@ def generar_pdf_seguridad_instalacion(
     story.append(access_table)
     story.append(Spacer(1, 6))
 
-    # 4) Datos técnicos CCTV.
-    requiere_camaras = cctv.get("requiere_camaras") or "No definido"
-    story.append(_key_value_table([["¿Se requieren cámaras?", requiere_camaras]], [1.8*inch, .85*inch], normal, label))
-    story.append(Spacer(1, 5))
-    cctv_headers = ["¿Cuántas cámaras?", "¿Tipo de cámaras?", "Ubicación NVR/DVR", "Punto de enlace de red", "Punto de energía"]
-    cctv_rows = [["No aplica"] * 5] if requiere_camaras == "No" else [[
-        cctv.get("cantidad_camaras"), cctv.get("tipo_camaras"), cctv.get("ubicacion_nvr_dvr"),
-        cctv.get("punto_red"), cctv.get("punto_energia")
-    ]]
-    story.append(_matrix_table(cctv_headers, cctv_rows, [1.0*inch,1.15*inch,1.45*inch,1.65*inch,1.65*inch], normal, header))
-    story.append(Spacer(1, 6))
+    # 4) Datos técnicos CCTV. Las cámaras se capturan en Equipos principales.
+    # No condicionar las ubicaciones al selector histórico "requiere_camaras":
+    # ya no existe en el formulario actual, pero puede seguir en registros viejos.
+    ubicaciones = {
+        "ubicacion_nvr_dvr": cctv.get("ubicacion_nvr_dvr"),
+        "punto_red": cctv.get("punto_red"),
+        "punto_energia": cctv.get("punto_energia"),
+    }
+    _append_mapping_section(story, "Ubicaciones y conexiones CCTV", ubicaciones, width, normal, label, header)
 
     # 5) Canalización dinámica.
     requires = "Sí" if canalizacion else "No"
@@ -908,6 +916,7 @@ SECTION_TITLES = {
     "necesidad_alcance": "Necesidad inicial y alcance",
     "necesidad_respaldo": "Necesidad inicial y respaldo",
     "condiciones_sitio": "Condiciones del sitio",
+    "condiciones_sitio_ruta": "Condiciones del sitio y ruta",
     "equipo_requerido": "Equipo requerido",
     "ubicacion_instalacion": "Ubicación de instalación",
     "infraestructura_necesaria": "Infraestructura necesaria",
@@ -1025,6 +1034,18 @@ def _visible_declarative_sections(tipo: str, sections: Mapping[str, Any]) -> lis
     vio/capturó, no imprimir bloques ocultos con valores por defecto como "No aplica".
     """
     items = [(str(k), v) for k, v in sections.items() if isinstance(v, Mapping)]
+    # Bloques retirados de la interfaz: mantenerlos en JSON para compatibilidad,
+    # pero no volver a mostrarlos en documentos de registros históricos.
+    legacy_hidden = {
+        "redes voz y datos": {"equipo_activo"},
+        "control de accesos": {
+            "lectores_autenticacion_usuarios", "cerraduras_puertas_barreras",
+            "red_energia_canalizacion",
+        },
+    }
+    hidden = legacy_hidden.get(tipo.casefold(), set())
+    items = [(key, value) for key, value in items if key.casefold() not in hidden]
+
 
     # Control de Accesos y Enlaces Inalámbricos migraron la canalización a la
     # captura dinámica común. Los registros históricos pueden conservar el bloque
@@ -1399,6 +1420,14 @@ def generar_pdf_levantamiento_maestro(
             # Formularios especializados clásicos: un bloque por clave raíz.
             for key, value in detail.items():
                 if key in SPECIAL_ROOT_KEYS:
+                    continue
+                if tipo.casefold() == "seguridad y monitoreo" and key == "rack_gabinete_energia":
+                    infra = detail.get("infraestructura_existente")
+                    if isinstance(infra, Mapping) and str(infra.get("existe_infraestructura") or "").strip().casefold() in {"sí", "si", "yes", "true", "1"}:
+                        continue
+                if tipo.casefold() == "seguridad y monitoreo" and key == "datos_tecnicos_cctv" and isinstance(value, Mapping):
+                    value = {k: v for k, v in value.items() if k not in {"cantidad_camaras", "tipo_camaras"}}
+                if tipo.casefold() == "redes voz y datos" and key == "equipo_activo":
                     continue
                 if isinstance(value, Mapping):
                     # Obra Civil / AXIA FIELD: estas claves planas son metadatos

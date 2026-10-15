@@ -313,6 +313,11 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     var_sistema_acceso_comun = ctk.StringVar(value="Escalera")
     var_altura_comun = ctk.StringVar()
     var_riesgo_comun = ctk.StringVar(value="Bajo")
+    # Condiciones operativas del sitio, compartidas sin duplicar la sección propia de Redes.
+    var_sitio_horario_comun = ctk.StringVar()
+    var_sitio_acceso_comun = ctk.StringVar(value="Fácil acceso")
+    var_sitio_permiso_comun = ctk.StringVar(value="No")
+    var_sitio_riesgo_comun = ctk.StringVar(value="Bajo")
     # Equipo de Protección Personal (EPP) común a TODOS los levantamientos.
     # Si se requiere, se captura un listado estructurado para conservarlo en el JSON técnico.
     var_requiere_epp = ctk.StringVar(value="Sí" if not (registro_editar or borrador) else "No")
@@ -3035,6 +3040,43 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         agregar_partida_canalizacion("Tubo")
         fila_textos += 1
 
+    # Condiciones del sitio: se omite en Tecnología (suministro) y en Redes,
+    # que ya dispone de estos mismos campos en su sección especializada.
+    TIPOS_CON_CONDICIONES_SITIO = {
+        "Seguridad y Monitoreo", "Control de Accesos", "Enlaces Inalámbricos",
+        "Electricidad", "Paneles Solares", "Plantas de Energía", "Aires Acondicionados",
+    }
+    if tipo_levantamiento in TIPOS_CON_CONDICIONES_SITIO:
+        sitio_comun = ctk.CTkFrame(form_body, fg_color="#F7F9FC", corner_radius=14,
+                                   border_width=1, border_color="#DCE5EF")
+        _fondo_seccion(sitio_comun)
+        sitio_comun.grid(row=fila_textos, column=0, columnspan=5, sticky="ew", pady=(2, 5))
+        for col in range(4):
+            sitio_comun.grid_columnconfigure(col, weight=1, uniform="sitio_cols")
+        ctk.CTkLabel(sitio_comun, text="📍 Condiciones del sitio y ruta",
+                     font=FORM_SECTION_FONT, text_color=TEXT_PRIMARY).grid(
+                         row=0, column=0, columnspan=4, sticky="w", padx=7, pady=(5, 3))
+        for col, (etiqueta, variable, opciones) in enumerate((
+            ("Horario permitido para trabajo", var_sitio_horario_comun, None),
+            ("Acceso para instalación", var_sitio_acceso_comun,
+             ["Fácil acceso", "Difícil acceso", "Requiere maniobra"]),
+            ("¿Requiere permiso del sitio?", var_sitio_permiso_comun, ["Sí", "No", "Por validar"]),
+            ("Nivel de riesgo", var_sitio_riesgo_comun, ["Bajo", "Medio", "Alto", "Crítico"]),
+        )):
+            ctk.CTkLabel(sitio_comun, text=etiqueta, font=FORM_FIELD_FONT,
+                         text_color=TEXT_PRIMARY, anchor="w").grid(
+                             row=1, column=col, sticky="w", padx=6, pady=(2, 1))
+            if opciones is None:
+                widget = ctk.CTkEntry(sitio_comun, textvariable=variable,
+                                      height=FORM_CONTROL_HEIGHT, corner_radius=0,
+                                      font=FORM_FIELD_FONT)
+            else:
+                widget = NativeComboBox(sitio_comun, variable=variable,
+                                        values=opciones, height=FORM_CONTROL_HEIGHT,
+                                        font=FORM_FIELD_FONT)
+            widget.grid(row=2, column=col, sticky="ew", padx=6, pady=(0, 4))
+        fila_textos += 1
+
     # =============================================================
     # ACCESO, ALTURAS Y RIESGOS - COMÚN A ESPECIALIDADES FALTANTES
     # =============================================================
@@ -5008,6 +5050,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         detalle = obtener_detalle_tecnico_json() if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else {}
         detalle = dict(detalle or {})
         detalle["datos_generales_axia"] = {}
+        if tipo_levantamiento in TIPOS_CON_CONDICIONES_SITIO:
+            detalle["condiciones_sitio_ruta"] = {
+                "horario_trabajo": var_sitio_horario_comun.get().strip(),
+                "acceso_instalacion": var_sitio_acceso_comun.get().strip(),
+                "requiere_permiso": var_sitio_permiso_comun.get().strip(),
+                "nivel_riesgo": var_sitio_riesgo_comun.get().strip(),
+            }
         detalle["recursos_proyectados"] = {
             "duracion_proyecto": var_duracion_proyecto.get().strip(),
             "horas_estimadas": var_horas_estimadas_general.get().strip() if var_duracion_proyecto.get() == "Un día" else "",
@@ -5152,6 +5201,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         detalle = obtener_detalle_tecnico_json() if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else {}
         detalle = dict(detalle or {})
         detalle["datos_generales_axia"] = {}
+        if tipo_levantamiento in TIPOS_CON_CONDICIONES_SITIO:
+            detalle["condiciones_sitio_ruta"] = {
+                "horario_trabajo": var_sitio_horario_comun.get().strip(),
+                "acceso_instalacion": var_sitio_acceso_comun.get().strip(),
+                "requiere_permiso": var_sitio_permiso_comun.get().strip(),
+                "nivel_riesgo": var_sitio_riesgo_comun.get().strip(),
+            }
         detalle["recursos_proyectados"] = {
             "duracion_proyecto": var_duracion_proyecto.get().strip(),
             "horas_estimadas": var_horas_estimadas_general.get().strip() if var_duracion_proyecto.get() == "Un día" else "",
@@ -5466,6 +5522,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 logger.debug("No fue posible restaurar una partida de EPP.", exc_info=True)
         actualizar_visibilidad_epp()
 
+        sitio_guardado = detalle.get("condiciones_sitio_ruta") if isinstance(detalle.get("condiciones_sitio_ruta"), dict) else {}
+        if tipo_levantamiento in TIPOS_CON_CONDICIONES_SITIO and sitio_guardado:
+            var_sitio_horario_comun.set(str(sitio_guardado.get("horario_trabajo") or ""))
+            var_sitio_acceso_comun.set(str(sitio_guardado.get("acceso_instalacion") or "Fácil acceso"))
+            var_sitio_permiso_comun.set(str(sitio_guardado.get("requiere_permiso") or "No"))
+            var_sitio_riesgo_comun.set(str(sitio_guardado.get("nivel_riesgo") or "Bajo"))
+
         acceso_guardado = detalle.get("acceso_alturas_riesgos") if isinstance(detalle.get("acceso_alturas_riesgos"), dict) else {}
         if tipo_levantamiento in TIPOS_CON_ACCESO_COMUN and acceso_guardado:
             var_trabajo_alturas_comun.set(str(acceso_guardado.get("trabajo_alturas") or "No"))
@@ -5649,6 +5712,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS:
             modalidad_operativa = modalidad_seleccionada()
             detalle_tecnico = obtener_detalle_tecnico_json()
+            if tipo_levantamiento in TIPOS_CON_CONDICIONES_SITIO:
+                detalle_tecnico["condiciones_sitio_ruta"] = {
+                    "horario_trabajo": var_sitio_horario_comun.get().strip(),
+                    "acceso_instalacion": var_sitio_acceso_comun.get().strip(),
+                    "requiere_permiso": var_sitio_permiso_comun.get().strip(),
+                    "nivel_riesgo": var_sitio_riesgo_comun.get().strip(),
+                }
             detalle_tecnico["recursos_proyectados"] = {
                 "dias_trabajo": var_dias_trabajo_general.get().strip(),
                 "personas_considerar": var_personas_considerar_general.get().strip(),
