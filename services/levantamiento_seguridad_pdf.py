@@ -15,6 +15,7 @@ from html import escape
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 from services.levantamiento_compat import normalizar_registro_levantamiento
+from services.levantamiento_autoria import nombre_elaborador
 
 from reportlab.lib import colors
 from reportlab.lib.units import inch
@@ -167,6 +168,60 @@ def _append_vobo_cliente(story: list, registro: Mapping[str, Any], detail: Mappi
         ("TOPPADDING", (0,0), (-1,-1), 7),
         ("BOTTOMPADDING", (0,0), (-1,-1), 7),
     ]))
+    story.append(tabla)
+
+
+def _consultar_nombre_usuario_creador(nickname: str) -> Mapping[str, Any] | None:
+    """Compatibilidad con LEV históricos sin instantánea de autoría.
+
+    Busca únicamente el autor original indicado por creado_por, nunca usa el
+    usuario que actualmente está consultando o imprimiendo el documento.
+    """
+    try:
+        from supabase_config import supabase, TABLA_USUARIOS
+
+        resultado = (
+            supabase.table(TABLA_USUARIOS)
+            .select("usu_nombre,usu_apellido")
+            .eq("usu_nickname", nickname)
+            .limit(1)
+            .execute()
+        )
+        return resultado.data[0] if resultado.data else None
+    except Exception as error:
+        logger.warning("No se pudo consultar al autor original del LEV (%s): %s", nickname, error)
+        return None
+
+
+def _append_elaborado_por(
+    story: list,
+    registro: Mapping[str, Any],
+    detail: Mapping[str, Any],
+    width: float,
+    normal,
+) -> None:
+    """Firma informativa al final de cada LEV (nunca suplanta el VoBo)."""
+    nombre = nombre_elaborador(registro, detail, buscar_usuario=_consultar_nombre_usuario_creador)
+    if not nombre:
+        # No atribuimos a un operador equivocado un LEV histórico sin autor.
+        logger.warning("Sin autor identificable para el LEV %s", registro.get("lev_folio") or "sin folio")
+        return
+
+    texto = Paragraph(
+        '<font color="#1F4E79"><b>ELABORADO POR:</b></font> ' + escape(nombre),
+        normal,
+    )
+    tabla = Table([[texto]], colWidths=[width], hAlign="LEFT")
+    tabla.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), LIGHT),
+        ("LINEABOVE", (0, 0), (-1, 0), 0.7, BLUE),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 9),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 9),
+        ("TOPPADDING", (0, 0), (-1, -1), 9),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 9),
+    ]))
+    story.append(Spacer(1, 11))
     story.append(tabla)
 
 
@@ -858,6 +913,7 @@ def generar_pdf_seguridad_instalacion(
     _append_archivos_adjuntos(story, registro, width, normal, header)
     _append_evidencias_fotograficas(story, registro, width, header)
     _append_vobo_cliente(story, registro, detail, width, normal, header)
+    _append_elaborado_por(story, registro, detail, width, normal)
 
     title = "Levantamiento Seguridad y Monitoreo - Instalación"
     doc.title = f"AXIA - {title}"
@@ -971,7 +1027,7 @@ RESOURCE_KEYS_PEOPLE = {"personas_trabajo", "personas_considerar", "personas_con
 SPECIAL_ROOT_KEYS = {
     "tipo_levantamiento", "modalidad_operativa", "canalizacion_materiales",
     "equipos_principales", "materiales_miscelaneos", "equipos_danados", "epp", "herramientas",
-    "descripcion_general_fallas", "mantenimiento",
+    "descripcion_general_fallas", "mantenimiento", "elaborado_por",
 }
 
 
@@ -1571,6 +1627,7 @@ def generar_pdf_levantamiento_maestro(
     _append_archivos_adjuntos(story, registro, width, normal, header)
     _append_evidencias_fotograficas(story, registro, width, header)
     _append_vobo_cliente(story, registro, detail, width, normal, header)
+    _append_elaborado_por(story, registro, detail, width, normal)
 
     title = f"Levantamiento {tipo}" + (f" - {modalidad}" if modalidad else "")
     doc.title = f"AXIA - {title}"

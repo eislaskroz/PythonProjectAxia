@@ -131,6 +131,7 @@ def _abrir_selector_dias_horario(parent, variable):
     ctk.CTkButton(botones, text="Aplicar horario", fg_color=PRIMARY, command=guardar, width=150).pack(side="right")
 
 from app_context import obtener_usuario_actual
+from services.levantamiento_autoria import autoria_desde_usuario
 from services.movimientos_service import registrar_movimiento
 from services.materiales_catalogo_service import obtener_materiales_por_especialidad, UNIDADES_MATERIAL
 from services.equipos_catalogo_service import (
@@ -252,7 +253,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     frame_botones = ctk.CTkFrame(
         contenedor,
         fg_color="#F4F4F4",
-        height=84,
+        height=106,
         corner_radius=0
     )
     frame_botones.pack(side="bottom", fill="x", pady=(0, 0))
@@ -1132,6 +1133,40 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         form_body.grid_columnconfigure(_col, weight=1, uniform="form_cols")
 
     fila_actual = {"valor": 0}
+
+    # Los observadores trace_add se activan también al restaurar un LEV.
+    # Estas funciones se declaran antes de crear los controles, para evitar
+    # NameError: cannot access free variable 'programar_actualizacion_estado_preview'.
+    # Durante la construcción no se valida: todavía no existen los botones.
+    _preview_lista_activa = False
+    _preview_after_id = None
+
+    def actualizar_estado_preview():
+        """Punto de entrada seguro, incluso durante la restauración."""
+        if _preview_lista_activa:
+            _actualizar_estado_preview_impl()
+
+    def programar_actualizacion_estado_preview(delay_ms=110):
+        """Agrupa cambios cuando la interfaz ya está completamente armada."""
+        nonlocal _preview_after_id
+        if not _preview_lista_activa:
+            return
+        if _preview_after_id is not None:
+            try:
+                form_body.after_cancel(_preview_after_id)
+            except Exception:
+                logger.debug("No se pudo cancelar actualización previa.", exc_info=True)
+            _preview_after_id = None
+
+        def ejecutar_pendiente():
+            nonlocal _preview_after_id
+            _preview_after_id = None
+            actualizar_estado_preview()
+
+        try:
+            _preview_after_id = form_body.after(delay_ms, ejecutar_pendiente)
+        except Exception:
+            actualizar_estado_preview()
 
     def _label_campo(parent_columna, texto):
         iconos = {
@@ -4946,6 +4981,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         modalidad = modalidad_seleccionada()
         detalle = obtener_detalle_tecnico_json() if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else {}
         detalle = dict(detalle or {})
+        # Autoría del usuario autenticado; siempre toma usu_nombre y usu_apellido.
+        detalle["elaborado_por"] = autoria_desde_usuario(usuario_activo)
         detalle["datos_generales_axia"] = {}
         if tipo_levantamiento in TIPOS_CON_CONDICIONES_SITIO:
             detalle["condiciones_sitio_ruta"] = {
@@ -5098,6 +5135,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         modalidad = modalidad_seleccionada()
         detalle = obtener_detalle_tecnico_json() if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else {}
         detalle = dict(detalle or {})
+        # Autoría del usuario autenticado; siempre toma usu_nombre y usu_apellido.
+        detalle["elaborado_por"] = autoria_desde_usuario(usuario_activo)
         detalle["datos_generales_axia"] = {}
         if tipo_levantamiento in TIPOS_CON_CONDICIONES_SITIO:
             detalle["condiciones_sitio_ruta"] = {
@@ -5618,6 +5657,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS:
             modalidad_operativa = modalidad_seleccionada()
             detalle_tecnico = obtener_detalle_tecnico_json()
+            # Instantánea para que la autoría original sobreviva a reimpresiones.
+            detalle_tecnico["elaborado_por"] = autoria_desde_usuario(usuario_activo)
             if tipo_levantamiento in TIPOS_CON_CONDICIONES_SITIO:
                 detalle_tecnico["condiciones_sitio_ruta"] = {
                     "horario_trabajo": var_sitio_horario_comun.get().strip(),
@@ -5917,14 +5958,28 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     # La barra inferior ya fue reservada antes de empaquetar el área
     # desplazable; aquí solamente agregamos sus controles.
 
+    # Separar el aviso de validación y su botón de consulta de las acciones
+    # principales. Antes «Ver campos pendientes» y «Cancelar» compartían la
+    # columna 3 del mismo grid, de modo que Cancelar tapaba el botón naranja.
+    # Esta fila independiente también evita desbordamientos en ventanas angostas.
+    fila_estado_preview = ctk.CTkFrame(frame_botones, fg_color="transparent")
+    fila_estado_preview.pack(fill="x", padx=12, pady=(4, 0))
+    fila_estado_preview.grid_columnconfigure(0, weight=1)
+
     lbl_faltantes_preview = ctk.CTkLabel(
-        frame_botones, text="", font=FORM_FIELD_FONT, text_color="#B45309",
-        anchor="center", justify="center", wraplength=1050
+        fila_estado_preview, text="", font=FORM_FIELD_FONT, text_color="#B45309",
+        anchor="w", justify="left", wraplength=800
     )
-    lbl_faltantes_preview.pack(fill="x", padx=12, pady=(3, 0))
+    lbl_faltantes_preview.grid(row=0, column=0, sticky="ew", padx=(0, 8))
+
+    def ajustar_ancho_aviso_preview(event):
+        # Reservar espacio para el botón a la derecha, sin truncar el aviso.
+        lbl_faltantes_preview.configure(wraplength=max(180, event.width - 218))
+
+    fila_estado_preview.bind("<Configure>", ajustar_ancho_aviso_preview, add="+")
 
     barra_botones = ctk.CTkFrame(frame_botones, fg_color="transparent")
-    barra_botones.pack(anchor="center", pady=4)
+    barra_botones.pack(anchor="center", pady=(5, 4))
 
     carpeta_iconos = Path(__file__).resolve().parent.parent / "assets" / "iconos"
 
@@ -6000,15 +6055,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                                f"Revisa estos {len(faltantes)} requisito(s):\n\n{detalle}")
 
     btn_ver_pendientes = ctk.CTkButton(
-        barra_botones, text="Ver campos pendientes", width=180, height=38,
-        corner_radius=10, fg_color="#92400E", hover_color="#78350F",
+        fila_estado_preview, text="Ver campos pendientes", width=184, height=30,
+        corner_radius=9, fg_color="#92400E", hover_color="#78350F",
         font=BUTTON_FONT, command=mostrar_campos_pendientes,
     )
-    btn_ver_pendientes.grid(row=0, column=3, padx=4)
+    btn_ver_pendientes.grid(row=0, column=1, sticky="e")
 
-    _preview_after_id = None
-
-    def actualizar_estado_preview():
+    def _actualizar_estado_preview_impl():
         """Misma lista controla el texto de ayuda y el estado de los botones."""
         faltantes = campos_faltantes_preview()
         completo = not faltantes
@@ -6022,7 +6075,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             if len(faltantes) > 3:
                 resumen += f" y {len(faltantes) - 3} más"
             lbl_faltantes_preview.configure(
-                text=f"⚠ Faltan {len(faltantes)} requisito(s): {resumen}. Pulsa «Ver campos pendientes» para verlos todos.",
+                text=f"⚠ Faltan {len(faltantes)} requisito(s): {resumen}.",
                 text_color="#B45309",
             )
         btn_ver_pendientes.configure(state="normal" if faltantes else "disabled")
@@ -6036,23 +6089,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             fg_color=SECONDARY if completo else "#9CA3AF",
             hover_color=BUTTON_HOVER if completo else "#9CA3AF",
         )
-
-    def programar_actualizacion_estado_preview(delay_ms=110):
-        """Agrupa múltiples cambios consecutivos para evitar recalcular todo por tecla.
-
-        Los formularios grandes tienen más de cien variables observadas. Sin debounce,
-        cada pulsación podía recorrer todas las reglas de validación varias veces.
-        """
-        nonlocal _preview_after_id
-        try:
-            if _preview_after_id is not None:
-                form_body.after_cancel(_preview_after_id)
-        except Exception:
-            pass
-        try:
-            _preview_after_id = form_body.after(delay_ms, actualizar_estado_preview)
-        except Exception:
-            actualizar_estado_preview()
 
     variables_preview = [
         var_nombre_servicio, var_folio, var_cliente, var_modalidad_levantamiento, var_desea_notas_cliente, var_notas_cliente,
@@ -6123,6 +6159,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         txt_rep_infraestructura.bind("<KeyRelease>", lambda _event: programar_actualizacion_estado_preview(), add="+")
     except Exception:
         logger.debug("Excepción recuperable controlada.", exc_info=True)
+    # Ahora ya están creadas todas las variables, secciones y acciones.
+    # Recalcular sobre los datos recuperados de la versión editada.
+    _preview_lista_activa = True
     actualizar_estado_preview()
 
     ctk.CTkButton(
