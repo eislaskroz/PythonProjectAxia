@@ -34,7 +34,18 @@ def _read_path(data: Mapping[str, Any], path: str, default: Any = "") -> Any:
 
 
 def _non_empty(value: Any) -> bool:
-    return value not in (None, "", [], {}, ())
+    if value is None or value is False:
+        return False
+    if isinstance(value, str):
+        return value.strip().casefold() not in {
+            "", "no", "no aplica", "n/a", "na", "no requerido",
+            "no requerida", "no definido", "no definida",
+            "no especificado", "no especificada", "sin información",
+            "sin informacion", "sin datos", "false", "null",
+        }
+    if isinstance(value, (Mapping, list, tuple, set)):
+        return bool(value)
+    return True
 
 
 @dataclass(frozen=True)

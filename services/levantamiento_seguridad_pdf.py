@@ -524,7 +524,7 @@ def _section_title(title: str, width: float, header_style) -> Table:
 
 def _key_value_table(rows: Sequence[Sequence[Any]], widths: Sequence[float], normal, label) -> Table:
     data = []
-    for row in rows:
+    for row in _pdf_filter_pairs(rows):
         converted = []
         for idx, value in enumerate(row):
             converted.append(_p(value, label if idx % 2 == 0 else normal, ""))
@@ -547,7 +547,7 @@ def _key_value_table(rows: Sequence[Sequence[Any]], widths: Sequence[float], nor
 
 def _matrix_table(headers: Sequence[str], rows: Sequence[Sequence[Any]], widths: Sequence[float], normal, table_header) -> LongTable:
     data = [[Paragraph(escape(str(h)), table_header) for h in headers]]
-    for row in rows:
+    for row in _pdf_filter_table_rows(rows):
         data.append([_p(value, normal, "") for value in row])
     table = LongTable(data, colWidths=list(widths), repeatRows=1, splitByRow=1)
     table.setStyle(TableStyle([
@@ -573,7 +573,7 @@ def _section_matrix_table(title: str, headers: Sequence[str], rows: Sequence[Seq
     total_cols = len(headers)
     data = [[Paragraph(escape(str(title).upper()), table_header)] + [""] * (total_cols - 1)]
     data.append([Paragraph(escape(str(h)), table_header) for h in headers])
-    for row in rows:
+    for row in _pdf_filter_table_rows(rows):
         data.append([_p(value, normal, "") for value in row])
     table = LongTable(data, colWidths=list(widths), repeatRows=2, splitByRow=1)
     table.setStyle(TableStyle([
@@ -725,38 +725,21 @@ def generar_pdf_seguridad_instalacion(
         rack = {}
         materiales_rack_tierra = []
 
-    # 2) Infraestructura existente y rack/energía en paralelo.
-    left = _key_value_table([
-        ["Existe infraestructura", infra.get("existe_infraestructura")],
-        ["Tipo de infraestructura", infra.get("tipo_infraestructura_existente") or "No aplica"],
-        ["Estado general", infra.get("estado_general") or "No aplica"],
-    ], [1.55*inch, 1.70*inch], normal, label)
-    rack_detalle = rack.get("tipo_rack") or "No aplica"
-    right_rows = [
-        ["Rack", rack.get("rack_requerido"), rack_detalle],
-        ["Gabinete", rack.get("gabinete_requerido"), rack.get("tipo_gabinete") or "No aplica"],
-        ["UPS", rack.get("ups_requerida"), rack.get("tipo_ups") or "No aplica"],
-        ["Contacto regulado", rack.get("contacto_regulado"), rack.get("detalle_contacto_regulado") or "No aplica"],
-        ["Tierra física", rack.get("tierra_fisica"), rack.get("detalle_tierra_fisica") or "No aplica"],
-    ]
-    if infra_reutilizable:
-        story.append(left)
-    else:
-        right_data = [[_p(a, label, ""), _p(b, normal, ""), _p(c, normal, "")] for a,b,c in right_rows]
-        right = Table(right_data, colWidths=[1.25*inch, .72*inch, 1.38*inch])
-        right.setStyle(TableStyle([
-            ("GRID", (0,0), (-1,-1), .45, BORDER),
-            ("BACKGROUND", (0,0), (0,-1), LIGHT_BLUE),
-            ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-            ("LEFTPADDING", (0,0), (-1,-1), 3),
-            ("RIGHTPADDING", (0,0), (-1,-1), 3),
-            ("TOPPADDING", (0,0), (-1,-1), 2.5),
-            ("BOTTOMPADDING", (0,0), (-1,-1), 2.5),
-        ]))
-        pair = Table([[left, right]], colWidths=[3.35*inch, 3.45*inch])
-        pair.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "TOP"), ("LEFTPADDING", (0,0), (-1,-1), 0), ("RIGHTPADDING", (0,0), (-1,-1), 0)]))
-        story.append(pair)
-        story.append(Spacer(1, 5))
+    # 2) Mostrar solo información afirmativa/capturada; los controles "No"
+    # y sus detalles dependientes no forman parte del documento.
+    _append_mapping_section(
+        story, "Infraestructura existente",
+        {
+            "tipo_infraestructura_existente": infra.get("tipo_infraestructura_existente"),
+            "estado_general": infra.get("estado_general"),
+        },
+        width, normal, label, header,
+    )
+    if not infra_reutilizable:
+        _append_mapping_section(
+            story, "Rack, gabinete y energía",
+            _filter_pdf_dependencies(rack), width, normal, label, header,
+        )
 
     rack_tierra_rows = []
     for item in materiales_rack_tierra:
@@ -775,24 +758,19 @@ def generar_pdf_seguridad_instalacion(
         ))
         story.append(Spacer(1, 6))
 
-    # 3) Acceso, alturas y riesgos.
-    access_rows = [[
-        "¿Se trabajará en Alturas?", access.get("trabajo_alturas") or access.get("escalera_andamio"),
-        "Sistema de acceso", access.get("sistema_acceso_temporal") or "No aplica",
-        "Altura", access.get("altura_trabajo") or "No aplica",
-        "Riesgo", access.get("riesgo_instalacion") or "No aplica",
-    ]]
-    access_table = Table([[ _p(v, label if i in (0,2,4,6) else normal, "") for i,v in enumerate(access_rows[0]) ]],
-                         colWidths=[1.35*inch, .45*inch, 1.0*inch, .8*inch, .48*inch, .72*inch, .45*inch, 1.65*inch])
-    access_table.setStyle(TableStyle([
-        ("GRID", (0,0), (-1,-1), .45, BORDER), ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-        ("BACKGROUND", (0,0), (0,0), LIGHT_BLUE), ("BACKGROUND", (2,0), (2,0), LIGHT_BLUE),
-        ("BACKGROUND", (4,0), (4,0), LIGHT_BLUE), ("BACKGROUND", (6,0), (6,0), LIGHT_BLUE),
-        ("LEFTPADDING", (0,0), (-1,-1), 3), ("RIGHTPADDING", (0,0), (-1,-1), 3),
-        ("TOPPADDING", (0,0), (-1,-1), 2.5), ("BOTTOMPADDING", (0,0), (-1,-1), 2.5),
-    ]))
-    story.append(access_table)
-    story.append(Spacer(1, 6))
+    # 3) Acceso, alturas y riesgos. Si NO hay trabajo en altura,
+    # sus campos subordinados no deben reaparecer por datos históricos.
+    access_visible = _filter_pdf_dependencies(access)
+    if str(access.get("trabajo_alturas") or access.get("escalera_andamio") or "").strip().casefold() in {"no", "false", "0"}:
+        for key in ("sistema_acceso_temporal", "altura_trabajo", "tipo_altura", "escalera_andamio"):
+            access_visible.pop(key, None)
+    _append_mapping_section(story, "Acceso, alturas y riesgos", access_visible, width, normal, label, header)
+
+    # Condiciones del sitio y ruta: bloque común de las especialidades,
+    # visible solo si existen respuestas positivas o datos capturados.
+    sitio = detail.get("condiciones_sitio_ruta")
+    if isinstance(sitio, Mapping):
+        _append_mapping_section(story, "Condiciones del sitio y ruta", sitio, width, normal, label, header)
 
     # 4) Datos técnicos CCTV. Las cámaras se capturan en Equipos principales.
     # No condicionar las ubicaciones al selector histórico "requiere_camaras":
@@ -805,8 +783,6 @@ def generar_pdf_seguridad_instalacion(
     _append_mapping_section(story, "Ubicaciones y conexiones CCTV", ubicaciones, width, normal, label, header)
 
     # 5) Canalización dinámica.
-    requires = "Sí" if canalizacion else "No"
-    story.append(_key_value_table([["¿Se requiere canalización?", requires]], [1.8*inch, .85*inch], normal, label))
     if canalizacion:
         story.append(Spacer(1, 5))
         rows = []
@@ -814,7 +790,7 @@ def generar_pdf_seguridad_instalacion(
             if not isinstance(item, Mapping):
                 continue
             rows.append([
-                item.get("categoria"), item.get("tipo"), item.get("tamano_calibre_especificacion") or "No aplica",
+                item.get("categoria"), item.get("tipo"), item.get("tamano_calibre_especificacion") or "",
                 item.get("cantidad"), item.get("unidad")
             ])
         if rows:
@@ -1176,6 +1152,51 @@ def _filter_pdf_dependencies(mapping: Mapping[str, Any]) -> dict[str, Any]:
     return data
 
 
+def _pdf_has_value(value: Any) -> bool:
+    """Un valor de respuesta negativa/vacía no se imprime en el PDF.
+
+    Cero numérico sí es información válida (p. ej. una medición); los
+    indicadores booleanos falsos y los marcadores textuales no lo son.
+    """
+    if value is None or value is False:
+        return False
+    if isinstance(value, str):
+        return value.strip().casefold() not in {
+            "", "no", "no aplica", "n/a", "na", "no requerido",
+            "no requerida", "no especificado", "no especificada",
+            "sin información", "sin informacion", "sin datos",
+            "pendiente de especificar", "no definido", "no definida",
+            "false", "null", "none",
+        }
+    if isinstance(value, (Mapping, list, tuple, set)):
+        return bool(value)
+    return True
+
+
+def _pdf_filter_pairs(rows: Sequence[Sequence[Any]]) -> list[list[Any]]:
+    """Descarta pares etiqueta/valor sin respuesta y compacta las filas."""
+    filtered = []
+    for row in rows:
+        pairs = [(row[i], row[i + 1]) for i in range(0, len(row) - 1, 2)
+                 if str(row[i] or "").strip() and _pdf_has_value(row[i + 1])]
+        if pairs:
+            flat = [part for pair in pairs for part in pair]
+            while len(flat) < len(row):
+                flat.extend(["", ""])
+            filtered.append(flat[:len(row)])
+    return filtered
+
+
+def _pdf_filter_table_rows(rows: Sequence[Sequence[Any]], *, identity_columns=(0,)) -> list[list[Any]]:
+    """Evita filas vacías o compuestas solo por respuestas negativas."""
+    result = []
+    for row in rows:
+        if not any(_pdf_has_value(row[i]) for i in identity_columns if i < len(row)):
+            continue
+        result.append([v if _pdf_has_value(v) else "" for v in row])
+    return result
+
+
 def _mapping_rows(mapping: Mapping[str, Any]) -> list[list[Any]]:
     """Convierte un bloque técnico en filas etiqueta/valor de dos pares por fila."""
     pairs: list[tuple[str, Any]] = []
@@ -1184,7 +1205,7 @@ def _mapping_rows(mapping: Mapping[str, Any]) -> list[list[Any]]:
             continue
         if isinstance(value, (Mapping, list, tuple)):
             continue
-        if value is None or (isinstance(value, str) and value.strip().casefold() in {"", "no aplica", "n/a", "no requerido"}):
+        if not _pdf_has_value(value):
             continue
         pairs.append((_humanize(key), value))
     rows: list[list[Any]] = []
@@ -1297,7 +1318,7 @@ def _canal_rows(detail: Mapping[str, Any]) -> list[list[Any]]:
                     break
     return [[
         x.get("categoria"), x.get("tipo"),
-        x.get("tamano_calibre_especificacion") or x.get("tamano") or x.get("calibre") or "No aplica",
+        x.get("tamano_calibre_especificacion") or x.get("tamano") or x.get("calibre") or "",
         x.get("cantidad"), x.get("unidad")
     ] for x in entries]
 

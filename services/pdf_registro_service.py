@@ -172,7 +172,18 @@ def _texto(valor) -> str:
 
 def _es_vacio(valor) -> bool:
     valor = _normalizar(valor)
-    return valor in VACIOS
+    if valor is None or valor is False:
+        return True
+    if isinstance(valor, str):
+        return valor.strip().casefold() in {
+            "", "no", "no aplica", "n/a", "na", "no requerido",
+            "no requerida", "sin información", "sin informacion",
+            "sin datos", "no definido", "no definida",
+            "no especificado", "no especificada", "false", "null",
+        }
+    if isinstance(valor, (dict, list, tuple, set)):
+        return not bool(valor)
+    return False
 
 
 def _quitar_resumenes_tabulares(texto: str) -> str:
@@ -220,7 +231,7 @@ def _construir_tabla(campo: str, lista) -> tuple[str, list[str], list[dict]] | N
             valor = registro.get(clave_columna, "")
             if isinstance(valor, (dict, list, tuple)):
                 valor = json.dumps(valor, ensure_ascii=False)
-            fila[etiqueta] = _texto(valor)
+            fila[etiqueta] = "" if _es_vacio(valor) else _texto(valor)
         if any(str(v).strip() for v in fila.values()):
             filas.append(fila)
     return (titulo, columnas, filas) if filas else None
