@@ -321,7 +321,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     var_sitio_riesgo_comun = ctk.StringVar(value="Bajo")
     # Equipo de Protección Personal (EPP) común a TODOS los levantamientos.
     # Si se requiere, se captura un listado estructurado para conservarlo en el JSON técnico.
-    var_requiere_epp = ctk.StringVar(value="Sí" if not (registro_editar or borrador) else "No")
+    var_requiere_epp = ctk.StringVar(value="No")  # EPP adicional; los cuatro básicos son obligatorios
 
     # Catálogos de asignación obtenidos directamente de db_usuarios.
     tecnicos_disponibles = obtener_tecnicos_responsables()
@@ -1957,7 +1957,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         widget_cctv_nvr = entry_en(seccion_cctv, "¿Dónde se ubicará el NVR/DVR?", var_cctv_ubicacion_nvr, "Ej. SITE", 0, 0)
 
         widget_cctv_red = entry_en(seccion_cctv, "¿Dónde estará el punto de enlace de red?", var_cctv_punto_red, "Ej. Rack/SITE", 0, 1)
-        widget_cctv_energia = entry_en(seccion_cctv, "¿Dónde estará el punto de energía?", var_cctv_punto_energia, "Ej. Contacto regulado", 1, 0)
+        widget_cctv_energia = entry_en(seccion_cctv, "¿Dónde estará el punto de energía?", var_cctv_punto_energia, "Ej. Contacto regulado", 0, 2)
         widgets_detalle_camaras = (widget_cctv_nvr, widget_cctv_red, widget_cctv_energia)
 
         def actualizar_requerimiento_camaras(_valor=None):
@@ -3053,7 +3053,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                                    border_width=1, border_color="#DCE5EF")
         _fondo_seccion(sitio_comun)
         sitio_comun.grid(row=fila_textos, column=0, columnspan=5, sticky="ew", pady=(2, 5))
-        for col in range(2):
+        for col in range(4):
             sitio_comun.grid_columnconfigure(col, weight=1, uniform="sitio_cols")
         ctk.CTkLabel(sitio_comun, text="📍 Condiciones del sitio y ruta",
                      font=FORM_SECTION_FONT, text_color=TEXT_PRIMARY).grid(
@@ -3065,8 +3065,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             ("¿Requiere permiso del sitio?", var_sitio_permiso_comun, ["Sí", "No", "Por validar"]),
             ("Nivel de riesgo", var_sitio_riesgo_comun, ["Bajo", "Medio", "Alto", "Crítico"]),
         )):
-            columna_campo = col % 2
-            fila_campo = 1 + (col // 2) * 2
+            columna_campo = col
+            fila_campo = 1
             ctk.CTkLabel(sitio_comun, text=etiqueta, font=FORM_FIELD_FONT,
                          text_color=TEXT_PRIMARY, anchor="w").grid(
                              row=fila_campo, column=columna_campo, sticky="w", padx=6, pady=(2, 1))
@@ -3079,6 +3079,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                                         values=opciones, height=FORM_CONTROL_HEIGHT,
                                         font=FORM_FIELD_FONT)
             widget.grid(row=fila_campo + 1, column=columna_campo, sticky="ew", padx=6, pady=(0, 6))
+            if opciones is None:
+                widget.configure(cursor="hand2")
+                widget.bind("<Button-1>", lambda _e, w=widget, v=variable: _abrir_selector_dias_horario(w, v))
+                widget.bind("<Key>", lambda _e: "break")
         fila_textos += 1
 
     # =============================================================
@@ -3120,7 +3124,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 var_sistema_acceso_comun.set("Escalera")
                 var_altura_comun.set("")
                 var_riesgo_comun.set("Bajo")
-            try: validar_preview()
+            try: actualizar_estado_preview()
             except Exception: pass
         var_trabajo_alturas_comun.trace_add("write", _actualizar_alturas_comun)
         _actualizar_alturas_comun()
@@ -3453,7 +3457,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     epp_selector_box = ctk.CTkFrame(seccion_epp, fg_color="transparent")
     epp_selector_box.grid(row=1, column=0, columnspan=4, sticky="w", padx=7, pady=(0, 4))
     ctk.CTkLabel(
-        epp_selector_box, text="¿Se requiere Equipo de Protección Personal?",
+        epp_selector_box, text="¿Se requiere Equipo de Protección Personal ADICIONAL?",
         font=FORM_FIELD_FONT, text_color=TEXT_PRIMARY
     ).pack(side="left", padx=(0, 8))
     NativeComboBox(
@@ -3511,7 +3515,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 except Exception:
                     logger.debug("No fue posible retirar un EPP.", exc_info=True)
             epp_items[:] = [x for x in epp_items if x is not item_epp]
-            validar_preview()
+            actualizar_estado_preview()
 
         btn_epp = ctk.CTkButton(
             epp_detalle_frame, text="Eliminar", width=82, height=FORM_CONTROL_HEIGHT,
@@ -3527,14 +3531,18 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     )
     btn_agregar_epp.grid(row=1000, column=0, columnspan=2, sticky="w", padx=5, pady=(4, 5))
 
+    EPP_BASE = (
+        "Casco de seguridad", "Botas de seguridad",
+        "Chaleco reflejante / alta visibilidad", "Lentes de seguridad",
+    )
+
     def obtener_epp_json():
-        # Tecnología, Equipos y Periféricos es un formulario de suministro:
-        # EPP no aplica y nunca debe guardarse/restaurarse.
+        # El equipo básico se registra siempre, aunque no se requieran extras.
         if tipo_levantamiento == "Tecnología, Equipos y Periféricos":
             return []
+        resultado = [{"epp": nombre, "cantidad": "1", "observaciones": ""} for nombre in EPP_BASE]
         if var_requiere_epp.get() != "Sí":
-            return []
-        resultado = []
+            return resultado
         for item in epp_items:
             equipo = item["epp"].get().strip()
             cantidad = item["cantidad"].get().strip()
@@ -3548,8 +3556,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         return resultado
 
     def construir_resumen_epp():
-        if var_requiere_epp.get() != "Sí":
-            return "No requerido"
+        if tipo_levantamiento == "Tecnología, Equipos y Periféricos":
+            return "No aplica"
         filas = obtener_epp_json()
         if not filas:
             return "Sí, pendiente de especificar"
@@ -3568,17 +3576,11 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             return
         if var_requiere_epp.get() == "Sí":
             epp_detalle_frame.grid()
-            # Los EPP base se precargan EXCLUSIVAMENTE al crear un levantamiento.
-            # En edición primero se restauran las partidas guardadas; nunca debemos
-            # insertar de nuevo Casco/Botas/Chaleco y duplicar cantidades existentes.
-            if not registro_editar and not epp_items:
-                agregar_epp({"epp": "Casco de seguridad", "cantidad": "1"})
-                agregar_epp({"epp": "Botas de seguridad", "cantidad": "1"})
-                agregar_epp({"epp": "Chaleco reflejante / alta visibilidad", "cantidad": "1"})
+            # Solo se capturan aquí EPP adicionales; los cuatro básicos son fijos.
         else:
             epp_detalle_frame.grid_remove()
         try:
-            validar_preview()
+            actualizar_estado_preview()
         except Exception:
             pass
 
@@ -5038,7 +5040,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "Días estimados": var_dias_trabajo_general.get() if var_duracion_proyecto.get() == "Varios días" else "1",
             "Personas estimadas": var_personas_considerar_general.get(),
             "Notas": var_notas_cliente.get().strip(),
-            "¿Requiere EPP?": var_requiere_epp.get(),
+            "¿Requiere EPP?": "No" if tipo_levantamiento == "Tecnología, Equipos y Periféricos" else "Sí",
             "Equipo de Protección Personal": construir_resumen_epp(),
             "Herramientas": construir_resumen_herramientas(),
             "Archivos PDF / planos": "; ".join([Path(x).name for x in archivos_adjuntos_levantamiento] + [str(x.get("nombre") or x.get("storage_path") or "Archivo") for x in archivos_adjuntos_existentes]) or "No",
@@ -5068,7 +5070,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "personas_considerar": var_personas_considerar_general.get().strip(),
         }
         detalle["epp"] = {
-            "requiere": var_requiere_epp.get().strip(),
+            "requiere": "No" if tipo_levantamiento == "Tecnología, Equipos y Periféricos" else "Sí",
+            "adicional": var_requiere_epp.get().strip(),
             "partidas": obtener_epp_json(),
         }
         if tipo_levantamiento == "Seguridad y Monitoreo":
@@ -5191,7 +5194,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "Días estimados": var_dias_trabajo_general.get() if var_duracion_proyecto.get() == "Varios días" else "1",
             "Personas estimadas": var_personas_considerar_general.get(),
             "Notas": var_notas_cliente.get().strip(),
-            "¿Requiere EPP?": var_requiere_epp.get(),
+            "¿Requiere EPP?": "No" if tipo_levantamiento == "Tecnología, Equipos y Periféricos" else "Sí",
             "Equipo de Protección Personal": construir_resumen_epp(),
             "Herramientas": construir_resumen_herramientas(),
             "Descripción": "" if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else txt_descripcion.get("1.0", "end").strip(),
@@ -5219,7 +5222,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "personas_considerar": var_personas_considerar_general.get().strip(),
         }
         detalle["epp"] = {
-            "requiere": var_requiere_epp.get().strip(),
+            "requiere": "No" if tipo_levantamiento == "Tecnología, Equipos y Periféricos" else "Sí",
+            "adicional": var_requiere_epp.get().strip(),
             "partidas": obtener_epp_json(),
         }
         if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS:
@@ -5518,12 +5522,19 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 logger.debug("No fue posible restaurar un material misceláneo.", exc_info=True)
 
         epp_guardado = detalle.get("epp") if isinstance(detalle.get("epp"), dict) else {}
-        var_requiere_epp.set(str(epp_guardado.get("requiere") or "No"))
-        for fila in epp_guardado.get("partidas", []) if isinstance(epp_guardado.get("partidas"), list) else []:
+        partidas_epp_guardadas = epp_guardado.get("partidas", []) if isinstance(epp_guardado.get("partidas"), list) else []
+        extras_epp_guardados = [fila for fila in partidas_epp_guardadas
+                               if isinstance(fila, dict) and str(fila.get("epp") or fila.get("equipo") or "").strip() not in EPP_BASE]
+        # 'adicional' es la nueva bandera; si falta, se infiere de las partidas antiguas.
+        epp_adicional = epp_guardado.get("adicional")
+        if epp_adicional not in ("Sí", "No"):
+            epp_adicional = "Sí" if extras_epp_guardados else "No"
+        var_requiere_epp.set(epp_adicional)
+        for fila in extras_epp_guardados:
             try:
                 agregar_epp(fila)
             except Exception:
-                logger.debug("No fue posible restaurar una partida de EPP.", exc_info=True)
+                logger.debug("No fue posible restaurar una partida de EPP adicional.", exc_info=True)
         actualizar_visibilidad_epp()
 
         sitio_guardado = detalle.get("condiciones_sitio_ruta") if isinstance(detalle.get("condiciones_sitio_ruta"), dict) else {}
@@ -5731,7 +5742,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             detalle_tecnico["equipos_principales"] = obtener_equipos_catalogo_json()
             detalle_tecnico["materiales_miscelaneos"] = obtener_materiales_miscelaneos_json()
             detalle_tecnico["epp"] = {
-                "requiere": var_requiere_epp.get().strip(),
+                "requiere": "No" if tipo_levantamiento == "Tecnología, Equipos y Periféricos" else "Sí",
+                "adicional": var_requiere_epp.get().strip(),
                 "partidas": obtener_epp_json(),
             }
             if tipo_levantamiento == "Seguridad y Monitoreo":
