@@ -5854,14 +5854,26 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             registro_pdf["__archivos_adjuntos_locales"] = list(archivos_adjuntos_levantamiento) if var_desea_archivos_adjuntos.get() == "Sí" else []
             if archivos_subidos or archivos_previos:
                 registro_pdf["lev_archivos_adjuntos_json"] = json.dumps(list(archivos_previos) + archivos_subidos, ensure_ascii=False)
-            ruta_pdf_destino = ruta_documentos_axia("levantamientos") / f"AXIA_{folio}.pdf"
-            ruta_pdf = generar_pdf_registro(
-                registro_pdf,
-                configuracion_pdf_levantamiento(),
-                ruta_salida=ruta_pdf_destino,
-                abrir=False,
-            )
-            mensaje_pdf = f"\n\nPDF guardado en:\n{ruta_pdf}" if ruta_pdf else "\n\nNo se pudo guardar el PDF local."
+            # El archivo local se genera ANTES del envío por correo. Su ubicación
+            # corresponde a la carpeta Documentos real del usuario de Windows.
+            try:
+                ruta_pdf_destino = ruta_documentos_axia("levantamientos") / f"AXIA_{folio}.pdf"
+                ruta_pdf = generar_pdf_registro(
+                    registro_pdf,
+                    configuracion_pdf_levantamiento(),
+                    ruta_salida=ruta_pdf_destino,
+                    abrir=False,
+                )
+                if not ruta_pdf or not Path(ruta_pdf).is_file() or Path(ruta_pdf).stat().st_size == 0:
+                    raise RuntimeError(f"No se confirmó el archivo PDF local: {ruta_pdf_destino}")
+                ruta_pdf = str(Path(ruta_pdf).resolve())
+                logger.info("Levantamiento %s: PDF local confirmado en %s", folio, ruta_pdf)
+                mensaje_pdf = f"\n\nPDF local guardado en:\n{ruta_pdf}"
+            except Exception as error_pdf:
+                ruta_pdf = None
+                logger.exception("Levantamiento %s guardado, pero falló la copia PDF local", folio)
+                mensaje_pdf = ("\n\n⚠ El levantamiento se registró, pero no se pudo guardar "
+                               f"el PDF en Documentos/AXIA/levantamientos.\nDetalle: {error_pdf}")
 
             # El correo es una notificación secundaria: una falla SMTP nunca
             # revierte ni invalida el levantamiento ya guardado en Supabase.

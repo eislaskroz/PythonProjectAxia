@@ -277,10 +277,45 @@ def _nombre_archivo_seguro(texto):
     return limpio or "documento"
 
 
+def _documentos_windows_real():
+    """Consulta la carpeta Documentos configurada en Windows (incluye OneDrive)."""
+    if os.name != "nt":
+        return Path.home() / "Documents"
+    try:
+        import ctypes
+        from ctypes import wintypes
+        from uuid import UUID
+
+        # FOLDERID_Documents: Windows Known Folders API.
+        guid = UUID("FDD39AD0-238F-46AF-ADB4-6C85480369C7")
+        class GUID(ctypes.Structure):
+            _fields_ = [("Data1", wintypes.DWORD), ("Data2", wintypes.WORD),
+                        ("Data3", wintypes.WORD), ("Data4", ctypes.c_ubyte * 8)]
+        data = guid.bytes_le
+        folder_id = GUID.from_buffer_copy(data)
+        path_ptr = ctypes.c_wchar_p()
+        shell = ctypes.windll.shell32
+        shell.SHGetKnownFolderPath.argtypes = [ctypes.POINTER(GUID), wintypes.DWORD,
+                                                wintypes.HANDLE, ctypes.POINTER(ctypes.c_wchar_p)]
+        shell.SHGetKnownFolderPath.restype = ctypes.c_long
+        result = shell.SHGetKnownFolderPath(ctypes.byref(folder_id), 0, None, ctypes.byref(path_ptr))
+        if result == 0 and path_ptr.value:
+            resolved = Path(path_ptr.value)
+            ctypes.windll.ole32.CoTaskMemFree(ctypes.cast(path_ptr, ctypes.c_void_p))
+            return resolved
+    except Exception:
+        logger.warning("No fue posible consultar Documentos de Windows; se usará la ruta alternativa.", exc_info=True)
+    return Path.home() / "Documents"
+
+
 def ruta_documentos_axia(subcarpeta="documentos"):
-    """Devuelve una carpeta externa y estable para documentos generados por AXIA."""
-    base = Path.home() / "Documents" / "AXIA" / str(subcarpeta or "documentos")
+    """Devuelve la carpeta local estable del usuario, respetando Documentos redirigido."""
+    nombre = str(subcarpeta or "documentos").strip()
+    if not nombre or Path(nombre).name != nombre or nombre in (".", ".."):
+        raise ValueError("Subcarpeta AXIA no válida")
+    base = _documentos_windows_real() / "AXIA" / nombre
     base.mkdir(parents=True, exist_ok=True)
+    logger.info("Carpeta local AXIA para %s: %s", nombre, base)
     return base
 
 
