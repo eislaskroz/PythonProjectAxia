@@ -174,6 +174,7 @@ from views.levantamientos.catalogos_canalizacion import (
     TAMANOS_TUBOS,
     TIPOS_COPLES,
     TIPOS_REGISTROS,
+    TIPOS_CAJAS,
     TIPOS_CONECTORES,
     TIPOS_ABRAZADERAS,
     TIPOS_CABLE_ELECTRICO,
@@ -1953,10 +1954,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         registrar_seccion("datos_cctv", seccion_cctv)
         widget_cctv_cantidad = None  # Cantidades en Equipos principales requeridos
         widget_cctv_tipo = None  # Tipos en Equipos principales requeridos
-        widget_cctv_nvr = entry_en(seccion_cctv, "¿Dónde se ubicará el NVR/DVR?", var_cctv_ubicacion_nvr, "Ej. SITE", 0, 3)
+        widget_cctv_nvr = entry_en(seccion_cctv, "¿Dónde se ubicará el NVR/DVR?", var_cctv_ubicacion_nvr, "Ej. SITE", 0, 0)
 
-        widget_cctv_red = entry_en(seccion_cctv, "¿Dónde estará el punto de enlace de red?", var_cctv_punto_red, "Ej. Rack/SITE", 1, 0)
-        widget_cctv_energia = entry_en(seccion_cctv, "¿Dónde estará el punto de energía?", var_cctv_punto_energia, "Ej. Contacto regulado", 1, 1)
+        widget_cctv_red = entry_en(seccion_cctv, "¿Dónde estará el punto de enlace de red?", var_cctv_punto_red, "Ej. Rack/SITE", 0, 1)
+        widget_cctv_energia = entry_en(seccion_cctv, "¿Dónde estará el punto de energía?", var_cctv_punto_energia, "Ej. Contacto regulado", 1, 0)
         widgets_detalle_camaras = (widget_cctv_nvr, widget_cctv_red, widget_cctv_energia)
 
         def actualizar_requerimiento_camaras(_valor=None):
@@ -2834,6 +2835,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         if categoria == "Tubo": return list(TIPOS_TUBOS)
         if categoria == "Cople": return list(TIPOS_COPLES)
         if categoria == "Registro": return list(TIPOS_REGISTROS)
+        if categoria == "Cajas": return list(TIPOS_CAJAS)
         if categoria == "Conector": return list(TIPOS_CONECTORES)
         if categoria == "Abrazadera": return list(TIPOS_ABRAZADERAS)
         if categoria in ("Conector", "Conectores"): return list(TIPOS_CONECTORES)
@@ -2944,7 +2946,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         for col, encabezado in enumerate(("Categoría", "Tipo", "Tamaño / calibre / especificación", "Cantidad", "Unidad", "Aproximado", "Acción")):
             ctk.CTkLabel(seccion_canalizacion_dinamica, text=encabezado, font=FORM_TABLE_HEADER_FONT, text_color=TEXT_PRIMARY).grid(row=4, column=col, sticky="w", padx=5, pady=(0,2))
 
-        categorias = ["Tubo", "Cople", "Registro", "Conectores", "Abrazadera", "Tapas", "Codos", "Canaleta", "Cable"]
+        categorias = ["Tubo", "Cople", "Registro", "Cajas", "Conectores", "Abrazadera", "Tapas", "Codos", "Canaleta", "Cable"]
         if tipo_levantamiento == "Redes Voz y Datos":
             categorias += ["Jack RJ45", "Plug RJ45", "Faceplate", "Patch cord", "Patch panel"]
 
@@ -3051,7 +3053,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                                    border_width=1, border_color="#DCE5EF")
         _fondo_seccion(sitio_comun)
         sitio_comun.grid(row=fila_textos, column=0, columnspan=5, sticky="ew", pady=(2, 5))
-        for col in range(4):
+        for col in range(2):
             sitio_comun.grid_columnconfigure(col, weight=1, uniform="sitio_cols")
         ctk.CTkLabel(sitio_comun, text="📍 Condiciones del sitio y ruta",
                      font=FORM_SECTION_FONT, text_color=TEXT_PRIMARY).grid(
@@ -3063,9 +3065,11 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             ("¿Requiere permiso del sitio?", var_sitio_permiso_comun, ["Sí", "No", "Por validar"]),
             ("Nivel de riesgo", var_sitio_riesgo_comun, ["Bajo", "Medio", "Alto", "Crítico"]),
         )):
+            columna_campo = col % 2
+            fila_campo = 1 + (col // 2) * 2
             ctk.CTkLabel(sitio_comun, text=etiqueta, font=FORM_FIELD_FONT,
                          text_color=TEXT_PRIMARY, anchor="w").grid(
-                             row=1, column=col, sticky="w", padx=6, pady=(2, 1))
+                             row=fila_campo, column=columna_campo, sticky="w", padx=6, pady=(2, 1))
             if opciones is None:
                 widget = ctk.CTkEntry(sitio_comun, textvariable=variable,
                                       height=FORM_CONTROL_HEIGHT, corner_radius=0,
@@ -3074,7 +3078,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 widget = NativeComboBox(sitio_comun, variable=variable,
                                         values=opciones, height=FORM_CONTROL_HEIGHT,
                                         font=FORM_FIELD_FONT)
-            widget.grid(row=2, column=col, sticky="ew", padx=6, pady=(0, 4))
+            widget.grid(row=fila_campo + 1, column=columna_campo, sticky="ew", padx=6, pady=(0, 6))
         fila_textos += 1
 
     # =============================================================

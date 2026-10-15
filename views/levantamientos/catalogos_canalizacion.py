@@ -32,6 +32,13 @@ TIPOS_TUBOS_CON_TAMANO = [
     f"{tipo} — {tamano}" for tipo in TIPOS_TUBOS for tamano in TAMANOS_TUBOS
 ]
 
+# Cajas para canalización: mismo catálogo de medidas que tubos y conectores.
+TIPOS_CAJAS = [
+    "FS", "FSC", "FSS", "FSL", "FSR", "FST", "FSCC", "FSCD",
+    "FD", "Tipo C", "Tipo L", "Tipo X",
+    "Rectangulares", "Octagonales", "Cuadradas",
+]
+
 TIPOS_REGISTROS = [
     "Empotrados o de pared", "Superficiales", "Piso", "Metálicos", "Plástico",
     "Concreto", "Cajas Cuadrados o Rectangulares",
@@ -61,7 +68,7 @@ CALIBRES_CABLE_ELECTRICO = [
     "3/0 AWG", "4/0 AWG", "250 AWG", "350 AWG",
 ]
 
-CATEGORIAS_CON_MEDIDA_TUBO = {"Tubo", "Cople", "Registro", "Conector", "Conectores", "Abrazadera", "Codos"}
+CATEGORIAS_CON_MEDIDA_TUBO = {"Tubo", "Cople", "Registro", "Conector", "Conectores", "Abrazadera", "Codos", "Cajas"}
 
 
 def especificaciones_por_categoria(categoria, tipo=""):
