@@ -75,28 +75,6 @@ FORMULARIOS_DETALLADOS_EXTRA = {
                 ("ubicacion_accesos", "entry", "Ubicación de accesos", "Ej. recepción / almacén", ""),
                 ("flujo_personas", "entry", "Flujo estimado de usuarios", "Ej. 80 diarios", ""),
             ]),
-            ("🪪 2. Lectores, autenticación y usuarios", [
-                ("tipo_lector", "option", "Tipo de lector", ["Tarjeta", "Huella", "Rostro", "PIN", "QR", "Mixto", "Por validar"], "Tarjeta"),
-                ("cantidad_lectores", "entry", "Cantidad de lectores", "Ej. 4", ""),
-                ("entrada_salida", "option", "Lectura entrada/salida", ["Solo entrada", "Entrada y salida", "Por validar"], "Solo entrada"),
-                ("usuarios_iniciales", "entry", "Usuarios iniciales a enrolar", "Ej. 50", ""),
-                ("integracion_asistencia", "option", "¿Integra asistencia?", ["Sí", "No", "Por validar"], "No"),
-            ]),
-            ("🔐 3. Cerraduras, puertas y barreras", [
-                ("tipo_puerta", "option", "Tipo de puerta/acceso", ["Madera", "Cristal", "Metal", "Torniquete", "Pluma vehicular", "Chapa magnética", "Por validar"], "Metal"),
-                ("tipo_chapa", "option", "Tipo de cerradura/chapa", ["Magnética", "Eléctrica", "Contra eléctrica", "Electroimán", "No aplica", "Por validar"], "Magnética"),
-                ("boton_salida", "option", "Botón de salida", ["Sí", "No", "No aplica"], "Sí"),
-                ("sensor_puerta", "option", "Sensor de puerta", ["Sí", "No", "No aplica"], "Sí"),
-                ("liberacion_emergencia", "option", "Liberación por emergencia", ["Sí", "No", "Por validar"], "Por validar"),
-            ]),
-            ("🌐 4. Red, energía y canalización", [
-                ("controlador", "option", "Controlador requerido", ["Standalone", "Controlador central", "IP", "Por validar"], "IP"),
-                ("punto_red", "option", "Punto de red disponible", ["Sí", "No", "Por validar"], "Por validar"),
-                ("punto_energia", "option", "Punto de energía disponible", ["Sí", "No", "Por validar"], "Por validar"),
-                ("metros_cable", "entry", "Metros estimados de cable", "Ej. 120", ""),
-                ("canalizacion", "option", "Canalización requerida", TIPOS_CANALIZACION + ["Por validar"], "Por validar"),
-                ("ups_respaldo", "option", "¿Requiere UPS/respaldo?", ["Sí", "No", "Por validar"], "Por validar"),
-            ]),
             ("🧱 5. Cableado, canalización e infraestructura requerida", [
                 ("requiere_infraestructura", "option", "¿Se requiere infraestructura nueva?", ["Sí", "No"], "Sí"),
                 ("tipo_cable", "option", "Cable / tipo", TIPOS_CABLE_DATOS_CONTROL + ["Otro"], "UTP Cat6"),

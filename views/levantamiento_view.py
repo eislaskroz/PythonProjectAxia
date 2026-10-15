@@ -1788,7 +1788,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             for nombre in secciones_instalacion:
                 frame = secciones_dinamicas.get(nombre)
                 if frame:
-                    if es_instalacion:
+                    if es_instalacion and not (nombre == "rack_energia" and valor == "Sí"):
                         frame.grid()
                     else:
                         frame.grid_remove()
@@ -1946,16 +1946,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         # Datos técnicos Seguridad y Monitoreo compactados dentro de una sola sección.
         seccion_cctv = crear_seccion("📹 Datos técnicos Seguridad y Monitoreo", fila_textos + 6)
         registrar_seccion("datos_cctv", seccion_cctv)
-        widget_cctv_cantidad = entry_en(seccion_cctv, "¿Cuántas cámaras se requieren?", var_cctv_cantidad_camaras, "Ej. 8", 0, 1)
-        widget_cctv_tipo = option_en(seccion_cctv, "¿Qué tipo de cámaras se requieren?", var_cctv_tipo_camaras, ["IP", "Análoga", "Híbrida", "PTZ", "LPR", "Térmica"], 0, 2)
+        widget_cctv_cantidad = None  # Cantidades en Equipos principales requeridos
+        widget_cctv_tipo = None  # Tipos en Equipos principales requeridos
         widget_cctv_nvr = entry_en(seccion_cctv, "¿Dónde se ubicará el NVR/DVR?", var_cctv_ubicacion_nvr, "Ej. SITE", 0, 3)
 
         widget_cctv_red = entry_en(seccion_cctv, "¿Dónde estará el punto de enlace de red?", var_cctv_punto_red, "Ej. Rack/SITE", 1, 0)
         widget_cctv_energia = entry_en(seccion_cctv, "¿Dónde estará el punto de energía?", var_cctv_punto_energia, "Ej. Contacto regulado", 1, 1)
-        widgets_detalle_camaras = (
-            widget_cctv_cantidad, widget_cctv_tipo, widget_cctv_nvr,
-            widget_cctv_red, widget_cctv_energia,
-        )
+        widgets_detalle_camaras = (widget_cctv_nvr, widget_cctv_red, widget_cctv_energia)
 
         def actualizar_requerimiento_camaras(_valor=None):
             """Activa el detalle de CCTV y recalcula Guardar/Preview al cambiar Sí/No."""
@@ -1970,10 +1967,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             except Exception:
                 logger.debug("Excepción recuperable controlada.", exc_info=True)
 
-        option_en(
-            seccion_cctv, "¿Se requieren cámaras?", var_cctv_requiere_camaras,
-            ["Sí", "No"], 0, 0, command=actualizar_requerimiento_camaras
-        )
+        # Los equipos/cámaras se especifican en la tabla de Equipos principales.
+        # Se conserva la variable histórica para registros existentes.
+        var_cctv_requiere_camaras.set("Sí")
         actualizar_requerimiento_camaras()
 
         # =============================================================
@@ -2024,7 +2020,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             seccion_rep_selector,
             "¿Qué se desea reparar?",
             var_rep_objetivo,
-            ["Cámaras", "NVRs y/o DVRs", "Infraestructura", "Alimentación y Energía", "Conectividad"],
+            ["Cámaras", "NVRs y/o DVRs", "Infraestructura", "Alimentación y Energía", "Conectividad", "Varios elementos"],
             0,
             0,
             command=lambda _valor: actualizar_formulario_reparacion()
@@ -2398,7 +2394,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         widget_rvd_horario.bind("<Button-1>", lambda _e: _abrir_selector_dias_horario(widget_rvd_horario, var_rvd_horario_trabajo))
         widget_rvd_horario.bind("<Key>", lambda _e: "break")
         option_rvd(seccion_rvd_sitio, "Acceso para instalación", var_rvd_acceso, ["Fácil acceso", "Difícil acceso", "Requiere maniobra"], 0, 1)
-        entry_rvd(seccion_rvd_sitio, "Altura de trabajo", var_rvd_altura_trabajo, "Ej. 3 m", 0, 2, ancho_corto=True)
+        # Altura se captura en Acceso, alturas y riesgos (sección común).
         option_rvd(seccion_rvd_sitio, "¿Requiere permiso del sitio?", var_rvd_permiso, ["Sí", "No"], 0, 3)
         option_rvd(seccion_rvd_sitio, "Nivel de riesgo", var_rvd_riesgo, ["Bajo", "Medio", "Alto"], 0, 4)
 
@@ -2496,7 +2492,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             widget.configure(command=lambda _valor: actualizar_detalles_rack_rvd())
         actualizar_detalles_rack_rvd()
 
-        # Equipo activo se conserva como sección independiente para no perder el flujo actual de Redes.
+        # Equipo activo heredado: no se muestra; los switches se capturan en Equipos principales.
         seccion_rvd_switch = crear_seccion_rvd("🔀 Equipo activo", fila_textos + 4)
         widget_rvd_requiere_switch = option_rvd(seccion_rvd_switch, "¿Se requiere switch?", var_rvd_requiere_switch, ["Sí", "No"], 0, 0)
         widget_rvd_tipo_switch = entry_rvd(seccion_rvd_switch, "Tipo/modelo o características del switch", var_rvd_tipo_switch, "Ej. administrable Gigabit", 0, 1)
@@ -2511,6 +2507,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             widget_rvd_switch_poe.configure(state="readonly" if requiere_switch else "disabled")
         widget_rvd_requiere_switch.configure(command=lambda _valor: actualizar_switch_rvd())
         actualizar_switch_rvd()
+        seccion_rvd_switch.grid_remove()
+        var_rvd_requiere_switch.set("No")
 
         seccion_rvd_pruebas = crear_seccion_rvd("📋 5. Estimación de recursos para la instalación", fila_textos + 5)
 
@@ -4644,17 +4642,17 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     return False
                 obligatorios = [var_cctv_requiere_camaras.get().strip(), var_infra_existe.get().strip()]
                 if var_cctv_requiere_camaras.get() == "Sí":
-                    obligatorios.extend([var_cctv_cantidad_camaras.get().strip(), var_cctv_tipo_camaras.get().strip(), var_cctv_ubicacion_nvr.get().strip(), var_cctv_punto_red.get().strip(), var_cctv_punto_energia.get().strip()])
+                    obligatorios.extend([var_cctv_ubicacion_nvr.get().strip(), var_cctv_punto_red.get().strip(), var_cctv_punto_energia.get().strip()])
                 if not all(obligatorios):
                     return False
                 if var_infra_existe.get() in ("Sí", "Parcial") and not (var_infra_tipo_existente.get().strip() and var_infra_estado.get().strip()):
                     return False
                 if var_infra_existe.get() in ("No", "Parcial") and not canalizacion_materiales_completa():
                     return False
-                pares = [(var_gabinete_requerido, var_tipo_gabinete), (var_ups_requerida, var_tipo_ups), (var_contacto_regulado, var_tipo_contacto_regulado)]
+                pares = [(var_gabinete_requerido, var_tipo_gabinete), (var_ups_requerida, var_tipo_ups), (var_contacto_regulado, var_tipo_contacto_regulado)] if var_infra_existe.get() in ("No", "Parcial") else []
                 if any(a.get() == "Sí" and not b.get().strip() for a,b in pares):
                     return False
-                if var_rack_requerido.get() == "Sí":
+                if var_infra_existe.get() in ("No", "Parcial") and var_rack_requerido.get() == "Sí":
                     if not var_tipo_rack.get().strip():
                         return False
                     if not all(v.get().strip() for v in (var_cctv_rack_organizadores_verticales, var_cctv_rack_organizadores_horizontales, var_cctv_rack_charolas, var_cctv_rack_pdu)):
@@ -4707,7 +4705,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 tipo_servicio,
                 var_rvd_area_instalacion.get().strip(),
                 var_rvd_horario_trabajo.get().strip(),
-                var_rvd_altura_trabajo.get().strip(),
             ]
             if tipo_servicio in ("Datos", "Voz y datos", "Fibra óptica", "Mixto"):
                 requeridos.append(var_rvd_cantidad_nodos.get().strip())
@@ -4721,7 +4718,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 requeridos.extend([v.get().strip() for v in (var_rvd_rack_organizadores_verticales, var_rvd_rack_organizadores_horizontales, var_rvd_rack_charolas, var_rvd_rack_pdu)])
             if var_rvd_requiere_gabinete.get() == "Sí":
                 requeridos.append(var_rvd_tipo_gabinete.get().strip())
-            if var_rvd_requiere_switch.get() == "Sí":
+            if False:  # Equipo activo retirado; datos históricos no son obligatorios
                 requeridos.extend([var_rvd_tipo_switch.get().strip(), var_rvd_puertos_switch.get().strip(), var_rvd_switch_poe.get().strip()])
             if var_rvd_ups.get() == "Sí":
                 requeridos.append(var_rvd_detalle_ups.get().strip())
@@ -4840,7 +4837,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                         falta(nombre, vacia(variable))
                     if var_cctv_requiere_camaras.get() == "Sí":
                         for nombre, variable in [
-                            ("Cantidad de cámaras", var_cctv_cantidad_camaras), ("Tipo de cámaras", var_cctv_tipo_camaras),
                             ("Ubicación NVR/DVR", var_cctv_ubicacion_nvr), ("Punto de red", var_cctv_punto_red),
                             ("Punto de energía", var_cctv_punto_energia)]:
                             falta(nombre, vacia(variable))
@@ -4849,19 +4845,20 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                         falta("Estado de infraestructura", vacia(var_infra_estado))
                     if var_infra_existe.get() in ("No", "Parcial"):
                         falta("Canalización / materiales", not canalizacion_materiales_completa())
-                    for pregunta, detalle, nombre in [
-                        (var_gabinete_requerido,var_tipo_gabinete,"Tipo de gabinete"),
-                        (var_ups_requerida,var_tipo_ups,"Tipo/capacidad de UPS"),
-                        (var_contacto_regulado,var_tipo_contacto_regulado,"Detalle contacto regulado")]:
-                        falta(nombre, pregunta.get()=="Sí" and vacia(detalle))
-                    if var_rack_requerido.get()=="Sí":
-                        falta("Medida de Rack", vacia(var_tipo_rack))
-                        for nombre, variable in [("Organizadores verticales",var_cctv_rack_organizadores_verticales),("Organizadores horizontales",var_cctv_rack_organizadores_horizontales),("Charolas",var_cctv_rack_charolas),("PDU",var_cctv_rack_pdu)]:
-                            falta(nombre, vacia(variable))
-                    if var_tierra_fisica.get()=="Sí":
-                        falta("Detalle/ubicación de tierra física", vacia(var_tipo_tierra_fisica))
-                        tierra=[("Barra de cobre",var_cctv_tierra_barra_cobre),("Aisladores de cobre",var_cctv_tierra_aisladores),("Abrazadera/Omega",var_cctv_tierra_abrazadera_omega),("Varilla de cobre",var_cctv_tierra_varilla_cobre),("Abrazaderas de cobre",var_cctv_tierra_abrazaderas),("Cable de cobre",var_cctv_tierra_cable_cobre),("Tornillos de cobre",var_cctv_tierra_tornillos_cobre),("Químico",var_cctv_tierra_quimico),("Tubería",var_cctv_tierra_tuberia),("Bote/Registro",var_cctv_tierra_bote)]
-                        for nombre, variable in tierra: falta(nombre, vacia(variable))
+                    if var_infra_existe.get() in ("No", "Parcial"):
+                        for pregunta, detalle, nombre in [
+                            (var_gabinete_requerido,var_tipo_gabinete,"Tipo de gabinete"),
+                            (var_ups_requerida,var_tipo_ups,"Tipo/capacidad de UPS"),
+                            (var_contacto_regulado,var_tipo_contacto_regulado,"Detalle contacto regulado")]:
+                            falta(nombre, pregunta.get()=="Sí" and vacia(detalle))
+                        if var_rack_requerido.get()=="Sí":
+                            falta("Medida de Rack", vacia(var_tipo_rack))
+                            for nombre, variable in [("Organizadores verticales",var_cctv_rack_organizadores_verticales),("Organizadores horizontales",var_cctv_rack_organizadores_horizontales),("Charolas",var_cctv_rack_charolas),("PDU",var_cctv_rack_pdu)]:
+                                falta(nombre, vacia(variable))
+                        if var_tierra_fisica.get()=="Sí":
+                            falta("Detalle/ubicación de tierra física", vacia(var_tipo_tierra_fisica))
+                            tierra=[("Barra de cobre",var_cctv_tierra_barra_cobre),("Aisladores de cobre",var_cctv_tierra_aisladores),("Abrazadera/Omega",var_cctv_tierra_abrazadera_omega),("Varilla de cobre",var_cctv_tierra_varilla_cobre),("Abrazaderas de cobre",var_cctv_tierra_abrazaderas),("Cable de cobre",var_cctv_tierra_cable_cobre),("Tornillos de cobre",var_cctv_tierra_tornillos_cobre),("Químico",var_cctv_tierra_quimico),("Tubería",var_cctv_tierra_tuberia),("Bote/Registro",var_cctv_tierra_bote)]
+                            for nombre, variable in tierra: falta(nombre, vacia(variable))
                 if var_escalera_requerida.get()=="Sí":
                     falta("Sistema de acceso temporal", vacia(var_sistema_acceso_temporal)); falta("Altura", vacia(var_altura_trabajo)); falta("Riesgo", vacia(var_riesgo_instalacion))
             elif modalidad == "Reparación":
@@ -4884,7 +4881,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 for nombre, variable in [("Cantidad de equipos",var_aa_cantidad_equipos),("Área a climatizar",var_aa_area_climatizar),("Ubicación evaporadora",var_aa_ubicacion_evaporadora),("Ubicación condensadora",var_aa_ubicacion_condensadora)]: falta(nombre,vacia(variable))
                 falta("Canalización / materiales", not canalizacion_materiales_completa())
             elif tipo_levantamiento == "Redes Voz y Datos":
-                for nombre, variable in [("Necesidad",var_rvd_necesidad),("Tipo de servicio",var_rvd_tipo_servicio),("Área de instalación",var_rvd_area_instalacion),("Horario de trabajo",var_rvd_horario_trabajo),("Altura de trabajo",var_rvd_altura_trabajo)]: falta(nombre,vacia(variable))
+                for nombre, variable in [("Necesidad",var_rvd_necesidad),("Tipo de servicio",var_rvd_tipo_servicio),("Área de instalación",var_rvd_area_instalacion),("Horario de trabajo",var_rvd_horario_trabajo)]: falta(nombre,vacia(variable))
                 ts=var_rvd_tipo_servicio.get().strip()
                 if ts in ("Datos","Voz y datos","Fibra óptica","Mixto"): falta("Cantidad de nodos",vacia(var_rvd_cantidad_nodos))
                 if ts in ("Voz","Voz y datos","Mixto"): falta("Cantidad de telefonía",vacia(var_rvd_cantidad_telefonia))
@@ -4892,7 +4889,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     falta("Medida de Rack",vacia(var_rvd_tipo_rack))
                     for nombre, variable in [("Organizadores verticales",var_rvd_rack_organizadores_verticales),("Organizadores horizontales",var_rvd_rack_organizadores_horizontales),("Charolas",var_rvd_rack_charolas),("PDU",var_rvd_rack_pdu)]: falta(nombre,vacia(variable))
                 if var_rvd_requiere_gabinete.get()=="Sí": falta("Tipo de gabinete",vacia(var_rvd_tipo_gabinete))
-                if var_rvd_requiere_switch.get()=="Sí":
+                if False:  # Equipo activo retirado
                     falta("Tipo de switch",vacia(var_rvd_tipo_switch)); falta("Puertos de switch",vacia(var_rvd_puertos_switch)); falta("PoE de switch",vacia(var_rvd_switch_poe))
                 if var_rvd_ups.get()=="Sí": falta("Tipo/capacidad de UPS",vacia(var_rvd_detalle_ups))
                 if var_rvd_contacto_regulado.get()=="Sí": falta("Detalle contacto regulado",vacia(var_rvd_detalle_contacto))
