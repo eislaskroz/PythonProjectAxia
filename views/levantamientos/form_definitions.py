@@ -13,7 +13,7 @@ FORMULARIOS_DETALLADOS_EXTRA = {
         "secciones": [
             ("🧭 1. Tipo de solicitud y alcance", [
                 ("accion_ti", "option", "¿Qué deseas realizar?", ["Revisión", "Mantenimiento", "Reparación", "Suministro", "Suministro e instalación"], "Suministro"),
-                ("categoria_equipo", "option", "Categoría del equipo o producto", ["Accesorios", "Almacenamiento", "Audio", "Componentes", "Computadoras", "Energía y respaldo", "Gaming", "Impresión y digitalización", "Laptops", "Monitores y pantallas", "Periféricos", "Proyección", "Punto de venta", "Redes y conectividad", "Servidores", "Software y licencias", "Tablets y movilidad", "Videoconferencia", "Otro / especificar"], "Computadoras"),
+                ("categoria_equipo", "option", "Categoría del equipo o producto", ["Accesorios", "Almacenamiento", "Audio", "CCTV", "Componentes", "Computadoras", "Energía y respaldo", "Gaming", "Impresión y digitalización", "Laptops", "Monitores y pantallas", "Periféricos", "Proyección", "Punto de venta", "Redes y conectividad", "Servidores", "Software y licencias", "Tablets y movilidad", "Videoconferencia", "Otro / especificar"], "Computadoras"),
                 ("ubicacion_servicio", "entry", "Ubicación donde se requiere", "Ej. oficina administrativa", ""),
                 ("prioridad_solicitud", "option", "Prioridad requerida", ["Normal", "Alta", "Urgente", "Por validar"], "Normal"),
             ]),

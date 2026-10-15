@@ -848,7 +848,7 @@ def generar_pdf_seguridad_instalacion(
         ))
         story.append(Spacer(1, 7))
 
-    tools = [] if tipo.casefold() == "tecnología, equipos y periféricos".casefold() else _tool_rows(detail)
+    tools = [] if tipo_master.casefold() == "tecnología, equipos y periféricos".casefold() else _tool_rows(detail)
     if tools:
         story.append(_section_matrix_table(
             "Herramientas", ["Categoría", "Herramienta", "Cantidad", "Especificación / observaciones"],
@@ -857,7 +857,7 @@ def generar_pdf_seguridad_instalacion(
         story.append(Spacer(1, 7))
 
     requiere_epp, epp_rows = _epp_rows(detail)
-    if tipo.casefold() == "tecnología, equipos y periféricos".casefold():
+    if tipo_master.casefold() == "tecnología, equipos y periféricos".casefold():
         requiere_epp, epp_rows = "No", []
     if requiere_epp.casefold() in {"sí", "si"} or epp_rows:
         story.append(_section_title("Equipo de Protección Personal (EPP)", width, header))
