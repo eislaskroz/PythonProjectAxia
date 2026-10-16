@@ -81,7 +81,10 @@ def mostrar_selector_tipo_levantamiento(parent, app, aco=None):
     grid = ctk.CTkFrame(card, fg_color="transparent")
     grid.pack(fill="both", expand=True, padx=18, pady=(0, 10))
 
-    for col in range(3):
+    # Seis columnas lógicas: cada tarjeta ocupa dos. Esto permite
+    # centrar las dos tarjetas finales conservando exactamente el ancho
+    # de las tarjetas de las tres primeras filas.
+    for col in range(6):
         grid.grid_columnconfigure(col, weight=1, uniform="tipos_lev")
 
     def seleccionar_tipo(tipo):
@@ -103,9 +106,14 @@ def mostrar_selector_tipo_levantamiento(parent, app, aco=None):
         else:
             app.mostrar_vista_levantamiento(aco=aco, tipo_levantamiento=tipo["nombre"])
 
+    total_tipos = len(TIPOS_LEVANTAMIENTO)
     for indice, tipo in enumerate(TIPOS_LEVANTAMIENTO):
         fila = indice // 3
-        columna = indice % 3
+        columna = (indice % 3) * 2
+        # Si sobran dos tarjetas, distribuirlas simétricamente en el centro.
+        # Con 11 opciones ocuparán las columnas 1-2 y 3-4 (sobre seis).
+        if total_tipos % 3 == 2 and indice >= total_tipos - 2:
+            columna += 1
 
         item = ctk.CTkFrame(
             grid,
@@ -114,18 +122,26 @@ def mostrar_selector_tipo_levantamiento(parent, app, aco=None):
             border_width=1,
             border_color="#CBD5E1" if tipo["habilitado"] else "#E2E8F0"
         )
-        item.grid(row=fila, column=columna, sticky="nsew", padx=5, pady=5)
+        item.grid(row=fila, column=columna, columnspan=2, sticky="nsew", padx=5, pady=5)
         item.grid_columnconfigure(0, weight=1)
 
+        # Separar ícono y nombre en widgets independientes garantiza una
+        # separación uniforme también cuando se usa un ícono de respaldo.
+        encabezado = ctk.CTkFrame(item, fg_color="transparent")
+        encabezado.pack(fill="x", padx=9, pady=(10, 8))
         icono_tipo = cargar_icono(tipo.get("icono_archivo", ""), (24, 24)) if tipo.get("icono_archivo") else None
+        if icono_tipo:
+            ctk.CTkLabel(encabezado, text="", image=icono_tipo, width=24, height=28).pack(side="left", padx=(0, 9))
+        elif tipo.get("icono"):
+            ctk.CTkLabel(encabezado, text=tipo["icono"], font=("Segoe UI Emoji", 18), width=24, height=28).pack(side="left", padx=(0, 9))
         ctk.CTkLabel(
-            item,
-            text=tipo["nombre"] if icono_tipo else f"{tipo.get('icono', '')} {tipo['nombre']}".strip(),
-            image=icono_tipo,
-            compound="left",
+            encabezado,
+            text=tipo["nombre"],
             font=("Montserrat", 16, "bold"),
-            text_color=PRIMARY if tipo["habilitado"] else "#64748B"
-        ).pack(anchor="w", padx=9, pady=(10, 8))
+            text_color=PRIMARY if tipo["habilitado"] else "#64748B",
+            anchor="w",
+            height=28,
+        ).pack(side="left", fill="x", expand=True)
 
         ctk.CTkButton(
             item,
