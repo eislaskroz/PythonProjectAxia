@@ -3468,10 +3468,31 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             seccion_misc, variable=_var_insumo_catalogo,
             values=list(_insumos_por_nombre.keys()), height=31
         )
-        _combo_insumo_catalogo.grid(row=998, column=0, columnspan=3, sticky="ew", padx=5, pady=(5, 2))
+        # Un único selector compacto. No ocupar tres columnas ni deformar la tabla.
+        _combo_insumo_catalogo.configure(width=360)
+        _combo_insumo_catalogo.grid(row=998, column=0, columnspan=2, sticky="w", padx=5, pady=(5, 2))
+
+        def _agregar_insumo_seleccionado():
+            insumo = _insumos_por_nombre.get(_var_insumo_catalogo.get())
+            if not insumo:
+                return
+            nombre = str(insumo.get("nombre") or "").strip().casefold()
+            categoria = str(insumo.get("categoria") or "Otro").strip().casefold()
+            unidad = str(insumo.get("unidad") or "Pieza(s)").strip().casefold()
+            # Una segunda pulsación no debe crear otra fila vacía del mismo insumo.
+            # Si la anterior ya tiene cantidad, se permite otra partida (p. ej. otra medida).
+            for item in materiales_miscelaneos_items:
+                if (item["material"].get().strip().casefold() == nombre
+                        and item["categoria"].get().strip().casefold() == categoria
+                        and item["unidad"].get().strip().casefold() == unidad
+                        and not item["cantidad"].get().strip()):
+                    messagebox.showinfo("Material pendiente", "Este material ya está agregado y le falta la cantidad. Completa esa fila antes de volver a agregarlo.")
+                    return
+            agregar_material_miscelaneo(insumo)
+
         ctk.CTkButton(
             seccion_misc, text="➕ Agregar insumo del catálogo", height=31, fg_color=PRIMARY,
-            command=lambda: agregar_material_miscelaneo(_insumos_por_nombre.get(_var_insumo_catalogo.get()))
+            command=_agregar_insumo_seleccionado
         ).grid(row=998, column=3, columnspan=2, sticky="ew", padx=5, pady=(5, 2))
 
     ctk.CTkButton(
