@@ -156,6 +156,15 @@ FORMULARIOS_DETALLADOS_EXTRA = {
             ]),
         ],
     },
+    "General": {
+        "titulo": "Levantamiento General",
+        "tipo_sistema": "Técnico",
+        "secciones": [
+            ("📝 1. Descripción o detalle de levantamiento", [
+                ("detalle_levantamiento", "entry", "Descripción o detalle de levantamiento", "Describe de forma general el servicio, alcance o necesidad del cliente", ""),
+            ]),
+        ],
+    },
     "Paneles Solares": {
         "titulo": "Levantamiento Paneles Solares",
         "tipo_sistema": "Energía",
@@ -210,4 +219,5 @@ TIPOS_LEVANTAMIENTO_ESPECIALIZADOS = (
     "Enlaces Inalámbricos",
     "Tecnología, Equipos y Periféricos",
     "Paneles Solares",
+    "General",
 )

@@ -2767,7 +2767,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 wraplength=255
             ).grid(row=fila, column=columna, sticky="w", padx=6, pady=(2, 1))
 
-        def entry_extra(parent_frame, texto, variable, placeholder, fila, columna, ancho_corto=False):
+        def entry_extra(parent_frame, texto, variable, placeholder, fila, columna, ancho_corto=False, columnspan=1):
             label_extra(parent_frame, texto, fila * 2 + 1, columna)
             entry = ctk.CTkEntry(
                 parent_frame,
@@ -2776,11 +2776,11 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 corner_radius=9,
                 placeholder_text=placeholder
             )
-            if ancho_corto:
+            if ancho_corto and columnspan == 1:
                 entry.configure(width=145)
                 entry.grid(row=fila * 2 + 2, column=columna, sticky="w", padx=6, pady=(0, 3))
             else:
-                entry.grid(row=fila * 2 + 2, column=columna, sticky="ew", padx=6, pady=(0, 3))
+                entry.grid(row=fila * 2 + 2, column=columna, columnspan=columnspan, sticky="ew", padx=6, pady=(0, 3))
             if "fecha" in texto.lower():
                 asociar_selector_fecha(entry, parent_frame, variable)
             tipo_mascara = tipo_mascara_por_etiqueta(texto)
@@ -2852,7 +2852,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 if tipo_campo == "option":
                     extra_widgets[clave] = option_extra(contenedor_campos, etiqueta, variable, opciones_placeholder, fila_campo, columna_campo)
                 else:
-                    extra_widgets[clave] = entry_extra(contenedor_campos, etiqueta, variable, opciones_placeholder, fila_campo, columna_campo, ancho_corto=es_corto)
+                    columnspan = 5 if tipo_levantamiento == "General" and len(campos_visibles) == 1 else 1
+                    extra_widgets[clave] = entry_extra(contenedor_campos, etiqueta, variable, opciones_placeholder, fila_campo, columna_campo, ancho_corto=es_corto and columnspan == 1, columnspan=columnspan)
 
         # La canalización de estos formularios se captura en la sección dinámica común.
 
@@ -2864,7 +2865,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     tipos_con_canalizacion = {
         "Seguridad y Monitoreo", "Redes Voz y Datos", "Electricidad",
         "Control de Accesos", "Enlaces Inalámbricos",
-        "Paneles Solares", "Plantas de Energía", "Aires Acondicionados",
+        "Paneles Solares", "Plantas de Energía", "Aires Acondicionados", "General",
     }
     seccion_canalizacion_dinamica = None
     var_requiere_canalizacion = ctk.StringVar(value="Sí")
@@ -4334,6 +4335,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     )
                     for clave, _tipo_campo, _etiqueta, _opciones_placeholder, _default in campos_sec
                 }
+            if tipo_levantamiento == "General":
+                detalle_general_var = vars_extra.get("detalle_levantamiento")
+                detalle["detalle_levantamiento"] = detalle_general_var.get().strip() if detalle_general_var else ""
+                detalle["resumen_servicio"] = detalle["detalle_levantamiento"]
             return detalle
 
         if tipo_levantamiento != "Seguridad y Monitoreo":
@@ -4880,6 +4885,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 for clave,nombre in campos: falta(nombre,vacia(vars_extra[clave]))
                 for _pendiente_material in pendientes_canalizacion_materiales():
                     falta(_pendiente_material, True)
+            elif tipo_levantamiento == "General":
+                falta("Detalle de levantamiento", vacia(vars_extra.get("detalle_levantamiento")))
+                for _pendiente_material in pendientes_canalizacion_materiales():
+                    falta(_pendiente_material, True)
             elif tipo_levantamiento in tipos_con_canalizacion:
                 for _pendiente_material in pendientes_canalizacion_materiales():
                     falta(_pendiente_material, True)
@@ -4897,6 +4906,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         }
         if tipo_levantamiento in por_especialidad:
             return por_especialidad[tipo_levantamiento].get().strip()
+        if tipo_levantamiento == "General":
+            return "General"
         if tipo_levantamiento in FORMULARIOS_DETALLADOS_EXTRA:
             clave = "accion_ti" if tipo_levantamiento == "Tecnología, Equipos y Periféricos" else "necesidad"
             variable = vars_extra.get(clave)
@@ -4915,6 +4926,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "Enlaces Inalámbricos": "Levantamiento Enlaces Inalámbricos",
             "Tecnología, Equipos y Periféricos": "Levantamiento Tecnología, Equipos y Periféricos",
             "Paneles Solares": "Levantamiento Paneles Solares",
+            "General": "Levantamiento General",
         }
         return titulos.get(tipo_levantamiento, "Levantamiento")
 
@@ -4947,7 +4959,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         return {
             "Folio de Levantamiento": var_folio.get(),
             "Tipo de Levantamiento": tipo_levantamiento or var_tipo.get(),
-            "Tipo operativo": var_modalidad_levantamiento.get() if tipo_levantamiento == "Seguridad y Monitoreo" else ("Instalación" if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else var_tipo.get()),
+            "Tipo operativo": var_modalidad_levantamiento.get() if tipo_levantamiento == "Seguridad y Monitoreo" else (modalidad_seleccionada() if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else var_tipo.get()),
             "ACO": var_aco.get(),
             "Fecha": var_fecha_programada.get(),
             "Cliente": var_cliente.get(),
@@ -5095,6 +5107,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "Enlaces Inalámbricos": "Levantamiento Enlaces Inalámbricos",
             "Tecnología, Equipos y Periféricos": "Levantamiento Tecnología, Equipos y Periféricos",
             "Paneles Solares": "Levantamiento Paneles Solares",
+            "General": "Levantamiento General",
         }
         return titulos.get(tipo_levantamiento, "Levantamiento")
 
@@ -5103,7 +5116,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         return {
             "Folio de Levantamiento": var_folio.get(),
             "Tipo de Levantamiento": tipo_levantamiento or var_tipo.get(),
-            "Tipo operativo": var_modalidad_levantamiento.get() if tipo_levantamiento == "Seguridad y Monitoreo" else ("Instalación" if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else var_tipo.get()),
+            "Tipo operativo": var_modalidad_levantamiento.get() if tipo_levantamiento == "Seguridad y Monitoreo" else (modalidad_seleccionada() if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else var_tipo.get()),
             "ACO": var_aco.get(),
             "Fecha": var_fecha_programada.get(),
             "Cliente": var_cliente.get(),

@@ -32,6 +32,7 @@ TIPOS_LEVANTAMIENTO = [
     {"nombre": "Paneles Solares", "habilitado": True, "icono_archivo": "6.png"},
     {"nombre": "Plantas de Energía", "habilitado": True, "icono_archivo": "7.png"},
     {"nombre": "Obra Civil", "habilitado": True, "icono_archivo": "8.png"},
+    {"nombre": "General", "habilitado": True, "icono": "📋"},
     # Se conserva el módulo ya implementado para no perder funcionalidad.
     {"nombre": "Aires Acondicionados", "habilitado": True, "icono_archivo": "9.png", "icono": "❄️"},
 ]

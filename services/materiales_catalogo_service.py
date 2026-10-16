@@ -190,6 +190,20 @@ CATALOGO_MATERIALES_POR_ESPECIALIDAD = {
         _m("Etiquetas fotovoltaicas", "Identificación", "Paquete(s)", "Riesgo DC/AC"),
         _m("Puesta a tierra de estructura", "Tierra física", "Juego(s)", "Conector y conductor"),
     ],
+    "General": [
+        _m("Canaleta", "Canalización", "Metro(s)", "Tipo y medida"),
+        _m("Tubería conduit", "Canalización", "Tramo(s)", "Tipo y diámetro"),
+        _m("Cable UTP", "Cableado", "Caja(s)", "Categoría y uso"),
+        _m("Cable eléctrico", "Cableado", "Metro(s)", "Calibre y tipo"),
+        _m("Conectores", "Conectividad", "Pieza(s)", "RJ45, BNC, terminal o equivalente"),
+        _m("Tornillería y taquetes", "Fijación", "Caja(s)", "Tipo y medida"),
+        _m("Cinchos / velcro", "Sujeción", "Paquete(s)", "Plástico o reutilizable"),
+        _m("Cinta aislante", "Consumible", "Rollo(s)", "Grado eléctrico"),
+        _m("Silicón / sellador", "Consumible", "Bote(s)", "Interior o exterior"),
+        _m("Etiquetas de identificación", "Consumible", "Paquete(s)", "Cableado, equipos o puertos"),
+        _m("Alcohol isopropílico", "Limpieza", "Bote(s)", "Presentación"),
+        _m("Espuma limpiadora", "Limpieza", "Bote(s)", "Presentación"),
+    ],
     "Obra Civil": [
         _m("Pijas", "Fijación", "Caja(s)", "Calibre y longitud"),
         _m("Tornillos", "Fijación", "Caja(s)", "Tipo y medida"),
@@ -215,7 +229,7 @@ CATALOGO_MATERIALES_POR_ESPECIALIDAD = {
 
 def obtener_materiales_por_especialidad(especialidad):
     """Devuelve una copia del catálogo correspondiente a la especialidad."""
-    clave = especialidad if especialidad in CATALOGO_MATERIALES_POR_ESPECIALIDAD else "Obra Civil"
+    clave = especialidad if especialidad in CATALOGO_MATERIALES_POR_ESPECIALIDAD else "General"
     return [dict(material) for material in CATALOGO_MATERIALES_POR_ESPECIALIDAD[clave]]
 
 

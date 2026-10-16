@@ -22,6 +22,7 @@ TIPO_POR_CODIGO = {
     8: "Plantas de Energía",
     9: "Obra Civil",
     10: "Aires Acondicionados",
+    11: "General",
 }
 
 PREFIXES = ("sec_", "cctv_", "rvd_", "aa_", "pe_", "power_plant_", "ele_", "electric_", "control_", "wireless_", "technology_", "solar_", "obra_", "air_")
@@ -36,6 +37,7 @@ TYPE_PREFIXES = {
     "Plantas de Energía": ("power_plant_", "pe_"),
     "Obra Civil": ("obra_", "civil_"),
     "Aires Acondicionados": ("air_", "aa_"),
+    "General": (),
 }
 RESTORE_ALIAS = {
     "requiere_calculo":"requiere_calculo_termico", "marca_modelo":"marca_modelo_sugerido",

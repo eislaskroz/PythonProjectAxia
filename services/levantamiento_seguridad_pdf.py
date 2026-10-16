@@ -1514,7 +1514,7 @@ def generar_pdf_levantamiento_maestro(
     _append_vobo_cliente(story, registro, detail, width, normal, header)
     _append_elaborado_por(story, registro, detail, width, normal)
 
-    title = f"Levantamiento {tipo}" + (f" - {modalidad}" if modalidad else "")
+    title = f"Levantamiento {tipo}" + (f" - {modalidad}" if modalidad and str(modalidad).strip().casefold() != str(tipo).strip().casefold() else "")
     doc.title = f"AXIA - {title}"
     doc.author = "AXIA Comunicaciones S.A. de C.V."
     doc.subject = title

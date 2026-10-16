@@ -93,6 +93,13 @@ CATALOGO_EQUIPOS = {
         {"familia": "Protección DC/AC", "subfamilias": ["Combiner box", "Seccionador", "SPD", "Interruptor"], "caracteristicas": "Voltaje, corriente, polos, capacidad"},
         {"familia": "Estructura", "subfamilias": ["Coplanar", "Inclinada", "Techo plano", "Suelo"], "caracteristicas": "Material, inclinación, anclaje, viento"},
     ],
+    "General": [
+        {"familia": "Equipo de cómputo", "subfamilias": ["Laptop", "PC de escritorio", "All-in-One", "Mini PC", "Servidor"], "caracteristicas": "Procesador, RAM, almacenamiento, sistema operativo y uso requerido"},
+        {"familia": "Redes y conectividad", "subfamilias": ["Router", "Switch", "Access Point", "Firewall", "Cableado estructurado"], "caracteristicas": "Puertos, velocidad, PoE, cobertura, categoría de cable y compatibilidad"},
+        {"familia": "Seguridad y control", "subfamilias": ["Cámara", "NVR/DVR", "Control de acceso", "Alarma", "Videoportero"], "caracteristicas": "Resolución, canales, usuarios, alimentación y ubicación"},
+        {"familia": "Energía y respaldo", "subfamilias": ["UPS", "Regulador", "PDU", "Tablero", "Planta de emergencia"], "caracteristicas": "Capacidad, voltaje, autonomía, fases y protecciones"},
+        {"familia": "Otro", "subfamilias": ["Otro / especificar"], "caracteristicas": "Descripción, compatibilidad y características técnicas requeridas"},
+    ],
     "Obra Civil": [
         {"familia": "Maquinaria", "subfamilias": ["Excavadora", "Retroexcavadora", "Compactador", "Andamio", "Plataforma"], "caracteristicas": "Capacidad, alcance, horas/días de renta"},
         {"familia": "Equipo de bombeo", "subfamilias": ["Achique", "Hidráulico", "Presurización"], "caracteristicas": "Caudal, presión, potencia, alimentación"},
