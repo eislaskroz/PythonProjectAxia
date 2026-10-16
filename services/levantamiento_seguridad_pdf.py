@@ -260,7 +260,7 @@ def _append_anotacion_plano(story: list, registro: Mapping[str, Any], width: flo
         image.drawHeight = ih * scale
         image.hAlign = "CENTER"
         title = _section_title("Anotaciones tipo plano", width, header)
-        story.append(Spacer(1, 7))
+        story.append(Spacer(1, 4))
         story.append(KeepTogether([title, Spacer(1, 4), image]))
     except Exception:
         # Una anotación corrupta nunca debe impedir generar el levantamiento.
@@ -350,7 +350,7 @@ def _append_archivos_adjuntos(story: list, registro: Mapping[str, Any], width: f
         ["Archivo", "Tipo", "Referencia"],
         filas, [2.35*inch, 1.00*inch, 3.55*inch], normal, header
     ))
-    story.append(Spacer(1, 7))
+    story.append(Spacer(1, 4))
     for item in items:
         if _es_pdf(item):
             continue
@@ -522,7 +522,7 @@ def _append_evidencias_fotograficas(story: list, registro: Mapping[str, Any], wi
         rows = []
         for i in range(0, len(cards), 2):
             rows.append([cards[i], cards[i+1] if i+1 < len(cards) else ""])
-        story.append(Spacer(1, 7))
+        story.append(Spacer(1, 4))
         first_grid = Table([rows[0]], colWidths=[width/2, width/2], hAlign="LEFT")
         first_grid.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "TOP")]))
         story.append(KeepTogether([
@@ -751,27 +751,10 @@ def generar_pdf_seguridad_instalacion(
     )
     story = []
 
-    # 1) Datos generales - estructura equivalente al formato de referencia.
-    duracion = registro.get("lev_duracion_proyecto") or ("Un día" if str(registro.get("lev_dias_trabajo") or "") == "1" else "Varios días")
-    recurso_valor = (f"{registro.get('lev_horas_estimadas')} h" if duracion == "Un día" and registro.get("lev_horas_estimadas") not in (None, "") else (cctv.get("dias_trabajo") or registro.get("lev_dias_trabajo") or "No definido"))
-    recurso_etiqueta = "HORAS ESTIMADAS" if duracion == "Un día" else "DÍAS DE TRABAJO"
-    general_rows = [
-        ["NOMBRE DE LEVANTAMIENTO", tipo_master or "Seguridad y Monitoreo",
-         "FOLIO LEVANTAMIENTO", registro.get("lev_folio") or "Pendiente"],
-        *([["NOMBRE DEL SERVICIO", registro.get("lev_descripcion"), "", ""]] if str(registro.get("lev_descripcion") or "").strip() else []),
-        ["CLIENTE", registro.get("lev_cliente"), "FECHA", registro.get("lev_fecha_programada") or registro.get("fecha_registro")],
-        ["DIRECCIÓN FISCAL", registro.get("lev_direccion"), "CONTACTO", registro.get("lev_contacto")],
-        ["DIRECCIÓN SUCURSAL", registro.get("lev_direccion_sucursal") or registro.get("lev_ubicacion"), "CORREO", registro.get("lev_correo")],
-        ["TIPO DE TRABAJO", modalidad or "No especificado", "DURACIÓN", duracion],
-        [recurso_etiqueta, recurso_valor, "PERSONAS ESTIMADAS", registro.get("lev_personas_considerar") or cctv.get("personas_considerar") or "No definido"],
-    ]
-    if registro.get("lev_notas"):
-        general_rows.append(["NOTAS", registro.get("lev_notas"), "", ""])
-    # Días y personas forman parte del mismo bloque de datos generales para mantener
-    # exactamente las mismas columnas, bordes y proporciones. Personas queda debajo
-    # de Tipo de trabajo.
+    # 1) Datos generales homologados para TODAS las especialidades.
+    general_rows = _filas_generales_homologadas(registro, detail, tipo_master or "Seguridad y Monitoreo", modalidad)
     story.append(_key_value_table(general_rows, [1.35*inch, 2.75*inch, 1.18*inch, 1.62*inch], normal, label))
-    story.append(Spacer(1, 7))
+    story.append(Spacer(1, 4))
 
     # En registros anteriores pueden existir datos de rack pese a haber marcado
     # infraestructura reutilizable. El PDF debe respetar la selección actual.
@@ -780,62 +763,8 @@ def generar_pdf_seguridad_instalacion(
         rack = {}
         materiales_rack_tierra = []
 
-    # 2) Mostrar solo información afirmativa/capturada; los controles "No"
-    # y sus detalles dependientes no forman parte del documento.
-    _append_mapping_section(
-        story, "Infraestructura existente",
-        {
-            "tipo_infraestructura_existente": infra.get("tipo_infraestructura_existente"),
-            "estado_general": infra.get("estado_general"),
-        },
-        width, normal, label, header,
-    )
-    if not infra_reutilizable:
-        _append_mapping_section(
-            story, "Rack, gabinete y energía",
-            _filter_pdf_dependencies(rack), width, normal, label, header,
-        )
-
-    rack_tierra_rows = []
-    for item in materiales_rack_tierra:
-        if not isinstance(item, Mapping):
-            continue
-        rack_tierra_rows.append([
-            item.get("categoria") or "Material", item.get("material"), item.get("cantidad"),
-            item.get("unidad"), item.get("especificacion") or ""
-        ])
-    if rack_tierra_rows:
-        story.append(_section_matrix_table(
-            "Materiales de rack y tierra física",
-            ["Grupo", "Material / accesorio", "Cantidad", "Unidad", "Especificación"],
-            rack_tierra_rows,
-            [1.0*inch, 2.15*inch, .72*inch, 1.02*inch, 2.01*inch], normal, header
-        ))
-        story.append(Spacer(1, 6))
-
-    # 3) Acceso, alturas y riesgos. Si NO hay trabajo en altura,
-    # sus campos subordinados no deben reaparecer por datos históricos.
-    access_visible = _filter_pdf_dependencies(access)
-    if str(access.get("trabajo_alturas") or access.get("escalera_andamio") or "").strip().casefold() in {"no", "false", "0"}:
-        for key in ("sistema_acceso_temporal", "altura_trabajo", "tipo_altura", "escalera_andamio"):
-            access_visible.pop(key, None)
-    _append_mapping_section(story, "Acceso, alturas y riesgos", access_visible, width, normal, label, header)
-
-    # Condiciones del sitio y ruta: bloque común de las especialidades,
-    # visible solo si existen respuestas positivas o datos capturados.
-    sitio = detail.get("condiciones_sitio_ruta")
-    if isinstance(sitio, Mapping):
-        _append_mapping_section(story, "Condiciones del sitio y ruta", sitio, width, normal, label, header)
-
-    # 4) Datos técnicos CCTV. Las cámaras se capturan en Equipos principales.
-    # No condicionar las ubicaciones al selector histórico "requiere_camaras":
-    # ya no existe en el formulario actual, pero puede seguir en registros viejos.
-    ubicaciones = {
-        "ubicacion_nvr_dvr": cctv.get("ubicacion_nvr_dvr"),
-        "punto_red": cctv.get("punto_red"),
-        "punto_energia": cctv.get("punto_energia"),
-    }
-    _append_mapping_section(story, "Ubicaciones y conexiones CCTV", ubicaciones, width, normal, label, header)
+    # Evaluación técnica: resumen breve, no transcripción del formulario.
+    _append_resumen_tecnico(story, registro, detail, width, normal, label, header)
 
     # 5) Canalización dinámica.
     if canalizacion:
@@ -849,11 +778,12 @@ def generar_pdf_seguridad_instalacion(
                 item.get("cantidad"), item.get("unidad")
             ])
         if rows:
-            story.append(_matrix_table(
+            story.append(_section_matrix_table(
+                "Canalización, cableado y materiales",
                 ["Categoría", "Tipo", "Tamaño/Calibre", "Cantidad", "Unidad"], rows,
                 [1.05*inch, 2.35*inch, 1.55*inch, .88*inch, 1.07*inch], normal, header
             ))
-    story.append(Spacer(1, 7))
+    story.append(Spacer(1, 4))
 
     # 6) Equipos principales: aparece únicamente cuando hay registros.
     equipment_rows = []
@@ -870,7 +800,7 @@ def generar_pdf_seguridad_instalacion(
             equipment_rows,
             [1.05*inch,1.15*inch,.65*inch,.95*inch,.95*inch,2.15*inch], normal, header
         ))
-        story.append(Spacer(1, 7))
+        story.append(Spacer(1, 4))
 
     # 7) Materiales misceláneos: aparece únicamente cuando hay registros.
     material_rows = []
@@ -885,19 +815,17 @@ def generar_pdf_seguridad_instalacion(
             ["Material", "Cantidad", "Unidad", "Especificación/Medida"], material_rows,
             [2.15*inch,.9*inch,1.0*inch,2.85*inch], normal, header
         ))
-        story.append(Spacer(1, 7))
+        story.append(Spacer(1, 4))
 
-    tools = [] if tipo_master.casefold() == "tecnología, equipos y periféricos".casefold() else _tool_rows(detail)
+    tools = _tool_rows(detail)
     if tools:
         story.append(_section_matrix_table(
             "Herramientas", ["Categoría", "Herramienta", "Cantidad", "Especificación / observaciones"],
             tools, [1.25*inch,2.35*inch,.8*inch,2.50*inch], normal, header
         ))
-        story.append(Spacer(1, 7))
+        story.append(Spacer(1, 4))
 
     requiere_epp, epp_rows = _epp_rows(detail)
-    if tipo_master.casefold() == "tecnología, equipos y periféricos".casefold():
-        requiere_epp, epp_rows = "No", []
     if requiere_epp.casefold() in {"sí", "si"} or epp_rows:
         story.append(_section_title("Equipo de Protección Personal (EPP)", width, header))
         if epp_rows:
@@ -905,7 +833,7 @@ def generar_pdf_seguridad_instalacion(
                 "EPP requerido", ["Equipo de protección", "Cantidad", "Especificación / observaciones"],
                 epp_rows, [2.65*inch,.85*inch,3.40*inch], normal, header
             ))
-        story.append(Spacer(1, 7))
+        story.append(Spacer(1, 4))
 
     # La descripción detallada se conserva en el registro, pero no se imprime:
     # repite información ya presentada en las secciones estructuradas del PDF.
@@ -1335,22 +1263,62 @@ def _tool_rows(detail: Mapping[str, Any]) -> list[list[Any]]:
             for x in _dynamic_rows(detail, "herramientas")]
 
 
+EPP_BASICO_OBLIGATORIO = (
+    "Casco de seguridad",
+    "Botas de seguridad",
+    "Chaleco reflejante / alta visibilidad",
+    "Lentes de seguridad",
+)
+
+
 def _epp_rows(detail: Mapping[str, Any]) -> tuple[str, list[list[Any]]]:
+    """El PDF incluye siempre cuatro EPP básicos y cualquier EPP adicional.
+
+    No modifica los datos persistidos. Evita repetir elementos básicos si ya
+    están capturados; preserva cantidad y observaciones de los registros reales.
+    """
     value = detail.get("epp") or {}
     if isinstance(value, str):
         value = _json(value, {})
-    if not isinstance(value, Mapping):
-        return "No", []
-    requiere = _text(value.get("requiere"), "No")
-    partidas = value.get("partidas") or []
+    if isinstance(value, Mapping):
+        partidas = value.get("partidas") or []
+    elif isinstance(value, (list, tuple)):
+        partidas = value
+    else:
+        partidas = []
     if isinstance(partidas, str):
         partidas = _json(partidas, [])
     rows = []
     if isinstance(partidas, (list, tuple)):
         for item in partidas:
             if isinstance(item, Mapping):
-                rows.append([item.get("epp") or item.get("equipo"), item.get("cantidad"), item.get("observaciones") or item.get("especificacion")])
-    return requiere, rows
+                nombre = str(item.get("epp") or item.get("equipo") or "").strip()
+                if nombre:
+                    rows.append([nombre, item.get("cantidad") or "1", item.get("observaciones") or item.get("especificacion") or ""])
+    existentes = {str(row[0]).strip().casefold() for row in rows}
+    basicos = [[nombre, "1", ""] for nombre in EPP_BASICO_OBLIGATORIO if nombre.casefold() not in existentes]
+    return "Sí", basicos + rows
+
+
+def _append_resumen_tecnico(story: list, registro: Mapping[str, Any], detail: Mapping[str, Any], width: float, normal, label, header):
+    """Síntesis operativa, sin volcar todos los campos del formulario al PDF."""
+    resumen = []
+    for etiqueta, claves in (
+        ("Alcance puntual", ("resumen_servicio", "alcance_resumido", "resumen_tecnico")),
+        ("Observaciones", ("lev_observaciones", "observaciones", "observaciones_generales")),
+    ):
+        valor = next((registro.get(k) or detail.get(k) for k in claves if _pdf_has_value(registro.get(k) or detail.get(k))), None)
+        if valor is not None and not isinstance(valor, (Mapping, list, tuple)):
+            texto = str(valor).strip()
+            if texto and not (etiqueta == "Servicio" and any(texto == str(v or "").strip() for v in (registro.get("lev_nombre_servicio"),))):
+                resumen.append([etiqueta, texto])
+    # Un resumen informativo de máximo dos puntos. Los materiales y recursos
+    # mantienen sus propias tablas completas más adelante.
+    if resumen:
+        story.append(_section_title("Evaluación técnica - resumen del servicio", width, header))
+        story.append(_key_value_table([[k, v, "", ""] for k, v in resumen],
+            [1.55*inch, 1.90*inch, 1.55*inch, 1.90*inch], normal, label))
+        story.append(Spacer(1, 5))
 
 
 def _canal_rows(detail: Mapping[str, Any]) -> list[list[Any]]:
@@ -1390,35 +1358,43 @@ def _damaged_rows(registro: Mapping[str, Any], detail: Mapping[str, Any]) -> lis
     return rows
 
 
-def _general_story(registro: Mapping[str, Any], detail: Mapping[str, Any], story: list, normal, label, header):
-    tipo, modalidad = _tipo_y_modalidad(registro, detail)
-    duracion = _text(registro.get("lev_duracion_proyecto"), "") or ("Un día" if str(registro.get("lev_dias_trabajo") or "") == "1" else "Varios días")
-    general_rows = [
-        ["NOMBRE DE LEVANTAMIENTO", tipo,
-         "FOLIO LEVANTAMIENTO", registro.get("lev_folio") or "Pendiente"],
-        *([["NOMBRE DEL SERVICIO", registro.get("lev_descripcion"), "", ""]] if str(registro.get("lev_descripcion") or "").strip() else []),
+def _filas_generales_homologadas(registro: Mapping[str, Any], detail: Mapping[str, Any], tipo: str, modalidad: str) -> list[list[Any]]:
+    """Cabecera compacta de seis filas: aprovecha las cuatro columnas sin perder campos."""
+    duracion = _text(registro.get("lev_duracion_proyecto"), "") or (
+        "Un día" if str(registro.get("lev_dias_trabajo") or "") == "1" else "Varios días"
+    )
+    dias_detalle, personas_detalle = _find_resources(detail)
+    cctv = detail.get("datos_tecnicos_cctv") or {}
+    if not isinstance(cctv, Mapping):
+        cctv = {}
+    # El dato general es la fuente principal; los detalles son respaldo.
+    personas = _first_text(registro.get("lev_personas_considerar"), personas_detalle, cctv.get("personas_considerar"))
+    horas = _first_text(registro.get("lev_horas_estimadas"))
+    dias = _first_text(registro.get("lev_dias_trabajo"), dias_detalle, cctv.get("dias_trabajo"))
+    # Para eliminar una fila, se conserva el recurso estimado en la celda DURACIÓN.
+    # Evitar repetir "1 día" si ya se indica "Un día".
+    if duracion.casefold() == "un día" and horas:
+        duracion = f"{duracion} · {horas} h estimadas"
+    elif duracion.casefold() != "un día" and dias:
+        duracion = f"{duracion} · {dias} días de trabajo"
+    rows = [
+        ["NOMBRE DE LEVANTAMIENTO", tipo or "No registrado", "FOLIO LEVANTAMIENTO", registro.get("lev_folio") or "Pendiente"],
+        ["NOMBRE DEL SERVICIO", _first_text(registro.get("lev_descripcion")) or "Sin descripción capturada", "PERSONAS ESTIMADAS", personas or "Sin captura"],
         ["CLIENTE", registro.get("lev_cliente"), "FECHA", registro.get("lev_fecha_programada") or registro.get("fecha_registro")],
         ["DIRECCIÓN FISCAL", registro.get("lev_direccion"), "CONTACTO", registro.get("lev_contacto")],
         ["DIRECCIÓN SUCURSAL", registro.get("lev_direccion_sucursal") or registro.get("lev_ubicacion"), "CORREO", registro.get("lev_correo")],
-        ["TIPO DE TRABAJO", modalidad or "No especificado", "DURACIÓN", duracion],
+        ["TIPO DE TRABAJO", modalidad or "Sin captura", "DURACIÓN", duracion],
     ]
-    days, people = _find_resources(detail)
-    days = days or _text(registro.get("lev_dias_trabajo"), "")
-    people = people or _text(registro.get("lev_personas_considerar"), "")
-    if duracion == "Un día":
-        general_rows.append([
-            "HORAS ESTIMADAS", _text(registro.get("lev_horas_estimadas"), "No definido"),
-            "PERSONAS ESTIMADAS", people or "No definido",
-        ])
-    else:
-        general_rows.append([
-            "DÍAS DE TRABAJO", days or "No definido",
-            "PERSONAS ESTIMADAS", people or "No definido",
-        ])
     if _text(registro.get("lev_notas"), ""):
-        general_rows.append(["NOTAS", registro.get("lev_notas"), "", ""])
+        rows.append(["NOTAS", registro.get("lev_notas"), "", ""])
+    return rows
+
+
+def _general_story(registro: Mapping[str, Any], detail: Mapping[str, Any], story: list, normal, label, header):
+    tipo, modalidad = _tipo_y_modalidad(registro, detail)
+    general_rows = _filas_generales_homologadas(registro, detail, tipo, modalidad)
     story.append(_key_value_table(general_rows, [1.35*inch, 2.75*inch, 1.18*inch, 1.62*inch], normal, label))
-    story.append(Spacer(1, 7))
+    story.append(Spacer(1, 4))
 
 
 def _description_for(registro: Mapping[str, Any], detail: Mapping[str, Any]) -> str:
@@ -1464,110 +1440,21 @@ def generar_pdf_levantamiento_maestro(
 
     tipo, modalidad = _tipo_y_modalidad(registro, detail)
 
-    # Seguridad / Reparación tiene una estructura propia derivada del formulario.
-    if tipo.casefold() == "seguridad y monitoreo" and modalidad.casefold() in {"reparación", "reparacion"}:
-        if detail.get("elemento_a_reparar"):
-            _append_mapping_section(story, "Reparación: selección del elemento", {"elemento_a_reparar": detail.get("elemento_a_reparar")}, width, normal, label, header)
-        # Reparación solo debe imprimir los bloques que realmente están visibles
-        # en el formulario actual. Las secciones históricas de alimentación,
-        # conectividad y grabador se ignoran incluso si existen en registros viejos.
-        value = detail.get("ubicacion_estado_sintomas")
-        if isinstance(value, Mapping):
-            _append_mapping_section(story, _section_name("ubicacion_estado_sintomas"), value, width, normal, label, header)
-        damaged = _damaged_rows(registro, detail)
-        if damaged:
-            story.append(_section_matrix_table(
-                "Información de equipos dañados", ["Tipo de equipo", "Marca", "Modelo", "Número de serie"],
-                damaged, [1.35*inch,1.55*inch,1.55*inch,2.45*inch], normal, header
-            ))
-            story.append(Spacer(1, 7))
-    elif tipo.casefold() == "seguridad y monitoreo" and modalidad.casefold() == "mantenimiento":
-        # Mantenimiento comparte con Instalación la evaluación de acceso,
-        # alturas y riesgos. Es el único bloque técnico adicional aplicable.
-        value = detail.get("acceso_alturas_riesgos")
-        if isinstance(value, Mapping):
-            _append_mapping_section(story, _section_name("acceso_alturas_riesgos"), value, width, normal, label, header)
-    else:
-        # Formularios declarativos almacenan sus bloques bajo `secciones`.
-        sections = detail.get("secciones")
-        if isinstance(sections, Mapping):
-            for key, value in _visible_declarative_sections(tipo, sections):
-                _append_mapping_section(story, _section_name(str(key)), value, width, normal, label, header)
-        else:
-            # Formularios especializados clásicos: un bloque por clave raíz.
-            for key, value in detail.items():
-                if key in SPECIAL_ROOT_KEYS:
-                    continue
-                if tipo.casefold() == "seguridad y monitoreo" and key == "rack_gabinete_energia":
-                    infra = detail.get("infraestructura_existente")
-                    if isinstance(infra, Mapping) and str(infra.get("existe_infraestructura") or "").strip().casefold() in {"sí", "si", "yes", "true", "1"}:
-                        continue
-                if tipo.casefold() == "seguridad y monitoreo" and key == "datos_tecnicos_cctv" and isinstance(value, Mapping):
-                    value = {k: v for k, v in value.items() if k not in {"cantidad_camaras", "tipo_camaras"}}
-                if tipo.casefold() == "redes voz y datos" and key == "equipo_activo":
-                    continue
-                if isinstance(value, Mapping):
-                    # Obra Civil / AXIA FIELD: estas claves planas son metadatos
-                    # auxiliares que ya se representan en las tablas estructuradas
-                    # de materiales, EPP y conceptos. Se conservan intactas en el
-                    # registro; únicamente se ocultan en el PDF Preview.
-                    if tipo.casefold() == "obra civil" and str(key) == "compatibilidad_axia_field":
-                        patrones_ocultos = (
-                            # Las partidas repetibles de FIELD se muestran más abajo
-                            # en tablas legibles; aquí ocultamos TODA la familia indexada
-                            # para evitar claves técnicas como civil_misc_0_quantity.
-                            re.compile(r"^civil_misc_\d+_", re.IGNORECASE),
-                            re.compile(r"^common_epp_\d+_", re.IGNORECASE),
-                            re.compile(r"^civil_concept_\d+_", re.IGNORECASE),
-                            re.compile(r"^common_material_\d+_", re.IGNORECASE),
-                        )
-                        claves_ocultas = {
-                            "common_material_count",
-                            "common_material_required",
-                            "common_estimated_days",
-                            "common_estimated_hours",
-                            "common_project_duration",
-                        }
-                        # Compatibilidad AXIA FIELD debe ser legible para el usuario final.
-                        # Las claves técnicas en inglés se usan para reconstruir las tablas
-                        # formateadas del PDF, pero no deben mostrarse crudas en esta sección.
-                        prefijos_tecnicos_ingles = (
-                            "common_",
-                            "civil_",
-                            "wants_",
-                            "height_",
-                            "risk_",
-                            "temp_",
-                        )
-                        claves_tecnicas_ingles = {"risk", "height"}
-
-                        def _ocultar_clave_field(clave: Any) -> bool:
-                            normalizada = str(clave).strip().casefold().replace(" ", "_")
-                            return (
-                                normalizada in claves_ocultas
-                                or normalizada in claves_tecnicas_ingles
-                                or normalizada.startswith(prefijos_tecnicos_ingles)
-                                or any(p.match(str(clave)) for p in patrones_ocultos)
-                            )
-
-                        value = {k: v for k, v in value.items() if not _ocultar_clave_field(k)}
-                        if not value:
-                            continue
-                    _append_mapping_section(story, _section_name(str(key)), value, width, normal, label, header)
+    # Evaluación técnica: solo puntos centrales del servicio y observaciones.
+    # El detalle estructurado permanece disponible en el registro original.
+    _append_resumen_tecnico(story, registro, detail, width, normal, label, header)
 
     # Partidas dinámicas comunes. En Seguridad y Monitoreo solo aplican
     # a Instalación; Reparación/Mantenimiento deben ignorar incluso datos
     # históricos que pudieran existir en registros anteriores.
     canal = _canal_rows(detail)
-    if tipo.casefold() == "seguridad y monitoreo" and modalidad.casefold() not in {"instalación", "instalacion"}:
-        canal = []
     if canal:
         story.append(_section_matrix_table(
             "Canalización, cableado y materiales",
             ["Categoría", "Tipo", "Tamaño/Calibre", "Cantidad", "Unidad"], canal,
             [1.05*inch,2.35*inch,1.55*inch,.88*inch,1.07*inch], normal, header
         ))
-        story.append(Spacer(1, 7))
+        story.append(Spacer(1, 4))
 
     equipment = _equipment_rows(detail)
     if equipment:
@@ -1576,7 +1463,7 @@ def generar_pdf_levantamiento_maestro(
             ["Familia", "Subfamilia", "Cantidad", "Marca", "Modelo", "Características técnicas"], equipment,
             [1.05*inch,1.15*inch,.65*inch,.95*inch,.95*inch,2.15*inch], normal, header
         ))
-        story.append(Spacer(1, 7))
+        story.append(Spacer(1, 4))
 
     if tipo.casefold() == "obra civil":
         civil_concepts = _civil_concept_rows(detail)
@@ -1586,7 +1473,7 @@ def generar_pdf_levantamiento_maestro(
                 ["Concepto", "Tipo", "Cantidad", "Unidad"], civil_concepts,
                 [3.65*inch,1.25*inch,.85*inch,1.15*inch], normal, header
             ))
-            story.append(Spacer(1, 7))
+            story.append(Spacer(1, 4))
 
     materials = _material_rows(detail)
     if materials:
@@ -1595,20 +1482,18 @@ def generar_pdf_levantamiento_maestro(
             ["Material", "Cantidad", "Unidad", "Especificación/Medida"], materials,
             [2.15*inch,.9*inch,1.0*inch,2.85*inch], normal, header
         ))
-        story.append(Spacer(1, 7))
+        story.append(Spacer(1, 4))
 
-    tools = [] if tipo.casefold() == "tecnología, equipos y periféricos".casefold() else _tool_rows(detail)
+    tools = _tool_rows(detail)
     if tools:
         story.append(_section_matrix_table(
             "Herramientas",
             ["Categoría", "Herramienta", "Cantidad", "Especificación / observaciones"], tools,
             [1.25*inch,2.35*inch,.8*inch,2.50*inch], normal, header
         ))
-        story.append(Spacer(1, 7))
+        story.append(Spacer(1, 4))
 
     requiere_epp, epp_rows = _epp_rows(detail)
-    if tipo.casefold() == "tecnología, equipos y periféricos".casefold():
-        requiere_epp, epp_rows = "No", []
     if requiere_epp.casefold() in {"sí", "si"} or epp_rows:
         story.append(_section_title("Equipo de Protección Personal (EPP)", width, header))
         if epp_rows:
@@ -1618,7 +1503,7 @@ def generar_pdf_levantamiento_maestro(
             ))
         else:
             story.append(_key_value_table([["¿Se requiere EPP?", requiere_epp, "Detalle", "Pendiente de especificar"]], [1.55*inch,1.90*inch,1.55*inch,1.90*inch], normal, label))
-        story.append(Spacer(1, 7))
+        story.append(Spacer(1, 4))
 
     # La descripción detallada se conserva en Supabase para compatibilidad y
     # consulta interna, pero se omite del PDF en todos los tipos de levantamiento
