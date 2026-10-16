@@ -109,6 +109,21 @@ CATALOGO_EQUIPOS = {
 
 
 def obtener_familias_por_especialidad(especialidad):
+    if especialidad == "General":
+        # Unión real de todas las familias/subfamilias, no un catálogo reducido.
+        # Las familias homónimas combinan sus alternativas sin duplicarlas.
+        fusion = {}
+        for origen, registros in CATALOGO_EQUIPOS.items():
+            if origen == "General":
+                continue
+            for registro in registros:
+                nombre = registro["familia"]
+                if nombre not in fusion:
+                    fusion[nombre] = {"familia": nombre, "subfamilias": [], "caracteristicas": registro.get("caracteristicas", "")}
+                for sub in registro.get("subfamilias", []):
+                    if sub not in fusion[nombre]["subfamilias"]:
+                        fusion[nombre]["subfamilias"].append(sub)
+        return list(fusion.values())
     return CATALOGO_EQUIPOS.get(especialidad, [])
 
 

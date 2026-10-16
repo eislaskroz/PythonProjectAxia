@@ -2849,6 +2849,25 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 variable = vars_extra[clave]
                 etiqueta_lower = etiqueta.lower()
                 es_corto = any(palabra in etiqueta_lower for palabra in ("cantidad", "días", "personas", "metros", "distancia", "altura", "capacidad", "consumo", "área", "ancho"))
+                if tipo_levantamiento == "General" and clave == "detalle_levantamiento":
+                    # Captura libre multilineal como el formato impreso tradicional.
+                    label_extra(contenedor_campos, "Descripción o detalle de levantamiento", 1, 0)
+                    caja_detalle = ctk.CTkTextbox(contenedor_campos, height=260, corner_radius=9, wrap="word", font=FORM_FIELD_FONT)
+                    caja_detalle.grid(row=2, column=0, columnspan=5, sticky="ew", padx=6, pady=(0, 10))
+                    def _actualizar_detalle_general(_evento=None):
+                        valor = caja_detalle.get("1.0", "end-1c")
+                        if variable.get() != valor:
+                            variable.set(valor)
+                    def _restaurar_detalle_general(*_args):
+                        valor = variable.get()
+                        if caja_detalle.get("1.0", "end-1c") != valor:
+                            caja_detalle.delete("1.0", "end")
+                            caja_detalle.insert("1.0", valor)
+                    caja_detalle.bind("<KeyRelease>", _actualizar_detalle_general, add="+")
+                    caja_detalle.bind("<FocusOut>", _actualizar_detalle_general, add="+")
+                    variable.trace_add("write", _restaurar_detalle_general)
+                    extra_widgets[clave] = caja_detalle
+                    continue
                 if tipo_campo == "option":
                     extra_widgets[clave] = option_extra(contenedor_campos, etiqueta, variable, opciones_placeholder, fila_campo, columna_campo)
                 else:
@@ -2868,7 +2887,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         "Paneles Solares", "Plantas de Energía", "Aires Acondicionados", "General",
     }
     seccion_canalizacion_dinamica = None
-    var_requiere_canalizacion = ctk.StringVar(value="Sí")
+    var_requiere_canalizacion = ctk.StringVar(value="No" if tipo_levantamiento == "General" else "Sí")
 
     def catalogo_tipos_por_categoria(categoria):
         if categoria == "Tubo": return list(TIPOS_TUBOS)
@@ -2882,6 +2901,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         if categoria == "Tapas": return ["Ciega", "Final", "Unión", "Para contacto", "Para datos"]
         if categoria in ("Canalización", "Canaleta"): return list(TIPOS_CANALIZACION)
         if categoria == "Cable":
+            if tipo_levantamiento == "General": return list(dict.fromkeys(TIPOS_CABLE_DATOS_CONTROL + TIPOS_CABLE_EXTERIOR + TIPOS_CABLE_ELECTRICO))
             if tipo_levantamiento == "Electricidad": return list(TIPOS_CABLE_ELECTRICO)
             if tipo_levantamiento == "Enlaces Inalámbricos": return list(dict.fromkeys(TIPOS_CABLE_EXTERIOR + TIPOS_CABLE_ELECTRICO))
             return list(dict.fromkeys(TIPOS_CABLE_DATOS_CONTROL + TIPOS_CABLE_ELECTRICO))
@@ -3015,7 +3035,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             ctk.CTkLabel(seccion_canalizacion_dinamica, text=encabezado, font=FORM_TABLE_HEADER_FONT, text_color=TEXT_PRIMARY).grid(row=4, column=col, sticky="w", padx=5, pady=(0,2))
 
         categorias = ["Tubo", "Cople", "Registro", "Cajas", "Conectores", "Abrazadera", "Tapas", "Codos", "Canaleta", "Cable"]
-        if tipo_levantamiento == "Redes Voz y Datos":
+        if tipo_levantamiento in ("Redes Voz y Datos", "General"):
             categorias += ["Jack RJ45", "Plug RJ45", "Faceplate", "Patch cord", "Patch panel"]
 
         def agregar_partida_canalizacion(categoria_inicial="Tubo"):
@@ -3425,12 +3445,24 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
     # En Tecnología se ofrece un catálogo rápido de insumos/consumibles.
     # La captura manual se conserva para cualquier material no contemplado.
-    if tipo_levantamiento == "Tecnología, Equipos y Periféricos":
+    if tipo_levantamiento in ("Tecnología, Equipos y Periféricos", "General"):
         _insumos_ti = sorted(
             obtener_materiales_por_especialidad(tipo_levantamiento),
             key=lambda x: str(x.get("nombre") or "").casefold(),
         )
-        _insumos_por_nombre = {str(x.get("nombre") or ""): x for x in _insumos_ti if x.get("nombre")}
+        _insumos_por_nombre = {}
+        for _insumo in _insumos_ti:
+            _nombre = str(_insumo.get("nombre") or "").strip()
+            if not _nombre:
+                continue
+            _clave = _nombre
+            if _clave in _insumos_por_nombre:
+                _clave = f"{_nombre} · {_insumo.get('categoria', 'Otro')} · {_insumo.get('unidad', 'Pieza(s)')}"
+                _sufijo = 2
+                while _clave in _insumos_por_nombre:
+                    _clave = f"{_nombre} · {_insumo.get('categoria', 'Otro')} · {_insumo.get('unidad', 'Pieza(s)')} ({_sufijo})"
+                    _sufijo += 1
+            _insumos_por_nombre[_clave] = _insumo
         _var_insumo_catalogo = ctk.StringVar(value=(next(iter(_insumos_por_nombre), "")))
         _combo_insumo_catalogo = NativeComboBox(
             seccion_misc, variable=_var_insumo_catalogo,
@@ -3820,6 +3852,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             if tipo_levantamiento == "Seguridad y Monitoreo" else "Observaciones"
         )
         txt_observaciones = campo_texto(titulo_observaciones, altura=100, fila=fila_textos)
+        if tipo_levantamiento == "General":
+            txt_observaciones.master.grid_remove()
     else:
         txt_descripcion = campo_texto("Descripción del levantamiento", altura=90, fila=fila_textos)
         txt_observaciones = campo_texto("Observaciones", altura=100, fila=fila_textos + 1)
@@ -4846,7 +4880,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         else:
             descripcion = txt_descripcion.get("1.0", "end").strip()
             observaciones = txt_observaciones.get("1.0", "end").strip()
-            if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS:
+            if tipo_levantamiento == "General":
+                pass  # El único campo de descripción se valida más adelante.
+            elif tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS:
                 falta("Descripción detallada del servicio", not observaciones)
             else:
                 falta("Descripción", not descripcion); falta("Observaciones", not observaciones)

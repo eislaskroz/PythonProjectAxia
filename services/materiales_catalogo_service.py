@@ -229,7 +229,15 @@ CATALOGO_MATERIALES_POR_ESPECIALIDAD = {
 
 def obtener_materiales_por_especialidad(especialidad):
     """Devuelve una copia del catálogo correspondiente a la especialidad."""
-    clave = especialidad if especialidad in CATALOGO_MATERIALES_POR_ESPECIALIDAD else "General"
+    if especialidad == "General":
+        # Reúne los catálogos completos; mantiene variantes de presentación.
+        items = {}
+        for origen, materiales in CATALOGO_MATERIALES_POR_ESPECIALIDAD.items():
+            for material in materiales:
+                llave = tuple(str(material.get(k) or "").casefold() for k in ("nombre", "categoria", "unidad", "especificacion"))
+                items.setdefault(llave, dict(material))
+        return list(items.values())
+    clave = especialidad if especialidad in CATALOGO_MATERIALES_POR_ESPECIALIDAD else "Obra Civil"
     return [dict(material) for material in CATALOGO_MATERIALES_POR_ESPECIALIDAD[clave]]
 
 

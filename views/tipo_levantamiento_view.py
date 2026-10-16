@@ -23,6 +23,7 @@ from services.movimientos_service import registrar_movimiento
 
 
 TIPOS_LEVANTAMIENTO = [
+    {"nombre": "General", "habilitado": True, "icono": "📋"},
     {"nombre": "Seguridad y Monitoreo", "habilitado": True, "icono_archivo": "1.png"},
     {"nombre": "Redes Voz y Datos", "habilitado": True, "icono_archivo": "2.png"},
     {"nombre": "Control de Accesos", "habilitado": True, "icono_archivo": "3.png"},
@@ -32,7 +33,6 @@ TIPOS_LEVANTAMIENTO = [
     {"nombre": "Paneles Solares", "habilitado": True, "icono_archivo": "6.png"},
     {"nombre": "Plantas de Energía", "habilitado": True, "icono_archivo": "7.png"},
     {"nombre": "Obra Civil", "habilitado": True, "icono_archivo": "8.png"},
-    {"nombre": "General", "habilitado": True, "icono": "📋"},
     # Se conserva el módulo ya implementado para no perder funcionalidad.
     {"nombre": "Aires Acondicionados", "habilitado": True, "icono_archivo": "9.png", "icono": "❄️"},
 ]
