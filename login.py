@@ -1,7 +1,7 @@
 ﻿import customtkinter as ctk
 from tkinter import messagebox
 from pathlib import Path
-from PIL import Image
+from PIL import Image, ImageColor, ImageDraw, ImageOps
 
 from ui.theme import aplicar_estilo_ventana
 from ui.assets import cargar_logo_axia, configurar_icono_app
@@ -80,6 +80,102 @@ def _crear_logo(parent, size=(110, 110), pady=(10, 4)):
     return label
 
 
+def _dibujar_icono_ojo(color, tamano=160):
+    """Dibuja un icono de ojo (mostrar contraseña) con fondo transparente.
+
+    No depende de ningún archivo PNG, así que siempre se ve.
+    Se dibuja a 4 veces la resolución y se reduce para que quede suave.
+    """
+    if isinstance(color, (tuple, list)):  # CustomTkinter permite (claro, oscuro)
+        color = color[0]
+    rojo, verde, azul = ImageColor.getrgb(color)[:3]
+    tinta = (rojo, verde, azul, 255)
+
+    n = tamano * 4
+    cx = cy = n / 2
+    grosor = n * 0.075
+
+    def almendra(medio_ancho, medio_alto):
+        """Contorno cerrado del ojo: dos curvas (Bézier cuadráticas) unidas en las puntas."""
+        arriba = []
+        for i in range(81):
+            t = i / 80
+            x = (1 - t) ** 2 * (cx - medio_ancho) + 2 * (1 - t) * t * cx + t ** 2 * (cx + medio_ancho)
+            y = (1 - t) ** 2 * cy + 2 * (1 - t) * t * (cy - 2 * medio_alto) + t ** 2 * cy
+            arriba.append((x, y))
+        abajo = [(x, 2 * cy - y) for x, y in reversed(arriba)]
+        return arriba + abajo
+
+    # Se pinta el ojo completo y se vacía su interior: queda un borde limpio.
+    mascara = Image.new("L", (n, n), 0)
+    dibujo = ImageDraw.Draw(mascara)
+    dibujo.polygon(almendra(n * 0.46, n * 0.30), fill=255)
+    dibujo.polygon(almendra(n * 0.46 - grosor * 1.7, n * 0.30 - grosor), fill=0)
+
+    # Pupila
+    rp = n * 0.14
+    dibujo.ellipse((cx - rp, cy - rp, cx + rp, cy + rp), fill=255)
+
+    img = Image.new("RGBA", (n, n), tinta)
+    img.putalpha(mascara)
+    return img.resize((tamano, tamano), Image.LANCZOS)
+
+
+def _teñir_icono(ruta, color):
+    """Carga un PNG y lo pinta de un solo color, conservando su forma.
+
+    Sirve tanto para PNG con fondo transparente como para PNG con fondo sólido.
+    Devuelve None si el archivo no existe o no tiene nada visible.
+    """
+    try:
+        with Image.open(ruta) as img:
+            img = img.convert("RGBA").copy()
+    except (FileNotFoundError, OSError):
+        return None
+
+    alfa = img.getchannel("A")
+
+    # PNG sin transparencia (fondo sólido): la forma se saca de la luminosidad.
+    if alfa.getextrema()[0] == 255:
+        gris = img.convert("L")
+        fondo_claro = gris.getpixel((0, 0)) > 127
+        alfa = ImageOps.invert(gris) if fondo_claro else gris
+
+    if alfa.getextrema()[1] < 40:  # imagen vacía / transparente
+        return None
+
+    if isinstance(color, (tuple, list)):  # CustomTkinter permite (claro, oscuro)
+        color = color[0]
+    rojo, verde, azul = ImageColor.getrgb(color)[:3]
+
+    resultado = Image.new("RGBA", img.size, (rojo, verde, azul, 255))
+    resultado.putalpha(alfa)
+
+    # Recorta el margen vacío del PNG y lo centra en un cuadrado, para que el
+    # dibujo ocupe el botón en lugar de verse diminuto.
+    caja = alfa.point(lambda v: 255 if v > 40 else 0).getbbox()
+    if caja:
+        resultado = resultado.crop(caja)
+        lado = int(max(resultado.size) * 1.1)
+        lienzo = Image.new("RGBA", (lado, lado), (0, 0, 0, 0))
+        lienzo.paste(
+            resultado,
+            ((lado - resultado.width) // 2, (lado - resultado.height) // 2),
+        )
+        resultado = lienzo
+    return resultado
+
+
+def _cargar_imagen_ver(color):
+    """Imagen para el botón de mostrar contraseña.
+
+    Usa assets/iconos/ver.png (teñido con `color`). Si el archivo no está o
+    está vacío, dibuja un ojo por código para que el botón nunca quede en blanco.
+    """
+    ruta = Path(__file__).resolve().parent.parent / "assets" / "iconos" / "ver.png"
+    return _teñir_icono(ruta, color) or _dibujar_icono_ojo(color)
+
+
 def abrir_login():
     """Abre una pantalla de acceso compacta y consistente con el tema AXIA."""
     app = ctk.CTk()
@@ -90,9 +186,23 @@ def abrir_login():
     app.resizable(False, False)
 
     login_resultado = {"autenticado": False}
+    ventana_cerrada = {"valor": False}
+
+    def ventana_disponible():
+        if ventana_cerrada["valor"]:
+            return False
+        try:
+            return bool(app.winfo_exists())
+        except Exception:
+            return False
+
+    def restaurar_cursor():
+        if ventana_disponible():
+            app.configure(cursor="")
 
     def cerrar_login_sin_acceso():
         login_resultado["autenticado"] = False
+        ventana_cerrada["valor"] = True
         try:
             app.destroy()
         except Exception:
@@ -194,7 +304,15 @@ def abrir_login():
 
     icono_usuario = cargar_icono("usuario.png", (20, 20), color=PRIMARY)
     icono_cerrar = cargar_icono("cerrar.png", (20, 20), color=PRIMARY)
-    icono_ver = cargar_icono("ver.png", (20, 20), color=PRIMARY)
+
+    # Icono de ver.png teñido con PRIMARY (con ojo dibujado como respaldo).
+    imagen_ver = _cargar_imagen_ver(PRIMARY)
+    icono_ver = ctk.CTkImage(
+        light_image=imagen_ver,
+        dark_image=imagen_ver,
+        size=(22, 22),
+    )
+
 
     # =================================================
     # CAMPO USUARIO (con label + icono y focus ring)
@@ -297,7 +415,6 @@ def abrir_login():
         password_row,
         text="" if icono_ver else "👁",
         image=icono_ver,
-        compound="center",
         width=44,
         height=40,
         corner_radius=10,
@@ -389,6 +506,8 @@ def abrir_login():
             return {"acceso": False, "usuario": None, "ubicacion": ubicacion}
 
         def login_correcto(resultado):
+            if not ventana_disponible():
+                return
             from security.login_guard import registrar_exito, registrar_fallo_detallado
             if not resultado["acceso"]:
                 fallo = registrar_fallo_detallado(nickname)
@@ -425,12 +544,15 @@ def abrir_login():
             )
             messagebox.showinfo("Acceso correcto", f"Bienvenido, {usuario.get('usu_nombre')}")
             login_resultado["autenticado"] = True
+            ventana_cerrada["valor"] = True
             try:
                 app.destroy()
             except Exception:
                 app.quit()
 
         def login_error(_error):
+            if not ventana_disponible():
+                return
             messagebox.showerror(
                 "Error de conexión",
                 "No fue posible validar el acceso. Revisa la conexión e intenta de nuevo.",
@@ -442,7 +564,7 @@ def abrir_login():
             on_success=login_correcto,
             on_error=login_error,
             before=lambda: app.configure(cursor="watch"),
-            after=lambda: app.configure(cursor=""),
+            after=restaurar_cursor,
         )
 
     # =================================================
