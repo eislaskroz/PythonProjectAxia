@@ -17,6 +17,7 @@ from views.levantamientos.catalogos_canalizacion import (
 )
 from views.levantamientos.canalizacion_aproximado import (
     texto_aproximado_canalizacion,
+    unidad_fija_canalizacion,
     unidad_forzada_canalizacion,
 )
 
@@ -822,7 +823,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
                 "tipo": tipo,
                 "tamano_calibre_especificacion": item["especificacion"].get().strip(),
                 "cantidad": cantidad,
-                "unidad": item["unidad"].get().strip(),
+                "unidad": unidad_forzada_canalizacion(categoria, item["unidad"].get()),
             })
         return filas
 
@@ -851,14 +852,14 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         vtipo = ctk.StringVar()
         vespecificacion = ctk.StringVar()
         vcantidad = ctk.StringVar()
-        vunidad = ctk.StringVar(value="Pieza(s)" if categoria_inicial == "Tubo" else ("Metro(s)" if categoria_inicial in ("Canalización", "Canaleta", "Cable") else "Pieza(s)"))
+        vunidad = ctk.StringVar(value="Pieza(s)" if unidad_fija_canalizacion(categoria_inicial) else ("Metro(s)" if categoria_inicial in ("Canalización", "Cable") else "Pieza(s)"))
         ocategoria = NativeComboBox(panel_canalizacion, variable=vcategoria, values=categorias_canalizacion, width=155, height=31)
         otipo = NativeComboBox(panel_canalizacion, variable=vtipo, values=[], width=300, height=31)
         oespecificacion = NativeComboBox(panel_canalizacion, variable=vespecificacion, values=[], width=225, height=31)
         ecantidad = ctk.CTkEntry(panel_canalizacion, textvariable=vcantidad, width=120, height=31, placeholder_text="Ej. 20")
         aplicar_mascara_numerica(ecantidad, vcantidad, NUMBER)
         ounidad = NativeComboBox(panel_canalizacion, variable=vunidad, values=["Metro(s)", "Pieza(s)", "Caja(s)", "Rollo(s)", "Juego(s)"], width=125, height=31)
-        laproximado = ctk.CTkLabel(panel_canalizacion, text="—", font=SMALL_FONT, text_color=TEXT_SECONDARY, anchor="w")
+        laproximado = ctk.CTkLabel(panel_canalizacion, text="—", font=SMALL_FONT, text_color="#15803D", anchor="w")
         widgets = [ocategoria, otipo, oespecificacion, ecantidad, ounidad]
         for col, widget in enumerate(widgets):
             widget.grid(row=fila, column=col, sticky="ew", padx=3, pady=2)
@@ -867,7 +868,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
                 "unidad_widget": ounidad, "aproximado_widget": laproximado}
 
         def actualizar_aproximado(*_):
-            if vcategoria.get().strip() == "Tubo" and vunidad.get() != "Pieza(s)":
+            if unidad_fija_canalizacion(vcategoria.get()) and vunidad.get() != "Pieza(s)":
                 vunidad.set("Pieza(s)")
                 return
             laproximado.configure(text=texto_aproximado_canalizacion(
@@ -889,7 +890,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
                 vunidad.set("Metro(s)")
             elif categoria not in ("Tubo", "Canalización", "Canaleta", "Cable") and vunidad.get() == "Metro(s)":
                 vunidad.set("Pieza(s)")
-            ounidad.configure(state="disabled" if categoria == "Tubo" else "normal")
+            ounidad.configure(state="disabled" if unidad_fija_canalizacion(categoria) else "normal")
             actualizar_aproximado()
             validar_preview()
 
@@ -923,7 +924,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         for item in canalizacion_materiales_items:
             for widget in item.get("widgets", []):
                 estado_widget = estado
-                if widget is item.get("unidad_widget") and item["categoria"].get().strip() == "Tubo":
+                if widget is item.get("unidad_widget") and unidad_fija_canalizacion(item["categoria"].get()):
                     estado_widget = "disabled"
                 try: widget.configure(state=estado_widget)
                 except Exception: pass

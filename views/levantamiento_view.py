@@ -1,4 +1,4 @@
-﻿from core.error_reporting import show_operation_error
+from core.error_reporting import show_operation_error
 """
 =========================================================
 MÓDULO: levantamiento_view.py
@@ -143,6 +143,7 @@ from views.levantamientos.catalogo_herramientas import (
 )
 from views.levantamientos.canalizacion_aproximado import (
     texto_aproximado_canalizacion,
+    unidad_fija_canalizacion,
     unidad_forzada_canalizacion,
 )
 
@@ -2940,7 +2941,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 "tipo": tipo,
                 "tamano_calibre_especificacion": item["especificacion"].get().strip(),
                 "cantidad": cantidad,
-                "unidad": item["unidad"].get().strip(),
+                "unidad": unidad_forzada_canalizacion(categoria, item["unidad"].get()),
             })
         return filas
 
@@ -3044,7 +3045,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             var_tipo_item = ctk.StringVar()
             var_especificacion = ctk.StringVar()
             var_cantidad_item = ctk.StringVar()
-            var_unidad_item = ctk.StringVar(value="Pieza(s)" if categoria_inicial == "Tubo" else ("Metro(s)" if categoria_inicial in ("Canalización", "Canaleta", "Cable") else "Pieza(s)"))
+            var_unidad_item = ctk.StringVar(value="Pieza(s)" if unidad_fija_canalizacion(categoria_inicial) else ("Metro(s)" if categoria_inicial in ("Canalización", "Cable") else "Pieza(s)"))
             combo_categoria = NativeComboBox(seccion_canalizacion_dinamica, variable=var_categoria, values=categorias, width=155, height=31)
             combo_tipo = NativeComboBox(seccion_canalizacion_dinamica, variable=var_tipo_item, values=[], width=300, height=31)
             combo_especificacion = NativeComboBox(seccion_canalizacion_dinamica, variable=var_especificacion, values=[], width=225, height=31)
@@ -3054,7 +3055,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                                           values=["Metro(s)", "Pieza(s)", "Caja(s)", "Rollo(s)", "Juego(s)"], width=125, height=31)
             lbl_aproximado = ctk.CTkLabel(
                 seccion_canalizacion_dinamica, text="—", font=FORM_FIELD_FONT,
-                text_color=TEXT_SECONDARY, anchor="w"
+                text_color="#15803D", anchor="w"
             )
             widgets = [combo_categoria, combo_tipo, combo_especificacion, entrada_cantidad, combo_unidad]
             for col, widget in enumerate(widgets):
@@ -3065,7 +3066,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     "unidad_widget": combo_unidad, "aproximado_widget": lbl_aproximado}
 
             def actualizar_aproximado(*_):
-                if var_categoria.get().strip() == "Tubo" and var_unidad_item.get() != "Pieza(s)":
+                if unidad_fija_canalizacion(var_categoria.get()) and var_unidad_item.get() != "Pieza(s)":
                     var_unidad_item.set("Pieza(s)")
                     return
                 lbl_aproximado.configure(text=texto_aproximado_canalizacion(
@@ -3083,7 +3084,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 var_unidad_item.set(unidad_forzada_canalizacion(categoria, var_unidad_item.get()))
                 if categoria in ("Canalización", "Canaleta", "Cable") and not var_unidad_item.get(): var_unidad_item.set("Metro(s)")
                 elif categoria not in ("Tubo", "Canalización", "Canaleta", "Cable") and var_unidad_item.get() == "Metro(s)": var_unidad_item.set("Pieza(s)")
-                combo_unidad.configure(state="disabled" if categoria == "Tubo" else "normal")
+                combo_unidad.configure(state="disabled" if unidad_fija_canalizacion(categoria) else "normal")
                 actualizar_aproximado()
             var_categoria.trace_add("write", actualizar_catalogos)
             var_tipo_item.trace_add("write", actualizar_catalogos)
@@ -3129,7 +3130,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             for item in canalizacion_materiales_items:
                 for w in item.get("widgets", []):
                     estado = "normal" if habilitado else "disabled"
-                    if w is item.get("unidad_widget") and item["categoria"].get().strip() == "Tubo":
+                    if w is item.get("unidad_widget") and unidad_fija_canalizacion(item["categoria"].get()):
                         estado = "disabled"
                     try: w.configure(state=estado)
                     except Exception: pass
