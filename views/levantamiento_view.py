@@ -184,7 +184,9 @@ from views.levantamientos.catalogos_canalizacion import (
     TIPOS_CABLE_DATOS_CONTROL,
     TIPOS_CABLE_EXTERIOR,
     TIPOS_CANALIZACION,
+    TIPOS_CANALETA,
     especificaciones_por_categoria,
+    normalizar_opciones_canalizacion,
     normalizar_tipo_canalizacion,
 )
 
@@ -2900,7 +2902,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         if categoria in ("Conector", "Conectores"): return list(TIPOS_CONECTORES)
         if categoria == "Codos": return ["45°", "90°", "Interior", "Exterior", "Plano"]
         if categoria == "Tapas": return ["Ciega", "Final", "Unión", "Para contacto", "Para datos"]
-        if categoria in ("Canalización", "Canaleta"): return list(TIPOS_CANALIZACION)
+        if categoria == "Canaleta": return list(TIPOS_CANALETA)
+        if categoria == "Canalización": return list(TIPOS_CANALIZACION)
         if categoria == "Cable":
             if tipo_levantamiento == "General": return list(dict.fromkeys(TIPOS_CABLE_DATOS_CONTROL + TIPOS_CABLE_EXTERIOR + TIPOS_CABLE_ELECTRICO))
             if tipo_levantamiento == "Electricidad": return list(TIPOS_CABLE_ELECTRICO)
@@ -3073,19 +3076,34 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     var_categoria.get(), var_cantidad_item.get(), var_unidad_item.get()
                 ))
 
+            actualizando_catalogos = False
+
             def actualizar_catalogos(*_):
-                categoria = var_categoria.get().strip()
-                tipos = catalogo_tipos_por_categoria(categoria)
-                especificaciones = catalogo_especificacion_por_categoria(categoria, var_tipo_item.get())
-                combo_tipo.configure(values=tipos)
-                combo_especificacion.configure(values=especificaciones)
-                if var_tipo_item.get() not in tipos: var_tipo_item.set(tipos[0] if tipos else "")
-                if var_especificacion.get() not in especificaciones: var_especificacion.set(especificaciones[0] if especificaciones else "")
-                var_unidad_item.set(unidad_forzada_canalizacion(categoria, var_unidad_item.get()))
-                if categoria in ("Canalización", "Canaleta", "Cable") and not var_unidad_item.get(): var_unidad_item.set("Metro(s)")
-                elif categoria not in ("Tubo", "Canalización", "Canaleta", "Cable") and var_unidad_item.get() == "Metro(s)": var_unidad_item.set("Pieza(s)")
-                combo_unidad.configure(state="disabled" if unidad_fija_canalizacion(categoria) else "normal")
-                actualizar_aproximado()
+                nonlocal actualizando_catalogos
+                if actualizando_catalogos:
+                    return
+                actualizando_catalogos = True
+                try:
+                    categoria = var_categoria.get().strip()
+                    tipos = catalogo_tipos_por_categoria(categoria)
+                    tipo, especificacion, especificaciones = normalizar_opciones_canalizacion(
+                        categoria, var_tipo_item.get(), var_especificacion.get(), tipos
+                    )
+                    combo_tipo.configure(values=tipos)
+                    if var_tipo_item.get() != tipo:
+                        var_tipo_item.set(tipo)
+                    combo_especificacion.configure(values=especificaciones)
+                    if var_especificacion.get() != especificacion:
+                        var_especificacion.set(especificacion)
+                    var_unidad_item.set(unidad_forzada_canalizacion(categoria, var_unidad_item.get()))
+                    if categoria in ("Canalización", "Cable") and not var_unidad_item.get():
+                        var_unidad_item.set("Metro(s)")
+                    elif categoria not in ("Tubo", "Canalización", "Canaleta", "Cable") and var_unidad_item.get() == "Metro(s)":
+                        var_unidad_item.set("Pieza(s)")
+                    combo_unidad.configure(state="disabled" if unidad_fija_canalizacion(categoria) else "normal")
+                    actualizar_aproximado()
+                finally:
+                    actualizando_catalogos = False
             var_categoria.trace_add("write", actualizar_catalogos)
             var_tipo_item.trace_add("write", actualizar_catalogos)
             var_cantidad_item.trace_add("write", actualizar_aproximado)

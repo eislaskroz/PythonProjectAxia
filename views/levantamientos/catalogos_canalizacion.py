@@ -68,6 +68,31 @@ CALIBRES_CABLE_ELECTRICO = [
     "3/0 AWG", "4/0 AWG", "250 AWG", "350 AWG",
 ]
 
+# Catálogo propio de CANALETA. No mezclar sus tipos con los de tubería o
+# infraestructura (charola, escalerilla, EMT, etc.). Las medidas son opciones
+# operativas comunes; "Por definir" contempla casos fuera de catálogo.
+TIPOS_CANALETA = [
+    "Canaleta PVC",
+    "Canaleta PVC autoadherible",
+    "Canaleta ranurada",
+    "Canaleta metálica",
+    "Canaleta de piso",
+]
+
+MEDIDAS_CANALETA_POR_TIPO = {
+    "Canaleta PVC": ["10 × 10 mm", "20 × 10 mm", "20 × 12 mm", "30 × 15 mm", "40 × 20 mm", "60 × 40 mm", "80 × 40 mm"],
+    "Canaleta PVC autoadherible": ["10 × 10 mm", "20 × 10 mm", "20 × 12 mm", "30 × 15 mm", "40 × 20 mm"],
+    "Canaleta ranurada": ["25 × 25 mm", "25 × 40 mm", "40 × 40 mm", "40 × 60 mm", "60 × 60 mm", "80 × 60 mm"],
+    "Canaleta metálica": ["20 × 10 mm", "40 × 20 mm", "50 × 50 mm", "60 × 40 mm", "100 × 50 mm"],
+    "Canaleta de piso": ["50 × 12 mm", "60 × 15 mm", "70 × 20 mm", "90 × 20 mm"],
+}
+
+
+def tipos_canaleta() -> list[str]:
+    """Tipos ofrecidos en la categoría Canaleta, sin opciones de tubo."""
+    return list(TIPOS_CANALETA)
+
+
 CATEGORIAS_CON_MEDIDA_TUBO = {"Tubo", "Cople", "Registro", "Conector", "Conectores", "Abrazadera", "Codos", "Cajas"}
 
 
@@ -77,13 +102,35 @@ def especificaciones_por_categoria(categoria, tipo=""):
     tipo = str(tipo or "").strip()
     if categoria in CATEGORIAS_CON_MEDIDA_TUBO:
         return list(TAMANOS_TUBOS)
+    if categoria == "Canaleta":
+        return list(MEDIDAS_CANALETA_POR_TIPO.get(tipo, ())) + ["Por definir"]
     if categoria == "Cable":
         # Mantiene opciones abiertas para cableado de datos/control, pero expone
         # todos los calibres eléctricos disponibles cuando el levantamiento lo requiere.
         return list(CALIBRES_CABLE_ELECTRICO) + ["No aplica", "Por definir"]
-    if categoria in ("Canalización", "Canaleta") and tipo in TIPOS_TUBOS:
+    if categoria == "Canalización" and tipo in TIPOS_TUBOS:
         return list(TAMANOS_TUBOS)
     return ["No aplica", "Por definir"]
+
+
+def normalizar_opciones_canalizacion(categoria, tipo_actual, especificacion_actual, tipos_disponibles):
+    """Selecciona un tipo válido ANTES de calcular la lista de medidas.
+
+    Evita que, al cambiar Tubo -> Canaleta, aparezcan tipos EMT o que un
+    refresco anidado vuelva a escribir la medida anterior.
+    """
+    tipos = list(tipos_disponibles)
+    tipo = str(tipo_actual or "").strip()
+    if tipo not in tipos:
+        tipo = tipos[0] if tipos else ""
+    especificaciones = especificaciones_por_categoria(categoria, tipo)
+    especificacion = str(especificacion_actual or "").strip()
+    if especificacion not in especificaciones:
+        # No suponer que todas las canaletas son de la primera medida del
+        # catálogo: el técnico debe confirmar la dimensión real.
+        especificacion = ("Por definir" if categoria == "Canaleta" and "Por definir" in especificaciones
+                         else (especificaciones[0] if especificaciones else ""))
+    return tipo, especificacion, especificaciones
 
 
 def normalizar_tipo_canalizacion(tipo):

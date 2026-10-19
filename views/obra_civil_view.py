@@ -13,7 +13,7 @@ from ui.native_combobox import NativeComboBox
 from views.levantamientos.catalogos_canalizacion import (
     TIPOS_ABRAZADERAS, TIPOS_CABLE_DATOS_CONTROL, TIPOS_CANALIZACION,
     TIPOS_CONECTORES, TIPOS_COPLES, TIPOS_REGISTROS, TIPOS_TUBOS, TAMANOS_TUBOS,
-    especificaciones_por_categoria,
+    especificaciones_por_categoria, TIPOS_CANALETA, normalizar_opciones_canalizacion,
 )
 from views.levantamientos.canalizacion_aproximado import (
     texto_aproximado_canalizacion,
@@ -801,7 +801,8 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         if categoria in ("Conector", "Conectores"): return list(TIPOS_CONECTORES)
         if categoria == "Codos": return ["45°", "90°", "Interior", "Exterior", "Plano"]
         if categoria == "Tapas": return ["Ciega", "Final", "Unión", "Para contacto", "Para datos"]
-        if categoria in ("Canalización", "Canaleta"): return list(TIPOS_CANALIZACION)
+        if categoria == "Canaleta": return list(TIPOS_CANALETA)
+        if categoria == "Canalización": return list(TIPOS_CANALIZACION)
         if categoria == "Cable": return list(TIPOS_CABLE_DATOS_CONTROL)
         return ["Otro"]
 
@@ -875,27 +876,38 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
                 vcategoria.get(), vcantidad.get(), vunidad.get()
             ))
 
-        def actualizar_catalogos(_=None):
-            categoria = vcategoria.get().strip()
-            tipos = catalogo_tipos_canalizacion(categoria)
-            especificaciones = catalogo_especificacion_canalizacion(categoria, vtipo.get())
-            otipo.configure(values=tipos)
-            oespecificacion.configure(values=especificaciones)
-            if vtipo.get() not in tipos:
-                vtipo.set(tipos[0] if tipos else "")
-            if vespecificacion.get() not in especificaciones:
-                vespecificacion.set(especificaciones[0] if especificaciones else "")
-            vunidad.set(unidad_forzada_canalizacion(categoria, vunidad.get()))
-            if categoria in ("Canalización", "Canaleta", "Cable") and not vunidad.get():
-                vunidad.set("Metro(s)")
-            elif categoria not in ("Tubo", "Canalización", "Canaleta", "Cable") and vunidad.get() == "Metro(s)":
-                vunidad.set("Pieza(s)")
-            ounidad.configure(state="disabled" if unidad_fija_canalizacion(categoria) else "normal")
-            actualizar_aproximado()
-            validar_preview()
+        actualizando_catalogos = False
 
-        ocategoria.configure(command=actualizar_catalogos)
-        vtipo.trace_add("write", lambda *_: actualizar_catalogos())
+        def actualizar_catalogos(*_):
+            nonlocal actualizando_catalogos
+            if actualizando_catalogos:
+                return
+            actualizando_catalogos = True
+            try:
+                categoria = vcategoria.get().strip()
+                tipos = catalogo_tipos_canalizacion(categoria)
+                tipo, especificacion, especificaciones = normalizar_opciones_canalizacion(
+                    categoria, vtipo.get(), vespecificacion.get(), tipos
+                )
+                otipo.configure(values=tipos)
+                if vtipo.get() != tipo:
+                    vtipo.set(tipo)
+                oespecificacion.configure(values=especificaciones)
+                if vespecificacion.get() != especificacion:
+                    vespecificacion.set(especificacion)
+                vunidad.set(unidad_forzada_canalizacion(categoria, vunidad.get()))
+                if categoria in ("Canalización", "Cable") and not vunidad.get():
+                    vunidad.set("Metro(s)")
+                elif categoria not in ("Tubo", "Canalización", "Canaleta", "Cable") and vunidad.get() == "Metro(s)":
+                    vunidad.set("Pieza(s)")
+                ounidad.configure(state="disabled" if unidad_fija_canalizacion(categoria) else "normal")
+                actualizar_aproximado()
+                validar_preview()
+            finally:
+                actualizando_catalogos = False
+
+        vcategoria.trace_add("write", actualizar_catalogos)
+        vtipo.trace_add("write", actualizar_catalogos)
         vcantidad.trace_add("write", actualizar_aproximado)
         vunidad.trace_add("write", actualizar_aproximado)
         actualizar_catalogos()
