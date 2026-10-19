@@ -1,23 +1,26 @@
-"""Editor de croquis técnico (etapa 1): objetos editables y PNG retrocompatible."""
+"""Editor de croquis AXIA, etapa 2: planos, símbolos y capas editables."""
 from __future__ import annotations
 
 import copy
 import math
-from tkinter import Canvas, Scrollbar, Toplevel, messagebox, simpledialog
+from pathlib import Path
+from tkinter import Canvas, Scrollbar, Toplevel, filedialog, messagebox, simpledialog
 
 import customtkinter as ctk
 from PIL import Image, ImageTk
 
 from services.croquis_documento import (
     CroquisDocumento, WIDTH, HEIGHT, bounds, hit_test, translate, resize, rotate_90, text_bitmap,
+    image_bitmap, new_image_object, import_image_bytes, ordered_objects, get_layer_id,
 )
+from services.croquis_simbolos import SYMBOLS, symbol_bitmap
 from ui.colors import SECONDARY, BUTTON_HOVER, TEXT_PRIMARY, TEXT_SECONDARY, WHITE
 from utils import centrar_ventana
 
 TOOLS = (
     ("Seleccionar", "select"), ("Lápiz", "stroke"), ("Borrador", "erase"),
     ("Línea", "line"), ("Flecha", "arrow"), ("Rectángulo", "rectangle"),
-    ("Círculo / óvalo", "ellipse"), ("Texto", "text"),
+    ("Círculo / óvalo", "ellipse"), ("Texto", "text"), ("Símbolo técnico", "symbol"),
 )
 COLORS = ("#172554", "#0369F8", "#16A34A", "#DC2626", "#F59E0B", "#7C3AED", "#111827")
 DARK = "#0F2337"
@@ -45,7 +48,8 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
     state = {"tool": "select", "color": COLORS[0], "width": 3, "zoom": .80,
              "selected": None, "start": None, "last": None, "preview": None,
              "drag": None, "before": None, "initial": None,
-             "bg_key": None, "bg_image": None, "grid": False, "text_images": []}
+             "bg_key": None, "bg_image": None, "grid": False, "text_images": [],
+             "active_layer": "trazos", "symbol": next(iter(SYMBOLS)), "graphic_cache": {}}
 
     root = ctk.CTkFrame(win, fg_color=WHITE, corner_radius=0)
     root.pack(fill="both", expand=True)
@@ -66,9 +70,8 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
 
     body = ctk.CTkFrame(root, fg_color=WHITE, corner_radius=0)
     body.pack(fill="both", expand=True, padx=12)
-    rail = ctk.CTkFrame(body, width=147, fg_color="#F3F6FA", corner_radius=9)
+    rail = ctk.CTkScrollableFrame(body, width=158, fg_color="#F3F6FA", corner_radius=9)
     rail.pack(side="left", fill="y", padx=(0, 8))
-    rail.pack_propagate(False)
     ctk.CTkLabel(rail, text="HERRAMIENTAS", font=("Montserrat", 10, "bold"),
                  text_color=TEXT_SECONDARY).pack(pady=(12, 9))
     tool_buttons = {}
@@ -89,9 +92,8 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
     ybar.grid(row=0, column=1, sticky="ns")
     xbar.grid(row=1, column=0, sticky="ew")
 
-    properties = ctk.CTkFrame(body, width=198, fg_color="#F3F6FA", corner_radius=9)
+    properties = ctk.CTkScrollableFrame(body, width=217, fg_color="#F3F6FA", corner_radius=9)
     properties.pack(side="right", fill="y", padx=(8, 0))
-    properties.pack_propagate(False)
     ctk.CTkLabel(properties, text="PROPIEDADES", font=("Montserrat", 10, "bold"),
                  text_color=TEXT_SECONDARY).pack(pady=(12, 8))
     selected_info = ctk.CTkLabel(properties, text="Ningún elemento seleccionado",
@@ -129,7 +131,7 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
     def repaint():
         z = state["zoom"]
         drawing.delete("all")
-        state["text_images"] = []  # Referencias vivas de textos girados en Tk.
+        state["text_images"] = []  # Referencias vivas de gráficos en Tk.
         drawing.configure(scrollregion=(0, 0, WIDTH * z, HEIGHT * z))
         key = (z, id(doc.background))
         if state["bg_key"] != key:
@@ -143,12 +145,12 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
                 drawing.create_line(x*z, 0, x*z, HEIGHT*z, fill="#E0E7EF", width=1)
             for y in range(0, HEIGHT+1, spacing):
                 drawing.create_line(0, y*z, WIDTH*z, y*z, fill="#E0E7EF", width=1)
-        for obj in doc.objects:
+        for _, obj in ordered_objects(doc.objects, doc.layers):
             paint_obj(obj, z)
         if state["preview"] is not None:
             paint_obj(state["preview"], z, preview=True)
         index = state["selected"]
-        if index is not None and index < len(doc.objects):
+        if index is not None and index < len(doc.objects) and doc.layer(get_layer_id(doc.objects[index])).get('visible', True):
             x0,y0,x1,y1 = bounds(doc.objects[index])
             pad = 5
             drawing.create_rectangle((x0-pad)*z,(y0-pad)*z,(x1+pad)*z,(y1+pad)*z,
@@ -157,7 +159,7 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
             hx, hy = (x1+pad)*z, (y1+pad)*z
             drawing.create_rectangle(hx-sz,hy-sz,hx+sz,hy+sz,
                                      fill="#0369F8", outline="white", width=2)
-        status.configure(text=f"  {len(doc.objects)} objeto(s)   ·   Zoom: {round(z*100)}%   ·   Cuadrícula: {'Sí' if state['grid'] else 'No'}"
+        status.configure(text=f"  {len(doc.objects)} objeto(s)   ·   {len(doc.layers)} capas   ·   Zoom: {round(z*100)}%   ·   Cuadrícula: {'Sí' if state['grid'] else 'No'}"
                               + ("   ·   Croquis antiguo: el fondo no se puede editar por objetos" if doc.legacy_background else ""))
 
     def paint_obj(obj, z, preview=False):
@@ -183,6 +185,27 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
             x0,y0,x1,y1 = bounds(obj)
             func = drawing.create_rectangle if kind == "rectangle" else drawing.create_oval
             func(x0*z,y0*z,x1*z,y1*z, outline=color, width=w)
+        elif kind in ('image', 'symbol'):
+            x0,y0,x1,y1 = bounds(obj)
+            wpx,hpx = max(1,round((x1-x0)*z)),max(1,round((y1-y0)*z))
+            cache_key = (kind, hash(obj.get('image_b64','') if kind=='image' else obj.get('symbol','')),
+                         obj.get('color',''), wpx,hpx,obj.get('rotation',0))
+            cache = state['graphic_cache']
+            picture = cache.get(cache_key)
+            if picture is None:
+                rotation = int(obj.get('rotation',0)) % 360
+                bw,bh = (hpx,wpx) if rotation % 180 else (wpx,hpx)
+                bitmap = (image_bitmap(obj).resize((bw,bh), Image.Resampling.LANCZOS)
+                          if kind == 'image' else
+                          symbol_bitmap(obj.get('symbol',''),obj.get('color',COLORS[0]),bw,bh))
+                if rotation:
+                    bitmap = bitmap.rotate(-rotation, expand=True)
+                picture = ImageTk.PhotoImage(bitmap)
+                if len(cache) >= 50:
+                    cache.clear()
+                cache[cache_key] = picture
+            state['text_images'].append(picture)
+            drawing.create_image(x0*z,y0*z,image=picture,anchor='nw')
         elif kind == "text":
             if int(obj.get("rotation", 0)) % 360:
                 bitmap = text_bitmap(obj)
@@ -197,6 +220,9 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
 
     def select_tool(tool):
         state["tool"] = tool
+        suggested = 'simbolos' if tool == 'symbol' else 'notas' if tool == 'text' else 'trazos'
+        if tool != 'select' and state['active_layer'] in ('plano','trazos','simbolos','notas'):
+            state['active_layer'] = suggested
         drawing.configure(cursor="arrow" if tool == "select" else "crosshair")
         for name, btn in tool_buttons.items():
             btn.configure(fg_color=DARK if name == tool else SECONDARY)
@@ -213,20 +239,64 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
         btn.pack(padx=7, pady=3)
         tool_buttons[code] = btn
 
+    ctk.CTkLabel(rail, text="INSERTAR", font=("Montserrat", 10, "bold"),
+                 text_color=TEXT_SECONDARY).pack(pady=(12, 6))
+    symbol_names = list(SYMBOLS.values())
+    symbol_keys = list(SYMBOLS.keys())
+    symbol_selector = ctk.CTkOptionMenu(rail, values=symbol_names, width=136, height=30,
+                                        fg_color=SECONDARY, button_color=DARK, font=("Montserrat", 9),
+                                        command=lambda v: state.update(symbol=symbol_keys[symbol_names.index(v)]))
+    symbol_selector.set(symbol_names[0])
+    symbol_selector.pack(padx=5, pady=3)
+    ctk.CTkLabel(rail, text="Elige símbolo y haz clic\nen el lienzo.",
+                 font=("Montserrat", 9), text_color=TEXT_SECONDARY).pack(pady=(1,5))
+    ctk.CTkButton(rail, text="Colocar símbolo", width=138, height=29,
+                  fg_color=SECONDARY, hover_color=BUTTON_HOVER,
+                  command=lambda: select_tool('symbol')).pack(pady=3)
+
+    def import_plan():
+        path = filedialog.askopenfilename(parent=win, title="Importar plano, foto o PDF (primera página)",
+            filetypes=[("Imágenes y PDF", "*.png *.jpg *.jpeg *.webp *.bmp *.pdf"),
+                       ("Imágenes", "*.png *.jpg *.jpeg *.webp *.bmp"),
+                       ("Documentos PDF", "*.pdf")])
+        if not path:
+            return
+        try:
+            if Path(path).stat().st_size > 12 * 1024 * 1024:
+                raise ValueError('El archivo supera el límite de importación de 12 MB.')
+            raw = Path(path).read_bytes()
+            encoded = import_image_bytes(raw, Path(path).suffix)
+            obj = new_image_object(encoded)
+            doc.add(obj)
+            state['selected'] = len(doc.objects)-1
+            state['active_layer'] = 'plano'
+            state['graphic_cache'].clear()
+            update_properties(); repaint()
+        except (OSError, ValueError, MemoryError) as exc:
+            messagebox.showerror('Importar plano', f'No se pudo importar el archivo:\n{exc}', parent=win)
+
+    ctk.CTkButton(rail, text="Importar plano / foto", width=138, height=34,
+                  fg_color=DARK, hover_color=BUTTON_HOVER,
+                  command=import_plan).pack(pady=(12,3), padx=5)
+    ctk.CTkLabel(rail, text="PNG, JPG, WEBP, BMP, PDF\n(primera página)",
+                 font=("Montserrat", 9), text_color=TEXT_SECONDARY).pack(pady=3)
+
     def update_properties():
         index = state["selected"]
         if index is not None and index < len(doc.objects):
             obj = doc.objects[index]
             names = dict((code, name) for name, code in TOOLS)
+            layer = doc.layer(get_layer_id(obj))
             selected_info.configure(text=f"Seleccionado: {names.get(obj['kind'], obj['kind'])}\n"
-                                         f"Haz doble clic para editar texto")
+                                         f"Capa: {layer['name'] if layer else 'Sin capa'}")
         else:
             selected_info.configure(text="Ningún elemento seleccionado")
+        refresh_layers()
 
     def choose_color(color):
         state["color"] = color
         index = state["selected"]
-        if index is not None:
+        if index is not None and doc.objects[index]['kind'] != 'image' and not doc.layer(get_layer_id(doc.objects[index])).get('locked'):
             doc.modify(index, color=color)
         for item, button in palette_buttons:
             button.configure(border_color="#0F2337" if item == color else "#DDE5EC",
@@ -251,21 +321,21 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
     def choose_thickness(value):
         number = int(value.split()[0]); state["width"] = number
         index = state["selected"]
-        if index is not None:
+        if index is not None and doc.objects[index]['kind'] not in ('image','symbol') and not doc.layer(get_layer_id(doc.objects[index])).get('locked'):
             doc.modify(index, width=number)
             repaint()
     thickness.configure(command=choose_thickness)
 
     def selected_required():
         i = state["selected"]
-        if i is None or i >= len(doc.objects):
+        if i is None or i >= len(doc.objects) or doc.layer(get_layer_id(doc.objects[i])).get('locked'):
             messagebox.showinfo("Editor de croquis", "Selecciona primero un elemento con la herramienta Seleccionar.", parent=win)
             return None
         return i
 
     def edit_text(_event=None):
         idx = state["selected"]
-        if idx is None or doc.objects[idx]["kind"] != "text":
+        if idx is None or idx >= len(doc.objects) or doc.objects[idx]["kind"] != "text" or doc.layer(get_layer_id(doc.objects[idx])).get('locked'):
             return
         old = doc.objects[idx]["text"]
         value = simpledialog.askstring("Editar texto", "Modifica la anotación:", initialvalue=old, parent=win)
@@ -299,10 +369,13 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
         if i is None: return
         before = doc.capture()
         value = doc.objects.pop(i)
+        candidates = [j for j, other in enumerate(doc.objects) if get_layer_id(other) == get_layer_id(value)]
         if front:
-            doc.objects.append(value); state["selected"] = len(doc.objects)-1
+            position = candidates[-1] + 1 if candidates else len(doc.objects)
         else:
-            doc.objects.insert(0, value); state["selected"] = 0
+            position = candidates[0] if candidates else 0
+        doc.objects.insert(position, value)
+        state["selected"] = position
         doc.commit(before)
         repaint()
 
@@ -311,20 +384,108 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
                       fg_color=color, hover_color=BUTTON_HOVER, font=("Montserrat", 10),
                       command=command).pack(padx=9, pady=3)
     prop_button("Editar texto", edit_text)
+
+    def change_symbol():
+        i = selected_required()
+        if i is None or doc.objects[i]['kind'] != 'symbol':
+            return
+        doc.modify(i, symbol=state['symbol'])
+        repaint()
+
+    prop_button("Cambiar símbolo", change_symbol)
     prop_button("Duplicar elemento", duplicate)
     prop_button("Girar 90°", rotate_selected)
     prop_button("Traer al frente", lambda: change_order(True))
     prop_button("Enviar al fondo", lambda: change_order(False))
     prop_button("Eliminar seleccionado", remove, color="#DC2626")
 
+    ctk.CTkLabel(properties, text="CAPAS", font=("Montserrat", 11, "bold"),
+                 text_color=TEXT_PRIMARY).pack(anchor="w", padx=12, pady=(18, 5))
+    ctk.CTkLabel(properties, text="Ojo: mostrar / ocultar   Candado: bloquear",
+                 text_color=TEXT_SECONDARY, font=("Montserrat", 9), wraplength=198).pack(padx=9)
+    layer_host = ctk.CTkFrame(properties, fg_color="transparent")
+    layer_host.pack(fill="x", padx=7, pady=5)
+
+    def choose_layer(layer_id):
+        state['active_layer'] = layer_id
+        refresh_layers()
+
+    def refresh_layers():
+        for child in layer_host.winfo_children():
+            child.destroy()
+        for layer in reversed(doc.layers):
+            lid = layer['id']
+            line = ctk.CTkFrame(layer_host, fg_color="transparent")
+            line.pack(fill="x", pady=2)
+            active = lid == state['active_layer']
+            short_name = layer['name'][:18]
+            ctk.CTkButton(line, text=short_name, width=115, height=25, anchor='w',
+                          fg_color=DARK if active else SECONDARY, font=("Montserrat", 9),
+                          command=lambda v=lid: choose_layer(v)).pack(side='left', padx=1)
+            ctk.CTkButton(line, text='●' if layer['visible'] else '○', width=28, height=25,
+                          fg_color=SECONDARY, font=("Montserrat", 11),
+                          command=lambda v=lid: toggle_layer(v, 'visible')).pack(side='left', padx=1)
+            ctk.CTkButton(line, text='🔒' if layer['locked'] else '🔓', width=32, height=25,
+                          fg_color=SECONDARY, font=("Montserrat", 10),
+                          command=lambda v=lid: toggle_layer(v, 'locked')).pack(side='left', padx=1)
+
+    def toggle_layer(layer_id, property_name):
+        layer = doc.layer(layer_id)
+        doc.configure_layer(layer_id, **{property_name: not layer[property_name]})
+        selected = state['selected']
+        if selected is not None and get_layer_id(doc.objects[selected]) == layer_id:
+            state['selected'] = None
+        update_properties(); repaint()
+
+    def add_layer():
+        name = simpledialog.askstring('Nueva capa', 'Nombre de la capa:', parent=win)
+        if not name:
+            return
+        try:
+            state['active_layer'] = doc.add_layer(name)
+        except ValueError as exc:
+            messagebox.showwarning('Capas', str(exc), parent=win)
+        update_properties(); repaint()
+
+    def reorder_layer(direction):
+        doc.move_layer(state['active_layer'], direction)
+        update_properties(); repaint()
+
+    def move_to_layer():
+        i = selected_required()
+        if i is None: return
+        target = doc.layer(state['active_layer'])
+        if target.get('locked') or not target.get('visible'):
+            messagebox.showwarning('Capas','Activa y desbloquea primero la capa de destino.',parent=win)
+            return
+        doc.modify(i, layer=state['active_layer'])
+        update_properties(); repaint()
+
+    def rename_layer():
+        layer = doc.layer(state['active_layer'])
+        name = simpledialog.askstring('Renombrar capa','Nombre:',initialvalue=layer['name'],parent=win)
+        if name and name.strip():
+            doc.configure_layer(layer['id'], name=name.strip()[:45])
+            update_properties(); repaint()
+
+    prop_button('Nueva capa', add_layer)
+    prop_button('Mover selección a capa', move_to_layer)
+    prop_button('Renombrar capa', rename_layer)
+    prop_button('Subir capa ↑', lambda: reorder_layer(1))
+    prop_button('Bajar capa ↓', lambda: reorder_layer(-1))
+
     def undo():
         if doc.undo():
+            if doc.layer(state['active_layer']) is None:
+                state['active_layer'] = 'trazos'
             state["selected"] = None
             state["bg_key"] = None
             repaint(); update_properties()
 
     def redo():
         if doc.redo():
+            if doc.layer(state['active_layer']) is None:
+                state['active_layer'] = 'trazos'
             state["selected"] = None
             state["bg_key"] = None
             repaint(); update_properties()
@@ -365,8 +526,10 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
     def initial_object(kind, x, y):
         if kind in ("stroke", "erase"):
             return {"kind":kind, "points":[[x,y]], "color":state["color"],
+                    "layer":state['active_layer'],
                     "width":16 if kind == "erase" else state["width"]}
-        return {"kind":kind, "coords":[x,y,x,y], "color":state["color"], "width":state["width"]}
+        return {"kind":kind, "coords":[x,y,x,y], "color":state["color"],
+                "width":state["width"], "layer":state['active_layer']}
 
     def down(ev):
         x,y = coords(ev)
@@ -375,23 +538,41 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
         state["preview"] = None
         state["drag"] = None
         tool = state["tool"]
+        if tool != 'select':
+            layer = doc.layer(state['active_layer'])
+            if layer is None or layer['locked'] or not layer['visible']:
+                messagebox.showwarning('Capas', 'Selecciona una capa visible y desbloqueada.', parent=win)
+                state['start'] = None
+                return
+        if tool == 'symbol':
+            doc.add({'kind':'symbol', 'symbol':state['symbol'], 'coords':[x-31,y-31,x+31,y+31],
+                     'color':state['color'], 'layer':state['active_layer'], 'rotation':0})
+            state['selected'] = len(doc.objects)-1
+            state['start'] = None
+            select_tool('select')
+            return
         if tool == "text":
             value = simpledialog.askstring("Agregar texto", "Escribe una anotación:", parent=win)
             if value and value.strip():
-                doc.add({"kind":"text", "text":value, "x":x, "y":y, "size":20, "color":state["color"]})
+                doc.add({"kind":"text", "text":value, "x":x, "y":y, "size":20,
+                         "color":state["color"], "layer":state['active_layer']})
                 repaint()
             return
         if tool == "select":
             selected = state["selected"]
-            if selected is not None and selected < len(doc.objects):
+            if (selected is not None and selected < len(doc.objects)
+                    and doc.layer(get_layer_id(doc.objects[selected])).get('visible', True)
+                    and not doc.layer(get_layer_id(doc.objects[selected])).get('locked', False)):
                 x0,y0,x1,y1 = bounds(doc.objects[selected]); pad=5
                 if math.dist((x,y),(x1+pad,y1+pad)) <= 12/state["zoom"]:
                     state["before"] = doc.capture()
                     state["initial"] = copy.deepcopy(doc.objects[selected])
                     state["drag"] = "resize"
                     return
-            clicked = hit_test(doc.objects, x, y, 7/state["zoom"])
+            clicked = hit_test(doc.objects, x, y, 7/state["zoom"], layers=doc.layers)
             state["selected"] = clicked
+            if clicked is not None:
+                state['active_layer'] = get_layer_id(doc.objects[clicked])
             if clicked is not None:
                 state["before"] = doc.capture()
                 state["initial"] = copy.deepcopy(doc.objects[clicked])
@@ -475,4 +656,5 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
                   command=save).pack(side="right")
     win.protocol("WM_DELETE_WINDOW", win.destroy)
     win.after(180, fit_zoom)
+    update_properties()
     repaint()

@@ -13,12 +13,101 @@ import json
 import math
 from typing import Any
 
-from PIL import Image, ImageDraw, ImageFont, PngImagePlugin
+from PIL import Image, ImageDraw, ImageFont, PngImagePlugin, ImageOps
+from services.croquis_simbolos import symbol_bitmap
 
 WIDTH, HEIGHT = 980, 460
 PNG_KEY = "axia_croquis_document_v1"
 BASE_KEY = "axia_croquis_background_v1"
 MAX_UNDO = 30
+MAX_IMPORT_BYTES = 12 * 1024 * 1024
+LAYER_DEFAULTS = (
+    ('plano', 'Plano / imagen'),
+    ('trazos', 'Trazos'),
+    ('simbolos', 'Símbolos técnicos'),
+    ('notas', 'Textos y notas'),
+)
+
+
+def default_layers():
+    return [{'id': lid, 'name': title, 'visible': True, 'locked': False}
+            for lid, title in LAYER_DEFAULTS]
+
+
+def get_layer_id(obj):
+    return obj.get('layer') or 'trazos'  # Compatibilidad con la etapa 1.
+
+
+def ordered_objects(objects, layers):
+    """Retorna (índice original, objeto) en orden visible de renderizado."""
+    by_id = {layer['id']: (pos, layer) for pos, layer in enumerate(layers)}
+    pairs = [(i, obj) for i, obj in enumerate(objects)
+             if by_id.get(get_layer_id(obj), (-1, {'visible': True}))[1].get('visible', True)]
+    return sorted(pairs, key=lambda p: (by_id.get(get_layer_id(p[1]), (1, None))[0], p[0]))
+
+
+def image_bitmap(obj):
+    content = obj.get('image_b64', '')
+    if not content:
+        return Image.new('RGBA', (1, 1), (0, 0, 0, 0))
+    raw = base64.b64decode(content, validate=True)
+    with Image.open(io.BytesIO(raw)) as src:
+        src.load()
+        return src.convert('RGBA')
+
+
+def import_image_bytes(raw: bytes, suffix: str = '') -> str:
+    """Prepara un plano como imagen comprimida y autocontenida (para Supabase)."""
+    if not raw or len(raw) > MAX_IMPORT_BYTES:
+        raise ValueError('La imagen debe ocupar como máximo 12 MB.')
+    if suffix.lower() == '.pdf':
+        try:
+            import fitz
+        except ImportError as exc:
+            raise ValueError('Para importar PDF instala PyMuPDF desde requirements.txt.') from exc
+        try:
+            pdf = fitz.open(stream=raw, filetype='pdf')
+            try:
+                if pdf.page_count == 0 or pdf.needs_pass:
+                    raise ValueError('El PDF no tiene páginas disponibles o está protegido.')
+                page = pdf.load_page(0)
+                scale = min(2.0, 1400 / max(page.rect.width, page.rect.height, 1))
+                pix = page.get_pixmap(matrix=fitz.Matrix(scale, scale), alpha=False)
+                with Image.open(io.BytesIO(pix.tobytes('png'))) as im:
+                    source = im.copy()
+            finally:
+                pdf.close()
+        except (RuntimeError, ValueError) as exc:
+            raise ValueError(f'No fue posible leer la primera página del PDF: {exc}') from exc
+    else:
+        try:
+            with Image.open(io.BytesIO(raw)) as img:
+                if img.width * img.height > 35_000_000:
+                    raise ValueError('La imagen es demasiado grande (máximo 35 megapíxeles).')
+                source = ImageOps.exif_transpose(img).copy()
+        except (OSError, Image.DecompressionBombError) as exc:
+            raise ValueError('Archivo de imagen no válido o demasiado grande.') from exc
+    source.thumbnail((1400, 1200), Image.Resampling.LANCZOS)
+    # Conservar transparencias en dibujos/logo; fotografías JPEG para evitar un Base64 enorme.
+    out = io.BytesIO()
+    has_alpha = ('A' in source.getbands() and source.getextrema()[-1][0] < 255
+                 or 'transparency' in source.info)
+    if has_alpha:
+        source.convert('RGBA').save(out, 'PNG', optimize=True)
+    else:
+        source.convert('RGB').save(out, 'JPEG', quality=82, optimize=True)
+    if out.tell() > 3 * 1024 * 1024:
+        raise ValueError('El plano es demasiado complejo para insertarlo (máximo 3 MB comprimido).')
+    return base64.b64encode(out.getvalue()).decode('ascii')
+
+
+def new_image_object(image_b64, *, layer='plano'):
+    image = image_bitmap({'image_b64': image_b64})
+    ratio = min((WIDTH - 50)/image.width, (HEIGHT - 40)/image.height, 2.)
+    w, h = image.width * ratio, image.height * ratio
+    return {'kind': 'image', 'image_b64': image_b64, 'coords': [(WIDTH-w)/2, (HEIGHT-h)/2,
+            (WIDTH+w)/2, (HEIGHT+h)/2], 'layer': layer, 'rotation': 0}
+
 
 
 def _font(size: int):
@@ -90,6 +179,13 @@ def rotate_90(obj: dict) -> None:
     if kind == "text":
         obj["rotation"] = (int(obj.get("rotation", 0)) + 90) % 360
         return
+    if kind in ("image", "symbol"):
+        x0, y0, x1, y1 = bounds(obj)
+        cx, cy = (x0+x1)/2, (y0+y1)/2
+        obj["coords"] = [cx-(y1-y0)/2, cy-(x1-x0)/2,
+                         cx+(y1-y0)/2, cy+(x1-x0)/2]
+        obj["rotation"] = (int(obj.get("rotation", 0)) + 90) % 360
+        return
     x0, y0, x1, y1 = bounds(obj)
     cx, cy = (x0+x1)/2, (y0+y1)/2
     def rotated(x, y):
@@ -126,14 +222,17 @@ def _segment_distance(x, y, ax, ay, bx, by):
     return math.hypot(x - (ax + t * vx), y - (ay + t * vy))
 
 
-def hit_test(objects: list[dict], x: float, y: float, tolerance: float = 8) -> int | None:
+def hit_test(objects: list[dict], x: float, y: float, tolerance: float = 8, layers=None) -> int | None:
     """Obtiene el objeto visible de mayor prioridad bajo el puntero."""
-    for i in range(len(objects) - 1, -1, -1):
-        obj = objects[i]
+    layers = layers or default_layers()
+    lookup = {layer['id']: layer for layer in layers}
+    for i, obj in reversed(ordered_objects(objects, layers)):
+        if lookup.get(get_layer_id(obj), {}).get('locked', False):
+            continue
         kind = obj["kind"]
         x0, y0, x1, y1 = bounds(obj)
         tol = max(tolerance, float(obj.get("width", 3)) / 2 + 2)
-        if kind == "text":
+        if kind in ("text", "image", "symbol"):
             if x0 - tol <= x <= x1 + tol and y0 - tol <= y <= y1 + tol:
                 return i
         elif kind in ("stroke", "erase"):
@@ -194,6 +293,7 @@ class CroquisDocumento:
     def __init__(self, image_b64: str = ""):
         self.background = Image.new("RGB", (WIDTH, HEIGHT), "white")
         self.objects: list[dict[str, Any]] = []
+        self.layers = default_layers()
         self.legacy_background = False
         self.undo_stack: list[tuple] = []
         self.redo_stack: list[tuple] = []
@@ -209,6 +309,11 @@ class CroquisDocumento:
                 if payload.get("version") != 1 or not isinstance(payload.get("objects"), list):
                     raise ValueError("Versión de croquis no compatible")
                 self.objects = payload["objects"]
+                supplied = payload.get('layers')
+                self.layers = supplied if isinstance(supplied, list) and supplied else default_layers()
+                # Si faltan capas de versiones anteriores, se conservan como Trazos.
+                if 'trazos' not in {v.get('id') for v in self.layers}:
+                    self.layers.insert(0, default_layers()[1])
                 background_data = source.info.get(BASE_KEY)
                 if background_data:
                     with Image.open(io.BytesIO(base64.b64decode(background_data))) as bkg:
@@ -222,10 +327,11 @@ class CroquisDocumento:
                 self.objects = []
 
     def capture(self):
-        return (copy.deepcopy(self.objects), self.background.copy(), self.legacy_background)
+        return (copy.deepcopy(self.objects), self.background.copy(), self.legacy_background, copy.deepcopy(self.layers))
 
     def commit(self, previous):
-        if self.objects != previous[0] or self.background.tobytes() != previous[1].tobytes():
+        if (self.objects != previous[0] or self.background.tobytes() != previous[1].tobytes()
+                or self.legacy_background != previous[2] or self.layers != previous[3]):
             self.undo_stack.append(previous)
             if len(self.undo_stack) > MAX_UNDO:
                 self.undo_stack.pop(0)
@@ -253,6 +359,41 @@ class CroquisDocumento:
         self.add(obj)
         return len(self.objects) - 1
 
+    def layer(self, layer_id):
+        return next((layer for layer in self.layers if layer['id'] == layer_id), None)
+
+    def add_layer(self, name):
+        name = str(name).strip()[:45]
+        if not name:
+            raise ValueError('Escribe un nombre para la capa.')
+        before = self.capture()
+        i = 1
+        while self.layer(f'personalizada_{i}'):
+            i += 1
+        layer_id = f'personalizada_{i}'
+        self.layers.append({'id': layer_id, 'name': name, 'visible': True, 'locked': False})
+        self.commit(before)
+        return layer_id
+
+    def configure_layer(self, layer_id, **settings):
+        layer = self.layer(layer_id)
+        if layer is None:
+            raise ValueError('Capa no encontrada')
+        before = self.capture()
+        for key in ('visible', 'locked', 'name'):
+            if key in settings:
+                layer[key] = settings[key]
+        self.commit(before)
+
+    def move_layer(self, layer_id, direction):
+        idx = next((i for i, layer in enumerate(self.layers) if layer['id'] == layer_id), None)
+        if idx is None or not 0 <= idx + direction < len(self.layers):
+            return False
+        before = self.capture()
+        self.layers[idx], self.layers[idx + direction] = self.layers[idx + direction], self.layers[idx]
+        self.commit(before)
+        return True
+
     def clear(self):
         before = self.capture()
         self.background = Image.new("RGB", (WIDTH, HEIGHT), "white")
@@ -264,21 +405,32 @@ class CroquisDocumento:
         if not self.undo_stack:
             return False
         self.redo_stack.append(self.capture())
-        self.objects, self.background, self.legacy_background = self.undo_stack.pop()
+        self.objects, self.background, self.legacy_background, self.layers = self.undo_stack.pop()
         return True
 
     def redo(self) -> bool:
         if not self.redo_stack:
             return False
         self.undo_stack.append(self.capture())
-        self.objects, self.background, self.legacy_background = self.redo_stack.pop()
+        self.objects, self.background, self.legacy_background, self.layers = self.redo_stack.pop()
         return True
 
     def render(self) -> Image.Image:
         img = self.background.copy()
         draw = ImageDraw.Draw(img)
-        for obj in self.objects:
-            if obj.get("kind") == "text" and int(obj.get("rotation", 0)) % 360:
+        for _, obj in ordered_objects(self.objects, self.layers):
+            if obj.get('kind') in ('image', 'symbol'):
+                x0,y0,x1,y1 = bounds(obj)
+                w,h = max(1,int(x1-x0)),max(1,int(y1-y0))
+                rotation = int(obj.get('rotation',0)) % 360
+                bw,bh = (h,w) if rotation % 180 else (w,h)
+                bitmap = (image_bitmap(obj).resize((bw,bh), Image.Resampling.LANCZOS)
+                          if obj['kind'] == 'image' else
+                          symbol_bitmap(obj.get('symbol',''), obj.get('color','#172554'), bw, bh))
+                if rotation:
+                    bitmap = bitmap.rotate(-rotation, expand=True)
+                img.paste(bitmap, (round(x0),round(y0)), bitmap)
+            elif obj.get("kind") == "text" and int(obj.get("rotation", 0)) % 360:
                 bitmap = text_bitmap(obj)
                 img.paste(bitmap, (int(obj["x"]), int(obj["y"])), bitmap)
             else:
@@ -288,7 +440,7 @@ class CroquisDocumento:
     def export_base64(self) -> str:
         result = self.render()
         info = PngImagePlugin.PngInfo()
-        doc = {"version": 1, "width": WIDTH, "height": HEIGHT, "objects": self.objects}
+        doc = {"version": 1, "width": WIDTH, "height": HEIGHT, "objects": self.objects, "layers": self.layers}
         info.add_text(PNG_KEY, json.dumps(doc, ensure_ascii=False, separators=(",", ":")), zip=True)
         if self.legacy_background:
             buffer = io.BytesIO()
