@@ -1300,8 +1300,61 @@ def _epp_rows(detail: Mapping[str, Any]) -> tuple[str, list[list[Any]]]:
     return "Sí", basicos + rows
 
 
+def _fragmentos_resumen_pdf(texto: str, *, max_chars: int = 480) -> list[str]:
+    """Parte textos extensos en filas breves sin truncar su contenido.
+
+    ReportLab puede paginar un LongTable entre filas, pero no puede colocar
+    una fila que sea más alta que la página. Conservamos los saltos de línea
+    como filas separadas y dividimos también párrafos de miles de caracteres.
+    """
+    fragmentos: list[str] = []
+    for linea in str(texto).split("\n"):
+        # Los párrafos vacíos preservan la separación introducida por el técnico.
+        if not linea.strip():
+            fragmentos.append(" ")
+            continue
+        restante = linea
+        while len(restante) > max_chars:
+            corte = restante.rfind(" ", 0, max_chars + 1)
+            if corte < max_chars // 3:
+                corte = max_chars  # Incluso las cadenas sin espacios son paginables.
+            fragmentos.append(restante[:corte])
+            restante = restante[corte:]
+            if restante.startswith(" "):
+                restante = restante[1:]
+        if restante:
+            fragmentos.append(restante)
+    return fragmentos or [" "]
+
+
+def _tabla_resumen_extenso(etiqueta: str, texto: str, width: float, normal, label) -> LongTable:
+    """Tabla de una columna para descripciones multilínea de longitud libre.
+
+    La etiqueta se repite al cambiar de página. Cada fragmento ocupa una fila
+    con altura moderada, así que una descripción larga puede abarcar N páginas.
+    """
+    data = [[_p(etiqueta, label, "")]]
+    data.extend([[_p(fragmento, normal, " ")]] for fragmento in _fragmentos_resumen_pdf(texto))
+    table = LongTable(data, colWidths=[width], repeatRows=1, splitByRow=1)
+    table.setStyle(TableStyle([
+        ("GRID", (0, 0), (-1, -1), 0.45, BORDER),
+        ("BACKGROUND", (0, 0), (-1, 0), LIGHT_BLUE),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 5),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+    ]))
+    return table
+
+
 def _append_resumen_tecnico(story: list, registro: Mapping[str, Any], detail: Mapping[str, Any], width: float, normal, label, header):
-    """Síntesis operativa, sin volcar todos los campos del formulario al PDF."""
+    """Síntesis operativa que permite descripciones largas sin LayoutError.
+
+    Los resúmenes cortos conservan la tabla compacta de cuatro columnas.
+    Los textos extensos se muestran como filas paginables, sin limitar la
+    cantidad de texto que el técnico puede capturar en el formulario.
+    """
     resumen = []
     for etiqueta, claves in (
         ("Alcance puntual", ("resumen_servicio", "alcance_resumido", "resumen_tecnico")),
@@ -1311,14 +1364,30 @@ def _append_resumen_tecnico(story: list, registro: Mapping[str, Any], detail: Ma
         if valor is not None and not isinstance(valor, (Mapping, list, tuple)):
             texto = str(valor).strip()
             if texto and not (etiqueta == "Servicio" and any(texto == str(v or "").strip() for v in (registro.get("lev_nombre_servicio"),))):
-                resumen.append([etiqueta, texto])
-    # Un resumen informativo de máximo dos puntos. Los materiales y recursos
-    # mantienen sus propias tablas completas más adelante.
-    if resumen:
-        story.append(_section_title("Evaluación técnica - resumen del servicio", width, header))
-        story.append(_key_value_table([[k, v, "", ""] for k, v in resumen],
-            [1.55*inch, 1.90*inch, 1.55*inch, 1.90*inch], normal, label))
-        story.append(Spacer(1, 5))
+                resumen.append((etiqueta, texto))
+
+    if not resumen:
+        return
+
+    story.append(_section_title("Evaluación técnica - resumen del servicio", width, header))
+    resumen_corto = []
+
+    def agregar_resumen_corto():
+        if resumen_corto:
+            story.append(_key_value_table(
+                [[k, v, "", ""] for k, v in resumen_corto],
+                [1.55*inch, 1.90*inch, 1.55*inch, 1.90*inch], normal, label,
+            ))
+            resumen_corto.clear()
+
+    for etiqueta, texto in resumen:
+        if len(texto) <= 320 and "\n" not in texto:
+            resumen_corto.append((etiqueta, texto))
+        else:
+            agregar_resumen_corto()
+            story.append(_tabla_resumen_extenso(etiqueta, texto, width, normal, label))
+    agregar_resumen_corto()
+    story.append(Spacer(1, 5))
 
 
 def _canal_rows(detail: Mapping[str, Any]) -> list[list[Any]]:
