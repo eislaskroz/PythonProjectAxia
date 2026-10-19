@@ -37,10 +37,13 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
 
     win = Toplevel(parent)
     win.title(titulo)
+    # Tamaño restaurado amplio, adaptable incluso en portátiles. La ventana
+    # abrirá maximizada si el gestor de ventanas lo permite (barra de título
+    # y controles de Windows disponibles, sin usar pantalla completa).
     sw, sh = win.winfo_screenwidth(), win.winfo_screenheight()
-    ww = min(1380, max(900, int(sw * .94)))
-    wh = min(850, max(640, int(sh * .87)))
-    win.minsize(900, 630)
+    ww = max(640, min(sw - 48, int(sw * .96)))
+    wh = max(480, min(sh - 95, int(sh * .93)))
+    win.minsize(min(980, ww), min(600, wh))
     win.transient(parent.winfo_toplevel())
     centrar_ventana(win, ww, wh, padre=parent.winfo_toplevel())
     win.grab_set()
@@ -655,6 +658,20 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
                   fg_color=SECONDARY, hover_color=BUTTON_HOVER,
                   command=save).pack(side="right")
     win.protocol("WM_DELETE_WINDOW", win.destroy)
-    win.after(180, fit_zoom)
+
+    def ampliar_editor():
+        # Windows/Tk: maximizada normal, NO modo fullscreen. En otros gestores
+        # de ventanas se intenta -zoomed; si no existe, queda el tamaño amplio
+        # calculado arriba. El lienzo se ajusta DESPUÉS de expandir el editor.
+        try:
+            win.state("zoomed")
+        except Exception:
+            try:
+                win.attributes("-zoomed", True)
+            except Exception:
+                pass
+        win.after(180, fit_zoom)
+
+    win.after_idle(ampliar_editor)
     update_properties()
     repaint()
