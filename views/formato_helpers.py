@@ -852,8 +852,10 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
     if isinstance(evidencias_raw, dict):
         evidencias_raw = [evidencias_raw]
 
+    from services.pdf_fotos_inteligentes import FotoPdf, construir_filas_fotos
+
     def _imagen_evidencia(item):
-        """Devuelve (flowable, nombre) o (None, nombre) sin romper el PDF."""
+        """Devuelve una fotografía normalizada o None sin romper el PDF."""
         nombre = "Evidencia"
         origen = ""
         try:
@@ -864,7 +866,8 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
                 origen = str(item or "").strip()
                 if origen:
                     nombre = Path(origen).name or "Evidencia"
-            if not origen:
+            # Algunos registros guardan solo storage_path, sin URL pública.
+            if not origen and not (isinstance(item, dict) and item.get("storage_path")):
                 return None, nombre
 
             # Algunas respuestas antiguas podían persistir el prefijo visible "Url:".
@@ -910,43 +913,22 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
                 png_buffer.seek(0)
                 ancho_px, alto_px = img.size
 
-            max_w, max_h = 3.22 * inch, 2.18 * inch
-            escala = min(max_w / max(ancho_px, 1), max_h / max(alto_px, 1))
-            # Las dimensiones de ReportLab son puntos; 1 px ~= 1 pt es suficiente
-            # aquí porque el objetivo es encajar la foto sin deformarla.
-            ancho = max(1, ancho_px * escala)
-            alto = max(1, alto_px * escala)
-            return RLImage(png_buffer, width=ancho, height=alto), nombre
+            return FotoPdf(
+                contenido=png_buffer.getvalue(), nombre=nombre,
+                ancho_px=ancho_px, alto_px=alto_px,
+            ), nombre
         except Exception:
             logger.warning("No se pudo incorporar una evidencia fotográfica al PDF de Bitácora: %s", nombre, exc_info=True)
             return None, nombre
 
-    tarjetas = []
-    caption_style = ParagraphStyle(
-        "AxiaBitFotoCaption", parent=normal, fontSize=6.6, leading=8, alignment=1, textColor=TEXT
-    )
+    fotos_preparadas = []
     for item in evidencias_raw or []:
-        imagen, nombre = _imagen_evidencia(item)
-        if imagen is None:
-            continue
-        tarjeta = Table(
-            [[imagen], [Paragraph(html_escape(nombre), caption_style)]],
-            colWidths=[3.30 * inch],
-        )
-        tarjeta.setStyle(TableStyle([
-            ("BOX", (0,0), (-1,-1), 0.40, BORDER),
-            ("ALIGN", (0,0), (-1,-1), "CENTER"),
-            ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-            ("LEFTPADDING", (0,0), (-1,-1), 4),
-            ("RIGHTPADDING", (0,0), (-1,-1), 4),
-            ("TOPPADDING", (0,0), (-1,-1), 4),
-            ("BOTTOMPADDING", (0,0), (-1,-1), 4),
-            ("BACKGROUND", (0,1), (0,1), LIGHT_BLUE),
-        ]))
-        tarjetas.append(tarjeta)
+        foto, _nombre = _imagen_evidencia(item)
+        if foto is not None:
+            fotos_preparadas.append(foto)
 
-    if tarjetas:
-        story.append(Spacer(1, 10))
+    if fotos_preparadas:
+        story.append(Spacer(1, 8))
         fotos_header = Table([[Paragraph("EVIDENCIA FOTOGRÁFICA", header)]], colWidths=[6.90 * inch])
         fotos_header.setStyle(TableStyle([
             ("BACKGROUND", (0,0), (-1,-1), BLUE),
@@ -956,25 +938,14 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
             ("TOPPADDING", (0,0), (-1,-1), 4),
             ("BOTTOMPADDING", (0,0), (-1,-1), 4),
         ]))
-        filas_fotos = []
-        for i in range(0, len(tarjetas), 2):
-            izquierda = tarjetas[i]
-            derecha = tarjetas[i + 1] if i + 1 < len(tarjetas) else ""
-            fila = Table([[izquierda, derecha]], colWidths=[3.40 * inch, 3.40 * inch], hAlign="CENTER")
-            fila.setStyle(TableStyle([
-                ("VALIGN", (0,0), (-1,-1), "TOP"),
-                ("LEFTPADDING", (0,0), (-1,-1), 3),
-                ("RIGHTPADDING", (0,0), (-1,-1), 3),
-                ("TOPPADDING", (0,0), (-1,-1), 3),
-                ("BOTTOMPADDING", (0,0), (-1,-1), 6),
-            ]))
-            filas_fotos.append(fila)
-
-        # Evita que el encabezado quede huérfano al pie de una página.
-        # El título de la sección viaja siempre junto con la primera fila de fotos.
+        filas_fotos = construir_filas_fotos(
+            fotos_preparadas, estilo_texto=normal,
+            color_borde=BORDER, color_pie=LIGHT_BLUE,
+        )
+        # El título viaja con al menos una fotografía; cada fila restante se
+        # pagina individualmente, evitando tablas enormes que no se dividen.
         story.append(KeepTogether([fotos_header, Spacer(1, 5), filas_fotos[0]]))
-        for fila in filas_fotos[1:]:
-            story.append(fila)
+        story.extend(filas_fotos[1:])
 
     try:
         doc = SimpleDocTemplate(
