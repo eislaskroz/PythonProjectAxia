@@ -587,7 +587,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
     panel_conceptos.grid_columnconfigure(3, weight=1, minsize=72)
     panel_conceptos.grid_columnconfigure(4, weight=1, minsize=76)
     for col, encabezado in enumerate(("Tipo", "Partida / concepto", "Unidad", "Cantidad", "Acción")):
-        ctk.CTkLabel(panel_conceptos, text=encabezado, font=("Montserrat", 12, "bold")).grid(row=0, column=col, sticky="w", padx=3)
+        ctk.CTkLabel(panel_conceptos, text=encabezado, font=("Montserrat", 12)).grid(row=0, column=col, sticky="w", padx=3)
 
     tipos_concepto_obra = obtener_tipos_concepto_obra(catalogo_conceptos_obra)
 
@@ -699,12 +699,12 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
     panel_misc.grid_columnconfigure(3, weight=1)
     panel_misc.grid_columnconfigure(4, weight=3)
     panel_misc.grid_columnconfigure(5, weight=1)
-    ctk.CTkLabel(panel_misc, text="Material", font=("Montserrat", 12, "bold")).grid(row=0, column=0, sticky="w", padx=3)
-    ctk.CTkLabel(panel_misc, text="¿Se requiere?", font=("Montserrat", 12, "bold")).grid(row=0, column=1, sticky="w", padx=3)
-    ctk.CTkLabel(panel_misc, text="Cantidad", font=("Montserrat", 12, "bold")).grid(row=0, column=2, sticky="w", padx=3)
-    ctk.CTkLabel(panel_misc, text="Unidad", font=("Montserrat", 12, "bold")).grid(row=0, column=3, sticky="w", padx=3)
-    ctk.CTkLabel(panel_misc, text="Especificación / medida", font=("Montserrat", 12, "bold")).grid(row=0, column=4, sticky="w", padx=3)
-    ctk.CTkLabel(panel_misc, text="Acción", font=("Montserrat", 12, "bold")).grid(row=0, column=5, sticky="w", padx=3)
+    ctk.CTkLabel(panel_misc, text="Material", font=("Montserrat", 12)).grid(row=0, column=0, sticky="w", padx=3)
+    ctk.CTkLabel(panel_misc, text="¿Se requiere?", font=("Montserrat", 12)).grid(row=0, column=1, sticky="w", padx=3)
+    ctk.CTkLabel(panel_misc, text="Cantidad", font=("Montserrat", 12)).grid(row=0, column=2, sticky="w", padx=3)
+    ctk.CTkLabel(panel_misc, text="Unidad", font=("Montserrat", 12)).grid(row=0, column=3, sticky="w", padx=3)
+    ctk.CTkLabel(panel_misc, text="Especificación / medida", font=("Montserrat", 12)).grid(row=0, column=4, sticky="w", padx=3)
+    ctk.CTkLabel(panel_misc, text="Acción", font=("Montserrat", 12)).grid(row=0, column=5, sticky="w", padx=3)
 
     def agregar_material_misc_obra(material_catalogo=None):
         material_catalogo = material_catalogo or {}
@@ -785,11 +785,11 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         text="Agrega todas las partidas necesarias. Puedes registrar varios tipos, medidas y cantidades.",
         font=SMALL_FONT, text_color=TEXT_SECONDARY,
     ).grid(row=0, column=0, columnspan=7, sticky="w", padx=3, pady=(0, 6))
-    ctk.CTkLabel(panel_canalizacion, text="¿Se requiere?", font=("Montserrat", 11, "bold")).grid(row=1, column=0, sticky="w", padx=3)
+    ctk.CTkLabel(panel_canalizacion, text="¿Se requiere?", font=("Montserrat", 11)).grid(row=1, column=0, sticky="w", padx=3)
     combo_requiere_canalizacion = NativeComboBox(panel_canalizacion, variable=var_requiere_canalizacion, values=["Sí", "No"], width=120, height=31)
     combo_requiere_canalizacion.grid(row=2, column=0, sticky="w", padx=3, pady=(0, 5))
     for col, encabezado in enumerate(("Categoría", "Tipo", "Tamaño / calibre / especificación", "Cantidad", "Unidad", "Aproximado", "Acción")):
-        ctk.CTkLabel(panel_canalizacion, text=encabezado, font=("Montserrat", 11, "bold"), text_color=TEXT_PRIMARY).grid(row=3, column=col, sticky="w", padx=3, pady=(0, 2))
+        ctk.CTkLabel(panel_canalizacion, text=encabezado, font=("Montserrat", 11), text_color=TEXT_PRIMARY).grid(row=3, column=col, sticky="w", padx=3, pady=(0, 2))
 
     categorias_canalizacion = ["Tubo", "Cople", "Registro", "Conectores", "Abrazadera", "Tapas", "Codos", "Canaleta", "Cable"]
 

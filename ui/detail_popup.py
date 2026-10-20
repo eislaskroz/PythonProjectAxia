@@ -31,7 +31,7 @@ def mostrar_detalle_registro(parent, titulo, registro):
         ctk.CTkLabel(
             scroll,
             text=str(campo),
-            font=("Montserrat", 12, "bold"),
+            font=("Montserrat", 12),
             anchor="w",
         ).grid(row=fila, column=0, sticky="nw", padx=6, pady=3)
         ctk.CTkLabel(

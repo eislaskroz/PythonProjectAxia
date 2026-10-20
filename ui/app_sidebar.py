@@ -457,7 +457,7 @@ def _crear_menu_acordeon(sidebar, menu_host, opciones, direccion):
                                font=("Segoe UI Symbol", 15), anchor="w", tags=(etiqueta,))
             activo = estado["opcion"] == ident and tipo == "opcion"
             canvas.create_text(x + 47, top + h // 2, text=titulo, anchor="w",
-                               font=("Segoe UI", 11, "bold" if tipo == "cabecera" or activo else "normal"),
+                               font=("Segoe UI", 11, "normal"),
                                fill=blanco if tipo == "cabecera" or activo else secundario,
                                tags=(etiqueta,))
             if tipo == "cabecera":

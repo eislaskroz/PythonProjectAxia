@@ -111,7 +111,7 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
     ctk.CTkLabel(properties, text="Grosor del trazo", font=("Montserrat", 10),
                  text_color=TEXT_PRIMARY).pack(anchor="w", padx=10, pady=(7, 4))
 
-    zoom_label = ctk.CTkLabel(commands_right, text="80%", width=45, font=("Montserrat", 11, "bold"),
+    zoom_label = ctk.CTkLabel(commands_right, text="80%", width=45, font=("Montserrat", 11),
                               text_color=TEXT_PRIMARY)
     hint = ctk.CTkLabel(center, text="Selecciona un elemento para moverlo o arrastra la esquina para cambiar su tamaño.",
                         font=("Montserrat", 10), text_color=TEXT_SECONDARY)
@@ -402,7 +402,7 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
     prop_button("Enviar al fondo", lambda: change_order(False))
     prop_button("Eliminar seleccionado", remove, color="#DC2626")
 
-    ctk.CTkLabel(properties, text="CAPAS", font=("Montserrat", 11, "bold"),
+    ctk.CTkLabel(properties, text="CAPAS", font=("Montserrat", 11),
                  text_color=TEXT_PRIMARY).pack(anchor="w", padx=12, pady=(18, 5))
     ctk.CTkLabel(properties, text="Ojo: mostrar / ocultar   Candado: bloquear",
                  text_color=TEXT_SECONDARY, font=("Montserrat", 9), wraplength=198).pack(padx=9)
@@ -509,7 +509,7 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
     def top_button(host, label, cmd, color=SECONDARY, width=89):
         return ctk.CTkButton(host, text=label, height=30, width=width,
                              fg_color=color, hover_color=BUTTON_HOVER,
-                             font=("Montserrat", 10, "bold"), command=cmd)
+                             font=("Montserrat", 10), command=cmd)
 
     top_button(commands_left, "↶ Deshacer", undo, width=94).pack(side="left", padx=2)
     top_button(commands_left, "↷ Rehacer", redo, width=94).pack(side="left", padx=2)

@@ -47,7 +47,7 @@ from ui.fonts import (
 # Campo/etiqueta: 11 pt; encabezado de sección: 13 pt bold.
 FORM_FIELD_FONT = ("Montserrat", 11)
 FORM_SECTION_FONT = ("Montserrat", 13, "bold")
-FORM_TABLE_HEADER_FONT = ("Montserrat", 11, "bold")
+FORM_TABLE_HEADER_FONT = ("Montserrat", 11)
 FORM_CONTROL_HEIGHT = 30
 
 
@@ -103,8 +103,8 @@ def _abrir_selector_dias_horario(parent, variable):
 
     caja_hora = ctk.CTkFrame(win, fg_color="transparent")
     caja_hora.pack(fill="x", padx=22, pady=4)
-    ctk.CTkLabel(caja_hora, text="Hora de inicio", font=("Montserrat", 11, "bold")).grid(row=0, column=0, columnspan=3, sticky="w", pady=(0,4))
-    ctk.CTkLabel(caja_hora, text="Hora de término", font=("Montserrat", 11, "bold")).grid(row=0, column=4, columnspan=3, sticky="w", padx=(35,0), pady=(0,4))
+    ctk.CTkLabel(caja_hora, text="Hora de inicio", font=("Montserrat", 11)).grid(row=0, column=0, columnspan=3, sticky="w", pady=(0,4))
+    ctk.CTkLabel(caja_hora, text="Hora de término", font=("Montserrat", 11)).grid(row=0, column=4, columnspan=3, sticky="w", padx=(35,0), pady=(0,4))
     vi_h, vi_m, vf_h, vf_m = ctk.StringVar(value=hi_h), ctk.StringVar(value=hi_m), ctk.StringVar(value=hf_h), ctk.StringVar(value=hf_m)
     ctk.CTkOptionMenu(caja_hora, variable=vi_h, values=horas, width=75).grid(row=1,column=0)
     ctk.CTkLabel(caja_hora, text=":", font=("Montserrat", 16, "bold")).grid(row=1,column=1,padx=4)
@@ -2839,7 +2839,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
                 switch = ctk.CTkSwitch(
                     seccion_extra, text="Agregar información adicional", variable=switch_var,
-                    command=_alternar_opcional, font=("Montserrat", 10, "bold"),
+                    command=_alternar_opcional, font=("Montserrat", 10),
                     onvalue=True, offvalue=False
                 )
                 switch.grid(row=0, column=3, columnspan=2, sticky="e", padx=(6, 12), pady=(5, 3))
@@ -6025,7 +6025,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             boton = ctk.CTkButton(
                 frame, text="✏️ Habilitar edición", width=145, height=27,
                 corner_radius=8, fg_color="#1F4E79", hover_color="#173B5C",
-                font=("Montserrat", 10, "bold"), command=alternar
+                font=("Montserrat", 10), command=alternar
             )
             try:
                 boton.place(relx=0.992, y=5, anchor="ne")

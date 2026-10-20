@@ -18,10 +18,10 @@ TITLE_SM = (FONT_FAMILY, 15, "bold")
 # SECCIONES Y ETIQUETAS
 # =====================================================
 SECTION_FONT = (FONT_FAMILY, 14, "bold")
-LABEL_BOLD = (FONT_FAMILY, 13, "bold")
+LABEL_BOLD = (FONT_FAMILY, 13)  # Alias heredado: etiquetas ordinarias sin negritas
 LABEL_MD = (FONT_FAMILY, 13)
 FIELD_LABEL_FONT = (FONT_FAMILY, 12)
-FIELD_LABEL_BOLD = (FONT_FAMILY, 12, "bold")
+FIELD_LABEL_BOLD = (FONT_FAMILY, 12)  # Alias heredado: etiquetas ordinarias sin negritas
 
 # =====================================================
 # TEXTO GENERAL, AYUDAS Y PIES
@@ -29,10 +29,10 @@ FIELD_LABEL_BOLD = (FONT_FAMILY, 12, "bold")
 TEXT_MD = (FONT_FAMILY, 12)
 TEXT_SM = (FONT_FAMILY, 11)
 TEXT_XS = (FONT_FAMILY, 10)
-CAPTION = (FONT_FAMILY, 10, "bold")
+CAPTION = (FONT_FAMILY, 10)
 
 # =====================================================
 # CONTROLES
 # =====================================================
 INPUT_FONT = (FONT_FAMILY, 12)
-BUTTON_FONT = (FONT_FAMILY, 12, "bold")
+BUTTON_FONT = (FONT_FAMILY, 12)

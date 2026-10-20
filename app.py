@@ -427,7 +427,7 @@ class AxiaApp(ctk.CTk):
             status_row,
             text="Conectado a Supabase",
             text_color=PRIMARY,
-            font=(FONT_FAMILY, 10, "bold"),
+            font=(FONT_FAMILY, 10),
             anchor="w",
         )
         status_label.pack(side="left", fill="x", expand=True)

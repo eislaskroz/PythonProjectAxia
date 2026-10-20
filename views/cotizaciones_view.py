@@ -480,7 +480,7 @@ def mostrar_cotizaciones(parent, app=None):
                 ]
             for lab, key, r, c, span in fields:
                 ctk.CTkLabel(
-                    card, text=lab, font=("Montserrat", 9, "bold"),
+                    card, text=lab, font=("Montserrat", 9),
                     text_color=TEXT_SECONDARY, anchor="w",
                 ).grid(row=r, column=c, columnspan=span, sticky="ew", padx=4, pady=(1, 0))
                 var = vars_item[key]

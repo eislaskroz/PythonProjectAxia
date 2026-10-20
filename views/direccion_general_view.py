@@ -214,7 +214,7 @@ def mostrar_direccion_general(parent, app):
                     hover_color='#EAF0F7',
                     text_color='#1F2937',
                     border_width=0,
-                    font=('Segoe UI', 11, 'bold'),
+                    font=('Segoe UI', 11),
                     command=lambda v=value: self._set_active(v)
                 )
                 btn.grid(
@@ -574,7 +574,7 @@ def mostrar_direccion_general(parent, app):
     tabs.configure(command=lambda _v: apply_filter())
     search_var.trace_add('write', apply_filter)
 
-    # Botones inferiores: iconos blancos y negritas.
+    # Botones inferiores: iconos blancos y tipografía regular.
     imagen_detalle = _icono_blanco(carpeta_iconos / 'detalle.png')
     imagen_limpiar = _icono_blanco(carpeta_iconos / 'limpiar.png')
 
@@ -593,7 +593,7 @@ def mostrar_direccion_general(parent, app):
     actions = ctk.CTkFrame(root, fg_color='transparent')
     actions.pack(fill='x', pady=(10, 2))
 
-    FONT_ACTIONS = ('Segoe UI', 13, 'bold')
+    FONT_ACTIONS = ('Segoe UI', 13)
 
     btn_refresh = ctk.CTkButton(
         actions,

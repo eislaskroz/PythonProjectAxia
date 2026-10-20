@@ -27,7 +27,7 @@ from utils import centrar_ventana
 
 ENTRY_H = 30
 OPTION_H = 30
-LABEL_FONT = ("Montserrat", 10, "bold")
+LABEL_FONT = ("Montserrat", 10)
 SMALL_FONT = ("Montserrat", 10)
 SECTION_FONT = ("Montserrat", 14, "bold")
 

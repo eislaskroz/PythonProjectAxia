@@ -144,7 +144,7 @@ def mostrar_almacen(parent, app=None):
 
     # Texto y altura de las cuatro pestañas.
     tabs._segmented_button.configure(
-        font=('Segoe UI', 14, 'bold'),
+        font=('Segoe UI', 14),
         text_color=WHITE,
         corner_radius=8,
         height=44
@@ -241,7 +241,7 @@ def mostrar_almacen(parent, app=None):
         corner_radius=10,
         border_width=1,
         border_color='#52708F',
-        font=('Segoe UI', 13, 'bold'),
+        font=('Segoe UI', 13),
         text_color=WHITE,
         fg_color=SECONDARY,
         hover_color=BUTTON_HOVER,
@@ -371,7 +371,7 @@ def mostrar_almacen(parent, app=None):
             text=texto_boton,
             image=icono_confirmar,
             compound='left',
-            font=('Segoe UI', 15, 'bold'),
+            font=('Segoe UI', 15),
             text_color=WHITE,
             fg_color=SECONDARY,
             hover_color=BUTTON_HOVER,
@@ -508,7 +508,7 @@ def mostrar_almacen(parent, app=None):
         height=42,
         width=200,
         corner_radius=10,
-        font=('Segoe UI', 14, 'bold'),
+        font=('Segoe UI', 14),
         text_color=WHITE,
         fg_color=SECONDARY,
         hover_color=BUTTON_HOVER,

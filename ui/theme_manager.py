@@ -151,7 +151,7 @@ class ThemeManager:
                 )
                 style.configure(
                     "Treeview.Heading",
-                    font=(cls.FONT_FAMILY, cls.BASE_FONT_SIZE, "bold"),
+                    font=(cls.FONT_FAMILY, cls.BASE_FONT_SIZE),
                     background=cls.PRIMARY_DARK,
                     foreground="#FFFFFF",
                     padding=(10, 8),

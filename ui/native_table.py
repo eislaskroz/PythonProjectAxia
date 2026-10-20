@@ -41,7 +41,7 @@ class NativeTreeTable(ttk.Frame):
                   foreground=[("selected", "#FFFFFF")])
         style.configure("AXIA.Treeview.Heading", background="#0F172A", foreground="#FFFFFF",
                         relief="flat", padding=(10, 8), borderwidth=0,
-                        font=("Segoe UI Semibold", 10))
+                        font=("Segoe UI", 10))
         style.map("AXIA.Treeview.Heading", background=[("active", "#1E293B")])
         style.configure("Vertical.TScrollbar", troughcolor="#EEF4FF", background="#5B8DEF",
                         arrowcolor="#0F172A", borderwidth=0)
