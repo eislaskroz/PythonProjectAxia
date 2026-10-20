@@ -137,30 +137,8 @@ def mostrar_conversion_orden_servicio(parent, app):
     )
     entrada.grid(row=0, column=1, sticky="ew", padx=(0, 12), pady=6)
 
-    placeholder = ctk.CTkLabel(
-        buscador,
-        text="Realiza tu búsqueda",
-        font=TEXT_MD,
-        text_color="#64748B",
-        anchor="w",
-        justify="left",
-    )
-    placeholder.place(in_=entrada, relx=0.02, rely=0.5, anchor="w")
-
-    def _placeholder_busqueda(event=None):
-        valor = var_busqueda.get()
-        tiene_texto = bool(valor.strip())
-        tiene_foco = (entrada.focus_get() == entrada)
-        if tiene_texto or tiene_foco:
-            placeholder.place_forget()
-        else:
-            placeholder.place(in_=entrada, relx=0.02, rely=0.5, anchor="w")
-
-    var_busqueda.trace_add("write", lambda *_: _placeholder_busqueda())
-    entrada.bind("<FocusIn>", _placeholder_busqueda)
-    entrada.bind("<FocusOut>", _placeholder_busqueda)
-    entrada.bind("<KeyRelease>", _placeholder_busqueda)
-    _placeholder_busqueda()
+    # Texto de ayuda integrado al campo; no crea un rectángulo blanco sobre el gris.
+    entrada.configure(placeholder_text='Realiza tu búsqueda', placeholder_text_color="#64748B")
 
     cuerpo = ctk.CTkFrame(contenedor, fg_color="transparent")
     cuerpo.grid(row=1, column=0, sticky="nsew")

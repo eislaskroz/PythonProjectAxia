@@ -7,6 +7,7 @@ y reintenta. Los demás errores se propagan.
 from __future__ import annotations
 
 import re
+import time
 from collections.abc import Callable
 from typing import Any
 
@@ -30,6 +31,43 @@ def _missing_column(error: Exception) -> str | None:
     return None
 
 
+def es_error_conexion_transitoria(error: Exception) -> bool:
+    """Solo errores de transporte recuperables, nunca errores SQL o de permisos."""
+    # Ejemplos: <ConnectionTerminated error_code:1 ...> (HTTP/2),
+    # RemoteProtocolError, desconexión remota y cortes temporales de red.
+    tipo = type(error).__name__.lower()
+    texto = str(error).lower()
+    return any(
+        marca in tipo or marca in texto
+        for marca in (
+            "connectionterminated", "remoteprotocolerror", "readerror",
+            "connecterror", "connectionreset", "connectionaborted",
+            "server disconnected", "connection closed", "connection terminated",
+            "remotedisconnected", "readtimeout", "connecttimeout",
+        )
+    )
+
+
+def ejecutar_lectura_con_reintento(consulta, *, intentos: int = 3, espera: float = 0.35):
+    """Reintenta SOLO lecturas idempotentes, reconstruyendo cada consulta.
+
+    `consulta` debe ser una función sin argumentos que cree y ejecute
+    nuevamente el SELECT. No utilizar jamás para INSERT/UPDATE/DELETE.
+    """
+    for intento in range(max(1, int(intentos))):
+        try:
+            return consulta()
+        except Exception as error:
+            if not es_error_conexion_transitoria(error) or intento >= intentos - 1:
+                raise
+            pausa = espera * (2 ** intento)
+            logger.warning(
+                "Consulta de lectura interrumpida (%s). Reintento %s/%s en %.2fs.",
+                type(error).__name__, intento + 1, intentos - 1, pausa,
+            )
+            time.sleep(pausa)
+
+
 def execute_select_compatible(
     client: Any,
     table: str,
@@ -50,10 +88,13 @@ def execute_select_compatible(
     removed: list[str] = []
     for _attempt in range(max_schema_retries + 1):
         try:
-            query = client.table(table).select(",".join(active))
-            if configure is not None:
-                query = configure(query)
-            response = query.execute()
+            def leer():
+                query = client.table(table).select(",".join(active))
+                if configure is not None:
+                    query = configure(query)
+                return query.execute()
+
+            response = ejecutar_lectura_con_reintento(leer)
             if removed:
                 logger.warning(
                     "Esquema compatible aplicado en %s; columnas ausentes omitidas: %s",

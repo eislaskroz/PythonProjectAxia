@@ -302,32 +302,8 @@ def mostrar_direccion_general(parent, app):
     search.grid(row=0, column=1, sticky='ew', padx=(0, 12), pady=6)
 
     # Placeholder superpuesto del buscador.
-    placeholder = ctk.CTkLabel(
-        search,
-        text='Buscar cliente, folio, servicio...',
-        font=('Segoe UI', 12),
-        text_color='#64748B',
-        anchor='w',
-        justify='left',
-        fg_color='transparent'
-    )
-    placeholder.place(relx=0.02, rely=0.5, anchor='w')
-
-    def _placeholder_busqueda(event=None):
-        valor = search_var.get()
-        tiene_texto = bool(str(valor).strip())
-        tiene_foco = search.focus_get() == search
-
-        if tiene_texto or tiene_foco:
-            placeholder.place_forget()
-        else:
-            placeholder.place(relx=0.02, rely=0.5, anchor='w')
-
-    placeholder.bind('<Button-1>', lambda event: search.focus_set())
-    search_var.trace_add('write', lambda *_: _placeholder_busqueda())
-    search.bind('<FocusIn>', _placeholder_busqueda)
-    search.bind('<FocusOut>', _placeholder_busqueda)
-    _placeholder_busqueda()
+    # Texto de ayuda integrado al campo; no crea un rectángulo blanco sobre el gris.
+    search.configure(placeholder_text='Buscar cliente, folio, servicio...', placeholder_text_color="#64748B")
 
     controls.grid_columnconfigure(0, weight=1)
     controls.grid_columnconfigure(1, weight=0)
@@ -394,6 +370,8 @@ def mostrar_direccion_general(parent, app):
     table_shell.grid_rowconfigure(0, weight=1)
     table_shell.grid_columnconfigure(0, weight=1)
 
+    tree.tag_configure('fila_blanca', background='#FFFFFF')
+    tree.tag_configure('fila_azul', background='#EAF3FF')
     tree.tag_configure('danger', foreground=DANGER)
     tree.tag_configure('warning', foreground='#B45309')
     tree.tag_configure('success', foreground='#15803D')
@@ -575,7 +553,7 @@ def mostrar_direccion_general(parent, app):
                 '',
                 'end',
                 iid=str(i),
-                tags=(tag,),
+                tags=('fila_azul' if i % 2 else 'fila_blanca', tag),
                 values=(
                     r['folio'],
                     r['cliente'],

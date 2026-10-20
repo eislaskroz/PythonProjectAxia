@@ -88,9 +88,9 @@ class NativeTreeTable(ttk.Frame):
             values = value_factory(row) if value_factory else [row.get(key, "") for key in keys]
             iid = self.tree.insert("", "end", values=tuple("" if v is None else str(v) for v in values))
             self._payloads[iid] = row
-            if index % 2:
-                self.tree.item(iid, tags=("alternate",))
-        self.tree.tag_configure("alternate", background="#F3F8FF")
+            self.tree.item(iid, tags=("fila_azul",) if index % 2 else ("fila_blanca",))
+        self.tree.tag_configure("fila_blanca", background="#FFFFFF", foreground="#0F172A")
+        self.tree.tag_configure("fila_azul", background="#EAF3FF", foreground="#0F172A")
 
     def selected_payload(self) -> dict[str, Any] | None:
         selection = self.tree.selection()

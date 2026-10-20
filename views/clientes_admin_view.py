@@ -141,34 +141,8 @@ def mostrar_clientes_admin(parent, app):
         row=0, column=1, sticky="ew", padx=(0, 12), pady=6
     )
 
-    placeholder = ctk.CTkLabel(
-        buscador,
-        text="Realiza tu búsqueda",
-        font=("Segoe UI", 13),
-        text_color="#64748B",
-        anchor="w",
-        justify="left",
-    )
-    placeholder.place(
-        in_=entry_busqueda, relx=0.02, rely=0.5, anchor="w"
-    )
-
-    def _placeholder_busqueda(event=None):
-        valor = var_busqueda.get()
-        tiene_texto = bool(valor.strip())
-        tiene_foco = entry_busqueda.focus_get() == entry_busqueda
-        if tiene_texto or tiene_foco:
-            placeholder.place_forget()
-        else:
-            placeholder.place(
-                in_=entry_busqueda, relx=0.02, rely=0.5, anchor="w"
-            )
-
-    var_busqueda.trace_add("write", lambda *_: _placeholder_busqueda())
-    entry_busqueda.bind("<FocusIn>", _placeholder_busqueda)
-    entry_busqueda.bind("<FocusOut>", _placeholder_busqueda)
-    entry_busqueda.bind("<KeyRelease>", _placeholder_busqueda)
-    _placeholder_busqueda()
+    # Texto de ayuda integrado al campo; no crea un rectángulo blanco sobre el gris.
+    entry_busqueda.configure(placeholder_text='Realiza tu búsqueda', placeholder_text_color="#64748B")
 
     ctk.CTkButton(
         barra,

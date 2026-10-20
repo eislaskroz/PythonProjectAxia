@@ -95,30 +95,8 @@ def mostrar_admin_operational_editor(parent, app, config):
     )
     ent_search.grid(row=0, column=1, sticky="ew", padx=(0, 12), pady=6)
 
-    placeholder = ctk.CTkLabel(
-        buscador,
-        text="Realiza tu búsqueda",
-        font=("Segoe UI", 13),
-        text_color="#64748B",
-        anchor="w",
-        justify="left",
-    )
-    placeholder.place(in_=ent_search, relx=0.02, rely=0.5, anchor="w")
-
-    def _placeholder_busqueda(event=None):
-        valor = var_search.get()
-        tiene_texto = bool(valor.strip())
-        tiene_foco = ent_search.focus_get() == ent_search
-        if tiene_texto or tiene_foco:
-            placeholder.place_forget()
-        else:
-            placeholder.place(in_=ent_search, relx=0.02, rely=0.5, anchor="w")
-
-    var_search.trace_add("write", lambda *_: _placeholder_busqueda())
-    ent_search.bind("<FocusIn>", _placeholder_busqueda)
-    ent_search.bind("<FocusOut>", _placeholder_busqueda)
-    ent_search.bind("<KeyRelease>", _placeholder_busqueda)
-    _placeholder_busqueda()
+    # Texto de ayuda integrado al campo; no crea un rectángulo blanco sobre el gris.
+    ent_search.configure(placeholder_text='Realiza tu búsqueda', placeholder_text_color="#64748B")
 
     body = ctk.CTkFrame(root, fg_color="transparent")
     body.grid(row=1, column=0, sticky="nsew")

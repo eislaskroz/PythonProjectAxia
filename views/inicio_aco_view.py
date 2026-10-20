@@ -255,44 +255,8 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     )
     entry_aco_top.grid(row=0, column=1, sticky="ew", padx=(0, 10), pady=7)
 
-    placeholder_aco = ctk.CTkLabel(
-        entry_aco_top,
-        text="Captura el número",
-        font=TEXT_MD,
-        text_color=TEXT_SECONDARY,
-        fg_color=WHITE
-    )
-    placeholder_aco.place(x=12, rely=0.5, anchor="w")
-
-    estado_entrada_aco = {"cursor": False}
-
-    def actualizar_placeholder_aco(*_):
-        if var_aco_superior.get() or estado_entrada_aco["cursor"]:
-            placeholder_aco.place_forget()
-        else:
-            placeholder_aco.place(x=12, rely=0.5, anchor="w")
-
-    def entrar_area_busqueda_aco(_evento=None):
-        estado_entrada_aco["cursor"] = True
-        actualizar_placeholder_aco()
-
-    def salir_area_busqueda_aco(_evento=None):
-        def comprobar_cursor_fuera():
-            x, y = frame_entrada_aco.winfo_pointerxy()
-            izquierda = frame_entrada_aco.winfo_rootx()
-            arriba = frame_entrada_aco.winfo_rooty()
-            estado_entrada_aco["cursor"] = (
-                izquierda <= x < izquierda + frame_entrada_aco.winfo_width()
-                and arriba <= y < arriba + frame_entrada_aco.winfo_height()
-            )
-            actualizar_placeholder_aco()
-
-        frame_entrada_aco.after_idle(comprobar_cursor_fuera)
-
-    var_aco_superior.trace_add("write", actualizar_placeholder_aco)
-    for widget_busqueda in (frame_entrada_aco, entry_aco_top, placeholder_aco):
-        widget_busqueda.bind("<Enter>", entrar_area_busqueda_aco, add="+")
-        widget_busqueda.bind("<Leave>", salir_area_busqueda_aco, add="+")
+    # Placeholder integrado: sin etiquetas ni fondos superpuestos.
+    entry_aco_top.configure(placeholder_text='Captura el número', placeholder_text_color="#64748B")
 
     btn_validar_aco_top = ctk.CTkButton(
         panel_validar_aco,

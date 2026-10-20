@@ -133,27 +133,8 @@ def mostrar_usuarios_admin(parent, app):
     )
     entry_busqueda.grid(row=0, column=1, sticky="ew", padx=(0, 12), pady=6)
 
-    placeholder_busqueda = ctk.CTkLabel(
-        buscador,
-        text="Buscar usuario por nickname, nombre, apellido o correo empresarial...",
-        font=("Segoe UI", 13),
-        text_color="#64748B",
-        anchor="w",
-        justify="left",
-    )
-    placeholder_busqueda.place(in_=entry_busqueda, relx=0.02, rely=0.5, anchor="w")
-
-    def actualizar_placeholder_busqueda(*_):
-        if var_busqueda.get().strip() or entry_busqueda.focus_get() == entry_busqueda:
-            placeholder_busqueda.place_forget()
-        else:
-            placeholder_busqueda.place(in_=entry_busqueda, relx=0.02, rely=0.5, anchor="w")
-
-    var_busqueda.trace_add("write", actualizar_placeholder_busqueda)
-    entry_busqueda.bind("<FocusIn>", actualizar_placeholder_busqueda)
-    entry_busqueda.bind("<FocusOut>", actualizar_placeholder_busqueda)
-    entry_busqueda.bind("<KeyRelease>", actualizar_placeholder_busqueda)
-    actualizar_placeholder_busqueda()
+    # Texto de ayuda integrado al campo; no crea un rectángulo blanco sobre el gris.
+    entry_busqueda.configure(placeholder_text='Buscar usuario por nickname, nombre, apellido o correo empresarial...', placeholder_text_color="#64748B")
 
     btn_buscar = ctk.CTkButton(
         barra,

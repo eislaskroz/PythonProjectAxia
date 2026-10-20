@@ -10,7 +10,7 @@ from services.cotizacion_partidas import es_lote_servicio, importes_servicio
 from services.ordenes_trabajo_schema import partidas_desde_detalle_levantamiento
 from services.levantamientos_schema import TABLA_LEVANTAMIENTOS, COLUMNAS_LEVANTAMIENTOS
 from services.cotizaciones_schema import TABLA_COTIZACIONES, COLUMNAS_COTIZACIONES
-from services.query_compat import execute_select_compatible
+from services.query_compat import execute_select_compatible, ejecutar_lectura_con_reintento
 from services.folios_service import solicitar_folio_cotizacion
 from services.sucursales_service import obtener_sucursal_por_id
 from services.usuarios_service import obtener_usuario_por_id
@@ -55,14 +55,21 @@ def obtener_levantamientos_para_cotizar(limite: int = 200) -> list[dict]:
                 ids = [r.get("id_levantamiento") for r in filas if r.get("id_levantamiento") not in (None, "")]
                 folios = [str(r.get("lev_folio") or "").strip().upper() for r in filas if str(r.get("lev_folio") or "").strip()]
                 con_cotizacion = set()
-                consulta_cot = supabase.table(TABLA_COTIZACIONES).select("id_levantamiento,lev_folio,cot_estatus")
                 if ids:
-                    resp_cot = consulta_cot.in_("id_levantamiento", ids).execute()
+                    resp_cot = ejecutar_lectura_con_reintento(
+                        lambda: supabase.table(TABLA_COTIZACIONES)
+                        .select("id_levantamiento,lev_folio,cot_estatus")
+                        .in_("id_levantamiento", ids).execute()
+                    )
                     for c in resp_cot.data or []:
                         if c.get("id_levantamiento") not in (None, ""):
                             con_cotizacion.add(("id", str(c.get("id_levantamiento"))))
                 if folios:
-                    resp_cot = supabase.table(TABLA_COTIZACIONES).select("id_levantamiento,lev_folio,cot_estatus").in_("lev_folio", folios).execute()
+                    resp_cot = ejecutar_lectura_con_reintento(
+                        lambda: supabase.table(TABLA_COTIZACIONES)
+                        .select("id_levantamiento,lev_folio,cot_estatus")
+                        .in_("lev_folio", folios).execute()
+                    )
                     for c in resp_cot.data or []:
                         if c.get("id_levantamiento") not in (None, ""):
                             con_cotizacion.add(("id", str(c.get("id_levantamiento"))))
@@ -86,7 +93,11 @@ def obtener_levantamientos_para_cotizar(limite: int = 200) -> list[dict]:
         # En el respaldo excluimos también los levantamientos que ya tienen
         # cotización, incluidos los borradores editables.
         try:
-            resp_cot = supabase.table(TABLA_COTIZACIONES).select("id_levantamiento,lev_folio,cot_estatus").limit(max(limite * 3, 300)).execute()
+            resp_cot = ejecutar_lectura_con_reintento(
+                lambda: supabase.table(TABLA_COTIZACIONES)
+                .select("id_levantamiento,lev_folio,cot_estatus")
+                .limit(max(limite * 3, 300)).execute()
+            )
             ids_aut = {str(c.get("id_levantamiento")) for c in (resp_cot.data or []) if c.get("id_levantamiento") not in (None, "")}
             folios_aut = {str(c.get("lev_folio") or "").strip().upper() for c in (resp_cot.data or []) if str(c.get("lev_folio") or "").strip()}
             recuperados = [

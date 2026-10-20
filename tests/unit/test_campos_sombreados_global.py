@@ -62,7 +62,8 @@ def test_proyecto_no_usa_ctk_entry_sin_estilo():
 def test_sidebar_mantiene_acciones_y_mismo_estilo():
     raiz = Path(__file__).resolve().parents[2]
     src = (raiz / "ui" / "app_sidebar.py").read_text(encoding="utf8")
-    assert 'color_normal = "#17384D"' in src
+    assert 'boton = tk.Canvas(' in src
+    assert 'font=("Segoe UI", 11, "normal")' in src
     assert 'crear_boton_sidebar(acciones_sesion, "⏻ Cerrar AXIA", on_exit)' in src
     assert 'crear_boton_sidebar(acciones_sesion, "🔒 Salir", on_logout or on_exit)' in src
     assert '"👤 Mi Usuario"' in src

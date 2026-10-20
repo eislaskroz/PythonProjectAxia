@@ -173,74 +173,63 @@ def actualizar_sidebar_especialidad(sidebar, tipo_levantamiento=None):
 # FUNCIÓN: crear_boton_sidebar()
 # =====================================================
 def crear_boton_sidebar(parent, texto, comando=None, habilitado=True):
-    """Crea una opción del menú lateral con icono y texto alineados.
+    """Acción inferior con la misma pastilla oscura del menú de secciones.
 
-    Los emojis se colocan en una columna fija con fuente Segoe UI Emoji para
-    evitar que cada símbolo empuje el texto a posiciones distintas.
+    Canvas evita los contornos blancos que CustomTkinter dibuja cuando el
+    botón transparente se superpone al wallpaper del menú lateral.
     """
-
     partes = texto.split(" ", 1)
-    icono = partes[0] if len(partes) > 1 else ""
+    simbolo = partes[0] if len(partes) > 1 else ""
     etiqueta = partes[1] if len(partes) > 1 else texto
-    # Mismo tono y altura que las cabeceras del acordeón superior.
-    color_normal = "#17384D" if habilitado else "#1e293b"
-
-    fila = ctk.CTkFrame(
-        parent,
-        width=214,
-        height=44,
-        corner_radius=10,
-        fg_color=color_normal,
+    boton = tk.Canvas(
+        parent, height=44, bg="#0E2539", bd=0,
+        relief="flat", highlightthickness=0, takefocus=1,
     )
-    fila.pack(pady=2, padx=9, fill="x")
-    fila.pack_propagate(False)
-    fila.grid_propagate(False)
-    fila.grid_columnconfigure(0, minsize=34, weight=0)
-    fila.grid_columnconfigure(1, weight=1)
+    boton.pack(fill="x", padx=9, pady=2)
+    fondos = {}
 
-    color_texto = WHITE if habilitado else "#64748b"
+    def fondo(ancho, hover=False):
+        clave = (ancho, hover)
+        if clave not in fondos:
+            imagen = Image.new("RGBA", (ancho, 42), (14, 38, 57, 255))
+            dibujo = ImageDraw.Draw(imagen)
+            color = (38, 96, 125, 255) if hover else (23, 56, 77, 255)
+            dibujo.rounded_rectangle((0, 0, ancho - 1, 41), radius=9, fill=color)
+            fondos[clave] = ImageTk.PhotoImage(imagen, master=boton)
+        return fondos[clave]
 
-    lbl_icono = ctk.CTkLabel(
-        fila,
-        text=icono,
-        width=34,
-        height=44,
-        font=("Segoe UI Emoji", 16),
-        text_color=color_texto,
-        anchor="center",
-    )
-    lbl_icono.grid(row=0, column=0, sticky="nsew", padx=(2, 1), pady=0)
+    estado = {"hover": False}
 
-    lbl_texto = ctk.CTkLabel(
-        fila,
-        text=etiqueta,
-        height=44,
-        font=BUTTON_FONT,
-        text_color=color_texto,
-        anchor="w",
-    )
-    lbl_texto.grid(row=0, column=1, sticky="nsew", padx=(3, 4), pady=0)
+    def pintar(_evento=None):
+        if not boton.winfo_exists():
+            return
+        ancho = max(130, boton.winfo_width())
+        boton.delete("all")
+        boton.create_image(0, 1, image=fondo(ancho, estado["hover"] and habilitado), anchor="nw")
+        color = "#F3FAFF" if habilitado else "#9AABBC"
+        boton.create_text(17, 22, text=simbolo, fill=color,
+                          font=("Segoe UI Symbol", 15), anchor="w")
+        # Texto normal (sin negritas) como las opciones del acordeón.
+        boton.create_text(47, 22, text=etiqueta, fill=color,
+                          font=("Segoe UI", 11, "normal"), anchor="w")
+
+    def hover(_evento):
+        estado["hover"] = True
+        pintar()
+
+    def salir(_evento):
+        estado["hover"] = False
+        pintar()
 
     if habilitado and comando:
-        def ejecutar(_event=None):
-            comando()
-
-        def hover(_event=None):
-            fila.configure(fg_color="#26607D")
-
-        def leave(_event=None):
-            fila.configure(fg_color=color_normal)
-
-        for widget in (fila, lbl_icono, lbl_texto):
-            widget.bind("<Button-1>", ejecutar)
-            widget.bind("<Enter>", hover)
-            widget.bind("<Leave>", leave)
-            try:
-                widget.configure(cursor="hand2")
-            except Exception:
-                logger.debug("Excepción recuperable controlada.", exc_info=True)
-
-
+        boton.configure(cursor="hand2")
+        boton.bind("<Button-1>", lambda _event: comando())
+        boton.bind("<Return>", lambda _event: comando())
+        boton.bind("<space>", lambda _event: comando())
+        boton.bind("<Enter>", hover)
+        boton.bind("<Leave>", salir)
+    boton.bind("<Configure>", pintar, add="+")
+    return boton
 
 
 # =====================================================
@@ -625,7 +614,7 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
     # Las acciones inferiores reutilizan las mismas tarjetas y efectos hover
     # de las secciones Operaciones / Administración / Sistema / Dirección General.
     # Conservar los callbacks originales evita afectar el cierre de sesión.
-    acciones_sesion = ctk.CTkFrame(sidebar, fg_color="transparent")
+    acciones_sesion = tk.Frame(sidebar, bg="#0E2539", bd=0, highlightthickness=0)
     acciones_sesion.pack(side="bottom", pady=(2, 9), fill="x")
 
     if not usuario_es_admin:

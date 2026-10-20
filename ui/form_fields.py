@@ -35,6 +35,8 @@ class _EstiloCampo:
         # parámetros: fuente, altura, esquinas, variable y estado funcional.
         kwargs["fg_color"] = fondo
         kwargs["border_color"] = borde
+        if isinstance(self, ctk.CTkEntry):
+            kwargs.setdefault("placeholder_text_color", "#64748B")
         super().__init__(*args, **kwargs)
 
     def configure(self, *args, **kwargs):
