@@ -13,6 +13,7 @@ from security.permissions import puede_cotizar_levantamientos
 from services.cotizaciones_service import (
     obtener_levantamientos_para_cotizar,
     obtener_cotizaciones_pendientes_compras,
+    obtener_cotizaciones_en_compra,
     obtener_levantamiento_de_cotizacion,
     cargar_cotizacion,
     datos_generales_cotizacion,
@@ -23,6 +24,7 @@ from services.cotizaciones_service import (
     ESTATUS_EN_COMPRA,
 )
 from services.axia_pdf_engine import AxiaPdfEngine
+from services.cotizacion_partidas import es_lote_servicio
 from services.usuarios_service import obtener_nombres_usuarios_por_tipos, obtener_usuarios_por_tipos
 from ui.colors import WHITE, TEXT_PRIMARY, TEXT_SECONDARY, SECONDARY, BUTTON_HOVER
 from ui.iconos import cargar_icono
@@ -56,6 +58,7 @@ def mostrar_cotizaciones(parent, app=None):
     estado = {"registro": None, "cotizacion": {}, "vars": {}, "partidas": [], "partida_vars": [], "editables": [], "modo_edicion": False}
     registros_cache = []
     cotizaciones_cache = []
+    autorizadas_cache = []
 
     root = ctk.CTkFrame(parent, fg_color="transparent")
     root.pack(fill="both", expand=True, padx=14, pady=(4, 12))
@@ -93,35 +96,41 @@ def mostrar_cotizaciones(parent, app=None):
         command=mostrar_bandejas,
     )
     btn_bandejas.grid(row=0, column=1, sticky="e", padx=(8, 0))
-    superior.grid_columnconfigure(0, weight=1, uniform="top")
-    superior.grid_columnconfigure(1, weight=1, uniform="top")
-
-    # FIX30: las dos bandejas superiores representan los dos caminos de Ventas:
-    # a la izquierda, cotizaciones COT-XXXXX ya guardadas pero todavía editables;
-    # a la derecha, levantamientos preautorizados que aún pueden generar cotización.
-    bandeja_cot = ctk.CTkFrame(superior, fg_color=WHITE, corner_radius=16)
-    bandeja_cot.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
-    bandeja_cot.grid_columnconfigure(0, weight=1)
-    lbl_cotizaciones = ctk.CTkLabel(
-        bandeja_cot, text="Cotizaciones realizadas · Pendientes de Compras",
-        font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="w"
-    )
-    lbl_cotizaciones.grid(row=0, column=0, sticky="ew", padx=12, pady=(8, 4))
-    tabla_cot = NativeTreeTable(
-        bandeja_cot,
-        columns=(("folio","Cotización",130),("levantamiento","Levantamiento",130),
-                 ("cliente","Cliente",210),("fecha","Fecha",115)),
-        height=3,
-    )
-    tabla_cot.grid(row=1, column=0, sticky="ew", padx=10, pady=(0,6))
+    # Tres bandejas: flujo LEV -> COT editable (BORRADOR) -> COT autorizada (EN COMPRA).
+    for indice in range(3):
+        superior.grid_columnconfigure(indice, weight=1, uniform="top")
 
     bandeja = ctk.CTkFrame(superior, fg_color=WHITE, corner_radius=16)
-    bandeja.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
+    bandeja.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
     bandeja.grid_columnconfigure(0, weight=1)
-    lbl_lista = ctk.CTkLabel(bandeja, text="Levantamientos preautorizados", font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="w")
-    lbl_lista.grid(row=0, column=0, sticky="ew", padx=12, pady=(8, 4))
-    tabla = NativeTreeTable(bandeja, columns=(("folio","Folio",135),("cliente","Cliente",210),("tipo","Tipo",210),("fecha","Fecha",125)), height=3)
-    tabla.grid(row=1, column=0, sticky="ew", padx=10, pady=(0,6))
+    lbl_lista = ctk.CTkLabel(bandeja, text="Levantamientos Preautorizados", font=TITLE_MD,
+                            text_color=TEXT_PRIMARY, anchor="w")
+    lbl_lista.grid(row=0, column=0, sticky="ew", padx=10, pady=(6, 3))
+    tabla = NativeTreeTable(
+        bandeja, columns=(("folio", "Folio", 105), ("cliente", "Cliente", 150),
+                          ("tipo", "Tipo", 140), ("fecha", "Fecha", 95)), height=3,
+    )
+    tabla.grid(row=1, column=0, sticky="ew", padx=8, pady=(0, 5))
+
+    bandeja_cot = ctk.CTkFrame(superior, fg_color=WHITE, corner_radius=16)
+    bandeja_cot.grid(row=0, column=1, sticky="nsew", padx=5)
+    bandeja_cot.grid_columnconfigure(0, weight=1)
+    lbl_cotizaciones = ctk.CTkLabel(bandeja_cot, text="Cotizaciones Realizadas",
+                                    font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="w")
+    lbl_cotizaciones.grid(row=0, column=0, sticky="ew", padx=10, pady=(6, 3))
+    columnas_cot = (("folio", "Cotización", 115), ("levantamiento", "Levantamiento", 120),
+                    ("cliente", "Cliente", 150), ("fecha", "Fecha", 100))
+    tabla_cot = NativeTreeTable(bandeja_cot, columns=columnas_cot, height=3)
+    tabla_cot.grid(row=1, column=0, sticky="ew", padx=8, pady=(0, 5))
+
+    bandeja_aut = ctk.CTkFrame(superior, fg_color=WHITE, corner_radius=16)
+    bandeja_aut.grid(row=0, column=2, sticky="nsew", padx=(5, 0))
+    bandeja_aut.grid_columnconfigure(0, weight=1)
+    lbl_autorizadas = ctk.CTkLabel(bandeja_aut, text="Cotizaciones Autorizadas",
+                                   font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="w")
+    lbl_autorizadas.grid(row=0, column=0, sticky="ew", padx=10, pady=(6, 3))
+    tabla_aut = NativeTreeTable(bandeja_aut, columns=columnas_cot, height=3)
+    tabla_aut.grid(row=1, column=0, sticky="ew", padx=8, pady=(0, 5))
 
     detalle_card = ctk.CTkFrame(root, fg_color=WHITE, corner_radius=16)
     detalle_card.grid(row=2, column=0, sticky="nsew"); detalle_card.grid_columnconfigure(0, weight=1); detalle_card.grid_rowconfigure(1, weight=1)
@@ -203,11 +212,11 @@ def mostrar_cotizaciones(parent, app=None):
         lbl_total.configure(text=f"Total: ${total:,.2f} MXN")
 
     def add_field(parent_frame, row, col, label, key, value="", readonly=False, colspan=1):
-        ctk.CTkLabel(parent_frame, text=label, font=TEXT_SM, text_color=TEXT_PRIMARY, anchor="w").grid(
-            row=row*2, column=col, columnspan=colspan, sticky="ew", padx=5, pady=(4,1))
+        ctk.CTkLabel(parent_frame, text=label, font=("Montserrat", 10), text_color=TEXT_PRIMARY, anchor="w").grid(
+            row=row*2, column=col, columnspan=colspan, sticky="ew", padx=4, pady=(1,0))
         var = ctk.StringVar(value=str(value or "")); estado["vars"][key] = var
-        ent = ctk.CTkEntry(parent_frame, textvariable=var, height=32)
-        ent.grid(row=row*2+1, column=col, columnspan=colspan, sticky="ew", padx=5, pady=(0,4))
+        ent = ctk.CTkEntry(parent_frame, textvariable=var, height=25, font=("Montserrat", 11))
+        ent.grid(row=row*2+1, column=col, columnspan=colspan, sticky="ew", padx=4, pady=(0,2))
         if key in {"cot_dias", "cot_personas", "cot_vigencia"}:
             aplicar_mascara_numerica(ent, var, INTEGER)
         elif key in {"cot_descuento_pct", "cot_iva_pct"}:
@@ -220,15 +229,15 @@ def mostrar_cotizaciones(parent, app=None):
         return var
 
     def add_select(parent_frame, row, col, label, key, values, value="", colspan=1):
-        ctk.CTkLabel(parent_frame, text=label, font=TEXT_SM, text_color=TEXT_PRIMARY, anchor="w").grid(
-            row=row*2, column=col, columnspan=colspan, sticky="ew", padx=5, pady=(4,1))
+        ctk.CTkLabel(parent_frame, text=label, font=("Montserrat", 10), text_color=TEXT_PRIMARY, anchor="w").grid(
+            row=row*2, column=col, columnspan=colspan, sticky="ew", padx=4, pady=(1,0))
         opciones = [str(x).strip() for x in (values or []) if str(x).strip()]
         actual = str(value or "").strip()
         if actual not in opciones:
             actual = opciones[0] if opciones else ""
         var = ctk.StringVar(value=actual); estado["vars"][key] = var
-        menu = ctk.CTkOptionMenu(parent_frame, variable=var, values=opciones or ["SIN JEFES DE OPERACIONES REGISTRADOS"], height=32)
-        menu.grid(row=row*2+1, column=col, columnspan=colspan, sticky="ew", padx=5, pady=(0,4))
+        menu = ctk.CTkOptionMenu(parent_frame, variable=var, values=opciones or ["SIN JEFES DE OPERACIONES REGISTRADOS"], height=25, font=("Montserrat", 11))
+        menu.grid(row=row*2+1, column=col, columnspan=colspan, sticky="ew", padx=4, pady=(0,2))
         if not opciones:
             menu.configure(state="disabled")
         else:
@@ -287,6 +296,12 @@ def mostrar_cotizaciones(parent, app=None):
             "modelo": "Modelo", "sku": "SKU", "marca": "Marca",
         }
         for idx, pv in enumerate(partidas, 1):
+            if es_lote_servicio({k: v.get() for k, v in pv.items()}, idx - 1, len(partidas)):
+                if not str(pv["unidad_tipo"].get()).strip() or not str(pv["concepto"].get()).strip():
+                    return False, f"Lote {idx}: completa Unidad / Tipo y Concepto del servicio."
+                if _num(pv["importe"].get()) <= 0:
+                    return False, f"Lote {idx}: captura el Importe del servicio."
+                continue
             for key, etiqueta in requeridos_texto.items():
                 valor = str(pv.get(key).get() if pv.get(key) is not None else "").strip()
                 if not valor:
@@ -345,17 +360,18 @@ def mostrar_cotizaciones(parent, app=None):
             row=0, column=0, columnspan=4, sticky="ew", padx=6, pady=(4,2))
         general = ctk.CTkFrame(scroll, fg_color=WHITE, corner_radius=10)
         general.grid(row=1, column=0, columnspan=4, sticky="ew", padx=4, pady=(0,8))
-        for c in range(5): general.grid_columnconfigure(c, weight=1)
+        # 7 columnas y 3 filas compactas: el encabezado ocupa considerablemente
+        # menos altura sin perder los datos ni sus claves de almacenamiento.
+        for c in range(7):
+            general.grid_columnconfigure(c, weight=1, uniform="generales")
 
-        # Distribución compacta de cinco columnas según el flujo comercial.
         add_field(general,0,0,"No. Cotización","cot_folio",base.get("cot_folio"),True)
         add_field(general,0,1,"Fecha de Cotización","cot_fecha",base.get("cot_fecha"),True)
         add_field(general,0,2,"No. Levantamiento","lev_folio",base.get("lev_folio"),True)
         add_field(general,0,3,"Cliente","cot_cliente",base.get("cot_cliente"),True)
         add_field(general,0,4,"Contacto","cot_contacto",base.get("cot_contacto"),True)
-
-        add_field(general,1,0,"Sucursal","cot_sucursal",base.get("cot_sucursal"),True,2)
-        add_field(general,1,2,"Asunto","cot_asunto",base.get("cot_asunto"),True,2)
+        add_field(general,0,5,"Sucursal","cot_sucursal",base.get("cot_sucursal"),True,2)
+        add_field(general,1,0,"Asunto","cot_asunto",base.get("cot_asunto"),True,2)
         # El usuario tipo 6 queda asociado automáticamente como ESI. El administrador
         # puede elegir una Ejecutiva de Ventas real (tipo 6) para pruebas/gestión; al
         # seleccionarla se cargan automáticamente su correo corporativo y teléfono.
@@ -367,12 +383,12 @@ def mostrar_cotizaciones(parent, app=None):
             opciones_esi = list(ventas_por_etiqueta)
             if esi_actual and esi_actual not in opciones_esi and estado.get("cotizacion"):
                 opciones_esi.insert(0, esi_actual)
-            add_select(general,1,4,"ESI / Ejecutiva de Ventas","cot_esi",opciones_esi,esi_actual)
+            add_select(general,1,2,"ESI / Ejecutiva de Ventas","cot_esi",opciones_esi,esi_actual)
         else:
-            add_field(general,1,4,"ESI / Ejecutiva de Ventas","cot_esi",base.get("cot_esi"),True)
+            add_field(general,1,2,"ESI / Ejecutiva de Ventas","cot_esi",base.get("cot_esi"),True)
 
-        add_field(general,2,0,"Correo ESI","cot_esi_correo",base.get("cot_esi_correo"),True)
-        add_field(general,2,1,"Teléfono ESI","cot_esi_telefono",base.get("cot_esi_telefono"),True)
+        add_field(general,1,3,"Correo ESI","cot_esi_correo",base.get("cot_esi_correo"),True)
+        add_field(general,1,4,"Teléfono ESI","cot_esi_telefono",base.get("cot_esi_telefono"),True)
         if tipo_actual == 1 and ventas_catalogo:
             def _sincronizar_esi(*_):
                 elegido = str(estado["vars"]["cot_esi"].get() or "").strip()
@@ -386,16 +402,16 @@ def mostrar_cotizaciones(parent, app=None):
                 _sincronizar_esi()
 
         jefes_operaciones = obtener_nombres_usuarios_por_tipos([2])
-        add_select(general,2,2,"Jefe de Operaciones","cot_jefe_operaciones",jefes_operaciones,base.get("cot_jefe_operaciones"),2)
-        add_field(general,2,4,"Supervisor","cot_supervisor",base.get("cot_supervisor"),True)
+        add_select(general,1,5,"Jefe de Operaciones","cot_jefe_operaciones",jefes_operaciones,base.get("cot_jefe_operaciones"),2)
+        add_field(general,2,0,"Supervisor","cot_supervisor",base.get("cot_supervisor"),True)
 
-        add_field(general,3,0,"Días","cot_dias",base.get("cot_dias"),True)
-        add_field(general,3,1,"Personas","cot_personas",base.get("cot_personas"),True)
-        add_field(general,3,2,"Plan de Pagos","cot_plan_pagos",base.get("cot_plan_pagos"),False,2)
+        add_field(general,2,1,"Días","cot_dias",base.get("cot_dias"),True)
+        add_field(general,2,2,"Personas","cot_personas",base.get("cot_personas"),True)
+        add_field(general,2,3,"Plan de Pagos","cot_plan_pagos",base.get("cot_plan_pagos"))
 
-        add_field(general,4,0,"Vigencia de Cotización","cot_vigencia",base.get("cot_vigencia"))
-        vd=add_field(general,4,1,"Descuento %","cot_descuento_pct",base.get("cot_descuento_pct",0))
-        vi=add_field(general,4,2,"IVA %","cot_iva_pct",base.get("cot_iva_pct",16))
+        add_field(general,2,4,"Vigencia de Cotización","cot_vigencia",base.get("cot_vigencia"))
+        vd=add_field(general,2,5,"Descuento %","cot_descuento_pct",base.get("cot_descuento_pct",0))
+        vi=add_field(general,2,6,"IVA %","cot_iva_pct",base.get("cot_iva_pct",16))
         vd.trace_add("write", recalcular); vi.trace_add("write", recalcular)
 
         ctk.CTkLabel(scroll, text="Partidas comerciales", font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="w").grid(
@@ -406,73 +422,136 @@ def mostrar_cotizaciones(parent, app=None):
         cont.grid(row=3, column=0, columnspan=4, sticky="ew")
         cont.grid_columnconfigure(0, weight=1)
 
-        for i,item in enumerate(partidas):
+        for i, item in enumerate(partidas):
+            servicio = es_lote_servicio(item, i, len(partidas))
             card = ctk.CTkFrame(cont, fg_color=WHITE, corner_radius=10)
-            card.grid(row=i, column=0, sticky="ew", padx=4, pady=4)
-            for c in range(6): card.grid_columnconfigure(c, weight=1)
-            ctk.CTkLabel(card, text=f"Lote {item.get('lote',i+1)} · {item.get('concepto','')}", font=("Montserrat",11,"bold"),
-                         text_color=TEXT_PRIMARY, anchor="w", wraplength=1100).grid(row=0,column=0,columnspan=6,sticky="ew",padx=8,pady=(6,2))
-            vars_item={}
-            fields=[
-                ("Unidad / Tipo","unidad_tipo",1,0,1),("Cantidad","cantidad",1,1,1),("Proveedor","proveedor",1,2,1),
-                ("Modelo","modelo",1,3,1),("SKU","sku",1,4,1),("Marca","marca",1,5,1),
-                ("Concepto","concepto",3,0,2),("P. Lista","precio_lista",3,2,1),("Costo","costo",3,3,1),
-                ("Utilidad %","utilidad_pct",3,4,1),("P. Venta","precio_venta",3,5,1),
-                ("P. Unitario","precio_unitario",5,0,1),("Importe","importe",5,1,1),("Observaciones","observaciones",5,2,4),
-            ]
-            for lab,key,r,c,span in fields:
-                ctk.CTkLabel(card,text=lab,font=("Montserrat",9,"bold"),text_color=TEXT_SECONDARY,anchor="w").grid(row=r,column=c,columnspan=span,sticky="ew",padx=5,pady=(2,0))
-                var=ctk.StringVar(value=str(item.get(key) if item.get(key) not in (None,"") else "")); vars_item[key]=var
-                ent = ctk.CTkEntry(card,textvariable=var,height=29)
-                ent.grid(row=r+1,column=c,columnspan=span,sticky="ew",padx=5,pady=(0,5))
+            card.grid(row=i, column=0, sticky="ew", padx=4, pady=3)
+            for c in range(8):
+                card.grid_columnconfigure(c, weight=1, uniform="partida")
+            ctk.CTkLabel(
+                card,
+                text=f"Lote {item.get('lote', i+1)} · {item.get('concepto', '')}",
+                font=("Montserrat", 11, "bold"), text_color=TEXT_PRIMARY,
+                anchor="center", justify="center", wraplength=1350,
+            ).grid(row=0, column=0, columnspan=8, sticky="ew", padx=6, pady=(4, 3))
+
+            # Se conservan todas las variables para el servicio y el PDF,
+            # aunque solo se muestren los cinco campos relevantes para mano de obra.
+            vars_item = {
+                key: ctk.StringVar(value=str(value) if value is not None else "")
+                for key, value in item.items()
+            }
+            todas_las_claves = (
+                "unidad_tipo", "cantidad", "proveedor", "modelo", "sku", "marca",
+                "concepto", "precio_lista", "costo", "utilidad_pct", "precio_venta",
+                "precio_unitario", "importe", "observaciones",
+            )
+            for key in todas_las_claves:
+                vars_item.setdefault(key, ctk.StringVar(value=""))
+
+            if servicio:
+                # Una única fila compacta: unidad, concepto, SKU, importe, notas.
+                fields = [
+                    ("Unidad / Tipo", "unidad_tipo", 1, 0, 1),
+                    ("Concepto", "concepto", 1, 1, 3),
+                    ("SKU", "sku", 1, 4, 1),
+                    ("Importe", "importe", 1, 5, 1),
+                    ("Observaciones", "observaciones", 1, 6, 2),
+                ]
+            else:
+                # Dos filas frente a las tres anteriores: conserva todas las
+                # columnas de gestión interna en el formulario comercial.
+                fields = [
+                    ("Unidad / Tipo", "unidad_tipo", 1, 0, 1),
+                    ("Cantidad", "cantidad", 1, 1, 1),
+                    ("Proveedor", "proveedor", 1, 2, 1),
+                    ("Modelo", "modelo", 1, 3, 1),
+                    ("SKU", "sku", 1, 4, 1),
+                    ("Marca", "marca", 1, 5, 1),
+                    ("P. Lista", "precio_lista", 1, 6, 1),
+                    ("Costo", "costo", 1, 7, 1),
+                    ("Concepto", "concepto", 3, 0, 2),
+                    ("Utilidad %", "utilidad_pct", 3, 2, 1),
+                    ("P. Venta", "precio_venta", 3, 3, 1),
+                    ("P. Unitario", "precio_unitario", 3, 4, 1),
+                    ("Importe", "importe", 3, 5, 1),
+                    ("Observaciones", "observaciones", 3, 6, 2),
+                ]
+            for lab, key, r, c, span in fields:
+                ctk.CTkLabel(
+                    card, text=lab, font=("Montserrat", 9, "bold"),
+                    text_color=TEXT_SECONDARY, anchor="w",
+                ).grid(row=r, column=c, columnspan=span, sticky="ew", padx=4, pady=(1, 0))
+                var = vars_item[key]
+                ent = ctk.CTkEntry(card, textvariable=var, height=24, font=("Montserrat", 11))
+                ent.grid(row=r+1, column=c, columnspan=span, sticky="ew", padx=4, pady=(0, 3))
                 if key in {"precio_lista", "costo", "precio_venta", "precio_unitario", "importe"}:
                     aplicar_mascara_numerica(ent, var, MONEY)
                 elif key in {"cantidad", "utilidad_pct"}:
                     aplicar_mascara_numerica(ent, var, NUMBER)
-                if key in {"unidad_tipo", "cantidad", "concepto", "costo", "precio_venta", "precio_unitario", "importe"}:
-                    # Unidad/Cantidad/Concepto vienen del levantamiento.
-                    # Costo/P.Venta/P.Unitario/Importe son resultados comerciales calculados.
+                if key in {"unidad_tipo", "cantidad", "concepto", "costo", "precio_venta", "precio_unitario", "importe"} and not (servicio and key == "importe"):
                     ent.configure(state="disabled")
                 else:
                     estado["editables"].append(ent)
 
-            # FIX25: Ventas captura únicamente P. Lista y Utilidad %.
-            # COSTO       = P. LISTA * (UTILIDAD / 100)
-            # P. VENTA    = P. LISTA + COSTO
-            # P. UNITARIO = P. VENTA
-            # IMPORTE     = P. UNITARIO * CANTIDAD
-            lock={"x":False}
-            def calc_comercial(*_, pv=vars_item, lk=lock):
-                if lk["x"]:
-                    return
-                try:
-                    lista=float(str(pv["precio_lista"].get()).replace(",","") or 0)
-                    utilidad=float(str(pv["utilidad_pct"].get()).replace("%","").replace(",","") or 0)
-                    cantidad=float(str(pv["cantidad"].get()).replace(",","") or 0)
-                except (TypeError, ValueError):
+            if servicio:
+                # El importe lo introduce Ventas sin porcentajes ni costos.
+                # Sincronizamos campos internos para que el Preview muestre
+                # un precio unitario coherente incluso antes de guardar.
+                lock_servicio = {"x": False}
+                def calc_servicio(*_, pv=vars_item, lk=lock_servicio):
+                    if lk["x"]:
+                        return
+                    importe = _num(pv["importe"].get())
+                    cantidad = _num(pv["cantidad"].get()) or 1.0
+                    unitario = round(importe / cantidad, 2)
+                    lk["x"] = True
+                    try:
+                        pv["precio_lista"].set(f"{importe:.2f}")
+                        pv["costo"].set("0.00")
+                        pv["utilidad_pct"].set("0")
+                        pv["precio_venta"].set(f"{unitario:.2f}")
+                        pv["precio_unitario"].set(f"{unitario:.2f}")
+                    finally:
+                        lk["x"] = False
                     recalcular()
-                    return
+                vars_item["importe"].trace_add("write", calc_servicio)
+                calc_servicio()
 
-                costo = round(lista * utilidad / 100.0, 2)
-                venta = round(lista + costo, 2)
-                importe = round(venta * cantidad, 2)
-                lk["x"] = True
-                try:
-                    pv["costo"].set(f"{costo:.2f}")
-                    pv["precio_venta"].set(f"{venta:.2f}")
-                    pv["precio_unitario"].set(f"{venta:.2f}")
-                    pv["importe"].set(f"{importe:.2f}")
-                finally:
-                    lk["x"] = False
-                recalcular()
+            if not servicio:
+                # Costo = P.Lista * Utilidad%; P.Venta = Lista + Costo;
+                # P.Unitario = P.Venta; Importe = P.Unitario * Cantidad.
+                lock = {"x": False}
+                def calc_comercial(*_, pv=vars_item, lk=lock):
+                    if lk["x"]:
+                        return
+                    try:
+                        lista = _num(pv["precio_lista"].get())
+                        utilidad = _num(pv["utilidad_pct"].get())
+                        cantidad = _num(pv["cantidad"].get())
+                    except (TypeError, ValueError):
+                        recalcular()
+                        return
+                    costo = round(lista * utilidad / 100.0, 2)
+                    venta = round(lista + costo, 2)
+                    importe = round(venta * cantidad, 2)
+                    lk["x"] = True
+                    try:
+                        pv["costo"].set(f"{costo:.2f}")
+                        pv["precio_venta"].set(f"{venta:.2f}")
+                        pv["precio_unitario"].set(f"{venta:.2f}")
+                        pv["importe"].set(f"{importe:.2f}")
+                    finally:
+                        lk["x"] = False
+                    recalcular()
+                vars_item["precio_lista"].trace_add("write", calc_comercial)
+                vars_item["utilidad_pct"].trace_add("write", calc_comercial)
+                vars_item["cantidad"].trace_add("write", calc_comercial)
+                calc_comercial()
 
-            vars_item["precio_lista"].trace_add("write",calc_comercial)
-            vars_item["utilidad_pct"].trace_add("write",calc_comercial)
-            vars_item["cantidad"].trace_add("write",calc_comercial)
-            vars_item["importe"].trace_add("write",recalcular)
+            vars_item["importe"].trace_add("write", recalcular)
             for _var in vars_item.values():
                 _var.trace_add("write", lambda *_: actualizar_estado_botones())
-            calc_comercial()
             estado["partida_vars"].append(vars_item)
 
         # Estado visual y permisos de edición. Una cotización guardada se abre en
@@ -650,8 +729,8 @@ def mostrar_cotizaciones(parent, app=None):
         render(reg)
         mostrar_bandejas(False)
 
-    def cargar_cotizacion_seleccionada():
-        cot = tabla_cot.selected_payload()
+    def cargar_cotizacion_seleccionada(origen="borrador"):
+        cot = (tabla_aut if origen == "autorizada" else tabla_cot).selected_payload()
         if not cot:
             messagebox.showinfo("Selecciona una cotización", "Selecciona primero una cotización COT-XXXXX de la tabla.")
             return
@@ -664,7 +743,10 @@ def mostrar_cotizaciones(parent, app=None):
 
         def ok(reg):
             lbl_titulo.configure(text=f"{_texto(cot,'cot_folio')} · {_texto(cot,'cot_cliente')}")
-            lbl_detalle.configure(text=f"{_texto(cot,'cot_folio')} · Cotización guardada pendiente de Compras. Usa Modificar para habilitar cambios.")
+            if origen == "autorizada":
+                lbl_detalle.configure(text=f"{_texto(cot,'cot_folio')} · Cotización autorizada y enviada a Compras (solo consulta).")
+            else:
+                lbl_detalle.configure(text=f"{_texto(cot,'cot_folio')} · Cotización guardada sin autorizar. Usa Modificar para habilitar cambios.")
             render(reg)
             mostrar_bandejas(False)
 
@@ -672,14 +754,17 @@ def mostrar_cotizaciones(parent, app=None):
                   lambda e: messagebox.showerror("No fue posible abrir la cotización", str(e)))
 
     def refrescar():
-        lbl_lista.configure(text="Consultando levantamientos preautorizados...")
-        lbl_cotizaciones.configure(text="Consultando cotizaciones pendientes...")
+        lbl_lista.configure(text="Consultando levantamientos...")
+        lbl_cotizaciones.configure(text="Consultando cotizaciones realizadas...")
+        lbl_autorizadas.configure(text="Consultando cotizaciones autorizadas...")
 
-        resultados = {"lev": None, "cot": None}
+        def valores_cot(r):
+            return (_texto(r,"cot_folio"), _texto(r,"lev_folio"),
+                    _texto(r,"cot_cliente"), _texto(r,"cot_fecha"))
 
         def pintar_lev(regs):
             registros_cache[:] = list(regs or [])
-            lbl_lista.configure(text=f"Levantamientos preautorizados ({len(registros_cache)})")
+            lbl_lista.configure(text=f"Levantamientos Preautorizados ({len(registros_cache)})")
             tabla.set_rows(
                 registros_cache,
                 value_factory=lambda r:(
@@ -693,28 +778,39 @@ def mostrar_cotizaciones(parent, app=None):
 
         def pintar_cot(regs):
             cotizaciones_cache[:] = list(regs or [])
-            lbl_cotizaciones.configure(text=f"Cotizaciones realizadas · Pendientes de Compras ({len(cotizaciones_cache)})")
-            tabla_cot.set_rows(
-                cotizaciones_cache,
-                value_factory=lambda r:(
-                    _texto(r,"cot_folio"), _texto(r,"lev_folio"), _texto(r,"cot_cliente"), _texto(r,"cot_fecha"),
-                ),
-            )
+            lbl_cotizaciones.configure(text=f"Cotizaciones Realizadas ({len(cotizaciones_cache)})")
+            tabla_cot.set_rows(cotizaciones_cache, value_factory=valores_cot)
+
+        def pintar_aut(regs):
+            autorizadas_cache[:] = list(regs or [])
+            lbl_autorizadas.configure(text=f"Cotizaciones Autorizadas ({len(autorizadas_cache)})")
+            tabla_aut.set_rows(autorizadas_cache, value_factory=valores_cot)
 
         run_async(parent.winfo_toplevel(), obtener_levantamientos_para_cotizar, pintar_lev,
-                  lambda e:messagebox.showerror("No fue posible consultar levantamientos",str(e)))
+                  lambda e: messagebox.showerror("No fue posible consultar levantamientos", str(e)))
         run_async(parent.winfo_toplevel(), obtener_cotizaciones_pendientes_compras, pintar_cot,
-                  lambda e:messagebox.showerror("No fue posible consultar cotizaciones",str(e)))
+                  lambda e: messagebox.showerror("No fue posible consultar cotizaciones", str(e)))
+        run_async(parent.winfo_toplevel(), obtener_cotizaciones_en_compra, pintar_aut,
+                  lambda e: messagebox.showerror("No fue posible consultar cotizaciones autorizadas", str(e)))
 
     ctk.CTkButton(
-        bandeja_cot, text="Abrir cotización seleccionada", image=icono_abrir, compound="left", height=42, width=220, corner_radius=10,
-        font=BUTTON_FONT, fg_color="#2563EB", hover_color="#1D4ED8", text_color=WHITE,
-        border_width=0, command=cargar_cotizacion_seleccionada
-    ).grid(row=2,column=0,sticky="ew",padx=10,pady=(0,8))
+        bandeja, text="Cargar levantamiento seleccionado", image=icono_votar, compound="left",
+        height=36, width=180, corner_radius=10, font=BUTTON_FONT,
+        fg_color="#2563EB", hover_color="#1D4ED8", text_color=WHITE,
+        border_width=0, command=cargar_seleccion,
+    ).grid(row=2, column=0, sticky="ew", padx=8, pady=(0, 7))
     ctk.CTkButton(
-        bandeja,text="Cargar levantamiento seleccionado",image=icono_votar,compound="left",height=42,width=220,corner_radius=10,
-        font=BUTTON_FONT, fg_color="#2563EB", hover_color="#1D4ED8", text_color=WHITE,
-        border_width=0, command=cargar_seleccion
-    ).grid(row=2,column=0,sticky="ew",padx=10,pady=(0,8))
+        bandeja_cot, text="Abrir cotización modificable", image=icono_abrir, compound="left",
+        height=36, width=180, corner_radius=10, font=BUTTON_FONT,
+        fg_color="#2563EB", hover_color="#1D4ED8", text_color=WHITE,
+        border_width=0, command=lambda: cargar_cotizacion_seleccionada("borrador"),
+    ).grid(row=2, column=0, sticky="ew", padx=8, pady=(0, 7))
+    ctk.CTkButton(
+        bandeja_aut, text="Consultar cotización autorizada", image=icono_abrir, compound="left",
+        height=36, width=180, corner_radius=10, font=BUTTON_FONT,
+        fg_color="#2563EB", hover_color="#1D4ED8", text_color=WHITE,
+        border_width=0, command=lambda: cargar_cotizacion_seleccionada("autorizada"),
+    ).grid(row=2, column=0, sticky="ew", padx=8, pady=(0, 7))
+
     btn_guardar.configure(command=guardar); btn_pdf.configure(command=pdf); btn_modificar.configure(command=modificar); btn_finalizar.configure(command=finalizar)
     refrescar()

@@ -6,6 +6,7 @@ import json
 
 from core.logger import configurar_logger
 from services.movimientos_service import registrar_movimiento_seguro
+from services.cotizacion_partidas import es_lote_servicio, importes_servicio
 from services.ordenes_trabajo_schema import partidas_desde_detalle_levantamiento
 from services.levantamientos_schema import TABLA_LEVANTAMIENTOS, COLUMNAS_LEVANTAMIENTOS
 from services.cotizaciones_schema import TABLA_COTIZACIONES, COLUMNAS_COTIZACIONES
@@ -45,33 +46,32 @@ def obtener_levantamientos_para_cotizar(limite: int = 200) -> list[dict]:
                        .limit(limite),
         )
         filas = list(respuesta.data or [])
-        # Una vez que Ventas finaliza una cotización, el levantamiento ya fue
-        # autorizado para el siguiente tramo y no debe seguir apareciendo en
-        # la bandeja de "Levantamientos preautorizados". Los borradores sí
-        # permanecen visibles para poder continuarlos.
+        # Las tres bandejas representan etapas exclusivas: el levantamiento
+        # preautorizado deja de aparecer aquí desde que existe una cotización
+        # (BORRADOR, EN COMPRA o CONVERTIDA). Los BORRADOR se reabren desde
+        # «Cotizaciones Realizadas» para continuar su edición.
         if filas:
             try:
                 ids = [r.get("id_levantamiento") for r in filas if r.get("id_levantamiento") not in (None, "")]
                 folios = [str(r.get("lev_folio") or "").strip().upper() for r in filas if str(r.get("lev_folio") or "").strip()]
-                autorizados = set()
+                con_cotizacion = set()
                 consulta_cot = supabase.table(TABLA_COTIZACIONES).select("id_levantamiento,lev_folio,cot_estatus")
                 if ids:
                     resp_cot = consulta_cot.in_("id_levantamiento", ids).execute()
                     for c in resp_cot.data or []:
-                        if str(c.get("cot_estatus") or "").strip().upper() in {ESTATUS_EN_COMPRA, ESTATUS_CONVERTIDA_OT}:
-                            autorizados.add(("id", str(c.get("id_levantamiento"))))
+                        if c.get("id_levantamiento") not in (None, ""):
+                            con_cotizacion.add(("id", str(c.get("id_levantamiento"))))
                 if folios:
                     resp_cot = supabase.table(TABLA_COTIZACIONES).select("id_levantamiento,lev_folio,cot_estatus").in_("lev_folio", folios).execute()
                     for c in resp_cot.data or []:
-                        if str(c.get("cot_estatus") or "").strip().upper() in {ESTATUS_EN_COMPRA, ESTATUS_CONVERTIDA_OT}:
-                            if c.get("id_levantamiento") not in (None, ""):
-                                autorizados.add(("id", str(c.get("id_levantamiento"))))
-                            if str(c.get("lev_folio") or "").strip():
-                                autorizados.add(("folio", str(c.get("lev_folio") or "").strip().upper()))
+                        if c.get("id_levantamiento") not in (None, ""):
+                            con_cotizacion.add(("id", str(c.get("id_levantamiento"))))
+                        if str(c.get("lev_folio") or "").strip():
+                            con_cotizacion.add(("folio", str(c.get("lev_folio") or "").strip().upper()))
                 filas = [
                     r for r in filas
-                    if ("id", str(r.get("id_levantamiento"))) not in autorizados
-                    and ("folio", str(r.get("lev_folio") or "").strip().upper()) not in autorizados
+                    if ("id", str(r.get("id_levantamiento"))) not in con_cotizacion
+                    and ("folio", str(r.get("lev_folio") or "").strip().upper()) not in con_cotizacion
                 ]
             except Exception:
                 logger.exception("No fue posible filtrar levantamientos ya autorizados mediante cotización.")
@@ -83,10 +83,10 @@ def obtener_levantamientos_para_cotizar(limite: int = 200) -> list[dict]:
             lambda q: q.order("fecha_registro", desc=True).limit(max(limite * 3, 300)),
         )
         recuperados = [r for r in list(respaldo.data or []) if _esta_preautorizado_ventas(r)]
-        # En el respaldo también excluimos los LEV cuya cotización ya fue
-        # finalizada/autorizada. Los borradores continúan visibles.
+        # En el respaldo excluimos también los levantamientos que ya tienen
+        # cotización, incluidos los borradores editables.
         try:
-            resp_cot = supabase.table(TABLA_COTIZACIONES).select("id_levantamiento,lev_folio,cot_estatus").in_("cot_estatus", [ESTATUS_EN_COMPRA, ESTATUS_CONVERTIDA_OT]).limit(max(limite * 3, 300)).execute()
+            resp_cot = supabase.table(TABLA_COTIZACIONES).select("id_levantamiento,lev_folio,cot_estatus").limit(max(limite * 3, 300)).execute()
             ids_aut = {str(c.get("id_levantamiento")) for c in (resp_cot.data or []) if c.get("id_levantamiento") not in (None, "")}
             folios_aut = {str(c.get("lev_folio") or "").strip().upper() for c in (resp_cot.data or []) if str(c.get("lev_folio") or "").strip()}
             recuperados = [
@@ -256,9 +256,9 @@ def construir_partidas_comerciales(registro: dict, cotizacion: dict | None = Non
     result.append({
         "lote": str(len(result) + 1), "unidad_tipo": "Servicio", "cantidad": "1",
         "proveedor": "AXIA", "modelo": "", "sku": "", "marca": "AXIA",
-        "concepto": concepto_servicio, "precio_lista": 0,
-        "costo": float(servicio.get("costo_total") or 0) if servicio else 0,
-        "utilidad_pct": 0, "precio_venta": 0,
+        "concepto": concepto_servicio, "precio_lista": float(servicio.get("costo_total") or 0) if servicio else 0,
+        "costo": 0,
+        "utilidad_pct": 0, "precio_venta": float(servicio.get("costo_total") or 0) if servicio else 0,
         "precio_unitario": float(servicio.get("costo_total") or 0) if servicio else 0,
         "importe": float(servicio.get("costo_total") or 0) if servicio else 0,
         "observaciones": "",
@@ -303,6 +303,34 @@ def guardar_cotizacion_comercial(datos: dict, partidas: list[dict], usuario: str
     limpias = []
     subtotal = 0.0
     for i, item in enumerate(partidas or [], 1):
+        servicio = es_lote_servicio(item, i - 1, len(partidas))
+        if servicio:
+            for key, etiqueta in (("unidad_tipo", "Unidad / Tipo"),
+                                  ("concepto", "Concepto")):
+                if not str(item.get(key) or "").strip():
+                    raise ValueError(f"Lote {i}: falta {etiqueta}.")
+            importe, precio_unitario = importes_servicio(item)
+            if importe <= 0:
+                raise ValueError(f"Lote {i}: el importe del servicio debe ser mayor que cero.")
+            subtotal += importe
+            limpias.append({
+                "lote": str(item.get("lote") or i),
+                "unidad_tipo": str(item.get("unidad_tipo") or "Servicio").strip(),
+                "cantidad": str(item.get("cantidad") or "1").strip(),
+                "proveedor": str(item.get("proveedor") or "AXIA").strip(),
+                "modelo": str(item.get("modelo") or "").strip(),
+                "sku": str(item.get("sku") or "").strip(),
+                "marca": str(item.get("marca") or "AXIA").strip(),
+                "concepto": str(item.get("concepto") or "").strip(),
+                "precio_lista": importe,
+                "costo": 0.0,
+                "utilidad_pct": 0.0,
+                "precio_venta": precio_unitario,
+                "precio_unitario": precio_unitario,
+                "importe": importe,
+                "observaciones": str(item.get("observaciones") or "").strip(),
+            })
+            continue
         for key, etiqueta in (("unidad_tipo", "Unidad / Tipo"), ("concepto", "Concepto"),
                               ("proveedor", "Proveedor"), ("modelo", "Modelo"),
                               ("sku", "SKU"), ("marca", "Marca")):
