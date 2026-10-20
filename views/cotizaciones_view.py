@@ -26,7 +26,7 @@ from services.cotizaciones_service import (
 )
 from services.axia_pdf_engine import AxiaPdfEngine
 from services.cotizacion_partidas import es_lote_servicio
-from services.usuarios_service import obtener_nombres_usuarios_por_tipos, obtener_usuarios_por_tipos
+from services.usuarios_service import obtener_nombres_usuarios_por_tipos
 from ui.colors import WHITE, TEXT_PRIMARY, TEXT_SECONDARY, SECONDARY, BUTTON_HOVER
 from ui.iconos import cargar_icono
 from ui.fonts import TITLE_MD, TEXT_MD, TEXT_SM, BUTTON_FONT
@@ -199,6 +199,7 @@ def mostrar_cotizaciones(parent, app=None):
         for w in scroll.winfo_children(): w.destroy()
         estado["vars"] = {}; estado["partidas"] = []; estado["partida_vars"] = []; estado["cotizacion"] = {}; estado["editables"] = []
         estado["modo_edicion"] = False
+        estado["supervisores_validos"] = frozenset()
         for boton in (btn_guardar, btn_pdf, btn_modificar, btn_finalizar):
             boton.configure(state="disabled")
         lbl_total.configure(text="Total: $0.00 MXN")
@@ -229,17 +230,22 @@ def mostrar_cotizaciones(parent, app=None):
         var.trace_add("write", lambda *_: actualizar_estado_botones())
         return var
 
-    def add_select(parent_frame, row, col, label, key, values, value="", colspan=1):
+    def add_select(parent_frame, row, col, label, key, values, value="", colspan=1, placeholder=None):
         ctk.CTkLabel(parent_frame, text=label, font=("Montserrat", 10), text_color=TEXT_PRIMARY, anchor="w").grid(
             row=row*2, column=col, columnspan=colspan, sticky="ew", padx=4, pady=(1,0))
         opciones = [str(x).strip() for x in (values or []) if str(x).strip()]
+        hay_personal = bool(opciones)
+        if placeholder:
+            # Supervisor: no asignar automáticamente a la primera persona del
+            # catálogo si el levantamiento carece de supervisor válido.
+            opciones.insert(0, placeholder if hay_personal else "SIN SUPERVISORES REGISTRADOS")
         actual = str(value or "").strip()
-        if actual not in opciones:
-            actual = opciones[0] if opciones else ""
+        coincidencia = next((op for op in opciones if op.casefold() == actual.casefold()), None)
+        actual = coincidencia if coincidencia is not None else (opciones[0] if opciones else "")
         var = ctk.StringVar(value=actual); estado["vars"][key] = var
-        menu = ctk.CTkOptionMenu(parent_frame, variable=var, values=opciones or ["SIN JEFES DE OPERACIONES REGISTRADOS"], height=25, font=("Montserrat", 11))
+        menu = ctk.CTkOptionMenu(parent_frame, variable=var, values=opciones or ["SIN PERSONAL REGISTRADO"], height=25, font=("Montserrat", 11))
         menu.grid(row=row*2+1, column=col, columnspan=colspan, sticky="ew", padx=4, pady=(0,2))
-        if not opciones:
+        if not hay_personal:
             menu.configure(state="disabled")
         else:
             estado["editables"].append(menu)
@@ -273,6 +279,17 @@ def mostrar_cotizaciones(parent, app=None):
             valor = str(var.get() if var is not None else "").strip()
             if not valor or valor in {"*", "-"}:
                 return False, f"Falta completar correctamente: {etiqueta}."
+
+        # Nunca permitir que el valor de ayuda se guarde como supervisor.
+        # Las cotizaciones ya finalizadas conservan su responsable histórico,
+        # aunque haya sido dado de baja o renombrado en el catálogo.
+        supervisor = str(estado["vars"]["cot_supervisor"].get()).strip()
+        supervisores_validos = estado.get("supervisores_validos", frozenset())
+        cot_previa = estado.get("cotizacion") or {}
+        finalizada_previa = str(cot_previa.get("cot_estatus") or "").strip().upper() == ESTATUS_EN_COMPRA
+        supervisor_historico = str(cot_previa.get("cot_supervisor") or "").strip()
+        if supervisor not in supervisores_validos and not (finalizada_previa and supervisor == supervisor_historico):
+            return False, "Selecciona un Supervisor válido (usu_tipo = 3)."
 
         correo = str(estado["vars"]["cot_esi_correo"].get()).strip()
         if "@" not in correo or "." not in correo.rsplit("@", 1)[-1]:
@@ -373,38 +390,26 @@ def mostrar_cotizaciones(parent, app=None):
         add_field(general,0,4,"Contacto","cot_contacto",base.get("cot_contacto"),True)
         add_field(general,0,5,"Sucursal","cot_sucursal",base.get("cot_sucursal"),True,2)
         add_field(general,1,0,"Asunto","cot_asunto",base.get("cot_asunto"),True,2)
-        # El usuario tipo 6 queda asociado automáticamente como ESI. El administrador
-        # puede elegir una Ejecutiva de Ventas real (tipo 6) para pruebas/gestión; al
-        # seleccionarla se cargan automáticamente su correo corporativo y teléfono.
-        tipo_actual = int((usuario or {}).get("usu_tipo") or 0)
-        ventas_catalogo = obtener_usuarios_por_tipos([6]) if tipo_actual == 1 else []
-        ventas_por_etiqueta = {str(u.get("etiqueta") or "").strip(): u for u in ventas_catalogo}
-        if tipo_actual == 1 and ventas_catalogo:
-            esi_actual = str(base.get("cot_esi") or "").strip()
-            opciones_esi = list(ventas_por_etiqueta)
-            if esi_actual and esi_actual not in opciones_esi and estado.get("cotizacion"):
-                opciones_esi.insert(0, esi_actual)
-            add_select(general,1,2,"ESI / Ejecutiva de Ventas","cot_esi",opciones_esi,esi_actual)
-        else:
-            add_field(general,1,2,"ESI / Ejecutiva de Ventas","cot_esi",base.get("cot_esi"),True)
-
+        # La ESI se obtiene del usuario autenticado (tipo 6), sin permitir
+        # reasignarla manualmente. Si la cotización ya existía, se conserva
+        # su ESI original para evitar alterar la autoría al consultarla.
+        add_field(general,1,2,"ESI / Ejecutiva de Ventas","cot_esi",base.get("cot_esi"),True)
         add_field(general,1,3,"Correo ESI","cot_esi_correo",base.get("cot_esi_correo"),True)
         add_field(general,1,4,"Teléfono ESI","cot_esi_telefono",base.get("cot_esi_telefono"),True)
-        if tipo_actual == 1 and ventas_catalogo:
-            def _sincronizar_esi(*_):
-                elegido = str(estado["vars"]["cot_esi"].get() or "").strip()
-                reg_esi = ventas_por_etiqueta.get(elegido) or {}
-                if reg_esi:
-                    estado["vars"]["cot_esi_correo"].set(str(reg_esi.get("usu_correo") or "").strip())
-                    estado["vars"]["cot_esi_telefono"].set(str(reg_esi.get("usu_telefono") or "").strip())
-                actualizar_estado_botones()
-            estado["vars"]["cot_esi"].trace_add("write", _sincronizar_esi)
-            if not estado.get("cotizacion"):
-                _sincronizar_esi()
 
+        # Los puestos no se infieren por usu_puesto: se filtran por db_usuarios.usu_tipo.
         jefes_operaciones = obtener_nombres_usuarios_por_tipos([2])
         add_select(general,1,5,"Jefe de Operaciones","cot_jefe_operaciones",jefes_operaciones,base.get("cot_jefe_operaciones"),2)
-        add_field(general,2,0,"Supervisor","cot_supervisor",base.get("cot_supervisor"),True)
+
+        supervisores = obtener_nombres_usuarios_por_tipos([3])
+        estado["supervisores_validos"] = frozenset(supervisores)
+        supervisor_anterior = str(base.get("cot_supervisor") or "").strip()
+        if finalizada and supervisor_anterior not in estado["supervisores_validos"]:
+            # Histórico autorizado: solo consulta, sin forzar una nueva asignación.
+            add_field(general,2,0,"Supervisor","cot_supervisor",supervisor_anterior,True)
+        else:
+            add_select(general,2,0,"Supervisor","cot_supervisor",supervisores,supervisor_anterior,
+                       placeholder="SELECCIONA UN SUPERVISOR")
 
         add_field(general,2,1,"Días","cot_dias",base.get("cot_dias"),True)
         add_field(general,2,2,"Personas","cot_personas",base.get("cot_personas"),True)
