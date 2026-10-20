@@ -1,4 +1,4 @@
-"""
+﻿"""
 =========================================================
 MÓDULO: app.py
 DESCRIPCIÓN:
@@ -409,6 +409,8 @@ class AxiaApp(ctk.CTk):
             border_color=RING,
         )
         status_card.pack(side="left", pady=0)
+        # Mantener la referencia para posicionar Mostrar/Ocultar menú a su izquierda.
+        self.header_status_card = status_card
 
         status_row = ctk.CTkFrame(status_card, fg_color="transparent")
         status_row.pack(fill="x", padx=10, pady=4)
@@ -427,7 +429,7 @@ class AxiaApp(ctk.CTk):
             status_row,
             text="Conectado a Supabase",
             text_color=PRIMARY,
-            font=(FONT_FAMILY, 8),
+            font=(FONT_FAMILY, 11),
             anchor="w",
         )
         status_label.pack(side="left", fill="x", expand=True)
@@ -464,7 +466,7 @@ class AxiaApp(ctk.CTk):
             info_row,
             text="📅  " + fecha_texto,
             text_color=TEXT_PRIMARY,
-            font=(FONT_FAMILY, 9),
+            font=(FONT_FAMILY, 11),
             anchor="w",
         )
         calendar_label.pack(side="left", fill="x", expand=True)
@@ -611,7 +613,10 @@ class AxiaApp(ctk.CTk):
             command=self.alternar_sidebar, fg_color="#123C58",
             hover_color="#17648A", corner_radius=9,
         )
-        self._sidebar_toggle.pack(side="left", padx=(10, 0), pady=0)
+        # Primera posición: botón de menú, seguido del estado y la fecha.
+        self._sidebar_toggle.pack(
+            side="left", before=self.header_status_card, padx=(0, 10), pady=0
+        )
 
     def alternar_sidebar(self):
         """Oculta/muestra el sidebar conservando navegación y formularios."""
