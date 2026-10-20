@@ -354,14 +354,13 @@ class AxiaApp(ctk.CTk):
         )
         accent_dot.place(relx=0.5, rely=0.5, anchor="center")
 
-        # Fila central: título / subtítulo + breadcrumb decorativo
-        # SIN pack_propagate → se ajusta al contenido y no corta nada.
+        # Fila única: controles a la izquierda y breadcrumb+título a la derecha.
         header_body = ctk.CTkFrame(self.header, fg_color="transparent")
-        header_body.pack(fill="both", padx=18, pady=(8, 8))
+        header_body.pack(fill="x", padx=18, pady=(6, 6))
 
         # Indicadores y menú a la izquierda; identificación de vista a la derecha.
         left_block = ctk.CTkFrame(header_body, fg_color="transparent")
-        left_block.pack(side="right", fill="both", expand=True, padx=(14, 0))
+        left_block.pack(side="right", fill="x", expand=True, padx=(14, 0))
 
         # Breadcrumb decorativo (no funcional, solo contexto visual)
         label_breadcrumb = ctk.CTkLabel(
@@ -372,7 +371,7 @@ class AxiaApp(ctk.CTk):
             anchor="e",
             justify="right",
         )
-        label_breadcrumb.pack(fill="x", anchor="e", pady=(0, 1))
+        label_breadcrumb.pack(side="right", anchor="e")
         self.breadcrumb_label = label_breadcrumb
 
         self.label_titulo = ctk.CTkLabel(
@@ -383,7 +382,7 @@ class AxiaApp(ctk.CTk):
             anchor="e",
             justify="right",
         )
-        self.label_titulo.pack(fill="x", anchor="e", pady=(0, 0))
+        self.label_titulo.pack(side="right", anchor="e", padx=(0, 16))
 
         self.label_subtitulo = ctk.CTkLabel(
             left_block,
@@ -393,11 +392,12 @@ class AxiaApp(ctk.CTk):
             anchor="e",
             justify="right",
         )
-        self.label_subtitulo.pack(fill="x", anchor="e")
+        # Subtítulo global oculto para compactar la cabecera
+        # self.label_subtitulo queda disponible para compatibilidad del NavigationController
 
         # Bloque izquierdo: estado, fecha en español y control del menú.
         right_block = ctk.CTkFrame(header_body, fg_color="transparent")
-        right_block.pack(side="left", fill="y", pady=(0,0))
+        right_block.pack(side="left", fill="x")
         self.header_controls_host = right_block
 
         # Tarjeta de estado superior
@@ -408,10 +408,10 @@ class AxiaApp(ctk.CTk):
             border_width=1,
             border_color=RING,
         )
-        status_card.pack(fill="x", pady=(0, 4))
+        status_card.pack(side="left", pady=0)
 
         status_row = ctk.CTkFrame(status_card, fg_color="transparent")
-        status_row.pack(fill="x", padx=10, pady=5)
+        status_row.pack(fill="x", padx=10, pady=4)
 
         status_dot = ctk.CTkFrame(
             status_row,
@@ -456,9 +456,9 @@ class AxiaApp(ctk.CTk):
             border_width=1,
             border_color=DIVIDER,
         )
-        info_card.pack(fill="x", pady=0)
+        info_card.pack(side="left", padx=(10, 0), pady=0)
         info_row = ctk.CTkFrame(info_card, fg_color="transparent")
-        info_row.pack(fill="x", padx=10, pady=5)
+        info_row.pack(fill="x", padx=10, pady=4)
 
         calendar_label = ctk.CTkLabel(
             info_row,
@@ -611,7 +611,7 @@ class AxiaApp(ctk.CTk):
             command=self.alternar_sidebar, fg_color="#123C58",
             hover_color="#17648A", corner_radius=9,
         )
-        self._sidebar_toggle.pack(side="top", anchor="w", pady=(5, 0))
+        self._sidebar_toggle.pack(side="left", padx=(10, 0), pady=0)
 
     def alternar_sidebar(self):
         """Oculta/muestra el sidebar conservando navegación y formularios."""
