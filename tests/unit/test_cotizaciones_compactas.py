@@ -24,7 +24,7 @@ def test_pdf_de_cliente_sin_datos_internos(tmp_path):
         "cot_folio": "COT-PRUEBA",
         "cot_fecha": "20/10/2026", "cot_cliente": "Cliente de prueba",
         "cot_partidas_json": [
-            {"lote":"1", "unidad_tipo":"Pieza(s)", "cantidad":"2", "proveedor":"Proveedor",
+            {"lote":"1", "unidad_tipo":"Pieza(s)", "cantidad":"2", "proveedor":"HOME DEPOT PROVEEDOR INTERNO",
              "modelo":"Modelo", "sku":"SKU123", "marca":"Marca", "concepto":"Equipo de prueba",
              "precio_lista":99991, "costo":99992, "utilidad_pct":739,
              "precio_venta":99993, "precio_unitario":1500, "importe":3000,
@@ -41,11 +41,11 @@ def test_pdf_de_cliente_sin_datos_internos(tmp_path):
     ruta = generar_pdf_cotizacion(data, tmp_path / 'cot_cliente.pdf', abrir=False)
     assert ruta.exists() and ruta.stat().st_size > 0
     text = '\n'.join(p.extract_text() or '' for p in PdfReader(str(ruta)).pages)
-    for campo in ('P. LISTA', 'COSTO', 'UTILIDAD', 'P. VENTA'):
+    for campo in ('P. LISTA', 'COSTO', 'UTILIDAD', 'P. VENTA', 'PROVEEDOR'):
         assert campo not in text
     for campo in ('P. UNIT.', 'IMPORTE', 'Servicio de instalación', '$6,500.00'):
         assert campo in text
-    for dato_interno in ('99991', '99992', '99993', '739%'):
+    for dato_interno in ('99991', '99992', '99993', '739%', 'HOME DEPOT PROVEEDOR INTERNO'):
         assert dato_interno not in text
 
 

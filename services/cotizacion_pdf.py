@@ -27,7 +27,7 @@ logger = configurar_logger(__name__)
 
 # Etiquetas históricas del formato comercial conservadas por compatibilidad:
 # No. Cotización | No. Levantamiento | Plan de Pagos | Vigencia de Cotización
-# Proveedor | P. Unitario | Importe | Observaciones (datos externos)
+# P. Unitario | Importe | Observaciones (datos externos)
 
 BLUE = colors.HexColor("#1F4E79")
 LIGHT_BLUE = colors.HexColor("#EAF1F7")
@@ -199,15 +199,15 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
             partidas = []
     partidas = partidas if isinstance(partidas, list) else []
 
-    # Documento para el cliente: jamás exponer precios de lista, costos ni margen.
-    headers = ["LOTE", "UNIDAD / TIPO", "CANT.", "PROVEEDOR", "MODELO", "SKU", "MARCA", "CONCEPTO", "P. UNIT.", "IMPORTE", "OBSERVACIONES"]
+    # Documento para el cliente: excluir datos internos de compra (proveedor,
+    # precios de lista, costos y márgenes). Se conservan en Supabase/AXIA.
+    headers = ["LOTE", "UNIDAD / TIPO", "CANT.", "MODELO", "SKU", "MARCA", "CONCEPTO", "P. UNIT.", "IMPORTE", "OBSERVACIONES"]
     table_data = [[Paragraph(h, header) for h in headers]]
     for item in partidas:
         table_data.append([
             p(item.get("lote"), row_center, ""),
             p(item.get("unidad_tipo"), row_center, ""),
             p(item.get("cantidad"), row_center, ""),
-            p(item.get("proveedor"), row_style, ""),
             p(item.get("modelo"), row_style, ""),
             p(item.get("sku"), row_style, ""),
             p(item.get("marca"), row_style, ""),
@@ -219,7 +219,9 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
     if len(table_data) == 1:
         table_data.append([p("", row_style, "")] * len(headers))
 
-    widths = [0.40, 0.85, 0.46, 0.77, 0.72, 0.58, 0.62, 2.10, 0.84, 0.86, 1.18]
+    # Redistribuir el espacio del proveedor hacia el concepto y las notas.
+    # El ancho total de la tabla se mantiene para respetar la paginación.
+    widths = [0.40, 0.84, 0.45, 0.78, 0.64, 0.65, 2.45, 0.87, 0.90, 1.40]
     widths = [x*inch for x in widths]
     commercial = LongTable(table_data, colWidths=widths, repeatRows=1, splitByRow=1)
     commercial.setStyle(TableStyle([
@@ -228,7 +230,7 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
         ("GRID", (0, 0), (-1, -1), 0.4, BORDER),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("ALIGN", (0, 1), (2, -1), "CENTER"),
-        ("ALIGN", (8, 1), (9, -1), "CENTER"),
+        ("ALIGN", (7, 1), (8, -1), "CENTER"),
         ("LEFTPADDING", (0, 0), (-1, -1), 2.2),
         ("RIGHTPADDING", (0, 0), (-1, -1), 2.2),
         ("TOPPADDING", (0, 0), (-1, -1), 1.4),
