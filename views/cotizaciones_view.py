@@ -1,5 +1,6 @@
 """Módulo comercial de cotizaciones formales para Ventas."""
 from __future__ import annotations
+from ui.form_fields import AxiaEntry, AxiaTextbox
 
 import customtkinter as ctk
 from tkinter import messagebox, filedialog
@@ -215,7 +216,7 @@ def mostrar_cotizaciones(parent, app=None):
         ctk.CTkLabel(parent_frame, text=label, font=("Montserrat", 10), text_color=TEXT_PRIMARY, anchor="w").grid(
             row=row*2, column=col, columnspan=colspan, sticky="ew", padx=4, pady=(1,0))
         var = ctk.StringVar(value=str(value or "")); estado["vars"][key] = var
-        ent = ctk.CTkEntry(parent_frame, textvariable=var, height=25, font=("Montserrat", 11))
+        ent = AxiaEntry(parent_frame, textvariable=var, height=25, font=("Montserrat", 11))
         ent.grid(row=row*2+1, column=col, columnspan=colspan, sticky="ew", padx=4, pady=(0,2))
         if key in {"cot_dias", "cot_personas", "cot_vigencia"}:
             aplicar_mascara_numerica(ent, var, INTEGER)
@@ -483,7 +484,7 @@ def mostrar_cotizaciones(parent, app=None):
                     text_color=TEXT_SECONDARY, anchor="w",
                 ).grid(row=r, column=c, columnspan=span, sticky="ew", padx=4, pady=(1, 0))
                 var = vars_item[key]
-                ent = ctk.CTkEntry(card, textvariable=var, height=24, font=("Montserrat", 11))
+                ent = AxiaEntry(card, textvariable=var, height=24, font=("Montserrat", 11))
                 ent.grid(row=r+1, column=c, columnspan=span, sticky="ew", padx=4, pady=(0, 3))
                 if key in {"precio_lista", "costo", "precio_venta", "precio_unitario", "importe"}:
                     aplicar_mascara_numerica(ent, var, MONEY)

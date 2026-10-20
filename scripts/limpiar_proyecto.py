@@ -13,7 +13,7 @@ SUFFIXES = [".pyc", ".pyo", ".tmp", ".bak"]
 
 for path in list(ROOT.rglob("*")):
     if path.is_dir() and path.name in DIRS:
-        shutil.rmtree(path, ignore_errors=True)
+        shutil.rmtreeS(path, ignore_errors=True)
         print(f"Eliminado: {path.relative_to(ROOT)}")
     elif path.is_file() and path.suffix in SUFFIXES:
         path.unlink(missing_ok=True)

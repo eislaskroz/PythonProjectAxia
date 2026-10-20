@@ -14,6 +14,7 @@ Nuevo comportamiento:
 """
 
 import customtkinter as ctk
+from ui.form_fields import AxiaEntry, AxiaTextbox
 from tkinter import messagebox
 
 from app_context import obtener_usuario_actual
@@ -228,7 +229,7 @@ def mostrar_mi_usuario(parent, app):
         wrapper.grid(row=1, column=columna, sticky="ew", padx=8 if columna == 0 else (0, 16), pady=(3, 5))
         wrapper.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(wrapper, text=etiqueta, font=TEXT_SM, text_color=TEXT_PRIMARY, anchor="w").grid(row=0, column=0, sticky="w")
-        ctk.CTkEntry(wrapper, textvariable=variable, show="*", height=32).grid(row=1, column=0, sticky="ew", pady=(2, 0))
+        AxiaEntry(wrapper, textvariable=variable, show="*", height=32).grid(row=1, column=0, sticky="ew", pady=(2, 0))
 
     def cambiar_password():
         ok, mensaje = cambiar_password_usuario_actual(
@@ -283,7 +284,7 @@ def mostrar_mi_usuario(parent, app):
     barra.grid_columnconfigure(0, weight=1)
 
     var_busqueda = ctk.StringVar()
-    entry_busqueda = ctk.CTkEntry(
+    entry_busqueda = AxiaEntry(
         barra,
         textvariable=var_busqueda,
         placeholder_text="Buscar por fecha, módulo, acción, descripción, equipo o IP...",

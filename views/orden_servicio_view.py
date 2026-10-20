@@ -12,6 +12,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 import customtkinter as ctk
+from ui.form_fields import AxiaEntry, AxiaTextbox
 from tkinter import messagebox, filedialog
 from ui.native_combobox import NativeComboBox
 
@@ -127,7 +128,7 @@ def mostrar_orden_servicio(parent, app, aco=None):
     def entry(texto, var, placeholder="", fila=0, col=0, state="normal", lock=False, date=False, required=True, width=None):
         c = celda(fila, col)
         label(c, texto)
-        e = ctk.CTkEntry(c, textvariable=var, placeholder_text=placeholder, height=ENTRY_H, corner_radius=8, font=SMALL_FONT, state=state, width=width or 240)
+        e = AxiaEntry(c, textvariable=var, placeholder_text=placeholder, height=ENTRY_H, corner_radius=8, font=SMALL_FONT, state=state, width=width or 240)
         if width:
             e.pack(anchor="w")
         else:
@@ -154,7 +155,7 @@ def mostrar_orden_servicio(parent, app, aco=None):
     def texto_largo(texto, fila, alto=70, required=True):
         c = celda(fila, 0, 5)
         label(c, texto)
-        box = ctk.CTkTextbox(c, height=alto, corner_radius=8, font=SMALL_FONT)
+        box = AxiaTextbox(c, height=alto, corner_radius=8, font=SMALL_FONT)
         box.pack(fill="x")
         box.bind("<KeyRelease>", lambda _event: validar_preview())
         if required:
@@ -358,7 +359,7 @@ def mostrar_orden_servicio(parent, app, aco=None):
             if h == "Movimiento":
                 NativeComboBox(sub, variable=row_vars[h], values=MOVIMIENTOS_EQUIPO, height=OPTION_H, font=SMALL_FONT, command=lambda _v=None: validar_preview()).pack(fill="x")
             else:
-                ctk.CTkEntry(sub, textvariable=row_vars[h], height=ENTRY_H, corner_radius=9, font=SMALL_FONT).pack(fill="x")
+                AxiaEntry(sub, textvariable=row_vars[h], height=ENTRY_H, corner_radius=9, font=SMALL_FONT).pack(fill="x")
                 row_vars[h].trace_add("write", lambda *_: validar_preview())
         def eliminar_equipo():
             fila.destroy()

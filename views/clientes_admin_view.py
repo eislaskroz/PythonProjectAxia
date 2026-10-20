@@ -13,6 +13,7 @@ cli_estado, cli_cp, cli_correo y cli_notas.
 """
 
 import customtkinter as ctk
+from ui.form_fields import AxiaEntry, AxiaTextbox
 from ui.iconos import cargar_icono
 _AXIA_ICON_BUSCAR = cargar_icono("buscar.png", (18, 18))
 _AXIA_ICON_BUSCAR_BLANCO = cargar_icono("buscar.png", (16, 16), blanco=True)
@@ -128,7 +129,7 @@ def mostrar_clientes_admin(parent, app):
         anchor="center",
     ).grid(row=0, column=0, sticky="ns", padx=(12, 8), pady=6)
 
-    entry_busqueda = ctk.CTkEntry(
+    entry_busqueda = AxiaEntry(
         buscador,
         textvariable=var_busqueda,
         height=38,
@@ -314,14 +315,14 @@ def mostrar_clientes_admin(parent, app):
         estado["variables"][campo] = var
 
         if campo == "cli_notas":
-            entry = ctk.CTkEntry(
+            entry = AxiaEntry(
                 wrapper,
                 textvariable=var,
                 height=36,
                 placeholder_text="Notas internas del cliente...",
             )
         else:
-            entry = ctk.CTkEntry(
+            entry = AxiaEntry(
                 wrapper,
                 textvariable=var,
                 height=36,
@@ -512,7 +513,7 @@ def mostrar_clientes_admin(parent, app):
             row=fila, column=0, sticky="w", pady=(2, 1)
         )
 
-        entry = ctk.CTkEntry(
+        entry = AxiaEntry(
             panel,
             textvariable=variable,
             height=32,
@@ -582,7 +583,7 @@ def mostrar_clientes_admin(parent, app):
             pady=(2, 1),
         )
 
-        entry = ctk.CTkEntry(
+        entry = AxiaEntry(
             campos_suc,
             textvariable=variable,
             height=32,

@@ -1,4 +1,4 @@
-﻿from core.error_reporting import show_operation_error
+from core.error_reporting import show_operation_error
 """
 =========================================================
 MÓDULO: inicio_aco_view.py
@@ -13,6 +13,7 @@ Permite:
 """
 
 import customtkinter as ctk
+from ui.form_fields import AxiaEntry, AxiaTextbox
 from tkinter import messagebox
 from pathlib import Path
 from PIL import Image
@@ -242,7 +243,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             image=icono_lupa
         ).grid(row=0, column=0, padx=(14, 8), pady=10)
 
-    entry_aco_top = ctk.CTkEntry(
+    entry_aco_top = AxiaEntry(
         frame_entrada_aco,
         textvariable=var_aco_superior,
         height=38,
@@ -598,7 +599,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             return widget
 
         def crear_entry(variable, placeholder, state="normal", date=False):
-            entry = ctk.CTkEntry(
+            entry = AxiaEntry(
                 form,
                 textvariable=variable,
                 height=40,
@@ -754,7 +755,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
                         values=["Activo", "Inactivo"], height=36
                     )
                 else:
-                    control = ctk.CTkEntry(wrapper, textvariable=campos[nombre_campo], height=38)
+                    control = AxiaEntry(wrapper, textvariable=campos[nombre_campo], height=38)
                 control.grid(row=1, column=0, sticky="ew")
 
             acciones_cliente = ctk.CTkFrame(cont, fg_color="transparent")
@@ -963,7 +964,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
         cargar_datos_cliente()
 
         crear_label("Observaciones")
-        txt_observaciones = ctk.CTkTextbox(form, height=80, corner_radius=10)
+        txt_observaciones = AxiaTextbox(form, height=80, corner_radius=10)
         _grid_control(txt_observaciones)
 
         def guardar_aco():

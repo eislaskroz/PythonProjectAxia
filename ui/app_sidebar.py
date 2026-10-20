@@ -182,12 +182,13 @@ def crear_boton_sidebar(parent, texto, comando=None, habilitado=True):
     partes = texto.split(" ", 1)
     icono = partes[0] if len(partes) > 1 else ""
     etiqueta = partes[1] if len(partes) > 1 else texto
-    color_normal = "#183247" if habilitado else "#1e293b"
+    # Mismo tono y altura que las cabeceras del acordeón superior.
+    color_normal = "#17384D" if habilitado else "#1e293b"
 
     fila = ctk.CTkFrame(
         parent,
         width=214,
-        height=40,
+        height=44,
         corner_radius=10,
         fg_color=color_normal,
     )
@@ -203,7 +204,7 @@ def crear_boton_sidebar(parent, texto, comando=None, habilitado=True):
         fila,
         text=icono,
         width=34,
-        height=40,
+        height=44,
         font=("Segoe UI Emoji", 16),
         text_color=color_texto,
         anchor="center",
@@ -213,7 +214,7 @@ def crear_boton_sidebar(parent, texto, comando=None, habilitado=True):
     lbl_texto = ctk.CTkLabel(
         fila,
         text=etiqueta,
-        height=40,
+        height=44,
         font=BUTTON_FONT,
         text_color=color_texto,
         anchor="w",
@@ -225,7 +226,7 @@ def crear_boton_sidebar(parent, texto, comando=None, habilitado=True):
             comando()
 
         def hover(_event=None):
-            fila.configure(fg_color=BUTTON_HOVER)
+            fila.configure(fg_color="#26607D")
 
         def leave(_event=None):
             fila.configure(fg_color=color_normal)
@@ -621,63 +622,21 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
     # =================================================
     # MI USUARIO Y ACCIONES DE SESIÓN
     # =================================================
-    # Administradores no muestran este acceso para conservar
-    # espacio en el menú lateral. Ellos ya consultan usuarios
-    # desde el módulo administrativo.
+    # Las acciones inferiores reutilizan las mismas tarjetas y efectos hover
+    # de las secciones Operaciones / Administración / Sistema / Dirección General.
+    # Conservar los callbacks originales evita afectar el cierre de sesión.
+    acciones_sesion = ctk.CTkFrame(sidebar, fg_color="transparent")
+    acciones_sesion.pack(side="bottom", pady=(2, 9), fill="x")
+
     if not usuario_es_admin:
         crear_boton_sidebar(
-            sidebar,
+            acciones_sesion,
             "👤 Mi Usuario",
-            callbacks.get("mi_usuario") or callbacks.get("mi_bitacora")
+            callbacks.get("mi_usuario") or callbacks.get("mi_bitacora"),
         )
 
-    acciones_sesion = ctk.CTkFrame(
-        sidebar,
-        fg_color="transparent"
-    )
-    acciones_sesion.pack(
-        pady=(2, 12),
-        padx=10,
-        fill="x"
-    )
-    acciones_sesion.grid_columnconfigure(0, weight=1)
-    acciones_sesion.grid_columnconfigure(1, weight=1)
-
-    ctk.CTkButton(
-        acciones_sesion,
-        text="⏻ Cerrar AXIA",
-        width=98,
-        height=38,
-        corner_radius=10,
-        fg_color="#64748B",
-        hover_color="#475569",
-        text_color=WHITE,
-        font=BUTTON_FONT,
-        command=on_exit
-    ).grid(
-        row=0,
-        column=0,
-        sticky="ew",
-        padx=(0, 2)
-    )
-
-    ctk.CTkButton(
-        acciones_sesion,
-        text="🔒 Salir",
-        width=98,
-        height=38,
-        corner_radius=10,
-        fg_color=SECONDARY,
-        hover_color=BUTTON_HOVER,
-        text_color=WHITE,
-        font=BUTTON_FONT,
-        command=on_logout or on_exit
-    ).grid(
-        row=0,
-        column=1,
-        sticky="ew",
-        padx=(2, 0)
-    )
+    crear_boton_sidebar(acciones_sesion, "⏻ Cerrar AXIA", on_exit)
+    crear_boton_sidebar(acciones_sesion, "🔒 Salir", on_logout or on_exit)
 
     # Garantiza una jerarquía estable al terminar de construir el sidebar:
     # fondo temático > fondo sólido interno de CTkFrame, y controles > fondo.

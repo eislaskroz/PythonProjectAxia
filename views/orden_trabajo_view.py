@@ -10,6 +10,7 @@ logger = configurar_logger(__name__)
 
 import json
 import customtkinter as ctk
+from ui.form_fields import AxiaEntry, AxiaTextbox
 from tkinter import messagebox
 from ui.native_combobox import NativeComboBox
 from ui.numeric_masks import aplicar_mascara_numerica, NUMBER, INTEGER
@@ -88,7 +89,7 @@ def mostrar_orden_trabajo(parent, app, aco=None):
     def entry(texto, var, placeholder="", fila=0, col=0, state="normal", lock=False, date=False, required=True):
         c = celda(fila, col)
         label(c, texto)
-        e = ctk.CTkEntry(c, textvariable=var, placeholder_text=placeholder, height=ENTRY_H, corner_radius=8, font=SMALL_FONT, state=state)
+        e = AxiaEntry(c, textvariable=var, placeholder_text=placeholder, height=ENTRY_H, corner_radius=8, font=SMALL_FONT, state=state)
         e.pack(fill="x")
         if texto in {"Número de Días", "Número de Personas"}:
             aplicar_mascara_numerica(e, var, INTEGER)
@@ -180,7 +181,7 @@ def mostrar_orden_trabajo(parent, app, aco=None):
             sub.grid(row=0, column=j, sticky="ew", padx=1)
             fila.grid_columnconfigure(j, weight=1)
             ctk.CTkLabel(sub, text=h, font=LABEL_FONT, text_color=TEXT_PRIMARY).pack(anchor="w")
-            entrada_partida = ctk.CTkEntry(sub, textvariable=row_vars[h], height=ENTRY_H, corner_radius=8, font=SMALL_FONT)
+            entrada_partida = AxiaEntry(sub, textvariable=row_vars[h], height=ENTRY_H, corner_radius=8, font=SMALL_FONT)
             entrada_partida.pack(fill="x")
             if h in {"Cantidad", "Día", "Adicional", "Total"}:
                 aplicar_mascara_numerica(entrada_partida, row_vars[h], NUMBER)

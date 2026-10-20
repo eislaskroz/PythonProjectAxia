@@ -1,4 +1,5 @@
-﻿import customtkinter as ctk
+import customtkinter as ctk
+from ui.form_fields import AxiaEntry, AxiaTextbox
 from tkinter import messagebox
 from pathlib import Path
 from PIL import Image, ImageColor, ImageDraw, ImageOps
@@ -347,7 +348,7 @@ def abrir_login():
     )
     user_icon.pack(side="left", fill="y")
 
-    entry_usuario = ctk.CTkEntry(
+    entry_usuario = AxiaEntry(
         usuario_row,
         placeholder_text="Ingresa tu nombre de usuario",
         height=46,
@@ -426,7 +427,7 @@ def abrir_login():
     )
     btn_ver_password.pack(side="right", padx=(0, 5))
 
-    entry_password = ctk.CTkEntry(
+    entry_password = AxiaEntry(
         password_row,
         placeholder_text="Ingresa tu contraseña",
         show="*",

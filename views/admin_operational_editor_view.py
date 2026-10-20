@@ -9,6 +9,7 @@ Replica el patrón de revisión segura usado en LEV -> OS:
 Los botones permanecen fijos; solo el formulario se desplaza.
 """
 from __future__ import annotations
+from ui.form_fields import AxiaEntry, AxiaTextbox
 
 import json
 from pathlib import Path
@@ -84,7 +85,7 @@ def mostrar_admin_operational_editor(parent, app, config):
         anchor="center",
     ).grid(row=0, column=0, sticky="ns", padx=(12, 8), pady=6)
 
-    ent_search = ctk.CTkEntry(
+    ent_search = AxiaEntry(
         buscador,
         textvariable=var_search,
         height=38,
@@ -170,7 +171,7 @@ def mostrar_admin_operational_editor(parent, app, config):
         if kind == "entry":
             var = ctk.StringVar()
             vars_[key] = var
-            widget = ctk.CTkEntry(frame, textvariable=var, height=36)
+            widget = AxiaEntry(frame, textvariable=var, height=36)
             widget.pack(fill="x")
             if readonly:
                 widget.configure(state="disabled")
@@ -179,7 +180,7 @@ def mostrar_admin_operational_editor(parent, app, config):
             if col == 1:
                 row += 1
         else:
-            widget = ctk.CTkTextbox(frame, height=field.get("height", 100))
+            widget = AxiaTextbox(frame, height=field.get("height", 100))
             widget.pack(fill="x")
             textboxes[key] = widget
             widgets.append(widget)

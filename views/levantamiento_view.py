@@ -20,6 +20,7 @@ from pathlib import Path
 from datetime import datetime
 
 import customtkinter as ctk
+from ui.form_fields import AxiaEntry, AxiaTextbox
 from tkinter import messagebox, ttk, filedialog
 from PIL import Image
 from ui.native_combobox import NativeComboBox
@@ -953,7 +954,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         )
 
     def crear_entry(variable, placeholder, state="normal"):
-        ctk.CTkEntry(
+        AxiaEntry(
             card,
             textvariable=variable,
             width=830,
@@ -1236,7 +1237,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         contenedor_campo = _crear_contenedor_campo(fila, columna, colspan=colspan)
         _label_campo(contenedor_campo, texto)
 
-        entry = ctk.CTkEntry(
+        entry = AxiaEntry(
             contenedor_campo,
             textvariable=variable,
             height=FORM_CONTROL_HEIGHT,
@@ -1310,7 +1311,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             command=cargar_cliente_desde_selector
         )
         option.pack(fill="x")
-        manual = ctk.CTkEntry(
+        manual = AxiaEntry(
             contenedor_campo, textvariable=var_cliente, height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT,
             placeholder_text="Nombre / razón social del cliente"
         )
@@ -1328,11 +1329,11 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         combo.pack(fill="x")
         if tipo == "sucursal":
             combo_sucursal["widget"] = combo
-            manual = ctk.CTkEntry(contenedor_campo, textvariable=var_sucursal, height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Nombre de sucursal")
+            manual = AxiaEntry(contenedor_campo, textvariable=var_sucursal, height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Nombre de sucursal")
             manual_widgets["sucursal"] = manual
         else:
             combo_encargado["widget"] = combo
-            manual = ctk.CTkEntry(contenedor_campo, textvariable=var_encargado_sucursal, height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Nombre del encargado / contacto")
+            manual = AxiaEntry(contenedor_campo, textvariable=var_encargado_sucursal, height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Nombre del encargado / contacto")
             manual_widgets["encargado"] = manual
         return combo
 
@@ -1347,7 +1348,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         contenedor_campo = _crear_contenedor_campo(fila, 0, colspan=5)
         _label_campo(contenedor_campo, texto)
 
-        caja_texto = ctk.CTkTextbox(
+        caja_texto = AxiaTextbox(
             contenedor_campo,
             height=altura,
             corner_radius=0,
@@ -1455,21 +1456,21 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     horas_box = ctk.CTkFrame(recursos_frame, fg_color="transparent")
     horas_box.grid(row=1, column=1, sticky="w", padx=(0, 10), pady=(0, 6))
     ctk.CTkLabel(horas_box, text="Horas estimadas", font=FORM_FIELD_FONT, text_color=TEXT_PRIMARY).pack(anchor="w")
-    entrada_horas = ctk.CTkEntry(horas_box, textvariable=var_horas_estimadas_general, width=180, height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Ej. 6")
+    entrada_horas = AxiaEntry(horas_box, textvariable=var_horas_estimadas_general, width=180, height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Ej. 6")
     aplicar_mascara_numerica(entrada_horas, var_horas_estimadas_general, NUMBER)
     entrada_horas.pack(anchor="w")
 
     dias_box = ctk.CTkFrame(recursos_frame, fg_color="transparent")
     dias_box.grid(row=1, column=1, sticky="w", padx=(0, 10), pady=(0, 6))
     ctk.CTkLabel(dias_box, text="Días estimados", font=FORM_FIELD_FONT, text_color=TEXT_PRIMARY).pack(anchor="w")
-    entrada_dias = ctk.CTkEntry(dias_box, textvariable=var_dias_trabajo_general, width=180, height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Ej. 3")
+    entrada_dias = AxiaEntry(dias_box, textvariable=var_dias_trabajo_general, width=180, height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Ej. 3")
     aplicar_mascara_numerica(entrada_dias, var_dias_trabajo_general, INTEGER)
     entrada_dias.pack(anchor="w")
 
     personas_box = ctk.CTkFrame(recursos_frame, fg_color="transparent")
     personas_box.grid(row=1, column=2, sticky="w", padx=(0, 10), pady=(0, 6))
     ctk.CTkLabel(personas_box, text="Personas estimadas", font=FORM_FIELD_FONT, text_color=TEXT_PRIMARY).pack(anchor="w")
-    entrada_personas = ctk.CTkEntry(personas_box, textvariable=var_personas_considerar_general, width=180, height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Ej. 3")
+    entrada_personas = AxiaEntry(personas_box, textvariable=var_personas_considerar_general, width=180, height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Ej. 3")
     aplicar_mascara_numerica(entrada_personas, var_personas_considerar_general, INTEGER)
     entrada_personas.pack(anchor="w")
 
@@ -1508,7 +1509,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
     contenedor_notas = _crear_contenedor_campo(4 + desplazamiento_filas, 2, colspan=3)
     _label_campo(contenedor_notas, "Notas")
-    entry_notas_cliente = ctk.CTkEntry(
+    entry_notas_cliente = AxiaEntry(
         contenedor_notas, textvariable=var_notas_cliente, height=FORM_CONTROL_HEIGHT,
         corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Notas breves sobre el cliente", state="disabled"
     )
@@ -1527,7 +1528,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     var_nombre_servicio = ctk.StringVar()
     contenedor_nombre = _crear_contenedor_campo(5 + desplazamiento_filas, 0, colspan=5)
     _label_campo(contenedor_nombre, "Nombre del servicio *")
-    ctk.CTkEntry(
+    AxiaEntry(
         contenedor_nombre, textvariable=var_nombre_servicio,
         placeholder_text="Ej. Mantenimiento de cámaras del almacén",
         height=FORM_CONTROL_HEIGHT, font=FORM_FIELD_FONT,
@@ -1618,7 +1619,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
         def entry_en(parent_frame, texto, variable, placeholder, fila, columna):
             label_en(parent_frame, texto, fila * 2 + 1, columna)
-            entry = ctk.CTkEntry(
+            entry = AxiaEntry(
                 parent_frame,
                 textvariable=variable,
                 height=32,
@@ -1666,7 +1667,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             fila.grid_columnconfigure(1, weight=1)
 
             NativeComboBox(fila, variable=var_tipo, values=TIPOS_CANALIZACION, height=32).grid(row=0, column=0, sticky="ew", padx=(0, 3))
-            entrada_metros = ctk.CTkEntry(fila, textvariable=var_metros, height=FORM_CONTROL_HEIGHT, corner_radius=0, placeholder_text="Metros")
+            entrada_metros = AxiaEntry(fila, textvariable=var_metros, height=FORM_CONTROL_HEIGHT, corner_radius=0, placeholder_text="Metros")
             aplicar_mascara_numerica(entrada_metros, var_metros, NUMBER)
             entrada_metros.grid(row=0, column=1, sticky="ew", padx=(0, 3))
 
@@ -1693,7 +1694,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             fila.grid_columnconfigure(1, weight=1)
 
             NativeComboBox(fila, variable=var_tipo, values=TIPOS_CABLE, height=32).grid(row=0, column=0, sticky="ew", padx=(0, 3))
-            entrada_metros = ctk.CTkEntry(fila, textvariable=var_metros, height=FORM_CONTROL_HEIGHT, corner_radius=0, placeholder_text="Metros")
+            entrada_metros = AxiaEntry(fila, textvariable=var_metros, height=FORM_CONTROL_HEIGHT, corner_radius=0, placeholder_text="Metros")
             aplicar_mascara_numerica(entrada_metros, var_metros, NUMBER)
             entrada_metros.grid(row=0, column=1, sticky="ew", padx=(0, 3))
 
@@ -2035,9 +2036,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 fila.grid_columnconfigure(col, weight=1)
 
             NativeComboBox(fila, variable=var_equipo_tipo, values=["Cámara", "DVR", "NVR", "Disco duro", "Fuente", "Monitor", "Switch", "BalUn", "Otro"], height=32).grid(row=0, column=0, sticky="ew", padx=(0, 3))
-            ctk.CTkEntry(fila, textvariable=var_equipo_marca, height=FORM_CONTROL_HEIGHT, corner_radius=0, placeholder_text="Marca").grid(row=0, column=1, sticky="ew", padx=(0, 3))
-            ctk.CTkEntry(fila, textvariable=var_equipo_modelo, height=FORM_CONTROL_HEIGHT, corner_radius=0, placeholder_text="Modelo").grid(row=0, column=2, sticky="ew", padx=(0, 3))
-            ctk.CTkEntry(fila, textvariable=var_equipo_serie, height=FORM_CONTROL_HEIGHT, corner_radius=0, placeholder_text="Número de serie").grid(row=0, column=3, sticky="ew", padx=(0, 3))
+            AxiaEntry(fila, textvariable=var_equipo_marca, height=FORM_CONTROL_HEIGHT, corner_radius=0, placeholder_text="Marca").grid(row=0, column=1, sticky="ew", padx=(0, 3))
+            AxiaEntry(fila, textvariable=var_equipo_modelo, height=FORM_CONTROL_HEIGHT, corner_radius=0, placeholder_text="Modelo").grid(row=0, column=2, sticky="ew", padx=(0, 3))
+            AxiaEntry(fila, textvariable=var_equipo_serie, height=FORM_CONTROL_HEIGHT, corner_radius=0, placeholder_text="Número de serie").grid(row=0, column=3, sticky="ew", padx=(0, 3))
 
             def eliminar_fila():
                 if len(coleccion) <= 1:
@@ -2080,7 +2081,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         widget_estado_reparacion.grid(row=2, column=2, sticky="ew", padx=6, pady=(0, 3))
         lbl_codigo_error = ctk.CTkLabel(seccion_rep_sintomas, text="Código de error", font=FORM_FIELD_FONT, text_color=TEXT_PRIMARY, anchor="w", justify="left")
         lbl_codigo_error.grid(row=1, column=3, sticky="w", padx=6, pady=(2, 1))
-        widget_codigo_error = ctk.CTkEntry(seccion_rep_sintomas, textvariable=var_rep_codigo_error, height=FORM_CONTROL_HEIGHT, corner_radius=0, placeholder_text="Ej. 0x800 / Sin señal")
+        widget_codigo_error = AxiaEntry(seccion_rep_sintomas, textvariable=var_rep_codigo_error, height=FORM_CONTROL_HEIGHT, corner_radius=0, placeholder_text="Ej. 0x800 / Sin señal")
         widget_codigo_error.grid(row=2, column=3, sticky="ew", padx=6, pady=(0, 3))
         lbl_horario_falla = ctk.CTkLabel(seccion_rep_sintomas, text="Horario de la falla", font=FORM_FIELD_FONT, text_color=TEXT_PRIMARY, anchor="w", justify="left")
         lbl_horario_falla.grid(row=1, column=4, sticky="w", padx=6, pady=(2, 1))
@@ -2096,7 +2097,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             text_color=TEXT_PRIMARY,
             anchor="w"
         ).grid(row=1, column=0, columnspan=5, sticky="w", padx=6, pady=(2, 1))
-        txt_rep_infraestructura = ctk.CTkTextbox(seccion_rep_infraestructura, height=120, corner_radius=9)
+        txt_rep_infraestructura = AxiaTextbox(seccion_rep_infraestructura, height=120, corner_radius=9)
         txt_rep_infraestructura.grid(row=2, column=0, columnspan=5, sticky="ew", padx=6, pady=(0, 5))
 
         seccion_rep_energia = crear_seccion("⚡ Reparación: Alimentación y Energía", fila_textos + 10)
@@ -2132,7 +2133,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
         seccion_rep_descripcion = crear_seccion("📝 Reparación: Descripción general de la/las fallas", fila_textos + 14)
         registrar_seccion("rep_descripcion", seccion_rep_descripcion)
-        txt_rep_descripcion_fallas = ctk.CTkTextbox(seccion_rep_descripcion, height=110, corner_radius=9)
+        txt_rep_descripcion_fallas = AxiaTextbox(seccion_rep_descripcion, height=110, corner_radius=9)
         txt_rep_descripcion_fallas.grid(row=1, column=0, columnspan=5, sticky="ew", padx=6, pady=(0, 5))
 
         def actualizar_formulario_reparacion(*_args):
@@ -2250,7 +2251,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
         def entry_aa(parent_frame, texto, variable, placeholder, fila, columna, ancho_corto=False):
             label_aa(parent_frame, texto, fila * 2 + 1, columna)
-            entry = ctk.CTkEntry(
+            entry = AxiaEntry(
                 parent_frame,
                 textvariable=variable,
                 height=32,
@@ -2383,7 +2384,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
         def entry_rvd(parent_frame, texto, variable, placeholder, fila, columna, ancho_corto=False):
             label_rvd(parent_frame, texto, fila * 2 + 1, columna)
-            entry = ctk.CTkEntry(
+            entry = AxiaEntry(
                 parent_frame,
                 textvariable=variable,
                 height=32,
@@ -2581,7 +2582,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
         def entry_pe(parent_frame, texto, variable, placeholder, fila, columna, ancho_corto=False):
             label_pe(parent_frame, texto, fila * 2 + 1, columna)
-            entry = ctk.CTkEntry(parent_frame, textvariable=variable, height=FORM_CONTROL_HEIGHT, corner_radius=0, placeholder_text=placeholder)
+            entry = AxiaEntry(parent_frame, textvariable=variable, height=FORM_CONTROL_HEIGHT, corner_radius=0, placeholder_text=placeholder)
             if ancho_corto:
                 entry.configure(width=135)
                 entry.grid(row=fila * 2 + 2, column=columna, sticky="w", padx=6, pady=(0, 3))
@@ -2657,7 +2658,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
         def entry_ele(parent_frame, texto, variable, placeholder, fila, columna, ancho_corto=False):
             label_ele(parent_frame, texto, fila * 2 + 1, columna)
-            entry = ctk.CTkEntry(parent_frame, textvariable=variable, height=FORM_CONTROL_HEIGHT, corner_radius=0, placeholder_text=placeholder)
+            entry = AxiaEntry(parent_frame, textvariable=variable, height=FORM_CONTROL_HEIGHT, corner_radius=0, placeholder_text=placeholder)
             if ancho_corto:
                 entry.configure(width=135)
                 entry.grid(row=fila * 2 + 2, column=columna, sticky="w", padx=6, pady=(0, 3))
@@ -2772,7 +2773,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
         def entry_extra(parent_frame, texto, variable, placeholder, fila, columna, ancho_corto=False, columnspan=1):
             label_extra(parent_frame, texto, fila * 2 + 1, columna)
-            entry = ctk.CTkEntry(
+            entry = AxiaEntry(
                 parent_frame,
                 textvariable=variable,
                 height=32,
@@ -2855,7 +2856,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 if tipo_levantamiento == "General" and clave == "detalle_levantamiento":
                     # Captura libre multilineal como el formato impreso tradicional.
                     label_extra(contenedor_campos, "Descripción o detalle de levantamiento", 1, 0)
-                    caja_detalle = ctk.CTkTextbox(contenedor_campos, height=260, corner_radius=9, wrap="word", font=FORM_FIELD_FONT)
+                    caja_detalle = AxiaTextbox(contenedor_campos, height=260, corner_radius=9, wrap="word", font=FORM_FIELD_FONT)
                     caja_detalle.grid(row=2, column=0, columnspan=5, sticky="ew", padx=6, pady=(0, 10))
                     def _actualizar_detalle_general(_evento=None):
                         valor = caja_detalle.get("1.0", "end-1c")
@@ -3052,7 +3053,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             combo_categoria = NativeComboBox(seccion_canalizacion_dinamica, variable=var_categoria, values=categorias, width=155, height=31)
             combo_tipo = NativeComboBox(seccion_canalizacion_dinamica, variable=var_tipo_item, values=[], width=300, height=31)
             combo_especificacion = NativeComboBox(seccion_canalizacion_dinamica, variable=var_especificacion, values=[], width=225, height=31)
-            entrada_cantidad = ctk.CTkEntry(seccion_canalizacion_dinamica, textvariable=var_cantidad_item, width=120, height=31, placeholder_text="Ej. 20")
+            entrada_cantidad = AxiaEntry(seccion_canalizacion_dinamica, textvariable=var_cantidad_item, width=120, height=31, placeholder_text="Ej. 20")
             aplicar_mascara_numerica(entrada_cantidad, var_cantidad_item, NUMBER)
             combo_unidad = NativeComboBox(seccion_canalizacion_dinamica, variable=var_unidad_item,
                                           values=["Metro(s)", "Pieza(s)", "Caja(s)", "Rollo(s)", "Juego(s)"], width=125, height=31)
@@ -3188,7 +3189,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                          text_color=TEXT_PRIMARY, anchor="w").grid(
                              row=fila_campo, column=columna_campo, sticky="w", padx=6, pady=(2, 1))
             if opciones is None:
-                widget = ctk.CTkEntry(sitio_comun, textvariable=variable,
+                widget = AxiaEntry(sitio_comun, textvariable=variable,
                                       height=FORM_CONTROL_HEIGHT, corner_radius=0,
                                       font=FORM_FIELD_FONT)
             else:
@@ -3221,7 +3222,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         def _campo_alturas(parent_frame, texto, variable, opciones=None, col=0):
             ctk.CTkLabel(parent_frame, text=texto, font=FORM_FIELD_FONT, text_color=TEXT_PRIMARY, anchor="w").grid(row=1, column=col, sticky="w", padx=6, pady=(2, 1))
             if opciones is None:
-                widget = ctk.CTkEntry(parent_frame, textvariable=variable, height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Ej. 4 metros")
+                widget = AxiaEntry(parent_frame, textvariable=variable, height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Ej. 4 metros")
             else:
                 widget = NativeComboBox(parent_frame, variable=variable, values=opciones, height=FORM_CONTROL_HEIGHT, font=FORM_FIELD_FONT)
             widget.grid(row=2, column=col, sticky="ew", padx=6, pady=(0, 4))
@@ -3288,13 +3289,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         om_familia.grid(row=fila_eq, column=0, sticky="ew", padx=4, pady=2)
         om_subfamilia = NativeComboBox(seccion_equipos, variable=var_subfamilia_eq, values=subfamilias, height=31)
         om_subfamilia.grid(row=fila_eq, column=1, sticky="ew", padx=4, pady=2)
-        entrada_cantidad_eq = ctk.CTkEntry(seccion_equipos, textvariable=var_cantidad_eq, width=80, height=31, placeholder_text="Ej. 2")
+        entrada_cantidad_eq = AxiaEntry(seccion_equipos, textvariable=var_cantidad_eq, width=80, height=31, placeholder_text="Ej. 2")
         aplicar_mascara_numerica(entrada_cantidad_eq, var_cantidad_eq, NUMBER)
         entrada_cantidad_eq.grid(row=fila_eq, column=2, sticky="w", padx=4, pady=2)
         combo_marca = NativeComboBox(seccion_equipos, variable=var_marca_eq, values=MARCAS_COMUNES, state="normal", dropdown_rows=8)
         combo_marca.grid(row=fila_eq, column=3, sticky="ew", padx=4, pady=2)
-        ctk.CTkEntry(seccion_equipos, textvariable=var_modelo_eq, height=31, placeholder_text="Modelo vigente o por definir").grid(row=fila_eq, column=4, sticky="ew", padx=4, pady=2)
-        entry_car = ctk.CTkEntry(
+        AxiaEntry(seccion_equipos, textvariable=var_modelo_eq, height=31, placeholder_text="Modelo vigente o por definir").grid(row=fila_eq, column=4, sticky="ew", padx=4, pady=2)
+        entry_car = AxiaEntry(
             seccion_equipos, textvariable=var_caracteristicas_eq, height=31,
             placeholder_text=obtener_sugerencia_caracteristicas(tipo_levantamiento, familia_inicial)
         )
@@ -3415,12 +3416,12 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         var_unidad = ctk.StringVar(value=unidad_default if unidad_default in UNIDADES_MATERIAL else "Pieza(s)")
         var_especificacion = ctk.StringVar()
 
-        entrada_material = ctk.CTkEntry(seccion_misc, textvariable=var_material, height=31, corner_radius=8)
+        entrada_material = AxiaEntry(seccion_misc, textvariable=var_material, height=31, corner_radius=8)
         entrada_material.grid(row=fila, column=0, sticky="ew", padx=5, pady=2)
         if nombre_material:
             entrada_material.configure(state="readonly")
 
-        entrada_cantidad = ctk.CTkEntry(
+        entrada_cantidad = AxiaEntry(
             seccion_misc, textvariable=var_cantidad, width=95, height=31, corner_radius=8,
             placeholder_text="Ej. 20"
         )
@@ -3431,7 +3432,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             width=125, height=31
         )
         opcion_unidad.grid(row=fila, column=2, sticky="w", padx=5, pady=2)
-        entrada_especificacion = ctk.CTkEntry(
+        entrada_especificacion = AxiaEntry(
             seccion_misc, textvariable=var_especificacion, height=31, corner_radius=8,
             placeholder_text=especificacion_sugerida or "Medida, material, color o presentación"
         )
@@ -3640,13 +3641,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             width=255, height=FORM_CONTROL_HEIGHT, font=FORM_FIELD_FONT
         )
         cmb_epp.grid(row=fila_epp, column=0, sticky="ew", padx=5, pady=2)
-        ent_cant_epp = ctk.CTkEntry(
+        ent_cant_epp = AxiaEntry(
             epp_detalle_frame, textvariable=var_cantidad_epp, width=90,
             height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT, placeholder_text="Ej. 2"
         )
         aplicar_mascara_numerica(ent_cant_epp, var_cantidad_epp, NUMBER)
         ent_cant_epp.grid(row=fila_epp, column=1, sticky="w", padx=5, pady=2)
-        ent_obs_epp = ctk.CTkEntry(
+        ent_obs_epp = AxiaEntry(
             epp_detalle_frame, textvariable=var_obs_epp,
             height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT,
             placeholder_text="Talla, clase, norma, capacidad o detalle especial"
@@ -3810,13 +3811,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         )
         cmb_herramienta_h.grid(row=fila_h, column=1, sticky="ew", padx=5, pady=2)
         cmb_herramienta_holder["widget"] = cmb_herramienta_h
-        ent_cantidad_h = ctk.CTkEntry(
+        ent_cantidad_h = AxiaEntry(
             seccion_herramientas, textvariable=var_cantidad_h, width=90, height=31,
             corner_radius=8, placeholder_text="Ej. 1"
         )
         aplicar_mascara_numerica(ent_cantidad_h, var_cantidad_h, NUMBER)
         ent_cantidad_h.grid(row=fila_h, column=2, sticky="w", padx=5, pady=2)
-        ent_obs_h = ctk.CTkEntry(
+        ent_obs_h = AxiaEntry(
             seccion_herramientas, textvariable=var_observaciones_h, height=31, corner_radius=8,
             placeholder_text="Modelo, capacidad, accesorio o condición especial"
         )
@@ -3886,7 +3887,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS:
         # En formularios especializados el resumen técnico se construye desde campos estructurados.
         # Se conserva un textbox oculto como respaldo para no romper funciones existentes.
-        txt_descripcion = ctk.CTkTextbox(form_body, height=1)
+        txt_descripcion = AxiaTextbox(form_body, height=1)
         titulo_observaciones = (
             "Descripción detallada del servicio"
             if tipo_levantamiento == "Seguridad y Monitoreo" else "Observaciones"

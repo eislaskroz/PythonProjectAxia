@@ -4,6 +4,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 import customtkinter as ctk
+from ui.form_fields import AxiaEntry, AxiaTextbox
 from PIL import Image
 from utils import centrar_ventana
 from tkinter import messagebox
@@ -126,7 +127,7 @@ def mostrar_conversion_orden_servicio(parent, app):
         anchor="center",
     ).grid(row=0, column=0, sticky="ns", padx=(12, 8), pady=6)
 
-    entrada = ctk.CTkEntry(
+    entrada = AxiaEntry(
         buscador,
         textvariable=var_busqueda,
         height=38,
@@ -207,7 +208,7 @@ def mostrar_conversion_orden_servicio(parent, app):
         marco = ctk.CTkFrame(panel_form, fg_color="transparent")
         marco.grid(row=row, column=col, sticky="ew", padx=5, pady=3)
         ctk.CTkLabel(marco, text=label, font=TEXT_SM, text_color=TEXT_PRIMARY, anchor="w").pack(fill="x")
-        ent = ctk.CTkEntry(marco, textvariable=vars_campos[key], height=36)
+        ent = AxiaEntry(marco, textvariable=vars_campos[key], height=36)
         ent.pack(fill="x")
         if disabled:
             ent.configure(state="disabled")
@@ -239,7 +240,7 @@ def mostrar_conversion_orden_servicio(parent, app):
         marco = ctk.CTkFrame(panel_form, fg_color="transparent")
         marco.grid(row=row, column=0, columnspan=2, sticky="ew", padx=5, pady=4)
         ctk.CTkLabel(marco, text=label, font=TEXT_SM, text_color=TEXT_PRIMARY, anchor="w").pack(fill="x")
-        box = ctk.CTkTextbox(marco, height=height)
+        box = AxiaTextbox(marco, height=height)
         box.pack(fill="x")
         widgets_editables.append(box)
         return box

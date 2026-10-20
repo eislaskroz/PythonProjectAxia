@@ -1,4 +1,4 @@
-﻿
+
 """Vista administrativa unificada de auditoría AXIA.
 
 Permite consultar por separado:
@@ -7,6 +7,7 @@ Permite consultar por separado:
 """
 
 import customtkinter as ctk
+from ui.form_fields import AxiaEntry, AxiaTextbox
 from ui.iconos import cargar_icono
 _AUD_ICON_BUSCAR = cargar_icono("buscar.png", (16,16), blanco=True)
 _AUD_ICON_DETALLE = cargar_icono("detalle.png", (16,16), blanco=True)
@@ -213,7 +214,7 @@ def mostrar_auditoria(parent, app):
         label.grid(row=0, column=0, sticky="w")
         etiquetas_filtro[clave] = label
 
-        entry = ctk.CTkEntry(
+        entry = AxiaEntry(
             wrapper,
             textvariable=variables[clave],
             height=34,

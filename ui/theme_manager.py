@@ -171,7 +171,19 @@ class ThemeManager:
                     root.option_add("*TCombobox*Listbox*selectForeground", "#FFFFFF")
                 except Exception:
                     pass
-                style.configure("TCombobox", fieldbackground=cls.SURFACE, background=cls.SURFACE, padding=4, bordercolor=cls.DIVIDER, lightcolor=cls.DIVIDER, darkcolor=cls.DIVIDER, borderwidth=1)
+                # La misma señal visual que usan AxiaEntry y AxiaTextbox:
+                # gris suave al estar disponible; pálido al bloquearse.
+                style.configure(
+                    "TCombobox", fieldbackground="#E1E0DD",
+                    background="#E1E0DD", padding=4,
+                    bordercolor="#B9C5D2", lightcolor="#B9C5D2",
+                    darkcolor="#B9C5D2", borderwidth=1,
+                )
+                style.map(
+                    "TCombobox",
+                    fieldbackground=[("disabled", "#F2F4F7"), ("readonly", "#E1E0DD")],
+                    foreground=[("disabled", "#8391A2"), ("readonly", cls.TEXT_PRIMARY)],
+                )
             except Exception:
                 logger.debug("Excepción recuperable controlada.", exc_info=True)
 

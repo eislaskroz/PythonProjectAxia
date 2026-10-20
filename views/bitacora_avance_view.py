@@ -3,6 +3,7 @@ from core.error_reporting import show_operation_error
 from datetime import datetime
 from pathlib import Path
 import customtkinter as ctk
+from ui.form_fields import AxiaEntry, AxiaTextbox
 from tkinter import messagebox, filedialog
 
 from core.logger import configurar_logger
@@ -103,7 +104,7 @@ def mostrar_bitacora_avance(parent, app, aco=None):
     def entry(texto, var, placeholder="", fila=0, col=0, state="normal", colspan=1):
         c = celda(fila, col, colspan)
         label(c, texto)
-        e = ctk.CTkEntry(c, textvariable=var, placeholder_text=placeholder,
+        e = AxiaEntry(c, textvariable=var, placeholder_text=placeholder,
                          height=ENTRY_H, corner_radius=8, font=SMALL_FONT, state=state)
         e.pack(fill="x")
         return e
@@ -119,7 +120,7 @@ def mostrar_bitacora_avance(parent, app, aco=None):
     def texto_largo(texto, fila, alto=100):
         c = celda(fila, 0, 6)
         label(c, texto)
-        box = ctk.CTkTextbox(c, height=alto, corner_radius=8, font=SMALL_FONT)
+        box = AxiaTextbox(c, height=alto, corner_radius=8, font=SMALL_FONT)
         box.pack(fill="x")
         return box
 
@@ -251,7 +252,7 @@ def mostrar_bitacora_avance(parent, app, aco=None):
     combo_estatus.pack(fill="x")
 
     c_porcentaje = campo_operativo("Porcentaje de avance", 2)
-    entry_porcentaje = ctk.CTkEntry(
+    entry_porcentaje = AxiaEntry(
         c_porcentaje, textvariable=var_porcentaje, placeholder_text="0 - 100",
         height=ENTRY_H, corner_radius=8, font=SMALL_FONT
     )

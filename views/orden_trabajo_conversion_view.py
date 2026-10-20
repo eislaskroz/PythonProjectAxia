@@ -1,5 +1,6 @@
 """Conversión administrativa de Órdenes de Servicio a Órdenes de Trabajo."""
 from __future__ import annotations
+from ui.form_fields import AxiaEntry, AxiaTextbox
 
 import json
 import customtkinter as ctk
@@ -50,7 +51,7 @@ def mostrar_conversion_orden_trabajo(parent, app):
     ctk.CTkLabel(search, text="Busca una OS aceptada, ajusta la información operativa y genera la Orden de Trabajo.",
                  font=TEXT_MD, text_color=TEXT_SECONDARY, anchor="w").grid(row=1, column=0, columnspan=4, sticky="ew", padx=12, pady=(0, 8))
     var_search = ctk.StringVar()
-    ent_search = ctk.CTkEntry(search, textvariable=var_search, height=40, placeholder_text="Folio OS, ACO, cliente, técnico o descripción")
+    ent_search = AxiaEntry(search, textvariable=var_search, height=40, placeholder_text="Folio OS, ACO, cliente, técnico o descripción")
     ent_search.grid(row=2, column=0, sticky="ew", padx=(12, 5), pady=(0, 10))
 
     body = ctk.CTkFrame(root, fg_color="transparent")
@@ -93,7 +94,7 @@ def mostrar_conversion_orden_trabajo(parent, app):
         frame = ctk.CTkFrame(form, fg_color="transparent")
         frame.grid(row=row, column=col, sticky="ew", padx=5, pady=3)
         ctk.CTkLabel(frame, text=label, font=TEXT_SM, text_color=TEXT_PRIMARY, anchor="w").pack(fill="x")
-        ent = ctk.CTkEntry(frame, textvariable=vars_[key], height=36)
+        ent = AxiaEntry(frame, textvariable=vars_[key], height=36)
         ent.pack(fill="x")
         if disabled:
             ent.configure(state="disabled")
@@ -122,14 +123,14 @@ def mostrar_conversion_orden_trabajo(parent, app):
     box_frame = ctk.CTkFrame(form, fg_color="transparent")
     box_frame.grid(row=8, column=0, columnspan=2, sticky="ew", padx=5, pady=4)
     ctk.CTkLabel(box_frame, text="Descripción operativa", font=TEXT_SM, text_color=TEXT_PRIMARY, anchor="w").pack(fill="x")
-    txt_description = ctk.CTkTextbox(box_frame, height=100)
+    txt_description = AxiaTextbox(box_frame, height=100)
     txt_description.pack(fill="x")
     editable_widgets.append(txt_description)
 
     part_frame = ctk.CTkFrame(form, fg_color="transparent")
     part_frame.grid(row=9, column=0, columnspan=2, sticky="ew", padx=5, pady=4)
     ctk.CTkLabel(part_frame, text="Partidas / conceptos JSON", font=TEXT_SM, text_color=TEXT_PRIMARY, anchor="w").pack(fill="x")
-    txt_parts = ctk.CTkTextbox(part_frame, height=170)
+    txt_parts = AxiaTextbox(part_frame, height=170)
     txt_parts.pack(fill="x")
     editable_widgets.append(txt_parts)
 

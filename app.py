@@ -27,6 +27,7 @@ ui/app_sidebar.py
 # =====================================================
 
 import customtkinter as ctk
+from ui.form_fields import AxiaEntry, AxiaTextbox
 import os
 from tkinter import messagebox
 
@@ -944,7 +945,7 @@ class AxiaApp(ctk.CTk):
             ).pack(pady=(0, 10))
 
         notas = actualizacion.notas or "Mejoras y correcciones de AXIA."
-        caja = ctk.CTkTextbox(dialogo, width=520, height=175, wrap="word")
+        caja = AxiaTextbox(dialogo, width=520, height=175, wrap="word")
         caja.pack(padx=30, pady=(0, 15))
         caja.insert("1.0", notas)
         caja.configure(state="disabled")

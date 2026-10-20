@@ -8,6 +8,7 @@ Vista administrativa para buscar, crear y modificar usuarios.
 """
 
 import customtkinter as ctk
+from ui.form_fields import AxiaEntry, AxiaTextbox
 from ui.iconos import cargar_icono
 _AXIA_ICON_BUSCAR = cargar_icono("buscar.png", (18, 18))
 _AXIA_ICON_BUSCAR_BLANCO = cargar_icono("buscar.png", (16, 16), blanco=True)
@@ -122,7 +123,7 @@ def mostrar_usuarios_admin(parent, app):
         anchor="center",
     ).grid(row=0, column=0, sticky="ns", padx=(12, 8), pady=6)
 
-    entry_busqueda = ctk.CTkEntry(
+    entry_busqueda = AxiaEntry(
         buscador,
         textvariable=var_busqueda,
         height=38,
@@ -289,7 +290,7 @@ def mostrar_usuarios_admin(parent, app):
         var = ctk.StringVar()
         estado["variables"][campo] = var
 
-        entry = ctk.CTkEntry(
+        entry = AxiaEntry(
             wrapper,
             textvariable=var,
             height=36,

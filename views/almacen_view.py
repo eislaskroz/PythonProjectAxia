@@ -8,6 +8,7 @@ Por defecto es un simulador EFÍMERO. Para conectar con Supabase se requiere:
   - autorización posterior del catálogo y existencias de apertura.
 """
 from __future__ import annotations
+from ui.form_fields import AxiaEntry, AxiaTextbox
 
 import uuid
 from pathlib import Path
@@ -199,7 +200,7 @@ def mostrar_almacen(parent, app=None):
         pady=3
     )
 
-    buscar = ctk.CTkEntry(
+    buscar = AxiaEntry(
         buscar_wrap,
         placeholder_text='Buscar por código, nombre o departamento...',
         height=34,
@@ -337,7 +338,7 @@ def mostrar_almacen(parent, app=None):
                 pady=7
             )
 
-            entry = ctk.CTkEntry(tab, height=35)
+            entry = AxiaEntry(tab, height=35)
             entry.grid(
                 row=index,
                 column=1,
@@ -472,7 +473,7 @@ def mostrar_almacen(parent, app=None):
         pady=3
     )
 
-    buscar_k = ctk.CTkEntry(
+    buscar_k = AxiaEntry(
         buscar_k_wrap,
         placeholder_text='Buscar',
         height=34,

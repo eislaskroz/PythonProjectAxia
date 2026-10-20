@@ -8,6 +8,7 @@ logger = configurar_logger(__name__)
 import json
 from pathlib import Path
 import customtkinter as ctk
+from ui.form_fields import AxiaEntry, AxiaTextbox
 from tkinter import messagebox, filedialog
 from ui.native_combobox import NativeComboBox
 from views.levantamientos.catalogos_canalizacion import (
@@ -330,7 +331,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
     def entry(texto, var, fila, col, placeholder="", state="normal", lock=False, date=False, required=True, colspan=1):
         c = celda(fila, col, colspan)
         label(c, texto)
-        e = ctk.CTkEntry(c, textvariable=var, placeholder_text=placeholder, height=ENTRY_H, corner_radius=8, font=SMALL_FONT, state=state)
+        e = AxiaEntry(c, textvariable=var, placeholder_text=placeholder, height=ENTRY_H, corner_radius=8, font=SMALL_FONT, state=state)
         e.pack(fill="x")
         if texto in {"¿Cuántos días de trabajo se proyectan?", "¿Cuántas personas se consideran?"}:
             aplicar_mascara_numerica(e, var, INTEGER)
@@ -390,7 +391,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
     def textbox(texto, fila, col, colspan=5, height=70):
         c = celda(fila, col, colspan)
         label(c, texto)
-        box = ctk.CTkTextbox(c, height=height, corner_radius=8, font=SMALL_FONT)
+        box = AxiaTextbox(c, height=height, corner_radius=8, font=SMALL_FONT)
         box.pack(fill="x")
         return box
 
@@ -499,10 +500,10 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         if ve.get() not in opciones: opciones.append(ve.get())
         ce = NativeComboBox(epp_rows, variable=ve, values=opciones, width=250, height=OPTION_H)
         ce.grid(row=fila_e,column=0,sticky="ew",padx=3,pady=2)
-        ec = ctk.CTkEntry(epp_rows,textvariable=vc,width=80,height=ENTRY_H,corner_radius=0)
+        ec = AxiaEntry(epp_rows,textvariable=vc,width=80,height=ENTRY_H,corner_radius=0)
         aplicar_mascara_numerica(ec, vc, NUMBER)
         ec.grid(row=fila_e,column=1,sticky="w",padx=3,pady=2)
-        eo = ctk.CTkEntry(epp_rows,textvariable=vo,height=ENTRY_H,corner_radius=0,placeholder_text="Talla, clase, norma o detalle especial")
+        eo = AxiaEntry(epp_rows,textvariable=vo,height=ENTRY_H,corner_radius=0,placeholder_text="Talla, clase, norma o detalle especial")
         eo.grid(row=fila_e,column=2,sticky="ew",padx=3,pady=2)
         item={"epp":ve,"cantidad":vc,"observaciones":vo,"widgets":[ce,ec,eo]}
         def borrar():
@@ -612,9 +613,9 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         otipo.grid(row=fila_concepto, column=0, sticky="ew", padx=3, pady=2)
         oconcepto = NativeComboBox(panel_conceptos, variable=vconcepto, values=etiquetas, height=30)
         oconcepto.grid(row=fila_concepto, column=1, sticky="ew", padx=3, pady=2)
-        eunidad = ctk.CTkEntry(panel_conceptos, textvariable=vunidad, width=68, height=30, state="disabled")
+        eunidad = AxiaEntry(panel_conceptos, textvariable=vunidad, width=68, height=30, state="disabled")
         eunidad.grid(row=fila_concepto, column=2, sticky="ew", padx=3, pady=2)
-        ecantidad = ctk.CTkEntry(panel_conceptos, textvariable=vcantidad, width=72, height=30, placeholder_text="Ej. 12.5")
+        ecantidad = AxiaEntry(panel_conceptos, textvariable=vcantidad, width=72, height=30, placeholder_text="Ej. 12.5")
         aplicar_mascara_numerica(ecantidad, vcantidad, NUMBER)
         ecantidad.grid(row=fila_concepto, column=3, sticky="ew", padx=3, pady=2)
 
@@ -721,16 +722,16 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         vc = ctk.StringVar()
         vu = ctk.StringVar(value=unidad_default if unidad_default in UNIDADES_MATERIAL else "Pieza(s)")
         ve = ctk.StringVar()
-        em = ctk.CTkEntry(panel_misc, textvariable=vm, height=30)
+        em = AxiaEntry(panel_misc, textvariable=vm, height=30)
         em.grid(row=fila_misc, column=0, sticky="ew", padx=3, pady=2)
         if nombre:
             em.configure(state="readonly")
-        ec = ctk.CTkEntry(panel_misc, textvariable=vc, width=90, height=30, placeholder_text="Ej. 20", state="disabled")
+        ec = AxiaEntry(panel_misc, textvariable=vc, width=90, height=30, placeholder_text="Ej. 20", state="disabled")
         aplicar_mascara_numerica(ec, vc, NUMBER)
         ec.grid(row=fila_misc, column=2, sticky="w", padx=3, pady=2)
         ou = NativeComboBox(panel_misc, variable=vu, values=UNIDADES_MATERIAL, width=120, height=30, state="disabled")
         ou.grid(row=fila_misc, column=3, sticky="w", padx=3, pady=2)
-        ee = ctk.CTkEntry(
+        ee = AxiaEntry(
             panel_misc, textvariable=ve, height=30,
             placeholder_text=especificacion_sugerida or "Medida, material, color o presentación",
             state="disabled"
@@ -857,7 +858,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         ocategoria = NativeComboBox(panel_canalizacion, variable=vcategoria, values=categorias_canalizacion, width=155, height=31)
         otipo = NativeComboBox(panel_canalizacion, variable=vtipo, values=[], width=300, height=31)
         oespecificacion = NativeComboBox(panel_canalizacion, variable=vespecificacion, values=[], width=225, height=31)
-        ecantidad = ctk.CTkEntry(panel_canalizacion, textvariable=vcantidad, width=120, height=31, placeholder_text="Ej. 20")
+        ecantidad = AxiaEntry(panel_canalizacion, textvariable=vcantidad, width=120, height=31, placeholder_text="Ej. 20")
         aplicar_mascara_numerica(ecantidad, vcantidad, NUMBER)
         ounidad = NativeComboBox(panel_canalizacion, variable=vunidad, values=["Metro(s)", "Pieza(s)", "Caja(s)", "Rollo(s)", "Juego(s)"], width=125, height=31)
         laproximado = ctk.CTkLabel(panel_canalizacion, text="—", font=SMALL_FONT, text_color="#15803D", anchor="w")
@@ -961,7 +962,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         caja_alt.grid(row=0, column=idx, sticky="ew", padx=4)
         ctk.CTkLabel(caja_alt, text=texto_alt, font=LABEL_FONT, text_color=TEXT_PRIMARY, anchor="w").pack(fill="x")
         if opciones_alt is None:
-            w_alt = ctk.CTkEntry(caja_alt, textvariable=variable_alt, height=30, corner_radius=0, font=SMALL_FONT, placeholder_text="Ej. 4 metros")
+            w_alt = AxiaEntry(caja_alt, textvariable=variable_alt, height=30, corner_radius=0, font=SMALL_FONT, placeholder_text="Ej. 4 metros")
         else:
             w_alt = NativeComboBox(caja_alt, variable=variable_alt, values=opciones_alt, height=30, font=SMALL_FONT)
         w_alt.pack(fill="x")

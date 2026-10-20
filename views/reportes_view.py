@@ -11,6 +11,7 @@ orden de trabajo, bitácora operativa y orden de servicio.
 """
 
 import customtkinter as ctk
+from ui.form_fields import AxiaEntry, AxiaTextbox
 from ui.iconos import cargar_icono
 _AXIA_ICON_BUSCAR = cargar_icono("buscar.png", (18, 18))
 _AXIA_ICON_BUSCAR_BLANCO = cargar_icono("buscar.png", (16, 16), blanco=True)
@@ -248,7 +249,7 @@ def crear_bloque_reporte(parent, reporte):
         anchor="center",
     ).grid(row=0, column=0, sticky="ns", padx=(12, 8), pady=4)
 
-    entry_busqueda = ctk.CTkEntry(
+    entry_busqueda = AxiaEntry(
         buscador,
         textvariable=var_busqueda,
         height=36,

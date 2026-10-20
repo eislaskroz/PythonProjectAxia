@@ -4,6 +4,7 @@ from core.error_reporting import show_operation_error
 # =====================================================
 
 import customtkinter as ctk
+from ui.form_fields import AxiaEntry, AxiaTextbox
 from tkinter import messagebox
 
 # =====================================================
@@ -239,7 +240,7 @@ def abrir_registro_usuario(app):
             pady=(4, 1)
         )
 
-        entrada = ctk.CTkEntry(
+        entrada = AxiaEntry(
             card_formulario,
             placeholder_text=texto,
             width=600,

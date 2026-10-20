@@ -3,6 +3,7 @@
 from pathlib import Path
 from PIL import Image
 import customtkinter as ctk
+from ui.form_fields import AxiaEntry, AxiaTextbox
 from tkinter import ttk, messagebox, Canvas
 
 from app_context import obtener_usuario_actual
@@ -290,7 +291,7 @@ def mostrar_direccion_general(parent, app):
         anchor='center'
     ).grid(row=0, column=0, sticky='ns', padx=(12, 8), pady=6)
 
-    search = ctk.CTkEntry(
+    search = AxiaEntry(
         search_wrap,
         textvariable=search_var,
         width=260,

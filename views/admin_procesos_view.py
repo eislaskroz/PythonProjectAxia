@@ -12,6 +12,7 @@ Regla de negocio:
 """
 
 import customtkinter as ctk
+from ui.form_fields import AxiaEntry, AxiaTextbox
 from tkinter import messagebox
 
 from ui.colors import WHITE, TEXT_PRIMARY, TEXT_SECONDARY, SECONDARY, BUTTON_HOVER
@@ -163,7 +164,7 @@ def mostrar_admin_procesos(parent, app, configuracion):
 
     var_folio.trace_add("write", convertir_a_mayusculas)
 
-    entrada = ctk.CTkEntry(
+    entrada = AxiaEntry(
         barra_busqueda,
         textvariable=var_folio,
         height=42,

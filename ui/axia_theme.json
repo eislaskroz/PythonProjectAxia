@@ -63,12 +63,12 @@
     "corner_radius": 10,
     "border_width": 1.5,
     "fg_color": [
-      "#FFFFFF",
-      "#FFFFFF"
+      "#E1E0DD",
+      "#E1E0DD"
     ],
     "border_color": [
-      "#E2E8F0",
-      "#E2E8F0"
+      "#B9C5D2",
+      "#B9C5D2"
     ],
     "text_color": [
       "#111827",
@@ -311,12 +311,12 @@
     "corner_radius": 10,
     "border_width": 1.5,
     "fg_color": [
-      "#FFFFFF",
-      "#FFFFFF"
+      "#E1E0DD",
+      "#E1E0DD"
     ],
     "border_color": [
-      "#E2E8F0",
-      "#E2E8F0"
+      "#B9C5D2",
+      "#B9C5D2"
     ],
     "text_color": [
       "#111827",
