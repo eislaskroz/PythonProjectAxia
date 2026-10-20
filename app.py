@@ -434,21 +434,6 @@ class AxiaApp(ctk.CTk):
         )
         status_label.pack(side="left", fill="x", expand=True)
 
-        env_tag = ctk.CTkFrame(
-            status_row,
-            corner_radius=100,
-            fg_color=PRIMARY,
-            border_width=0,
-        )
-        env_tag.pack(side="right")
-        env_lbl = ctk.CTkLabel(
-            env_tag,
-            text="  DESARROLLO  ",
-            text_color=WHITE,
-            font=(FONT_FAMILY, 8, "bold"),
-        )
-        env_lbl.pack()
-
         # Tarjeta secundaria: hora / fecha
         fecha_texto = self._fecha_hora_es()
         info_card = ctk.CTkFrame(
