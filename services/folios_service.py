@@ -190,6 +190,10 @@ def generar_siguiente_folio(prefijo):
 
     prefijo = prefijo.upper().strip()
 
+    if prefijo == "OBC":
+        # El folio de Obra Civil se asigna en la transacción INSERT del servidor.
+        # Nunca consultar el último folio ni reutilizar OBC-0001 ante un error RLS.
+        return "Pendiente de asignación"
     if prefijo == "LEV":
         return solicitar_folio_levantamiento()
     if prefijo == "COT":

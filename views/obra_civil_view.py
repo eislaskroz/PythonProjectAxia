@@ -1,3 +1,4 @@
+from uuid import uuid4
 from core.error_reporting import show_operation_error
 """Formulario Obra Civil / Proyecto Ejecutivo AXIA."""
 
@@ -28,7 +29,6 @@ from services.aco_context_service import normalizar_datos_aco
 from services.acos_service import buscar_aco_por_numero
 from services.clientes_service import buscar_clientes, construir_direccion_cliente
 from services.sucursales_service import obtener_sucursales_por_cliente, obtener_contactos_por_sucursal, construir_domicilio_sucursal
-from services.folios_service import generar_siguiente_folio
 from services.usuarios_service import (
     obtener_supervisores_formulario,
     obtener_encargados_proyecto_formulario,
@@ -40,7 +40,7 @@ from services.equipos_catalogo_service import (
     MARCAS_COMUNES, obtener_nombres_familias, obtener_subfamilias,
     obtener_sugerencia_caracteristicas
 )
-from services.obras_civiles_service import crear_obra_civil, buscar_obra_civil_por_folio, actualizar_evidencias_obra_civil, actualizar_archivos_obra_civil
+from services.obras_civiles_service import crear_obra_civil, actualizar_evidencias_obra_civil, actualizar_archivos_obra_civil
 from services.obra_conceptos_service import obtener_conceptos_obra, obtener_tipos_concepto_obra, filtrar_conceptos_por_tipo
 from services.bitacora_evidencias_service import subir_evidencias_obra_civil, subir_archivos_obra_civil
 from ui.colors import PRIMARY, SECONDARY, WHITE, TEXT_PRIMARY, TEXT_SECONDARY, BUTTON_HOVER
@@ -82,7 +82,12 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
     btn_guardar = None
     lbl_faltantes = None
 
-    var_folio = ctk.StringVar(value=generar_siguiente_folio("OBC"))
+    # El folio definitivo se asigna al registrar en Supabase (trigger atómico).
+    var_folio = ctk.StringVar(value="Pendiente de asignación")
+    guardado_servidor = {
+        "id": None, "folio": "", "fotos": None, "archivos": None,
+        "solicitud": str(uuid4()),
+    }
     var_fecha = ctk.StringVar()
     var_desea_notas_cliente = ctk.StringVar(value="No")
     var_notas_cliente = ctk.StringVar()
@@ -1100,6 +1105,19 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         estado = borrador.get("__obra_civil_borrador") if isinstance(borrador.get("__obra_civil_borrador"), dict) else {}
         if not estado:
             return
+        registrado = estado.get("obra_guardada") or {}
+        if isinstance(registrado, dict):
+            # El token se mantiene también si la red falló antes de confirmar.
+            from uuid import UUID
+            try:
+                guardado_servidor["solicitud"] = str(UUID(str(registrado.get("solicitud"))))
+            except (TypeError, ValueError, AttributeError):
+                pass  # borrador creado con una versión anterior
+            guardado_servidor["fotos"] = registrado.get("fotos")
+            guardado_servidor["archivos"] = registrado.get("archivos")
+            if registrado.get("id") and registrado.get("folio"):
+                guardado_servidor["id"] = registrado["id"]
+                guardado_servidor["folio"] = registrado["folio"]
         mapa = {
             "folio": var_folio, "fecha": var_fecha, "desea_notas_cliente": var_desea_notas_cliente, "notas_cliente": var_notas_cliente, "aco": var_aco, "cliente": var_cliente,
             "contacto": var_contacto, "telefono": var_telefono, "correo": var_correo,
@@ -1119,6 +1137,8 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         }
         for clave, variable in mapa.items():
             if clave in estado:
+                if clave == "folio" and not guardado_servidor["id"]:
+                    continue  # Ignorar antiguos OBC provisionales de borradores.
                 variable.set(str(estado.get(clave) or ""))
         for clave, variable in ejecucion_vars.items():
             if clave in (estado.get("ejecucion") or {}):
@@ -1128,6 +1148,67 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
             txt_finales.delete("1.0", "end"); txt_finales.insert("1.0", str(estado.get("observaciones_finales") or ""))
         except Exception:
             pass
+        # Recuperar las filas dinámicas SIN crear nuevos registros en Supabase.
+        conceptos_guardados = estado.get("conceptos_obra")
+        if isinstance(conceptos_guardados, list) and conceptos_guardados and catalogo_conceptos_obra:
+            while len(conceptos_obra_items) < len(conceptos_guardados):
+                agregar_concepto_obra()
+            for item, fila in zip(conceptos_obra_items, conceptos_guardados):
+                if not isinstance(fila, dict):
+                    continue
+                registro = next((r for r in catalogo_conceptos_obra
+                    if str(r.get("id_obra_concepto")) == str(fila.get("id_obra_concepto"))
+                    or (str(r.get("obra_partida") or "") == str(fila.get("partida") or "")
+                        and str(r.get("obra_concepto") or "") == str(fila.get("concepto") or ""))), None)
+                if registro:
+                    tipo = str(registro.get("obra_tipo") or "")
+                    seleccion = filtrar_conceptos_por_tipo(tipo, catalogo_conceptos_obra)
+                    item["tipo"].set(tipo)
+                    item["conceptos_tipo"] = seleccion
+                    item["widgets"][1].configure(values=[_etiqueta_concepto_obra(r) for r in seleccion])
+                    item["concepto_label"].set(_etiqueta_concepto_obra(registro))
+                    item["registro"] = registro
+                    item["unidad"].set(str(registro.get("obra_unidad") or ""))
+                item["cantidad"].set(str(fila.get("cantidad") or "1"))
+        epp_guardados = estado.get("epp_partidas")
+        if isinstance(epp_guardados, list) and epp_guardados:
+            for item in epp_items:
+                for widget in item.get("widgets", []):
+                    widget.destroy()
+            epp_items.clear()
+            for fila in epp_guardados:
+                if isinstance(fila, dict):
+                    agregar_epp_obra(fila)
+        misc_guardados = estado.get("materiales_miscelaneos")
+        if isinstance(misc_guardados, list) and misc_guardados:
+            while len(materiales_miscelaneos_items) < len(misc_guardados):
+                agregar_material_misc_obra()
+            for item, fila in zip(materiales_miscelaneos_items, misc_guardados):
+                if not isinstance(fila, dict):
+                    continue
+                item["material"].set(str(fila.get("material") or ""))
+                item["categoria"].set(str(fila.get("categoria") or "Otro"))
+                item["requerido"].set(str(fila.get("requerido") or "No"))
+                if item["requerido"].get() == "Sí":
+                    for widget in item["widgets"][1:4]:
+                        try: widget.configure(state="normal")
+                        except Exception: pass
+                item["cantidad"].set(str(fila.get("cantidad") or ""))
+                item["unidad"].set(str(fila.get("unidad") or "Pieza(s)"))
+                item["especificacion"].set(str(fila.get("especificacion") or ""))
+        canal_guardados = estado.get("canalizacion_partidas")
+        if isinstance(canal_guardados, list) and canal_guardados:
+            while len(canalizacion_materiales_items) < len(canal_guardados):
+                categoria = canal_guardados[len(canalizacion_materiales_items)].get("categoria") or "Tubo"
+                agregar_partida_canalizacion_obra(categoria)
+            for item, fila in zip(canalizacion_materiales_items, canal_guardados):
+                if not isinstance(fila, dict):
+                    continue
+                item["categoria"].set(str(fila.get("categoria") or "Tubo"))
+                item["tipo"].set(str(fila.get("tipo") or ""))
+                item["especificacion"].set(str(fila.get("especificacion") or ""))
+                item["cantidad"].set(str(fila.get("cantidad") or ""))
+                item["unidad"].set(unidad_forzada_canalizacion(item["categoria"].get(), fila.get("unidad")))
         for ruta in estado.get("evidencias_locales", []) if isinstance(estado.get("evidencias_locales"), list) else []:
             if ruta and ruta not in evidencias: evidencias.append(ruta)
         for ruta in estado.get("archivos_locales", []) if isinstance(estado.get("archivos_locales"), list) else []:
@@ -1290,18 +1371,32 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         if not formulario_completo():
             messagebox.showwarning("Campos obligatorios", "Debes llenar los campos obligatorios.")
             return
-        if var_desea_evidencias.get() == "Sí" and not evidencias:
+        if var_desea_evidencias.get() == "Sí" and not (evidencias or guardado_servidor["fotos"]):
             messagebox.showwarning("Evidencia fotográfica", "Seleccionaste Sí. Agrega al menos una fotografía antes de guardar.")
             return
-        if var_desea_archivos_adjuntos.get() == "Sí" and total_archivos_obra() == 0:
+        if var_desea_archivos_adjuntos.get() == "Sí" and total_archivos_obra() == 0 and not guardado_servidor["archivos"]:
             messagebox.showwarning("Archivos adjuntos", "Seleccionaste Sí. Agrega al menos un PDF o plano antes de guardar.")
             return
-        folio = var_folio.get().strip()
-        if buscar_obra_civil_por_folio(folio):
-            folio = generar_siguiente_folio("OBC")
-            var_folio.set(folio)
+        # Guardar un checkpoint cifrado ANTES de cualquier operación de red.
+        # Evita perder la captura si falla el INSERT, Storage o la conexión.
+        def proteger_captura():
+            try:
+                from services.levantamiento_borradores_service import guardar_borrador
+                guardar_borrador(usuario_activo, "Obra Civil", _snapshot_borrador_obra())
+                return True
+            except Exception:
+                logger.exception("No fue posible respaldar el borrador de Obra Civil.")
+                return False
+
+        if not proteger_captura():
+            messagebox.showerror(
+                "No se pudo respaldar la captura",
+                "No se intentó guardar en Supabase porque falló la protección local "
+                "del formulario. Conserva esta ventana abierta y contacta a soporte."
+            )
+            return
         datos = {
-            "id_aco": datos_aco.get("id_aco"), "id_sucursal": seleccion_catalogo.get("id_sucursal") or datos_aco.get("id_sucursal"), "id_contacto": seleccion_catalogo.get("id_contacto") or datos_aco.get("id_contacto"), "obc_folio": folio, "obc_fecha": var_fecha.get().strip() or None, "obc_aco_numero": var_aco.get().strip(),
+            "id_aco": datos_aco.get("id_aco"), "id_sucursal": seleccion_catalogo.get("id_sucursal") or datos_aco.get("id_sucursal"), "id_contacto": seleccion_catalogo.get("id_contacto") or datos_aco.get("id_contacto"), "obc_fecha": var_fecha.get().strip() or None, "obc_aco_numero": var_aco.get().strip(),
             "obc_cliente": var_cliente.get().strip(), "obc_contacto": var_contacto.get().strip(), "obc_sucursal": var_sucursal.get().strip(),
             "obc_direccion": var_direccion.get().strip(), "obc_responsable_axia": var_responsable.get().strip(), "obc_supervisor": var_supervisor.get().strip(),
             "obc_dias_trabajo": int(var_dias_trabajo.get().strip()), "obc_personas_considerar": int(var_personas_considerar.get().strip()),
@@ -1340,33 +1435,75 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
             "obc_observaciones_finales": obtener_textbox(txt_finales),
             "obc_estatus": 1, "creado_por": usuario_activo.get("usuario"),
         }
-        resultado = crear_obra_civil(datos)
-        if resultado:
-            registro_creado = resultado[0] if isinstance(resultado, list) and resultado else {}
-            evidencias_subidas = []
-            if var_desea_evidencias.get() == "Sí":
-                try:
-                    evidencias_subidas = subir_evidencias_obra_civil(folio, evidencias)
-                    if not evidencias_subidas:
-                        raise RuntimeError("Supabase no confirmó la carga de las fotografías.")
-                    id_obra_civil = registro_creado.get("id_obra_civil")
-                    if not id_obra_civil or actualizar_evidencias_obra_civil(id_obra_civil, evidencias_subidas) is None:
-                        raise RuntimeError("No fue posible asociar las fotografías a la obra civil.")
-                except Exception as error:
-                    show_operation_error("Error al guardar evidencias", "Subir evidencia fotográfica de Obra Civil", error)
-                    return
-            archivos_subidos = []
-            if var_desea_archivos_adjuntos.get() == "Sí" and archivos_adjuntos:
-                try:
-                    archivos_subidos = subir_archivos_obra_civil(folio, archivos_adjuntos)
-                    if not archivos_subidos:
-                        raise RuntimeError("Supabase no confirmó la carga de los PDF/planos.")
-                    id_obra_civil = registro_creado.get("id_obra_civil")
-                    if not id_obra_civil or actualizar_archivos_obra_civil(id_obra_civil, archivos_subidos) is None:
-                        raise RuntimeError("No fue posible asociar los archivos a la obra civil.")
-                except Exception as error:
-                    show_operation_error("Error al guardar archivos", "Subir PDF/planos de Obra Civil", error)
-                    return
+        # Subir evidencias ANTES del INSERT evita necesitar un UPDATE en una
+        # tabla cuya RLS todavía está pendiente de migración a autenticación
+        # de usuarios con tokens del servidor. También preserva los archivos
+        # ya subidos entre reintentos y no duplica registros.
+        if not guardado_servidor["id"]:
+            try:
+                from pathlib import Path
+                token = guardado_servidor["solicitud"]
+                carpeta_carga = "SOLICITUD-" + token
+                if var_desea_evidencias.get() == "Sí" and guardado_servidor["fotos"] is None:
+                    faltantes = [ruta for ruta in evidencias if not Path(ruta).is_file()]
+                    if faltantes:
+                        raise FileNotFoundError("No se encontraron estas fotografías: " + ", ".join(faltantes))
+                    fotos_subidas = subir_evidencias_obra_civil(carpeta_carga, evidencias)
+                    if len(fotos_subidas) != len(evidencias):
+                        raise RuntimeError("La subida de fotografías quedó incompleta.")
+                    guardado_servidor["fotos"] = fotos_subidas
+                    if not proteger_captura():
+                        raise RuntimeError("No fue posible respaldar el estado de las fotografías.")
+                if var_desea_archivos_adjuntos.get() == "Sí" and archivos_adjuntos and guardado_servidor["archivos"] is None:
+                    faltantes = [ruta for ruta in archivos_adjuntos if not Path(ruta).is_file()]
+                    if faltantes:
+                        raise FileNotFoundError("No se encontraron estos planos/PDF: " + ", ".join(faltantes))
+                    archivos_subidos = subir_archivos_obra_civil(carpeta_carga, archivos_adjuntos)
+                    if len(archivos_subidos) != len(archivos_adjuntos):
+                        raise RuntimeError("La subida de archivos quedó incompleta.")
+                    guardado_servidor["archivos"] = archivos_subidos
+                    if not proteger_captura():
+                        raise RuntimeError("No fue posible respaldar el estado de los archivos.")
+            except Exception as error:
+                show_operation_error("Captura conservada", "Subir anexos de Obra Civil", error)
+                messagebox.showwarning(
+                    "Obra Civil no registrada",
+                    "El registro NO se ha enviado. La captura se conserva localmente; "
+                    "revisa los archivos y la conexión antes de continuar."
+                )
+                return
+            datos["obc_evidencias_json"] = json.dumps(guardado_servidor["fotos"] or [], ensure_ascii=False)
+            datos["obc_archivos_adjuntos_json"] = json.dumps(guardado_servidor["archivos"] or [], ensure_ascii=False)
+            datos["obc_request_id"] = guardado_servidor["solicitud"]
+            resultado = crear_obra_civil(datos)
+            if not resultado:
+                messagebox.showwarning(
+                    "Registro pendiente de verificar",
+                    "No pudimos confirmar la operación con Supabase. Los datos y "
+                    "el identificador de esta solicitud quedaron en el borrador local. "
+                    "Puedes volver a intentar desde ESTE borrador: AXIA verificará "
+                    "primero si el registro ya existe para no duplicarlo."
+                )
+                return
+            registro_creado = resultado[0]
+            guardado_servidor["id"] = registro_creado["id_obra_civil"]
+            guardado_servidor["folio"] = registro_creado["obc_folio"]
+            var_folio.set(guardado_servidor["folio"])
+            if not proteger_captura():
+                messagebox.showwarning(
+                    "Obra registrada",
+                    "El registro fue creado con folio " + guardado_servidor["folio"] +
+                    ". Falló el respaldo de su confirmación en este equipo: "
+                    "NO vuelvas a enviar esta obra hasta verificar el registro."
+                )
+                return
+
+        folio = guardado_servidor["folio"]
+        evidencias_subidas = guardado_servidor["fotos"] or []
+        archivos_subidos = guardado_servidor["archivos"] or []
+
+        # El PDF se genera DESPUÉS de confirmar el folio entregado por la BD.
+        try:
             registrar_movimiento(modulo="Obra Civil", accion="CREAR", descripcion=f"El usuario creó la obra civil {folio}", registro_afectado=folio)
             datos_pdf_final = datos_pdf()
             datos_pdf_final["__evidencias_fotograficas"] = evidencias_subidas or list(evidencias)
@@ -1378,18 +1515,33 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
                 ("Canalización, cableado y materiales", ["Categoría", "Tipo", "Especificación", "Cantidad", "Unidad"], seccion_canalizacion_pdf()),
             ])
             mensaje_pdf = f"\n\nPDF guardado en:\n{ruta_pdf}" if ruta_pdf else "\n\nNo se pudo guardar el PDF local."
-            try:
-                from services.levantamiento_borradores_service import eliminar_borrador
-                eliminar_borrador(usuario_activo)
-            except Exception:
-                logger.debug("No fue posible eliminar el borrador de Obra Civil ya guardado.", exc_info=True)
-            messagebox.showinfo("Registro correcto", "La obra civil fue registrada correctamente." + mensaje_pdf)
-            app.mostrar_vista_inicio_aco()
-        else:
-            show_operation_error("Error al guardar", "Registrar obra civil")
+        except Exception as error:
+            logger.exception("La obra %s se registró, pero el PDF local falló.", folio)
+            messagebox.showwarning(
+                "Obra registrada; PDF pendiente",
+                f"La obra {folio} YA ESTÁ REGISTRADA en Supabase, pero el PDF falló: {error}. "
+                "Se conserva el borrador para volver a intentar sin duplicar."
+            )
+            proteger_captura()
+            return
+        try:
+            from services.levantamiento_borradores_service import eliminar_borrador
+            eliminar_borrador(usuario_activo)
+        except Exception:
+            logger.debug("No fue posible eliminar el borrador de Obra Civil ya guardado.", exc_info=True)
+        messagebox.showinfo("Registro correcto", "La obra civil fue registrada correctamente como " + folio + "." + mensaje_pdf)
+        # Desregistrar el proveedor de autosave: de lo contrario el ciclo de
+        # 45 segundos podría recrear el borrador después de haberlo eliminado.
+        try:
+            if hasattr(app, "limpiar_proveedor_borrador_levantamiento"):
+                app.limpiar_proveedor_borrador_levantamiento()
+        except Exception:
+            logger.debug("No se pudo desconectar el autoguardado de Obra Civil.", exc_info=True)
+        app.mostrar_vista_inicio_aco()
 
     def _snapshot_borrador_obra():
         estado = {
+            "obra_guardada": dict(guardado_servidor),
             "folio": var_folio.get(), "fecha": var_fecha.get(), "desea_notas_cliente": var_desea_notas_cliente.get(), "notas_cliente": var_notas_cliente.get(), "aco": var_aco.get(), "cliente": var_cliente.get(),
             "contacto": var_contacto.get(), "telefono": var_telefono.get(), "correo": var_correo.get(),
             "sucursal": var_sucursal.get(), "encargado_sucursal": var_encargado_sucursal.get(),
@@ -1409,6 +1561,26 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
             "observaciones_iniciales": obtener_textbox(txt_observaciones_iniciales),
             "observaciones_finales": obtener_textbox(txt_finales),
             "ejecucion": {k: v.get() for k, v in ejecucion_vars.items()},
+            # Borrador completo: las filas dinámicas no se guardaban anteriormente.
+            "conceptos_obra": obtener_conceptos_obra_seleccionados(),
+            "epp_partidas": obtener_epp_obra(),
+            "materiales_miscelaneos": [
+                {"material": fila["material"].get(),
+                 "categoria": fila["categoria"].get(),
+                 "requerido": fila["requerido"].get(),
+                 "cantidad": fila["cantidad"].get(),
+                 "unidad": fila["unidad"].get(),
+                 "especificacion": fila["especificacion"].get()}
+                for fila in materiales_miscelaneos_items
+            ],
+            "canalizacion_partidas": [
+                {"categoria": fila["categoria"].get(),
+                 "tipo": fila["tipo"].get(),
+                 "especificacion": fila["especificacion"].get(),
+                 "cantidad": fila["cantidad"].get(),
+                 "unidad": fila["unidad"].get()}
+                for fila in canalizacion_materiales_items
+            ],
         }
         return {
             "lev_cliente": var_cliente.get().strip(),
