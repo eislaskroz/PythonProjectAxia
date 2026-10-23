@@ -2,6 +2,7 @@
 -- Ejecutar EN SUPABASE SQL EDITOR ANTES de publicar DESKTOP.
 -- Cambios: consecutivo OBC atómico + token idempotente para reconexiones.
 -- No desactiva RLS, NO crea políticas públicas ni cambia obras existentes.
+-- Esquema validado contra CSV de Supabase: PK real obc_id (bigint).
 BEGIN;
 
 -- El bloqueo impide que aparezcan nuevos folios durante la inicialización.
@@ -60,11 +61,11 @@ REVOKE ALL ON FUNCTION public.axia_obc_asignar_folio() FROM PUBLIC;
 -- No entrega contenido de la Obra Civil, solo ID + folio a quien posea el UUID.
 -- El UUID aleatorio NO sustituye la autenticación de empleados.
 CREATE OR REPLACE FUNCTION public.axia_obc_consultar_solicitud(p_solicitud uuid)
-RETURNS TABLE (id_obra_civil text, obc_folio text)
+RETURNS TABLE (obc_id text, obc_folio text)
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public
 AS $function$
-    SELECT oc.id_obra_civil::text, oc.obc_folio::text
+    SELECT oc.obc_id::text, oc.obc_folio::text
     FROM public.db_obras_civiles AS oc
     WHERE oc.obc_request_id = p_solicitud
     LIMIT 1;

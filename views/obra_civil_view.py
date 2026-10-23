@@ -1486,7 +1486,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
                 )
                 return
             registro_creado = resultado[0]
-            guardado_servidor["id"] = registro_creado["id_obra_civil"]
+            guardado_servidor["id"] = registro_creado["obc_id"]
             guardado_servidor["folio"] = registro_creado["obc_folio"]
             var_folio.set(guardado_servidor["folio"])
             if not proteger_captura():

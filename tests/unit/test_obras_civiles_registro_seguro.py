@@ -70,7 +70,7 @@ class _Sb:
 
 
 REQUEST = "997f4fd9-3bee-4562-bc1d-b46ce17b3cba"
-REG = {"id_obra_civil": "1", "obc_folio": "OBC-0002"}
+REG = {"obc_id": "1", "obc_folio": "OBC-0002"}
 
 
 def test_registro_nuevo_usa_uuid_y_no_envia_folio_cliente():
