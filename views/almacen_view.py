@@ -725,9 +725,9 @@ def mostrar_almacen(parent, app=None):
     campo_ot.bind('<KeyRelease>',invalidar_ot_cambiada)
 
 
-    # -------- KARDEX: BÚSQUEDA Y BOTÓN ACTUALIZADOS --------
+    # -------- KARDEX: BUSCADOR Y ACCIONES EN UNA ÚNICA FILA --------
     t_kardex.grid_columnconfigure(0, weight=1)
-    t_kardex.grid_rowconfigure(2, weight=1)
+    t_kardex.grid_rowconfigure(1, weight=1)
 
     filtrar_k = ctk.CTkFrame(
         t_kardex,
@@ -740,7 +740,11 @@ def mostrar_almacen(parent, app=None):
         padx=8,
         pady=8
     )
-    filtrar_k.grid_columnconfigure(0, weight=1)
+    # El buscador ocupa ~50 % de la fila; los 3 botones comparten el resto.
+    # 'uniform' mantiene la proporción cuando se maximiza la ventana.
+    filtrar_k.grid_columnconfigure(0, weight=3, uniform='acciones_kardex')
+    for indice in (1, 2, 3):
+        filtrar_k.grid_columnconfigure(indice, weight=1, uniform='acciones_kardex')
 
     # CORRECCIÓN: cargar buscar.png directamente, como en Catálogo.
     # No aplicar _icono_blanco a este icono.
@@ -765,7 +769,7 @@ def mostrar_almacen(parent, app=None):
         row=0,
         column=0,
         sticky='ew',
-        padx=(0, 10)
+        padx=(0, 8)
     )
     buscar_k_wrap.grid_columnconfigure(1, weight=1)
 
@@ -786,7 +790,7 @@ def mostrar_almacen(parent, app=None):
 
     buscar_k = AxiaEntry(
         buscar_k_wrap,
-        placeholder_text='Código de producto, folio de OT o vacío para todo el historial',
+        placeholder_text='Código AXIA o folio de OT (vacío: todo)',
         height=34,
         fg_color='transparent',
         border_width=0,
@@ -828,7 +832,8 @@ def mostrar_almacen(parent, app=None):
     btn_consultar_k.grid(
         row=0,
         column=1,
-        padx=(0, 0)
+        sticky='ew',
+        padx=(0, 8)
     )
 
     tabla_k = NativeTreeTable(
@@ -847,24 +852,22 @@ def mostrar_almacen(parent, app=None):
         ),
         height=15
     , table_id="almacen_kardex")
-    tabla_k.grid(row=2, column=0, sticky='nsew', padx=7, pady=6)
+    tabla_k.grid(row=1, column=0, sticky='nsew', padx=7, pady=6)
 
     # Las reimpresiones son sólo de lectura: el servidor recupera la operación
     # ORIGINAL y la capa PDF no ejecuta registrar/salida_ot ni modifica saldos.
-    fila_comprobantes = ctk.CTkFrame(t_kardex, fg_color='transparent')
-    fila_comprobantes.grid(row=1, column=0, sticky='e', padx=8, pady=(0, 2))
     btn_reimprimir_etiqueta = ctk.CTkButton(
-        fila_comprobantes, text='Reimprimir etiqueta', width=182, height=35,
+        filtrar_k, text='Reimprimir etiqueta', width=182, height=42,
         fg_color=SECONDARY, hover_color=BUTTON_HOVER, state='disabled',
         font=('Segoe UI', 12), command=lambda: reimprimir_kardex('ENTRADA'),
     )
-    btn_reimprimir_etiqueta.pack(side='left', padx=(0, 8))
+    btn_reimprimir_etiqueta.grid(row=0, column=2, sticky='ew', padx=(0, 8))
     btn_reimprimir_ticket = ctk.CTkButton(
-        fila_comprobantes, text='Reimprimir ticket', width=182, height=35,
+        filtrar_k, text='Reimprimir ticket', width=182, height=42,
         fg_color=SECONDARY, hover_color=BUTTON_HOVER, state='disabled',
         font=('Segoe UI', 12), command=lambda: reimprimir_kardex('SALIDA'),
     )
-    btn_reimprimir_ticket.pack(side='left')
+    btn_reimprimir_ticket.grid(row=0, column=3, sticky='ew')
 
     reimpresion_ocupada = {'valor': False}
 
@@ -931,9 +934,9 @@ def mostrar_almacen(parent, app=None):
         text_color=TEXT_SECONDARY,
         anchor='w'
     )
-    kardex_info.grid(row=3, column=0, sticky='ew', padx=8, pady=6)
+    kardex_info.grid(row=2, column=0, sticky='ew', padx=8, pady=6)
     navegacion_k=ctk.CTkFrame(t_kardex,fg_color='transparent')
-    navegacion_k.grid(row=4,column=0,sticky='e',padx=8,pady=(2,4))
+    navegacion_k.grid(row=3,column=0,sticky='e',padx=8,pady=(2,4))
     pagina_k={'valor':1,'ultimo_filtro':None}
     btn_anterior=ctk.CTkButton(navegacion_k,text='Página anterior',width=120,
                                command=lambda:cambiar_pagina_k(-1))

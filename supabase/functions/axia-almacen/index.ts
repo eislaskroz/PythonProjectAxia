@@ -27,15 +27,15 @@ const decode = (data: string): Uint8Array => {
   const raw = atob(data.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - data.length % 4) % 4));
   return Uint8Array.from(raw, (c) => c.charCodeAt(0));
 };
-async function emitirToken(id: string): Promise<string> {
-  const payload = { uid: id, iat: Math.floor(Date.now()/1000), exp: Math.floor(Date.now()/1000) + 900 };
+async function emitirToken(id: string, alcance: string = 'almacen'): Promise<string> {
+  const payload = { uid: id, alcance, iat: Math.floor(Date.now()/1000), exp: Math.floor(Date.now()/1000) + 900 };
   const header = encode(encoder.encode(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));
   const body = encode(encoder.encode(JSON.stringify(payload)));
   const content = `${header}.${body}`;
   const signature = new Uint8Array(await crypto.subtle.sign('HMAC', hmacKey, encoder.encode(content)));
   return `${content}.${encode(signature)}`;
 }
-async function verificarToken(value: string): Promise<{ uid: string }> {
+async function verificarToken(value: string): Promise<{ uid: string; alcance: string }> {
   const parts = value.split('.');
   if (parts.length !== 3 || parts.some((x) => x.length > 2000)) throw new Error('SESSION_INVALID');
   let signature: Uint8Array;
@@ -52,12 +52,14 @@ async function verificarToken(value: string): Promise<{ uid: string }> {
       !Number.isInteger(payload.exp) || payload.exp <= Date.now()/1000 ||
       !Number.isInteger(payload.iat) || payload.iat > Date.now()/1000 + 60 ||
       payload.exp - payload.iat > 900) throw new Error('SESSION_INVALID');
-  return { uid: payload.uid };
+  const alcance = payload.alcance === 'levantamientos_lectura' ? 'levantamientos_lectura' : 'almacen';
+  return { uid: payload.uid, alcance };
 }
-async function obtenerUsuarioPorId(id: string) {
+async function obtenerUsuarioPorId(id: string, alcance: string = 'almacen') {
   const { data, error } = await db.from('db_usuarios')
     .select('id_usuario,usu_nickname,usu_nombre,usu_apellido,usu_tipo').eq('id_usuario', id).maybeSingle();
-  if (error || !data || ![1,8].includes(Number(data.usu_tipo))) throw new Error('SESSION_INVALID');
+  const roles = alcance === 'levantamientos_lectura' ? [1,2,3,4,5,6] : [1,8];
+  if (error || !data || !roles.includes(Number(data.usu_tipo))) throw new Error('SESSION_INVALID');
   return data;
 }
 
@@ -85,7 +87,8 @@ Deno.serve(async (request: Request) => {
     let data: Record<string, unknown>;
     try { data = JSON.parse(text); } catch { return reply(400, {ok:false, error:'Solicitud inválida.'}); }
     const accion = String(data.accion ?? '');
-    if (accion === 'login') {
+    if (accion === 'login' || accion === 'login_levantamientos') {
+      const lectura = accion === 'login_levantamientos';
       const nickname = String(data.nickname ?? '').trim();
       const password = String(data.password ?? '');
       if (!nickname || nickname.length > 120 || password.length < 1 || password.length > 1024)
@@ -100,7 +103,7 @@ Deno.serve(async (request: Request) => {
         .ilike('usu_nickname', nickname.replace(/[%_\\]/g, '\\$&')).limit(1).maybeSingle();
       if (error) throw error;
       let valid = false;
-      if (usuario && [1,8].includes(Number(usuario.usu_tipo))) {
+      if (usuario && (lectura ? [1,2,3,4,5,6] : [1,8]).includes(Number(usuario.usu_tipo))) {
         const hash = String(usuario.usu_password || '');
         // El servidor NO admite SHA-256 ni texto plano heredados.
         if (/^\$2[aby]\$/.test(hash)) {
@@ -117,12 +120,38 @@ Deno.serve(async (request: Request) => {
         { p_nickname: nickname, p_correcto: true });
       if (resetError) throw resetError;
       if (!reset) return reply(429, {ok:false, error:'Cuenta bloqueada temporalmente.'});
-      return reply(200, {ok:true, resultado: {id_usuario: String(usuario.id_usuario), token: await emitirToken(String(usuario.id_usuario))}});
+      return reply(200, {ok:true, resultado: {id_usuario: String(usuario.id_usuario), token: await emitirToken(String(usuario.id_usuario), lectura ? 'levantamientos_lectura' : 'almacen')}});
     }
     const session = await verificarToken(String(request.headers.get('x-axia-almacen-session') ?? ''));
-    const usuario = await obtenerUsuarioPorId(session.uid);
+    const usuario = await obtenerUsuarioPorId(session.uid, session.alcance);
+    // La sesión del técnico no puede ejecutar operaciones de almacén, ni siquiera
+    // si envía manualmente una acción de escritura a esta Edge Function.
+    if (session.alcance === 'levantamientos_lectura' && accion !== 'catalogo_levantamientos')
+      return reply(403, {ok:false, error:'Esta sesión solo permite consultar productos.'});
+
     // CATALOGO UNICO. La tabla creada desde el Excel es la base operativa real.
     const tabla = 'axia_almacen_catalogo';
+    if (accion === 'catalogo_levantamientos') {
+      // Respuesta sin información comercial sensible: no enviar costos ni proveedores.
+      const buscar = String(data.buscar ?? '').trim().slice(0, 100);
+      const limite = Number(data.limite ?? 80);
+      if (!Number.isInteger(limite) || limite < 1 || limite > 100)
+        return reply(400,{ok:false,error:'Límite de consulta inválido.'});
+      let consulta = db.from(tabla)
+        .select('codigo_axia,producto,categoria_axia,familia_axia,departamento_origen,unidad_inventario,saldo_actual')
+        .eq('activo', true).order('producto').limit(limite);
+      if (buscar) {
+        // Evita inyectar filtros PostgREST en la cadena .or().
+        const limpio = buscar.replace(/[^\p{L}\p{N} _\-]/gu, ' ').trim().slice(0,80);
+        if (limpio) {
+          const filtro = `%${limpio}%`;
+          consulta = consulta.or(`codigo_axia.ilike.${filtro},producto.ilike.${filtro},categoria_axia.ilike.${filtro},familia_axia.ilike.${filtro}`);
+        }
+      }
+      const {data:productos,error}=await consulta;
+      if(error) throw error;
+      return reply(200,{ok:true,resultado:productos??[]});
+    }
     if (accion === 'catalogo') {
       const incluirInactivos = data.incluir_inactivos === true;
       const listado: Record<string, unknown>[] = [];
