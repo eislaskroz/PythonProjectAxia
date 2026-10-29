@@ -17,6 +17,7 @@ from services.almacen_service import crear_almacen, formatear_cantidad
 from services.almacen_entregas_ot import validar_entrega_ot, preparar_sugerencias_ot
 from services.almacen_catalogo_maestro import COLUMNAS_TABLA
 from services.almacen_fechas import fecha_kardex_mexico
+from services.almacen_reimpresion import generar_comprobante_historico
 from services.almacen_comprobantes import (
     generar_etiqueta_entrada, generar_ticket_salida, abrir_comprobante,
 )
@@ -726,7 +727,7 @@ def mostrar_almacen(parent, app=None):
 
     # -------- KARDEX: BÚSQUEDA Y BOTÓN ACTUALIZADOS --------
     t_kardex.grid_columnconfigure(0, weight=1)
-    t_kardex.grid_rowconfigure(1, weight=1)
+    t_kardex.grid_rowconfigure(2, weight=1)
 
     filtrar_k = ctk.CTkFrame(
         t_kardex,
@@ -846,7 +847,83 @@ def mostrar_almacen(parent, app=None):
         ),
         height=15
     , table_id="almacen_kardex")
-    tabla_k.grid(row=1, column=0, sticky='nsew', padx=7, pady=6)
+    tabla_k.grid(row=2, column=0, sticky='nsew', padx=7, pady=6)
+
+    # Las reimpresiones son sólo de lectura: el servidor recupera la operación
+    # ORIGINAL y la capa PDF no ejecuta registrar/salida_ot ni modifica saldos.
+    fila_comprobantes = ctk.CTkFrame(t_kardex, fg_color='transparent')
+    fila_comprobantes.grid(row=1, column=0, sticky='e', padx=8, pady=(0, 2))
+    btn_reimprimir_etiqueta = ctk.CTkButton(
+        fila_comprobantes, text='Reimprimir etiqueta', width=182, height=35,
+        fg_color=SECONDARY, hover_color=BUTTON_HOVER, state='disabled',
+        font=('Segoe UI', 12), command=lambda: reimprimir_kardex('ENTRADA'),
+    )
+    btn_reimprimir_etiqueta.pack(side='left', padx=(0, 8))
+    btn_reimprimir_ticket = ctk.CTkButton(
+        fila_comprobantes, text='Reimprimir ticket', width=182, height=35,
+        fg_color=SECONDARY, hover_color=BUTTON_HOVER, state='disabled',
+        font=('Segoe UI', 12), command=lambda: reimprimir_kardex('SALIDA'),
+    )
+    btn_reimprimir_ticket.pack(side='left')
+
+    reimpresion_ocupada = {'valor': False}
+
+    def actualizar_botones_comprobante(_fila=None):
+        seleccionado = tabla_k.selected_payload()
+        tipo = str((seleccionado or {}).get('tipo') or '').upper()
+        habilitado = not reimpresion_ocupada['valor'] and bool((seleccionado or {}).get('id'))
+        btn_reimprimir_etiqueta.configure(state='normal' if habilitado and tipo == 'ENTRADA' else 'disabled')
+        btn_reimprimir_ticket.configure(state='normal' if habilitado and tipo == 'SALIDA' else 'disabled')
+
+    tabla_k._on_select = actualizar_botones_comprobante
+
+    def reimprimir_kardex(tipo_esperado):
+        registro = tabla_k.selected_payload()
+        if not registro or str(registro.get('tipo') or '').upper() != tipo_esperado:
+            messagebox.showwarning('Reimpresión', 'Selecciona un movimiento del tipo correspondiente.',
+                                   parent=root.winfo_toplevel())
+            return
+        movimiento_id = str(registro.get('id') or '').strip()
+        if not movimiento_id:
+            messagebox.showwarning('Reimpresión', 'Este movimiento no tiene identificador de Kárdex.',
+                                   parent=root.winfo_toplevel())
+            return
+        reimpresion_ocupada['valor'] = True
+        actualizar_botones_comprobante()
+        status.configure(text='Recuperando comprobante original del Kárdex...', text_color=TEXT_SECONDARY)
+
+        def finalizar():
+            reimpresion_ocupada['valor'] = False
+            actualizar_botones_comprobante()
+
+        def ok(detalle):
+            finalizar()
+            try:
+                if str((detalle or {}).get('tipo') or '').upper() != tipo_esperado:
+                    raise ValueError('El tipo de comprobante no coincide con el movimiento seleccionado.')
+                ruta = generar_comprobante_historico(detalle)
+            except Exception as exc:
+                messagebox.showerror('No se pudo generar el comprobante', str(exc),
+                                     parent=root.winfo_toplevel())
+                return
+            status.configure(text=f'Comprobante del Kárdex generado: {ruta.name}', text_color='#15803D')
+            try:
+                abrir_comprobante(ruta)
+            except Exception:
+                messagebox.showinfo('Comprobante generado',
+                    f'El archivo quedó guardado. Puedes abrirlo manualmente:\n{ruta}',
+                    parent=root.winfo_toplevel())
+
+        def error(exc):
+            finalizar()
+            status.configure(text=f'No se pudo consultar el comprobante: {exc}', text_color='#B91C1C')
+            messagebox.showerror('Reimpresión no disponible',
+                f'{exc}\n\nVerifica que la Edge Function axia-almacen esté actualizada.\n'
+                'No se modificó ningún movimiento ni existencia.',
+                parent=root.winfo_toplevel())
+
+        run_async(root.winfo_toplevel(),
+                  lambda: servicio.comprobante_kardex(movimiento_id), ok, error)
 
     kardex_info = ctk.CTkLabel(
         t_kardex,
@@ -854,9 +931,9 @@ def mostrar_almacen(parent, app=None):
         text_color=TEXT_SECONDARY,
         anchor='w'
     )
-    kardex_info.grid(row=2, column=0, sticky='ew', padx=8, pady=6)
+    kardex_info.grid(row=3, column=0, sticky='ew', padx=8, pady=6)
     navegacion_k=ctk.CTkFrame(t_kardex,fg_color='transparent')
-    navegacion_k.grid(row=3,column=0,sticky='e',padx=8,pady=(2,4))
+    navegacion_k.grid(row=4,column=0,sticky='e',padx=8,pady=(2,4))
     pagina_k={'valor':1,'ultimo_filtro':None}
     btn_anterior=ctk.CTkButton(navegacion_k,text='Página anterior',width=120,
                                command=lambda:cambiar_pagina_k(-1))
@@ -1467,6 +1544,7 @@ def mostrar_almacen(parent, app=None):
             pagina_k['ultimo_filtro']=codigo
         pagina=pagina_k['valor']
         kardex_info.configure(text='Consultando Kárdex...')
+        actualizar_botones_comprobante()
         btn_anterior.configure(state='disabled')
         btn_siguiente.configure(state='disabled')
 
@@ -1479,8 +1557,8 @@ def mostrar_almacen(parent, app=None):
                     'saldo_anterior': str(m.get('saldo_anterior') or ''),
                     'saldo_nuevo': str(m.get('saldo_nuevo') or ''),
                 } for m in rows])
-            kardex_info.configure(text=f'{len(rows)} movimientos · '
-                  + (f'Filtro {codigo}' if codigo else 'todos los artículos'))
+            actualizar_botones_comprobante()
+            kardex_info.configure(text=f'{len(rows)} movimientos · '                  + (f'Filtro {codigo}' if codigo else 'todos los artículos'))
             etiqueta_pagina.configure(text=f'Página {pagina}')
             btn_anterior.configure(state='normal' if pagina > 1 else 'disabled')
             btn_siguiente.configure(state='normal' if len(rows)==200 else 'disabled')

@@ -171,6 +171,35 @@ class AlmacenSimulador:
             p['activo'] = True
             return dict(p)
 
+    def comprobante_kardex(self, movimiento_id: str) -> dict:
+        """Reconstruye un comprobante desde la memoria en modo simulador (sin cambios)."""
+        movimiento = next((m for m in self._movimientos if m.get('id') == movimiento_id), None)
+        if movimiento is None:
+            raise ValueError('Movimiento no encontrado en el Kárdex.')
+        partes = [movimiento]
+        identificador = movimiento['id']
+        fecha = movimiento.get('fecha')
+        if movimiento.get('tipo') == 'SALIDA':
+            for key, entrega in getattr(self, '_entregas_ot', {}).items():
+                ids = {m['id'] for m in entrega['resultado']['movimientos']}
+                if movimiento_id in ids:
+                    partes = [m for m in entrega['resultado']['movimientos']]
+                    identificador = key
+                    fecha = partes[0].get('fecha')
+                    break
+        return {
+            'tipo': movimiento['tipo'], 'identificador': identificador,
+            'fecha': fecha, 'referencia': movimiento.get('referencia', ''),
+            'destinatario': movimiento.get('destinatario', ''),
+            'motivo': movimiento.get('motivo', ''),
+            'responsable': movimiento.get('responsable', ''),
+            'movimientos': [
+                {'codigo': m['codigo'], 'cantidad': m['cantidad'],
+                 'producto': str(self._por_codigo.get(m['codigo'], {}).get('producto') or '')}
+                for m in partes
+            ],
+        }
+
     @staticmethod
     def _autorizar_catalogo(usuario):
         from security.permissions import puede_ver_almacen
@@ -355,6 +384,11 @@ class AlmacenRemoto:
     def kardex(self, codigo=None, pagina=1, limite=200):
         return self._peticion('kardex' + self._sufijo,
                               {'codigo': codigo or None, 'pagina':int(pagina),'limite':int(limite)})
+
+    def comprobante_kardex(self, movimiento_id: str) -> dict:
+        """Sólo lectura autenticada; nunca llama a las acciones de inventario."""
+        uuid.UUID(str(movimiento_id))
+        return self._peticion('comprobante_kardex', {'movimiento_id': str(movimiento_id)})
 
     def _comprobar_usuario(self, usuario):
         if str(usuario.get('id_usuario')) != self._usuario_id:

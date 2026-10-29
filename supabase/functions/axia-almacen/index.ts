@@ -158,6 +158,58 @@ Deno.serve(async (request: Request) => {
       if(error) throw error;
       return reply(200,{ok:true,resultado:(rows??[]).map((m)=>({...m,codigo:m.codigo_axia}))});
     }
+    // REIMPRESIÓN: sólo SELECT, por el ID exacto del movimiento de Kárdex.
+    // Las OT pueden tener varias entregas; nunca agrupar sólo por folio.
+    if (accion === 'comprobante_kardex') {
+      const id=String(data.movimiento_id??'').trim();
+      if(!uuidValido(id)) return reply(400,{ok:false,error:'Identificador de movimiento inválido.'});
+      const {data:mov,error:movErr}=await db.from('axia_almacen_maestro_movimientos')
+        .select('id,codigo_axia,tipo,cantidad,fecha,referencia,destinatario,motivo,responsable')
+        .eq('id',id).maybeSingle();
+      if(movErr)throw movErr;
+      if(!mov)return reply(404,{ok:false,error:'No existe el movimiento seleccionado.'});
+      let movimientos=[mov];
+      let identificador=String(mov.id);
+      let fecha=mov.fecha;
+      if(mov.tipo==='SALIDA') {
+        // El JSON de la entrega contiene los IDs de SUS partidas confirmadas.
+        const {data:grupos,error:grupoErr}=await db.from('axia_almacen_maestro_entregas_ot')
+          .select('idempotencia,resultado,fecha')
+          .contains('resultado',{movimientos:[{id:mov.id}]}).limit(2);
+        if(grupoErr)throw grupoErr;
+        if((grupos??[]).length>1) return reply(409,{ok:false,error:'El movimiento pertenece a varias entregas. Contacta a TI.'});
+        if(grupos?.length===1) {
+          const grupo=grupos[0];
+          const items=grupo.resultado?.movimientos;
+          const ids=Array.isArray(items)?items.map((p:Record<string,unknown>)=>String(p?.id??'')):[];
+          if(!ids.length||ids.length>80||ids.some((x:string)=>!uuidValido(x))||
+              new Set(ids).size!==ids.length||!ids.includes(id))
+            return reply(409,{ok:false,error:'La entrega por OT tiene partidas inconsistentes.'});
+          const {data:filas,error:partesErr}=await db.from('axia_almacen_maestro_movimientos')
+            .select('id,codigo_axia,tipo,cantidad,fecha,referencia,destinatario,motivo,responsable')
+            .in('id',ids);
+          if(partesErr)throw partesErr;
+          const mapa=new Map((filas??[]).map((r)=>[String(r.id),r]));
+          if(mapa.size!==ids.length || ids.some((x:string)=>mapa.get(x)?.tipo!=='SALIDA') ||
+              ids.some((x:string)=>mapa.get(x)?.referencia!==mov.referencia))
+            return reply(409,{ok:false,error:'No se pudo reconstruir íntegramente la entrega por OT.'});
+          movimientos=ids.map((x:string)=>mapa.get(x)!);
+          identificador=String(grupo.idempotencia);
+          fecha=grupo.fecha??mov.fecha;
+        }
+      }
+      const codigos=[...new Set(movimientos.map((m)=>String(m.codigo_axia)))];
+      const {data:productos,error:prodErr}=await db.from(tabla)
+        .select('codigo_axia,producto').in('codigo_axia',codigos);
+      if(prodErr)throw prodErr;
+      const nombres=new Map((productos??[]).map((p)=>[String(p.codigo_axia),String(p.producto??'')]));
+      return reply(200,{ok:true,resultado:{
+        tipo:mov.tipo,identificador,fecha,referencia:mov.referencia,
+        destinatario:mov.destinatario,motivo:mov.motivo,responsable:mov.responsable,
+        movimientos:movimientos.map((m)=>({codigo:m.codigo_axia,
+          producto:nombres.get(String(m.codigo_axia))??'',cantidad:m.cantidad})),
+      }});
+    }
     if (accion === 'consultar_ot') {
       const folio=String(data.folio??'').trim().toUpperCase();
       if(folio.length<1||folio.length>120) return reply(400,{ok:false,error:'Folio de OT inválido.'});
