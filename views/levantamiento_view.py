@@ -24,7 +24,8 @@ from ui.form_fields import AxiaEntry, AxiaTextbox
 from tkinter import messagebox, ttk, filedialog
 from PIL import Image
 from ui.native_combobox import NativeComboBox
-from ui.selector_catalogo_axia import abrir_selector_axia
+from ui.catalogo_axia_inline import SelectorProductoAxia
+from core.background_tasks import run_async
 from services.levantamiento_catalogo_axia import (
     CatalogoAxiaLevantamientos, referencia_axia,
     categoria_canalizacion_axia, unidad_levantamiento_axia,
@@ -360,15 +361,42 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     herramientas_items = []
     epp_items = []
     canalizacion_materiales_items = []
-    # Misma sesión de consulta reutilizada por las tres secciones, sin privilegios
-    # de Almacén. Nunca se solicita una contraseña para movimientos.
-    catalogo_axia_lectura = CatalogoAxiaLevantamientos()
+    # Catálogo maestro cargado automáticamente en cada levantamiento; los tres
+    # selectores usan exactamente los mismos productos, sin un login adicional.
+    catalogo_axia_lectura = CatalogoAxiaLevantamientos(usuario_activo.get('id_usuario'))
+    productos_catalogo_axia = []
+    selectores_catalogo_axia = []
 
-    def buscar_producto_axia(callback, *, titulo):
-        abrir_selector_axia(
-            form_body, dict(usuario_activo or {}), callback,
-            servicio=catalogo_axia_lectura, titulo=titulo,
-        )
+    def selector_producto_axia(parent, callback, on_clear=None):
+        selector = SelectorProductoAxia(parent, on_select=callback, on_clear=on_clear,
+                                       productos=productos_catalogo_axia)
+        selectores_catalogo_axia.append(selector)
+        return selector
+
+    def cargar_catalogo_axia():
+        def recibido(productos):
+            productos_catalogo_axia[:] = productos
+            for selector in list(selectores_catalogo_axia):
+                try:
+                    if selector.winfo_exists():
+                        selector.set_productos(productos)
+                except Exception:
+                    logger.warning('No se pudo actualizar un selector de productos.', exc_info=True)
+        def fallo(exc):
+            logger.warning('Catálogo Maestro no disponible: %s', exc)
+            for selector in list(selectores_catalogo_axia):
+                try:
+                    if selector.winfo_exists():
+                        selector.error_catalogo('Catálogo no disponible: reinicia sesión AXIA')
+                except Exception:
+                    pass
+            messagebox.showwarning('Catálogo Maestro AXIA',
+                'No se pudo consultar el catálogo único de Supabase.\n'
+                'Revisa tu conexión o vuelve a iniciar sesión en AXIA.\n\n'
+                'No se realizó ningún movimiento de Almacén.')
+        run_async(form_body, catalogo_axia_lectura.todos, on_success=recibido, on_error=fallo)
+
+    form_body.after(300, cargar_catalogo_axia)
 
     # Campos dedicados del formulario Seguridad y Monitoreo.
     # Se guardan dentro de los campos descriptivos existentes para evitar
@@ -2977,6 +3005,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         filas = obtener_canalizacion_materiales_json()
         if not filas:
             return False
+        for item in canalizacion_materiales_items:
+            if (item.get('solo_catalogo') and item['cantidad'].get().strip()
+                    and not item.get('referencia_axia')):
+                return False
         for fila in filas:
             if not (fila.get("categoria") and fila.get("tipo") and fila.get("cantidad") and fila.get("unidad")):
                 return False
@@ -3005,6 +3037,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         if not filas:
             return ["Canalización y materiales: registra una partida con cantidad o selecciona «No»"]
         problemas = []
+        for indice, item in enumerate(canalizacion_materiales_items, 1):
+            if item.get('solo_catalogo') and item['cantidad'].get().strip() and not item.get('referencia_axia'):
+                problemas.append(f"Material {indice}: selecciona un producto válido del Catálogo Maestro AXIA")
         for indice, fila in enumerate(filas, 1):
             nombre = f"Material {indice} ({fila.get('categoria') or 'sin categoría'})"
             for campo in ("categoria", "tipo", "cantidad", "unidad"):
@@ -3045,13 +3080,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                      font=FORM_SECTION_FONT, text_color=TEXT_PRIMARY).grid(
             row=0, column=0, columnspan=7, sticky="w", padx=7, pady=(5, 1))
         ctk.CTkLabel(seccion_canalizacion_dinamica,
-                     text="Agrega todas las partidas necesarias. Puedes registrar varios tipos, medidas y cantidades.",
+                     text="Selecciona directamente el producto del Almacén AXIA y registra la cantidad requerida.",
                      font=FORM_FIELD_FONT, text_color=TEXT_SECONDARY).grid(
             row=1, column=0, columnspan=7, sticky="w", padx=7, pady=(0, 4))
         ctk.CTkLabel(seccion_canalizacion_dinamica, text="¿Se requiere?", font=FORM_TABLE_HEADER_FONT).grid(row=2, column=0, sticky="w", padx=5)
         combo_requiere = NativeComboBox(seccion_canalizacion_dinamica, variable=var_requiere_canalizacion, values=["Sí", "No"], width=120, height=31)
         combo_requiere.grid(row=3, column=0, sticky="w", padx=5, pady=(0,4))
-        for col, encabezado in enumerate(("Categoría", "Tipo", "Tamaño / calibre / especificación", "Cantidad", "Unidad", "Aproximado", "Acción")):
+        for col, encabezado in enumerate(("Producto AXIA (Código y descripción)", "", "", "Cantidad", "Unidad", "Aproximado", "Acción")):
             ctk.CTkLabel(seccion_canalizacion_dinamica, text=encabezado, font=FORM_TABLE_HEADER_FONT, text_color=TEXT_PRIMARY).grid(row=4, column=col, sticky="w", padx=5, pady=(0,2))
 
         categorias = ["Tubo", "Cople", "Registro", "Cajas", "Conectores", "Abrazadera", "Tapas", "Codos", "Canaleta", "Cable"]
@@ -3085,6 +3120,28 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             item = {"categoria": var_categoria, "tipo": var_tipo_item, "especificacion": var_especificacion,
                     "cantidad": var_cantidad_item, "unidad": var_unidad_item, "widgets": widgets,
                     "unidad_widget": combo_unidad, "aproximado_widget": lbl_aproximado}
+
+            for antiguo in (combo_categoria, combo_tipo, combo_especificacion):
+                antiguo.grid_remove()  # no mostrar catálogos antiguos en pantalla
+            def asignar_producto(producto):
+                # En General la canalización inicia en «No». Seleccionar producto
+                # confirma que se requiere y evita perder silenciosamente la fila.
+                if var_requiere_canalizacion.get() != 'Sí':
+                    var_requiere_canalizacion.set('Sí')
+                item['referencia_axia'] = referencia_axia(producto)
+                item['categoria'].set(categoria_canalizacion_axia(producto))
+                item['tipo'].set(f"{producto.get('codigo_axia', '')} · {producto.get('producto', '')}")
+                item['especificacion'].set(str(producto.get('familia_axia') or ''))
+                item['unidad'].set(unidad_forzada_canalizacion(item['categoria'].get(),
+                                     unidad_levantamiento_axia(producto)))
+                item['solo_catalogo'] = True
+                actualizar_aproximado()
+            selector_axia = selector_producto_axia(seccion_canalizacion_dinamica, asignar_producto,
+                                                    lambda: item.update(referencia_axia={}, solo_catalogo=True))
+            selector_axia.grid(row=fila, column=0, columnspan=3, sticky='ew', padx=5, pady=2)
+            item['selector_axia'] = selector_axia
+            item['solo_catalogo'] = True
+            item['widgets'].append(selector_axia)
 
             def actualizar_aproximado(*_):
                 if unidad_fija_canalizacion(var_categoria.get()) and var_unidad_item.get() != "Pieza(s)":
@@ -3156,33 +3213,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             except NameError:
                 pass
 
-        def seleccionar_material_axia(producto):
-            if var_requiere_canalizacion.get() != "Sí":
-                var_requiere_canalizacion.set("Sí")
-            # Reutiliza la fila vacía que el formulario crea inicialmente.
-            item = next((i for i in canalizacion_materiales_items
-                         if not i["cantidad"].get().strip() and not i.get("referencia_axia")), None)
-            if item is None:
-                agregar_partida_canalizacion("Otro AXIA")
-                item = canalizacion_materiales_items[-1]
-            categoria = categoria_canalizacion_axia(producto)
-            item["referencia_axia"] = referencia_axia(producto)
-            item["categoria"].set(categoria)
-            item["tipo"].set(f"{producto.get('codigo_axia', '')} · {producto.get('producto', '')}")
-            item["especificacion"].set(str(producto.get("familia_axia") or ""))
-            item["unidad"].set(unidad_forzada_canalizacion(categoria,
-                               unidad_levantamiento_axia(producto)))
-            for widget in item["widgets"][:3]:
-                widget.configure(state="disabled")
-            programar_actualizacion_estado_preview()
-
-        ctk.CTkButton(
-            seccion_canalizacion_dinamica, text="🔎 Buscar producto AXIA", height=32,
-            fg_color="#17648A",
-            command=lambda: buscar_producto_axia(seleccionar_material_axia,
-                titulo="Catálogo AXIA · Canalización"),
-        ).grid(row=1000, column=2, columnspan=2, sticky="w", padx=5, pady=(4,5))
-
         def actualizar_requiere_canalizacion(*_):
             habilitado = var_requiere_canalizacion.get() == "Sí"
             if not habilitado:
@@ -3201,6 +3231,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                         estado = "disabled"
                     if w is item.get("unidad_widget") and unidad_fija_canalizacion(item["categoria"].get()):
                         estado = "disabled"
+                    if w is item.get('selector_axia'):
+                        estado = 'normal' if habilitado else 'disabled' 
                     try: w.configure(state=estado)
                     except Exception: pass
         var_requiere_canalizacion.trace_add("write", actualizar_requiere_canalizacion)
@@ -3314,11 +3346,11 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     ).grid(row=0, column=0, columnspan=7, sticky="w", padx=7, pady=(5, 1))
     ctk.CTkLabel(
         seccion_equipos,
-        text="Selecciona familia y subfamilia; captura marca y modelo vigente. Así el catálogo no queda obsoleto.",
+        text="Selecciona productos del Catálogo Maestro AXIA. Captura cantidad y especificaciones.",
         font=FORM_FIELD_FONT, text_color=TEXT_SECONDARY, anchor="w", justify="left"
     ).grid(row=1, column=0, columnspan=7, sticky="w", padx=7, pady=(0, 4))
 
-    for col, encabezado in enumerate(("Familia", "Subfamilia", "Cantidad", "Marca", "Modelo", "Características técnicas", "Acción")):
+    for col, encabezado in enumerate(("Producto AXIA (Código y descripción)", "", "Cantidad", "Marca", "Modelo", "Características técnicas", "Acción")):
         ctk.CTkLabel(seccion_equipos, text=encabezado, font=FORM_TABLE_HEADER_FONT, text_color=TEXT_PRIMARY).grid(
             row=2, column=col, sticky="w", padx=4, pady=(0, 2)
         )
@@ -3391,28 +3423,32 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             *[w for w in seccion_equipos.grid_slaves(row=fila_eq) if w not in (btn_eliminar, om_familia, om_subfamilia)]
         ])
         equipos_catalogo_items.append(item_equipo)
+        om_familia.grid_remove()
+        om_subfamilia.grid_remove()
+        def seleccionar_equipo(producto):
+            item_equipo['referencia_axia'] = referencia_axia(producto)
+            var_familia_eq.set(str(producto.get('familia_axia') or 'Equipo AXIA'))
+            var_subfamilia_eq.set(f"{producto.get('codigo_axia', '')} · {producto.get('producto', '')}")
+            item_equipo['solo_catalogo'] = True
+        selector_axia = selector_producto_axia(seccion_equipos, seleccionar_equipo,
+                                                lambda: item_equipo.update(referencia_axia={}, solo_catalogo=True))
+        selector_axia.grid(row=fila_eq, column=0, columnspan=2, sticky='ew', padx=4, pady=2)
+        item_equipo['selector_axia'] = selector_axia
+        item_equipo['solo_catalogo'] = not bool(producto_axia)
+        item_equipo['widgets'].append(selector_axia)
         if producto_axia:
-            # El artículo maestro identifica la subfamilia; la cantidad sigue libre.
-            om_familia.configure(state='disabled')
-            om_subfamilia.configure(state='disabled')
+            selector_axia.mostrar_guardado(producto_axia.get('codigo_axia'), producto_axia.get('producto'))
 
     ctk.CTkButton(
         seccion_equipos, text="➕ Agregar equipo", height=32, fg_color=PRIMARY,
         command=agregar_equipo_catalogo
     ).grid(row=1000, column=0, columnspan=2, sticky="w", padx=5, pady=(4, 5))
 
-    ctk.CTkButton(
-        seccion_equipos, text="🔎 Buscar equipo AXIA", height=32, fg_color="#17648A",
-        command=lambda: buscar_producto_axia(
-            lambda producto: agregar_equipo_catalogo(producto),
-            titulo="Catálogo AXIA · Equipos principales"),
-    ).grid(row=1000, column=2, columnspan=2, sticky="w", padx=5, pady=(4,5))
-
     def obtener_equipos_catalogo_json():
         equipos = []
         for item in equipos_catalogo_items:
             familia = item["familia"].get().strip()
-            if not familia:
+            if not familia or (item.get('solo_catalogo') and not item.get('referencia_axia')):
                 continue
             equipos.append({
                 "familia": familia,
@@ -3459,11 +3495,11 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     ).grid(row=0, column=0, columnspan=5, sticky="w", padx=7, pady=(5, 1))
     ctk.CTkLabel(
         seccion_misc,
-        text="Agrega únicamente los materiales necesarios e indica cantidad, unidad y especificación para cotización.",
+        text="Selecciona materiales directamente del Almacén AXIA; registra cantidades y especificaciones.",
         font=FORM_FIELD_FONT, text_color=TEXT_SECONDARY, anchor="w", justify="left"
     ).grid(row=1, column=0, columnspan=5, sticky="w", padx=7, pady=(0, 4))
 
-    for col, encabezado in enumerate(("Material", "Cantidad", "Unidad", "Especificación / medida", "Acción")):
+    for col, encabezado in enumerate(("Producto AXIA", "Cantidad", "Unidad", "Especificación / medida", "Acción")):
         ctk.CTkLabel(seccion_misc, text=encabezado, font=FORM_TABLE_HEADER_FONT, text_color=TEXT_PRIMARY).grid(
             row=2, column=col, sticky="w", padx=5, pady=(0, 2)
         )
@@ -3517,6 +3553,27 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "especificacion": var_especificacion,
             "widgets": [entrada_material, entrada_cantidad, opcion_unidad, entrada_especificacion],
         }
+        entrada_material.grid_remove()
+        def seleccionar_material(producto):
+            item_material['referencia_axia'] = referencia_axia(producto)
+            var_material.set(f"{producto.get('codigo_axia', '')} · {producto.get('producto', '')}")
+            var_categoria.set(str(producto.get('categoria_axia') or 'Otro'))
+            var_unidad.set(unidad_levantamiento_axia(producto))
+            item_material['solo_catalogo'] = True
+        def limpiar_seleccion_material():
+            item_material['referencia_axia'] = {}
+            item_material['solo_catalogo'] = True
+            var_material.set('')
+        selector_axia = selector_producto_axia(seccion_misc, seleccionar_material,
+                                                limpiar_seleccion_material)
+        selector_axia.grid(row=fila, column=0, sticky='ew', padx=5, pady=2)
+        item_material['selector_axia'] = selector_axia
+        item_material['widgets'].append(selector_axia)
+        item_material['solo_catalogo'] = not bool(nombre_material)
+        if referencia:
+            selector_axia.mostrar_guardado(referencia.get('codigo_axia'), referencia.get('producto_axia'))
+        elif nombre_material:
+            selector_axia.mostrar_guardado('', nombre_material)
 
         def eliminar_material():
             for widget in item_material.get("widgets", []):
@@ -3534,77 +3591,11 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         item_material["widgets"].append(btn_eliminar)
         materiales_miscelaneos_items.append(item_material)
 
-    def seleccionar_misc_axia(producto):
-        agregar_material_miscelaneo({
-            "nombre": f"{producto.get('codigo_axia', '')} · {producto.get('producto', '')}",
-            "categoria": producto.get('categoria_axia', 'Otro'),
-            "unidad": unidad_levantamiento_axia(producto),
-            **producto,
-        })
-
     ctk.CTkButton(
-        seccion_misc, text="🔎 Buscar material AXIA", height=32,
-        fg_color="#17648A",
-        command=lambda: buscar_producto_axia(seleccionar_misc_axia,
-            titulo="Catálogo AXIA · Materiales y consumibles"),
-    ).grid(row=1001, column=0, columnspan=2, sticky="w", padx=5, pady=(2,5))
-
-    # En Tecnología se ofrece un catálogo rápido de insumos/consumibles.
-    # La captura manual se conserva para cualquier material no contemplado.
-    if tipo_levantamiento in ("Tecnología, Equipos y Periféricos", "General"):
-        _insumos_ti = sorted(
-            obtener_materiales_por_especialidad(tipo_levantamiento),
-            key=lambda x: str(x.get("nombre") or "").casefold(),
-        )
-        _insumos_por_nombre = {}
-        for _insumo in _insumos_ti:
-            _nombre = str(_insumo.get("nombre") or "").strip()
-            if not _nombre:
-                continue
-            _clave = _nombre
-            if _clave in _insumos_por_nombre:
-                _clave = f"{_nombre} · {_insumo.get('categoria', 'Otro')} · {_insumo.get('unidad', 'Pieza(s)')}"
-                _sufijo = 2
-                while _clave in _insumos_por_nombre:
-                    _clave = f"{_nombre} · {_insumo.get('categoria', 'Otro')} · {_insumo.get('unidad', 'Pieza(s)')} ({_sufijo})"
-                    _sufijo += 1
-            _insumos_por_nombre[_clave] = _insumo
-        _var_insumo_catalogo = ctk.StringVar(value=(next(iter(_insumos_por_nombre), "")))
-        _combo_insumo_catalogo = NativeComboBox(
-            seccion_misc, variable=_var_insumo_catalogo,
-            values=list(_insumos_por_nombre.keys()), height=31
-        )
-        # Un único selector compacto. No ocupar tres columnas ni deformar la tabla.
-        _combo_insumo_catalogo.configure(width=360)
-        _combo_insumo_catalogo.grid(row=998, column=0, columnspan=2, sticky="w", padx=5, pady=(5, 2))
-
-        def _agregar_insumo_seleccionado():
-            insumo = _insumos_por_nombre.get(_var_insumo_catalogo.get())
-            if not insumo:
-                return
-            nombre = str(insumo.get("nombre") or "").strip().casefold()
-            categoria = str(insumo.get("categoria") or "Otro").strip().casefold()
-            unidad = str(insumo.get("unidad") or "Pieza(s)").strip().casefold()
-            # Una segunda pulsación no debe crear otra fila vacía del mismo insumo.
-            # Si la anterior ya tiene cantidad, se permite otra partida (p. ej. otra medida).
-            for item in materiales_miscelaneos_items:
-                if (item["material"].get().strip().casefold() == nombre
-                        and item["categoria"].get().strip().casefold() == categoria
-                        and item["unidad"].get().strip().casefold() == unidad
-                        and not item["cantidad"].get().strip()):
-                    messagebox.showinfo("Material pendiente", "Este material ya está agregado y le falta la cantidad. Completa esa fila antes de volver a agregarlo.")
-                    return
-            agregar_material_miscelaneo(insumo)
-
-        ctk.CTkButton(
-            seccion_misc, text="➕ Agregar insumo del catálogo", height=31, fg_color=PRIMARY,
-            command=_agregar_insumo_seleccionado
-        ).grid(row=998, column=3, columnspan=2, sticky="ew", padx=5, pady=(5, 2))
-
-    ctk.CTkButton(
-        seccion_misc, text="➕ Agregar otro material", height=32, fg_color=PRIMARY,
+        seccion_misc, text="➕ Agregar producto AXIA", height=32, fg_color=PRIMARY,
         command=lambda: agregar_material_miscelaneo(None)
     ).grid(row=1000, column=0, columnspan=2, sticky="w", padx=5, pady=(4, 5))
+    agregar_material_miscelaneo()
 
     # Flujo dinámico exclusivo para Tecnología, Equipos y Periféricos.
     # - Suministro: solo información del producto/equipo; sin materiales ni mano de obra.
@@ -5620,8 +5611,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     item['referencia_axia'] = {k: fila.get(k, '') for k in (
                         'codigo_axia', 'producto_axia', 'categoria_axia',
                         'familia_axia', 'unidad_inventario_axia')}
-                    for widget in item['widgets'][:3]:
-                        widget.configure(state='disabled')
+                    item['selector_axia'].mostrar_guardado(fila.get('codigo_axia'), fila.get('producto_axia'))
+                else:
+                    item['solo_catalogo'] = False
+                    item['selector_axia'].mostrar_guardado('', fila.get('tipo'))
             except Exception:
                 logger.debug("No fue posible restaurar una partida de canalización.", exc_info=True)
         for fila in detalle.get("equipos_principales", []) if isinstance(detalle.get("equipos_principales"), list) else []:
@@ -5633,8 +5626,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     item['referencia_axia'] = {k: fila.get(k, '') for k in (
                         'codigo_axia', 'producto_axia', 'categoria_axia',
                         'familia_axia', 'unidad_inventario_axia')}
-                    for widget in item['widgets'][:2]:
-                        widget.configure(state='disabled')
+                    item['selector_axia'].mostrar_guardado(fila.get('codigo_axia'), fila.get('producto_axia'))
+                else:
+                    item['solo_catalogo'] = False
+                    item['selector_axia'].mostrar_guardado('', fila.get('subfamilia'))
             except Exception:
                 logger.debug("No fue posible restaurar un equipo principal.", exc_info=True)
         for fila in detalle.get("materiales_miscelaneos", []) if isinstance(detalle.get("materiales_miscelaneos"), list) else []:
@@ -5647,6 +5642,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     item['referencia_axia'] = {k: fila.get(k, '') for k in (
                         'codigo_axia', 'producto_axia', 'categoria_axia',
                         'familia_axia', 'unidad_inventario_axia')}
+                    item['selector_axia'].mostrar_guardado(fila.get('codigo_axia'), fila.get('producto_axia'))
+                else:
+                    item['solo_catalogo'] = False
             except Exception:
                 logger.debug("No fue posible restaurar un material misceláneo.", exc_info=True)
 

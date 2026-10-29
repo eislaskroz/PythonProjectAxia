@@ -28,7 +28,8 @@ const decode = (data: string): Uint8Array => {
   return Uint8Array.from(raw, (c) => c.charCodeAt(0));
 };
 async function emitirToken(id: string, alcance: string = 'almacen'): Promise<string> {
-  const payload = { uid: id, alcance, iat: Math.floor(Date.now()/1000), exp: Math.floor(Date.now()/1000) + 900 };
+  const ttl = alcance === 'levantamientos_lectura' ? 12 * 3600 : 900;
+  const payload = { uid: id, alcance, iat: Math.floor(Date.now()/1000), exp: Math.floor(Date.now()/1000) + ttl };
   const header = encode(encoder.encode(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));
   const body = encode(encoder.encode(JSON.stringify(payload)));
   const content = `${header}.${body}`;
@@ -51,7 +52,7 @@ async function verificarToken(value: string): Promise<{ uid: string; alcance: st
   if (header.alg !== 'HS256' || typeof payload.uid !== 'string' || !payload.uid ||
       !Number.isInteger(payload.exp) || payload.exp <= Date.now()/1000 ||
       !Number.isInteger(payload.iat) || payload.iat > Date.now()/1000 + 60 ||
-      payload.exp - payload.iat > 900) throw new Error('SESSION_INVALID');
+      payload.exp - payload.iat > (payload.alcance === 'levantamientos_lectura' ? 12 * 3600 : 900)) throw new Error('SESSION_INVALID');
   const alcance = payload.alcance === 'levantamientos_lectura' ? 'levantamientos_lectura' : 'almacen';
   return { uid: payload.uid, alcance };
 }
@@ -135,11 +136,13 @@ Deno.serve(async (request: Request) => {
       // Respuesta sin información comercial sensible: no enviar costos ni proveedores.
       const buscar = String(data.buscar ?? '').trim().slice(0, 100);
       const limite = Number(data.limite ?? 80);
-      if (!Number.isInteger(limite) || limite < 1 || limite > 100)
+      const pagina = Number(data.pagina ?? 1);
+      if (!Number.isInteger(limite) || limite < 1 || limite > 500 ||
+          !Number.isInteger(pagina) || pagina < 1 || pagina > 50)
         return reply(400,{ok:false,error:'Límite de consulta inválido.'});
       let consulta = db.from(tabla)
         .select('codigo_axia,producto,categoria_axia,familia_axia,departamento_origen,unidad_inventario,saldo_actual')
-        .eq('activo', true).order('producto').limit(limite);
+        .eq('activo', true).order('codigo_axia').range((pagina-1)*limite, pagina*limite - 1);
       if (buscar) {
         // Evita inyectar filtros PostgREST en la cadena .or().
         const limpio = buscar.replace(/[^\p{L}\p{N} _\-]/gu, ' ').trim().slice(0,80);

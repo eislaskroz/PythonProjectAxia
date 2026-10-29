@@ -48,15 +48,44 @@ def test_no_permiso_escritura_en_sesion_lectura():
     assert edge.index("session.alcance === 'levantamientos_lectura'") < edge.index("if (accion === 'catalogo')")
 
 
-def test_tres_catalogos_guardan_codigo_y_siguen_teniendo_captura_manual():
+def test_lev_cat_maestro_directo_tres_secciones_sin_botones_viejos():
     view = (ROOT/'views/levantamiento_view.py').read_text(encoding='utf-8')
-    assert 'Buscar producto AXIA' in view
-    assert 'Buscar equipo AXIA' in view
-    assert 'Buscar material AXIA' in view
+    login = (ROOT/'login.py').read_text(encoding='utf-8')
+    assert 'Buscar producto AXIA' not in view
+    assert 'Buscar equipo AXIA' not in view
+    assert 'Buscar material AXIA' not in view
+    assert view.count('selector_producto_axia(') >= 4
+    assert 'catalogo_axia_lectura.todos' in view
+    assert 'establecer_sesion_catalogo(resultado.get("token_catalogo")' in login
     assert view.count('**item.get("referencia_axia", {})') >= 3
-    assert 'agregar_material_miscelaneo(None)' in view
-    assert 'agregar_equipo_catalogo' in view
     assert '"canalizacion_materiales"' in view
+
+
+def test_la_sesion_lev_se_establece_con_login_normal_y_consulta_paginada(monkeypatch):
+    import services.levantamiento_catalogo_axia as modulo
+    modulo.establecer_sesion_catalogo('token-lectura', 24)
+    from services.almacen_service import AlmacenRemoto
+    monkeypatch.setattr(AlmacenRemoto, '__init__', lambda self: setattr(self, 'token', None))
+    servicio = modulo.CatalogoAxiaLevantamientos(24)
+    assert servicio.token == 'token-lectura'
+    llamadas = []
+    def fake_peticion(accion, datos):
+        llamadas.append((accion,datos))
+        return [{'codigo_axia': str(i)} for i in range(500)] if len(llamadas)==1 else [{'codigo_axia':'FIN'}]
+    monkeypatch.setattr(servicio, '_peticion', fake_peticion)
+    datos = servicio.todos()
+    assert len(datos) == 501
+    assert [args['pagina'] for _,args in llamadas] == [1,2]
+    assert all(accion == 'catalogo_levantamientos' for accion,_ in llamadas)
+    assert modulo.CatalogoAxiaLevantamientos(99).token is None
+    modulo.establecer_sesion_catalogo(None, None)
+
+
+def test_consulta_tiene_paginas_y_sesion_extendida_solo_para_lectura():
+    edge = (ROOT/'supabase/functions/axia-almacen/index.ts').read_text(encoding='utf-8')
+    assert "alcance === 'levantamientos_lectura' ? 12 * 3600 : 900" in edge
+    assert "accion !== 'catalogo_levantamientos'" in edge
+    assert ".range((pagina-1)*limite, pagina*limite - 1)" in edge
 
 
 def test_no_se_invoca_registrar_movimientos_desde_levantamientos():

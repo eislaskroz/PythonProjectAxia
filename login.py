@@ -489,7 +489,22 @@ def abrir_login():
                     region=ubicacion["region"],
                     pais=ubicacion["pais"],
                 )
-                return {"acceso": True, "usuario": usuario, "ubicacion": ubicacion}
+                # Misma contraseña del inicio normal: sesión de solo lectura para
+                # el catálogo maestro. Nunca se conserva ni se pide otra vez.
+                token_catalogo = None
+                try:
+                    if int(usuario.get('usu_tipo') or 0) in (1, 2, 3, 4, 5, 6):
+                        from services.levantamiento_catalogo_axia import CatalogoAxiaLevantamientos
+                        lectura = CatalogoAxiaLevantamientos()
+                        lectura.iniciar_lectura(nickname, password, usuario.get("id_usuario"))
+                        token_catalogo = lectura.token
+                except Exception:
+                    # Si el catálogo falla, no se impide acceder a AXIA.
+                    # Al abrir un levantamiento se verá el error de consulta.
+                    from core.logger import configurar_logger
+                    configurar_logger(__name__).warning("Catálogo AXIA de solo lectura no disponible en login.", exc_info=True)
+                return {"acceso": True, "usuario": usuario, "ubicacion": ubicacion,
+                        "token_catalogo": token_catalogo}
 
             servicios["registrar_bitacora_login"](
                 id_usuario=None,
@@ -530,6 +545,8 @@ def abrir_login():
             registrar_exito(nickname)
 
             usuario = resultado["usuario"]
+            from services.levantamiento_catalogo_axia import establecer_sesion_catalogo
+            establecer_sesion_catalogo(resultado.get("token_catalogo"), usuario.get("id_usuario"))
             establecer_usuario_actual(
                 id_usuario=usuario.get("id_usuario"),
                 usuario=usuario.get("usu_nickname"),
