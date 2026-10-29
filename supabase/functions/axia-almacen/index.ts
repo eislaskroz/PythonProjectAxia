@@ -110,12 +110,84 @@ Deno.serve(async (request: Request) => {
     const accionBase = laboratorio ? accion.slice(0,-4) : accion;
     const tablaProductos = laboratorio ? 'axia_almacen_lab_productos' : 'axia_almacen_productos';
     const tablaMovimientos = laboratorio ? 'axia_almacen_lab_movimientos' : 'axia_almacen_movimientos';
+    // Gestión del catálogo: sesión AXIA validada, sin claves privilegiadas en DESKTOP.
+    // Producción requiere además aprobación explícita del catálogo.
+    if (['crear_producto','editar_producto','desactivar_producto','reactivar_producto'].includes(accionBase)) {
+      if (!laboratorio) {
+        const { data: config, error: ec } = await db.from('axia_almacen_config')
+          .select('catalogo_autorizado').eq('id',1).single();
+        if (ec) throw ec;
+        if (!config?.catalogo_autorizado)
+          return reply(403,{ok:false,error:'El catálogo real no está autorizado. Trabaja en simulador o laboratorio.'});
+      }
+      const codigo = String(data.codigo ?? (data.producto as Record<string, unknown> | null)?.codigo ?? '').trim();
+      if (codigo.length < 1 || codigo.length > 120)
+        return reply(400,{ok:false,error:'Código inválido.'});
+
+      if (['crear_producto','editar_producto'].includes(accionBase)) {
+        const p = (data.producto ?? {}) as Record<string,unknown>;
+        const nombre = String(p.producto ?? '').trim();
+        const departamento = String(p.departamento ?? 'SIN DEPARTAMENTO').trim();
+        const numero = (v: unknown, decimales: number): number | null => {
+          const str = String(v ?? '0').trim();
+          if (!/^\d+(?:\.\d+)?$/.test(str)) return null;
+          const n = Number(str);
+          if (!Number.isFinite(n) || n < 0 || n > 999999999999 ||
+              Math.abs(n * 10**decimales - Math.round(n * 10**decimales)) > 0.0001) return null;
+          return n;
+        };
+        const costo = numero(p.costo,2), venta = numero(p.venta,2);
+        const minimo = numero(p.minimo,3), maximo = numero(p.maximo,3);
+        if (!nombre || nombre.length > 500 || !departamento || departamento.length > 150 ||
+            [costo,venta,minimo,maximo].some((n)=>n===null) ||
+            String(p.codigo ?? '').trim() !== codigo)
+          return reply(400,{ok:false,error:'Datos del producto incorrectos. Revisa nombre y valores numéricos.'});
+        const changes = {nombre,departamento,costo,precio_venta:venta,minimo,maximo,actualizado_en:new Date().toISOString()};
+        if (accionBase === 'crear_producto') {
+          const {data: inserted,error: ei} = await db.from(tablaProductos)
+            .insert({codigo,...changes}).select('codigo,nombre').single();
+          if (ei) {
+            if (ei.code === '23505') return reply(409,{ok:false,error:'Ya existe ese código, incluso si está desactivado.'});
+            throw ei;
+          }
+          return reply(200,{ok:true,resultado: inserted});
+        }
+        const {data: updated,error: eu} = await db.from(tablaProductos)
+          .update(changes).eq('codigo',codigo).eq('activo',true).select('codigo,nombre').maybeSingle();
+        if (eu) throw eu;
+        if (!updated) return reply(404,{ok:false,error:'Producto no localizado o desactivado.'});
+        return reply(200,{ok:true,resultado:updated});
+      }
+      if (accionBase === 'desactivar_producto') {
+        // RPC serializa con movimientos sobre la misma fila; jamás borrar historial.
+        const {data: disabled,error: ed} = await db.rpc(
+          laboratorio ? 'axia_almacen_lab_desactivar_producto' : 'axia_almacen_desactivar_producto',
+          {p_codigo:codigo});
+        if (ed) {
+          if (String(ed.message).includes('SALDO_NO_CERO'))
+            return reply(409,{ok:false,error:'No puedes quitar un producto con existencia. Regulariza primero el saldo.'});
+          if (String(ed.message).includes('PRODUCTO_NO_ENCONTRADO'))
+            return reply(404,{ok:false,error:'Producto no localizado o ya desactivado.'});
+          throw ed;
+        }
+        return reply(200,{ok:true,resultado:{codigo,activo:false,actualizado:Boolean(disabled)}});
+      }
+      const {data: restored,error: er} = await db.from(tablaProductos)
+        .update({activo:true,actualizado_en:new Date().toISOString()})
+        .eq('codigo',codigo).eq('activo',false).select('codigo').maybeSingle();
+      if (er) throw er;
+      if (!restored) return reply(404,{ok:false,error:'Producto no localizado o ya activo.'});
+      return reply(200,{ok:true,resultado:{codigo,activo:true}});
+    }
+
     if (accionBase === 'catalogo') {
+      const incluirInactivos = data.incluir_inactivos === true;
       const listado: Record<string, unknown>[] = [];
       for (let start = 0; start < 20000; start += 1000) {
-        const {data: rows, error} = await db.from(tablaProductos)
-          .select(laboratorio ? 'codigo,nombre,departamento,costo,precio_venta,minimo,maximo,saldo,saldo_exportado' : 'codigo,nombre,departamento,costo,precio_venta,minimo,maximo,saldo')
-          .order('codigo').range(start, start + 999);
+        let query = db.from(tablaProductos)
+          .select(laboratorio ? 'codigo,nombre,departamento,costo,precio_venta,minimo,maximo,saldo,saldo_exportado,activo' : 'codigo,nombre,departamento,costo,precio_venta,minimo,maximo,saldo,activo');
+        if (!incluirInactivos) query = query.eq('activo',true);
+        const {data: rows, error} = await query.order('codigo').range(start, start + 999);
         if (error) throw error;
         listado.push(...(rows ?? []));
         if (!rows || rows.length < 1000) break;
@@ -123,7 +195,7 @@ Deno.serve(async (request: Request) => {
       const result = listado.map((p) => ({
         codigo: p.codigo, producto: p.nombre, departamento: p.departamento,
         costo: p.costo, venta: p.precio_venta, minimo:p.minimo, maximo:p.maximo,
-        saldo:p.saldo, saldo_exportado: laboratorio ? p.saldo_exportado : null,
+        saldo:p.saldo, saldo_exportado: laboratorio ? p.saldo_exportado : null, activo:p.activo,
       }));
       return reply(200, {ok:true, resultado: result});
     }
@@ -166,6 +238,10 @@ Deno.serve(async (request: Request) => {
           !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idempotencia)) {
         return reply(400, {ok:false,error:'Datos incompletos o inválidos.'});
       }
+      const {data: productActivo, error: ap} = await db.from(tablaProductos)
+        .select('activo').eq('codigo',codigo).maybeSingle();
+      if (ap) throw ap;
+      if (!productActivo?.activo) return reply(409,{ok:false,error:'El producto no existe o fue desactivado.'});
       const {data: registrado, error} = await db.rpc(
         laboratorio ? 'axia_almacen_lab_registrar_movimiento' : 'axia_almacen_registrar_movimiento', {
         p_codigo:codigo,p_tipo:tipo,p_cantidad:cantidad,p_motivo:motivo,
@@ -179,7 +255,7 @@ Deno.serve(async (request: Request) => {
         if (msg.includes('ALMACEN_NO_HABILITADO')) return reply(409,{ok:false,error:'Los movimientos reales aún NO están autorizados. Se necesita catálogo validado y fecha de corte.'});
         if (msg.includes('EXISTENCIA_INSUFICIENTE')) return reply(409,{ok:false,error:'Existencia insuficiente para la salida solicitada.'});
         if (msg.includes('IDEMPOTENCIA_CON_DATOS_DISTINTOS')) return reply(409,{ok:false,error:'Solicitud duplicada con datos diferentes.'});
-        if (msg.includes('MOVIMIENTO_INVALIDO') || msg.includes('PRODUCTO_NO_ENCONTRADO')) return reply(400,{ok:false,error:'Movimiento o producto inválido.'});
+        if (msg.includes('MOVIMIENTO_INVALIDO') || msg.includes('PRODUCTO_NO_ENCONTRADO') || msg.includes('PRODUCTO_INACTIVO')) return reply(400,{ok:false,error:'Movimiento o producto inválido.'});
         throw error;
       }
       return reply(200, {ok:true,resultado:{...registrado,codigo,tipo,producto:'',

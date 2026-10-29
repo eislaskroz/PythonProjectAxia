@@ -41,13 +41,36 @@ def formatear_cantidad(value) -> str:
     return format(Decimal(str(value)).quantize(Decimal('0.001')), 'f').rstrip('0').rstrip('.') or '0'
 
 
+
+def validar_producto(datos: dict) -> dict:
+    """Normaliza y valida datos maestros; nunca edita existencias por catálogo."""
+    codigo = str(datos.get('codigo') or '').strip()
+    nombre = str(datos.get('producto') or datos.get('nombre') or '').strip()
+    departamento = str(datos.get('departamento') or 'SIN DEPARTAMENTO').strip()
+    if not 1 <= len(codigo) <= 120 or not 1 <= len(nombre) <= 500:
+        raise ValueError('Código (1-120) y nombre (1-500) son obligatorios.')
+    if not 1 <= len(departamento) <= 150:
+        raise ValueError('El departamento debe tener entre 1 y 150 caracteres.')
+
+    normalized = {'codigo': codigo, 'producto': nombre, 'departamento': departamento}
+    for campo, escala in (('costo', 2), ('venta', 2), ('minimo', 3), ('maximo', 3)):
+        bruto = str(datos.get(campo, 0) or '0').replace('$', '').replace(',', '').strip()
+        valor = _valor_decimal(bruto)
+        if not valor.is_finite() or not (0 <= valor <= Decimal('999999999999')):
+            raise ValueError(f'{campo}: introduce un número positivo válido.')
+        if valor != valor.quantize(Decimal('1').scaleb(-escala)):
+            raise ValueError(f'{campo}: máximo {escala} decimales.')
+        normalized[campo] = format(valor, f'.{escala}f')
+    return normalized
+
+
 class AlmacenSimulador:
     """Pruebas en memoria. Saldos empiezan siempre desde CERO; sin persistencia."""
 
     remoto = False
 
     def __init__(self, catalogo: list[dict] | None = None):
-        self._catalogo = [dict(p) for p in (catalogo if catalogo is not None else catalogo_eleventa())]
+        self._catalogo = [{**dict(p), 'activo': bool(p.get('activo', True))} for p in (catalogo if catalogo is not None else catalogo_eleventa())]
         self._por_codigo = {str(p['codigo']).strip(): p for p in self._catalogo}
         if len(self._por_codigo) != len(self._catalogo):
             raise ValueError('Hay códigos duplicados en el catálogo. No se permite iniciar movimientos de prueba.')
@@ -56,12 +79,62 @@ class AlmacenSimulador:
         self._idempotencias: dict[str, dict] = {}
         self._lock = Lock()
 
-    def catalogo(self) -> list[dict]:
+    def catalogo(self, incluir_inactivos=False) -> list[dict]:
         return [
             {**p, 'saldo': formatear_cantidad(self._saldos.get(str(p['codigo']).strip(), 0)),
              'saldo_exportado': p.get('existencia', '')}
-            for p in self._catalogo
+            for p in self._catalogo if incluir_inactivos or p.get('activo', True)
         ]
+
+    def crear_producto(self, *, datos: dict, usuario: dict) -> dict:
+        self._autorizar_catalogo(usuario)
+        validado = validar_producto(datos)
+        with self._lock:
+            codigo = validado['codigo']
+            if codigo in self._por_codigo:
+                raise ValueError('Ese código ya existe (incluso si está desactivado).')
+            p = {**validado, 'activo': True, 'existencia': '0'}
+            self._catalogo.append(p)
+            self._por_codigo[codigo] = p
+            return dict(p)
+
+    def editar_producto(self, *, codigo: str, datos: dict, usuario: dict) -> dict:
+        self._autorizar_catalogo(usuario)
+        validado = validar_producto({**datos, 'codigo': codigo})
+        if str(datos.get('codigo', codigo)).strip() != codigo:
+            raise ValueError('El código no puede cambiar: identifica los movimientos del Kardex.')
+        with self._lock:
+            p = self._por_codigo.get(codigo)
+            if not p or not p.get('activo', True):
+                raise ValueError('No se encontró un producto activo con ese código.')
+            p.update(validado)
+            return dict(p)
+
+    def desactivar_producto(self, *, codigo: str, usuario: dict) -> dict:
+        self._autorizar_catalogo(usuario)
+        with self._lock:
+            p = self._por_codigo.get(codigo)
+            if not p or not p.get('activo', True):
+                raise ValueError('El producto ya no existe en el catálogo activo.')
+            if self._saldos.get(codigo, Decimal('0')) != 0:
+                raise ValueError('No se puede quitar un producto con existencia. Primero regulariza el saldo mediante movimientos.')
+            p['activo'] = False
+            return dict(p)
+
+    def reactivar_producto(self, *, codigo: str, usuario: dict) -> dict:
+        self._autorizar_catalogo(usuario)
+        with self._lock:
+            p = self._por_codigo.get(codigo)
+            if not p or p.get('activo', True):
+                raise ValueError('Selecciona un producto desactivado.')
+            p['activo'] = True
+            return dict(p)
+
+    @staticmethod
+    def _autorizar_catalogo(usuario):
+        from security.permissions import puede_ver_almacen
+        if not puede_ver_almacen(usuario) or not usuario.get('id_usuario'):
+            raise PermissionError('Solo Administrador o Almacén autenticado puede gestionar productos.')
 
     def kardex(self, codigo: str | None = None) -> list[dict]:
         return [dict(m) for m in reversed(self._movimientos)
@@ -78,8 +151,8 @@ class AlmacenSimulador:
             raise ValueError('El movimiento debe ser ENTRADA o SALIDA.')
         qty = cantidad_valida(cantidad)
         codigo = str(codigo).strip()
-        if codigo not in self._por_codigo:
-            raise ValueError('Selecciona un producto válido del catálogo.')
+        if codigo not in self._por_codigo or not self._por_codigo[codigo].get('activo', True):
+            raise ValueError('Selecciona un producto activo del catálogo.')
         motivo = str(motivo).strip()
         referencia = str(referencia).strip()
         destinatario = str(destinatario).strip()
@@ -167,11 +240,35 @@ class AlmacenRemoto:
         self.token = result['token']
         self._usuario_id = str(expected_id)
 
-    def catalogo(self):
-        return self._peticion('catalogo' + self._sufijo)
+    def catalogo(self, incluir_inactivos=False):
+        return self._peticion('catalogo' + self._sufijo, {'incluir_inactivos': bool(incluir_inactivos)})
 
     def kardex(self, codigo=None):
         return self._peticion('kardex' + self._sufijo, {'codigo': codigo or None})
+
+
+    def _comprobar_usuario(self, usuario):
+        if str(usuario.get('id_usuario')) != self._usuario_id:
+            raise PermissionError('Se ha cambiado de usuario. Inicia sesión otra vez.')
+
+    def crear_producto(self, *, datos: dict, usuario: dict):
+        self._comprobar_usuario(usuario)
+        return self._peticion('crear_producto' + self._sufijo, {'producto': validar_producto(datos)})
+
+    def editar_producto(self, *, codigo: str, datos: dict, usuario: dict):
+        self._comprobar_usuario(usuario)
+        validado = validar_producto({**datos, 'codigo': codigo})
+        if str(datos.get('codigo', codigo)).strip() != codigo:
+            raise ValueError('No se permite cambiar el código de un producto registrado.')
+        return self._peticion('editar_producto' + self._sufijo, {'codigo': codigo, 'producto': validado})
+
+    def desactivar_producto(self, *, codigo: str, usuario: dict):
+        self._comprobar_usuario(usuario)
+        return self._peticion('desactivar_producto' + self._sufijo, {'codigo': str(codigo)})
+
+    def reactivar_producto(self, *, codigo: str, usuario: dict):
+        self._comprobar_usuario(usuario)
+        return self._peticion('reactivar_producto' + self._sufijo, {'codigo': str(codigo)})
 
     def registrar(self, *, codigo, tipo, cantidad, motivo, referencia, destinatario, usuario, idempotencia=None):
         if str(usuario.get('id_usuario')) != self._usuario_id:

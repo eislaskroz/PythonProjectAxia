@@ -80,7 +80,7 @@ def mostrar_almacen(parent, app=None):
 
     ctk.CTkLabel(
         cab,
-        text='AXIA ALMACÉN · Entradas, salidas y Kardex · Etapa 3',
+        text='AXIA ALMACÉN · Catálogo, entradas, salidas y Kardex',
         font=TITLE_MD,
         text_color=TEXT_PRIMARY,
         anchor='w'
@@ -160,7 +160,7 @@ def mostrar_almacen(parent, app=None):
 
     # -------- CATÁLOGO --------
     t_catalogo.grid_columnconfigure(0, weight=1)
-    t_catalogo.grid_rowconfigure(2, weight=1)
+    t_catalogo.grid_rowconfigure(3, weight=1)
 
     barra = ctk.CTkFrame(t_catalogo, fg_color='transparent')
     barra.grid(row=0, column=0, sticky='ew', padx=7, pady=6)
@@ -250,6 +250,30 @@ def mostrar_almacen(parent, app=None):
     )
     btn_actualizar.grid(row=0, column=2, padx=(4, 0))
 
+    # Gestión de productos. Los cambios de catálogo nunca sustituyen movimientos.
+    acciones = ctk.CTkFrame(t_catalogo, fg_color='transparent')
+    acciones.grid(row=1, column=0, sticky='ew', padx=8, pady=(0, 5))
+    var_inactivos = ctk.BooleanVar(value=False)
+
+    def boton_producto(texto, columna, callback, color=SECONDARY):
+        btn = ctk.CTkButton(
+            acciones, text=texto, width=138, height=36, corner_radius=10,
+            fg_color=color, hover_color=BUTTON_HOVER, font=('Segoe UI', 12),
+            command=callback
+        )
+        btn.grid(row=0, column=columna, padx=(0, 7), pady=2)
+        return btn
+
+    boton_producto('+ Nuevo producto', 0, lambda: abrir_editor_producto())
+    boton_producto('Editar producto', 1, lambda: abrir_editor_producto(editar=True))
+    boton_producto('Quitar producto', 2, lambda: cambiar_estado_producto(False), color='#A72D37')
+    boton_producto('Reactivar', 3, lambda: cambiar_estado_producto(True))
+    ctk.CTkCheckBox(
+        acciones, text='Mostrar inactivos', variable=var_inactivos,
+        command=lambda: cargar_catalogo(), font=('Segoe UI', 12),
+        text_color=TEXT_PRIMARY
+    ).grid(row=0, column=4, sticky='w', padx=(12, 0))
+
     ayuda = ctk.CTkLabel(
         t_catalogo,
         text=(
@@ -259,12 +283,13 @@ def mostrar_almacen(parent, app=None):
         text_color=TEXT_SECONDARY,
         anchor='w'
     )
-    ayuda.grid(row=1, column=0, sticky='ew', padx=8, pady=(0, 4))
+    ayuda.grid(row=2, column=0, sticky='ew', padx=8, pady=(0, 4))
 
     tabla = NativeTreeTable(
         t_catalogo,
         columns=(
             ('codigo', 'Código', 150),
+            ('estado', 'Estado', 105),
             ('producto', 'Producto', 320),
             ('departamento', 'Departamento', 150),
             ('saldo', 'Saldo actual', 110),
@@ -275,7 +300,7 @@ def mostrar_almacen(parent, app=None):
         ),
         height=17
     )
-    tabla.grid(row=2, column=0, sticky='nsew', padx=7, pady=5)
+    tabla.grid(row=3, column=0, sticky='nsew', padx=7, pady=5)
 
     seleccionado_txt = ctk.CTkLabel(
         t_catalogo,
@@ -284,7 +309,7 @@ def mostrar_almacen(parent, app=None):
         anchor='w'
     )
     seleccionado_txt.grid(
-        row=3,
+        row=4,
         column=0,
         sticky='ew',
         padx=8,
@@ -567,6 +592,130 @@ def mostrar_almacen(parent, app=None):
 
         run_async(root.winfo_toplevel(), tarea, on_success, err)
 
+    def producto_seleccionado():
+        p = tabla.selected_payload()
+        if not p:
+            messagebox.showwarning('Almacén', 'Selecciona primero un producto de la tabla.')
+        return p
+
+    def cambiar_estado_producto(reactivar=False):
+        p = producto_seleccionado()
+        if not p:
+            return
+        codigo = str(p['codigo'])
+        activo = bool(p.get('activo', True))
+        if reactivar and activo:
+            messagebox.showinfo('Almacén', 'El producto ya está activo.')
+            return
+        if not reactivar and not activo:
+            messagebox.showinfo('Almacén', 'El producto ya está desactivado.')
+            return
+        if not reactivar:
+            try:
+                if float(str(p.get('saldo', 0) or '0')) != 0:
+                    messagebox.showwarning('Almacén', 'No puedes quitar un producto con existencia. Registra primero la salida o regularización correspondiente.')
+                    return
+            except (ValueError, TypeError):
+                messagebox.showerror('Almacén', 'No se pudo comprobar el saldo del artículo.')
+                return
+        texto = ('Reactivar' if reactivar else 'Quitar del catálogo activo')
+        if not messagebox.askyesno(
+            'Confirmar cambio de catálogo',
+            f'{texto}: {codigo}\n{p.get("producto", "")}\n\n'
+            'Esta acción no modifica existencias ni borra el Kardex.\n'
+            + ('El artículo volverá a estar disponible.' if reactivar
+               else 'Se podrá reactivar más adelante desde el catálogo.')
+        ):
+            return
+        op = servicio.reactivar_producto if reactivar else servicio.desactivar_producto
+        def ok(_):
+            status.configure(text=f'Producto {codigo} actualizado.', text_color='#15803D')
+            cargar_catalogo()
+        ejecutar(lambda: op(codigo=codigo, usuario=usuario), ok, 'No se pudo actualizar el producto')
+
+    def abrir_editor_producto(editar=False):
+        registro = producto_seleccionado() if editar else None
+        if editar and not registro:
+            return
+        if editar and not registro.get('activo', True):
+            messagebox.showwarning('Almacén', 'Reactiva el producto antes de editarlo.')
+            return
+        ventana = ctk.CTkToplevel(root)
+        ventana.title('AXIA Almacén · ' + ('Editar producto' if editar else 'Nuevo producto'))
+        ventana.geometry('665x475')
+        ventana.minsize(600, 450)
+        ventana.transient(root.winfo_toplevel())
+        ventana.grid_columnconfigure(1, weight=1)
+        entradas_producto = {}
+        campos_def = (
+            ('codigo', 'Código *'), ('producto', 'Nombre del producto *'),
+            ('departamento', 'Departamento'), ('costo', 'Precio de costo'),
+            ('venta', 'Precio de venta'), ('minimo', 'Existencia mínima'),
+            ('maximo', 'Existencia máxima'),
+        )
+        ctk.CTkLabel(
+            ventana, text='Datos del producto', font=TITLE_MD, text_color=TEXT_PRIMARY
+        ).grid(row=0,column=0,columnspan=2,sticky='w',padx=20,pady=(16,8))
+        for index, (campo, leyenda) in enumerate(campos_def, start=1):
+            ctk.CTkLabel(ventana, text=leyenda, anchor='w', text_color=TEXT_PRIMARY).grid(
+                row=index, column=0, sticky='w', padx=(20,10), pady=5)
+            entry = AxiaEntry(ventana,height=33)
+            entry.grid(row=index,column=1,sticky='ew',padx=(0,20),pady=5)
+            valor = registro.get(campo) if registro else None
+            if valor is None and campo in ('costo','venta','minimo','maximo'):
+                valor = '0'
+            if valor is not None:
+                entry.insert(0,str(valor).replace('$','').replace(',',''))
+            if editar and campo=='codigo':
+                entry.configure(state='disabled')
+            entradas_producto[campo]=entry
+
+        ctk.CTkLabel(
+            ventana,
+            text='Las existencias se modifican únicamente desde Entradas y Salidas.\n'
+                 'El código no se cambia al editar para proteger el historial de movimientos.',
+            text_color=TEXT_SECONDARY, justify='left', anchor='w'
+        ).grid(row=8,column=0,columnspan=2,sticky='w',padx=20,pady=(8,5))
+        controles = ctk.CTkFrame(ventana,fg_color='transparent')
+        controles.grid(row=9,column=0,columnspan=2,sticky='e',padx=20,pady=(5,16))
+        ctk.CTkButton(
+            controles,text='Cancelar',width=100,fg_color='#64748B',
+            command=ventana.destroy
+        ).pack(side='left',padx=(0,10))
+
+        def guardar_producto():
+            datos={k: w.get().strip() if not (editar and k=='codigo')
+                   else str(registro['codigo']) for k,w in entradas_producto.items()}
+            try:
+                from services.almacen_service import validar_producto
+                validos=validar_producto(datos)
+            except ValueError as exc:
+                messagebox.showwarning('Revisa el producto',str(exc),parent=ventana)
+                return
+            if not messagebox.askyesno('Confirmación',
+                    ('Guardar cambios de' if editar else 'Agregar') +
+                    f'\n{validos["codigo"]} · {validos["producto"]}?',parent=ventana):
+                return
+            btn_guardar.configure(state='disabled')
+            operacion = servicio.editar_producto if editar else servicio.crear_producto
+            args={'datos':validos,'usuario':usuario}
+            if editar:
+                args['codigo']=str(registro['codigo'])
+            def ok(_):
+                if ventana.winfo_exists():
+                    ventana.destroy()
+                status.configure(text='Producto guardado correctamente.',text_color='#15803D')
+                cargar_catalogo()
+            def err(exc):
+                if ventana.winfo_exists():
+                    btn_guardar.configure(state='normal')
+                messagebox.showerror('No se guardó el producto',str(exc))
+            run_async(root.winfo_toplevel(),lambda:operacion(**args),ok,err)
+
+        btn_guardar=ctk.CTkButton(controles,text='Guardar producto',width=145,command=guardar_producto)
+        btn_guardar.pack(side='left')
+        ventana.after(70,lambda:ventana.grab_set() if ventana.winfo_exists() else None)
+
     def inicializar():
         if not servicio.remoto:
             cargar_catalogo()
@@ -620,6 +769,7 @@ def mostrar_almacen(parent, app=None):
         tabla.set_rows([
             {
                 **r,
+                'estado': 'Activo' if r.get('activo', True) else 'Inactivo',
                 'costo': _moneda(r.get('costo')),
                 'saldo_exportado': r.get('saldo_exportado', '—')
             }
@@ -653,7 +803,7 @@ def mostrar_almacen(parent, app=None):
                 )
 
         ejecutar(
-            servicio.catalogo,
+            lambda: servicio.catalogo(incluir_inactivos=bool(var_inactivos.get())),
             ok,
             'No se pudo consultar el catálogo'
         )
@@ -664,7 +814,8 @@ def mostrar_almacen(parent, app=None):
         for formulario, _ in entradas.values():
             campo = formulario['codigo']
             campo.delete(0, 'end')
-            campo.insert(0, codigo)
+            if registro.get('activo', True):
+                campo.insert(0, codigo)
 
         buscar_k.delete(0, 'end')
         buscar_k.insert(0, codigo)
@@ -689,7 +840,7 @@ def mostrar_almacen(parent, app=None):
             None
         )
 
-        if not producto:
+        if not producto or not producto.get('activo', True):
             messagebox.showwarning(
                 'Producto no localizado',
                 'El código debe coincidir con un producto del catálogo.'
