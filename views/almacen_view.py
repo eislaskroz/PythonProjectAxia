@@ -563,10 +563,31 @@ def mostrar_almacen(parent, app=None):
     intento_ot = {'firma':None,'id':None}
 
     def representar_partidas_ot():
-        tabla_ot.set_rows([{**p,'producto': next((r.get('producto','') for r in registros
+        filas = [{**p,'producto': next((r.get('producto','') for r in registros
             if str(r.get('codigo'))==p['codigo']),''),
              'saldo':next((r.get('saldo','0') for r in registros if str(r.get('codigo'))==p['codigo']),'0')}
-             for p in partidas_ot])
+             for p in partidas_ot]
+        tabla_ot.set_rows(filas)
+
+        def _numero_stock(value):
+            try:
+                return float(str(value or '0').replace(',', '').strip())
+            except (TypeError, ValueError):
+                return 0.0
+
+        tabla_ot.tree.tag_configure('stock_faltante', background='#FEE2E2', foreground='#991B1B')
+        tabla_ot.tree.tag_configure('stock_parcial', background='#FFEDD5', foreground='#9A3412')
+        tabla_ot.tree.tag_configure('stock_completo', background='#DCFCE7', foreground='#166534')
+        for iid, fila in zip(tabla_ot.tree.get_children(), filas):
+            cantidad = _numero_stock(fila.get('cantidad'))
+            saldo = _numero_stock(fila.get('saldo'))
+            if saldo <= 0:
+                tag = 'stock_faltante'
+            elif saldo >= cantidad:
+                tag = 'stock_completo'
+            else:
+                tag = 'stock_parcial'
+            tabla_ot.tree.item(iid, tags=(tag,))
         revision_ot.set(False)
 
     def agregar_partida_ot():
