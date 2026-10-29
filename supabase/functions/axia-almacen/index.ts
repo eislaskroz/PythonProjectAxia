@@ -66,7 +66,7 @@ Deno.serve(async (request: Request) => {
   if (request.method !== 'POST') return reply(405, { ok:false, error: 'Método no permitido.' });
   try {
     const text = await request.text();
-    if (text.length > 8000) return reply(413, {ok:false, error:'Solicitud demasiado extensa.'});
+    if (text.length > 16000) return reply(413, {ok:false, error:'Solicitud demasiado extensa.'});
     let data: Record<string, unknown>;
     try { data = JSON.parse(text); } catch { return reply(400, {ok:false, error:'Solicitud inválida.'}); }
     const accion = String(data.accion ?? '');
@@ -180,6 +180,58 @@ Deno.serve(async (request: Request) => {
       return reply(200,{ok:true,resultado:{codigo,activo:true}});
     }
 
+    // La consulta de OT es SOLO lectura. No descuenta artículos automáticamente:
+    // requiere correspondencia exacta de código/SKU y aprobación en DESKTOP.
+    if (accionBase === 'consultar_ot') {
+      const folio = String(data.folio ?? '').trim().toUpperCase();
+      if (folio.length < 1 || folio.length > 120)
+        return reply(400,{ok:false,error:'Indica un folio de OT válido.'});
+      const {data: ot,error} = await db.from('db_ordenes_trabajo')
+        .select('ot_folio,ot_cliente,ot_asunto,ot_partidas_json')
+        .eq('ot_folio',folio).limit(1).maybeSingle();
+      if (error) throw error;
+      if (!ot) return reply(404,{ok:false,error:'No se encontró esa Orden de Trabajo.'});
+      let partidas: unknown = ot.ot_partidas_json ?? [];
+      if (typeof partidas === 'string') {
+        try { partidas = JSON.parse(partidas); } catch { partidas = []; }
+      }
+      return reply(200,{ok:true,resultado:{folio:ot.ot_folio,cliente:ot.ot_cliente,
+        asunto:ot.ot_asunto,partidas:Array.isArray(partidas) ? partidas : []}});
+    }
+    if (accionBase === 'salida_ot') {
+      const folio = String(data.folio ?? '').trim().toUpperCase();
+      const destinatario = String(data.destinatario ?? '').trim();
+      const motivo = String(data.motivo ?? '').trim();
+      const idempotencia = String(data.idempotencia ?? '');
+      const partidas = data.partidas;
+      if (folio.length < 1 || folio.length > 120 || destinatario.length < 1 || destinatario.length > 120 ||
+          motivo.length < 1 || motivo.length > 250 || !Array.isArray(partidas) ||
+          partidas.length < 1 || partidas.length > 80 ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idempotencia) ||
+          partidas.some((p) => typeof p !== 'object' || p === null ||
+            !String(p.codigo ?? '').trim() || String(p.codigo ?? '').length > 120 ||
+            !Number.isFinite(Number(p.cantidad)) || Number(p.cantidad) <= 0 ||
+            Number(p.cantidad) > 1000000 ||
+            Math.abs(Number(p.cantidad)*1000-Math.round(Number(p.cantidad)*1000)) > 0.000001)) {
+        return reply(400,{ok:false,error:'Entrega por OT inválida.'});
+      }
+      const {data: salida,error} = await db.rpc(
+        laboratorio ? 'axia_almacen_lab_registrar_salida_ot' : 'axia_almacen_registrar_salida_ot',
+        {p_folio:folio,p_partidas:partidas,p_destinatario:destinatario,p_motivo:motivo,
+         p_responsable_id:String(usuario.id_usuario),
+         p_responsable:String(usuario.usu_nickname || ''),p_idempotencia:idempotencia});
+      if (error) {
+        const msg = String(error.message ?? '');
+        if (msg.includes('NO_HABILITADO')) return reply(409,{ok:false,error:'Movimientos de almacén deshabilitados.'});
+        if (msg.includes('OT_NO_ENCONTRADA')) return reply(404,{ok:false,error:'No existe la OT indicada.'});
+        if (msg.includes('EXISTENCIA_INSUFICIENTE')) return reply(409,{ok:false,error:'No hay existencia suficiente para entregar toda la OT. Ningún artículo fue descontado.'});
+        if (msg.includes('IDEMPOTENCIA_CON_DATOS_DISTINTOS')) return reply(409,{ok:false,error:'Solicitud repetida con datos distintos.'});
+        if (msg.includes('PRODUCTO_NO_ENCONTRADO') || msg.includes('ENTREGA_OT_INVALIDA') || msg.includes('PARTIDA_OT_INVALIDA'))
+          return reply(400,{ok:false,error:'La entrega contiene una partida o un artículo inválido.'});
+        throw error;
+      }
+      return reply(200,{ok:true,resultado:salida});
+    }
     if (accionBase === 'catalogo') {
       const incluirInactivos = data.incluir_inactivos === true;
       const listado: Record<string, unknown>[] = [];
@@ -201,25 +253,38 @@ Deno.serve(async (request: Request) => {
     }
     if (accionBase === 'kardex') {
       const codigo = String(data.codigo ?? '').trim();
+      const pagina = Number(data.pagina ?? 1);
+      const limite = Number(data.limite ?? 200);
+      if (!Number.isInteger(pagina) || pagina < 1 || pagina > 100000 ||
+          !Number.isInteger(limite) || limite < 1 || limite > 200 || codigo.length > 120)
+        return reply(400,{ok:false,error:'Filtro o página de Kárdex inválidos.'});
+      const inicio = (pagina - 1)*limite;
       let query = db.from(tablaMovimientos)
         .select('id,tipo,cantidad,saldo_anterior,saldo_nuevo,motivo,referencia,destinatario,responsable_id,responsable,fecha,producto_id')
-        .order('fecha', {ascending:false}).limit(200);
+        .order('fecha', {ascending:false}).order('id', {ascending:false})
+        .range(inicio,inicio+limite-1);
       if (codigo) {
-        const {data: product, error} = await db.from(tablaProductos).select('id').eq('codigo', codigo).maybeSingle();
-        if (error) throw error;
-        if (!product) return reply(200,{ok:true,resultado:[]});
-        query = query.eq('producto_id', product.id);
+        if (codigo.toUpperCase().startsWith('OT-')) {
+          query = query.eq('referencia',codigo.toUpperCase());
+        } else {
+          const {data: product, error} = await db.from(tablaProductos).select('id').eq('codigo', codigo).maybeSingle();
+          if (error) throw error;
+          if (!product) return reply(200,{ok:true,resultado:[]});
+          query = query.eq('producto_id', product.id);
+        }
       }
       const { data: rows, error } = await query;
       if (error) throw error;
-      // Evita una consulta por registro al mapear códigos.
       const ids = [...new Set((rows ?? []).map((r) => r.producto_id))];
       const { data: products, error: pe } = ids.length ? await db.from(tablaProductos).select('id,codigo,nombre').in('id',ids)
         : {data:[],error:null};
       if (pe) throw pe;
-      const index = new Map((products ?? []).map((p) => [p.id,p]));
+      const index = new Map<string,{codigo:string,nombre:string}>(
+        (products ?? []).map((p) => [String(p.id),{codigo:String(p.codigo??''),nombre:String(p.nombre??'')}])
+      );
       return reply(200, {ok:true, resultado:(rows ?? []).map((r) => ({
-        ...r, codigo:index.get(r.producto_id)?.codigo ?? '', producto:index.get(r.producto_id)?.nombre ?? '',
+        ...r, codigo:index.get(String(r.producto_id))?.codigo ?? '',
+        producto:index.get(String(r.producto_id))?.nombre ?? '',
       }))});
     }
     if (accionBase === 'registrar') {

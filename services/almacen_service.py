@@ -136,9 +136,14 @@ class AlmacenSimulador:
         if not puede_ver_almacen(usuario) or not usuario.get('id_usuario'):
             raise PermissionError('Solo Administrador o Almacén autenticado puede gestionar productos.')
 
-    def kardex(self, codigo: str | None = None) -> list[dict]:
-        return [dict(m) for m in reversed(self._movimientos)
-                if not codigo or m['codigo'] == codigo]
+    def kardex(self, codigo: str | None = None, pagina=1, limite=200) -> list[dict]:
+        pagina = max(1, int(pagina))
+        limite = min(200, max(1, int(limite)))
+        filtro = str(codigo or '').strip()
+        registros = [dict(m) for m in reversed(self._movimientos)
+                     if not filtro or m['codigo'] == filtro or m['referencia'] == filtro]
+        inicio = (pagina - 1) * limite
+        return registros[inicio:inicio+limite]
 
     def registrar(self, *, codigo: str, tipo: str, cantidad, motivo: str,
                   referencia: str, destinatario: str, usuario: dict,
@@ -192,6 +197,69 @@ class AlmacenSimulador:
             self._idempotencias[key] = mov
             return dict(mov)
 
+    def consultar_ot(self, folio: str, usuario: dict) -> dict:
+        """En simulador, una OT se usa como referencia manual sin validación remota."""
+        self._autorizar_catalogo(usuario)
+        folio = str(folio or '').strip().upper()
+        if not folio or len(folio) > 120:
+            raise ValueError('Especifica el folio de la OT.')
+        return {'folio': folio, 'partidas': [], 'simulador': True}
+
+    def registrar_salida_ot(self, *, folio, partidas, destinatario, motivo,
+                           usuario, idempotencia=None):
+        from services.almacen_entregas_ot import validar_entrega_ot
+        self._autorizar_catalogo(usuario)
+        solicitud = validar_entrega_ot(folio, partidas, destinatario, motivo)
+        key = idempotencia or str(uuid.uuid4())
+        with self._lock:
+            firma = (solicitud['folio'], solicitud['destinatario'], solicitud['motivo'],
+                     tuple((p['codigo'],p['cantidad']) for p in solicitud['partidas']),
+                     str(usuario['id_usuario']))
+            # Se guarda aparte para que los reintentos de OT no multipliquen los descuentos.
+            if not hasattr(self, '_entregas_ot'):
+                self._entregas_ot = {}
+            if key in self._entregas_ot:
+                anterior = self._entregas_ot[key]
+                if anterior['firma'] != firma:
+                    raise ValueError('Esta solicitud ya se utilizó con datos diferentes.')
+                return {**anterior['resultado'], 'repetido': True}
+            previas = {}
+            for item in solicitud['partidas']:
+                codigo = item['codigo']
+                p = self._por_codigo.get(codigo)
+                if not p or not p.get('activo', True):
+                    raise ValueError(f'Producto {codigo} inexistente o inactivo.')
+                saldo = self._saldos.get(codigo, Decimal('0'))
+                qty = cantidad_valida(item['cantidad'])
+                if saldo < qty:
+                    raise ValueError(f'Existencia insuficiente de {codigo}: {formatear_cantidad(saldo)}.')
+                previas[codigo] = (saldo, qty)
+            # Todas las cantidades se validaron ANTES de alterar un saldo.
+            movimientos = []
+            for item in solicitud['partidas']:
+                codigo = item['codigo']
+                anterior, qty = previas[codigo]
+                nuevo = anterior - qty
+                mov = {
+                    'id':str(uuid.uuid4()), 'idempotencia':str(uuid.uuid4()),
+                    'codigo':codigo,'producto':self._por_codigo[codigo].get('producto',''),
+                    'tipo':'SALIDA','cantidad':formatear_cantidad(qty),
+                    'saldo_anterior':formatear_cantidad(anterior),
+                    'saldo_nuevo':formatear_cantidad(nuevo),
+                    'motivo':solicitud['motivo'],'referencia':solicitud['folio'],
+                    'destinatario':solicitud['destinatario'],
+                    'responsable_id':str(usuario['id_usuario']),
+                    'responsable':str(usuario.get('usuario') or usuario.get('nombre') or ''),
+                    'fecha':datetime.now().astimezone().isoformat(timespec='seconds'),
+                }
+                self._saldos[codigo] = nuevo
+                self._movimientos.append(mov)
+                movimientos.append(mov)
+            resultado = {'folio':solicitud['folio'], 'movimientos':movimientos,
+                         'cantidad_partidas':len(movimientos), 'repetido':False}
+            self._entregas_ot[key] = {'firma':firma,'resultado':resultado}
+            return dict(resultado)
+
 
 class AlmacenRemoto:
     """Cliente de Edge Function. El escritorio no posee claves de servicio.
@@ -243,8 +311,9 @@ class AlmacenRemoto:
     def catalogo(self, incluir_inactivos=False):
         return self._peticion('catalogo' + self._sufijo, {'incluir_inactivos': bool(incluir_inactivos)})
 
-    def kardex(self, codigo=None):
-        return self._peticion('kardex' + self._sufijo, {'codigo': codigo or None})
+    def kardex(self, codigo=None, pagina=1, limite=200):
+        return self._peticion('kardex' + self._sufijo,
+                              {'codigo': codigo or None, 'pagina':int(pagina),'limite':int(limite)})
 
 
     def _comprobar_usuario(self, usuario):
@@ -280,6 +349,19 @@ class AlmacenRemoto:
             'destinatario': str(destinatario).strip(),
             'idempotencia': idempotencia or str(uuid.uuid4()),
         })
+
+    def consultar_ot(self, folio: str, usuario: dict):
+        self._comprobar_usuario(usuario)
+        return self._peticion('consultar_ot' + self._sufijo,
+                              {'folio': str(folio or '').strip().upper()})
+
+    def registrar_salida_ot(self, *, folio, partidas, destinatario, motivo,
+                           usuario, idempotencia=None):
+        from services.almacen_entregas_ot import validar_entrega_ot
+        self._comprobar_usuario(usuario)
+        solicitud = validar_entrega_ot(folio,partidas,destinatario,motivo)
+        return self._peticion('salida_ot' + self._sufijo,
+                              {**solicitud,'idempotencia':idempotencia or str(uuid.uuid4())})
 
 
 def crear_almacen():

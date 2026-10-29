@@ -362,17 +362,8 @@ class AxiaApp(ctk.CTk):
         left_block = ctk.CTkFrame(header_body, fg_color="transparent")
         left_block.pack(side="right", fill="x", expand=True, padx=(14, 0))
 
-        # Breadcrumb decorativo (no funcional, solo contexto visual)
-        label_breadcrumb = ctk.CTkLabel(
-            left_block,
-            text="◎  AXIA  /  Panel  /  Vista actual",
-            font=TEXT_XS,
-            text_color=TEXT_MUTED,
-            anchor="e",
-            justify="right",
-        )
-        label_breadcrumb.pack(side="right", anchor="e")
-        self.breadcrumb_label = label_breadcrumb
+        # Se retira la leyenda decorativa «AXIA / Panel / Vista actual».
+        # El título real de la vista permanece visible y funcional.
 
         self.label_titulo = ctk.CTkLabel(
             left_block,

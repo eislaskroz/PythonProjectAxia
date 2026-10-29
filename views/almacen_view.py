@@ -1,5 +1,5 @@
 
-"""AXIA Almacén · Etapa 3: catálogo, entradas, salidas y Kardex.
+"""AXIA Almacén · catálogo consultivo, movimientos, OT y administración.
 
 Por defecto es un simulador EFÍMERO. Para conectar con Supabase se requiere:
   - SQL de migración y Edge Function desplegados;
@@ -21,6 +21,7 @@ from app_context import obtener_usuario_actual
 from core.background_tasks import run_async
 from security.permissions import puede_ver_almacen
 from services.almacen_service import crear_almacen, formatear_cantidad
+from services.almacen_entregas_ot import validar_entrega_ot, preparar_sugerencias_ot
 from ui.colors import (
     WHITE, TEXT_PRIMARY, TEXT_SECONDARY, SECONDARY, BUTTON_HOVER
 )
@@ -72,47 +73,9 @@ def mostrar_almacen(parent, app=None):
     root = ctk.CTkFrame(parent, fg_color='transparent')
     root.pack(fill='both', expand=True, padx=14, pady=(4, 12))
     root.grid_columnconfigure(0, weight=1)
-    root.grid_rowconfigure(1, weight=1)
+    root.grid_rowconfigure(0, weight=1)
 
-    cab = ctk.CTkFrame(root, fg_color=WHITE, corner_radius=14)
-    cab.grid(row=0, column=0, sticky='ew', pady=(0, 8))
-    cab.grid_columnconfigure(0, weight=1)
-
-    ctk.CTkLabel(
-        cab,
-        text='AXIA ALMACÉN · Catálogo, entradas, salidas y Kardex',
-        font=TITLE_MD,
-        text_color=TEXT_PRIMARY,
-        anchor='w'
-    ).grid(row=0, column=0, sticky='ew', padx=14, pady=(10, 3))
-
-    if not servicio.remoto:
-        banner = (
-            'SIMULADOR LOCAL: saldos en cero; se pierden al cerrar esta pantalla. '
-            'No modifica Supabase ni las existencias de ELEVENTA.'
-        )
-    elif servicio.laboratorio:
-        banner = (
-            'LABORATORIO SUPABASE: movimientos de PRUEBA guardados entre sesiones. '
-            'Saldos iniciales en cero y tablas SEPARADAS. No afecta inventario real.'
-        )
-    else:
-        banner = (
-            'INVENTARIO REAL: movimiento BLOQUEADO hasta contar con autorizacion '
-            'formal de Almacen, corte fisico y activacion segura.'
-        )
-
-    ctk.CTkLabel(
-        cab,
-        text=banner,
-        font=TEXT_MD,
-        text_color='#A65E09',
-        wraplength=1150,
-        justify='left',
-        anchor='w'
-    ).grid(row=1, column=0, sticky='ew', padx=14, pady=(0, 9))
-
-    # -------- PESTAÑAS: TODO EL ANCHO, TEXTO BLANCO Y NEGRITAS --------
+    # -------- PESTAÑAS OPERATIVAS --------
     tabs = ctk.CTkTabview(
         root,
         fg_color=WHITE,
@@ -125,12 +88,13 @@ def mostrar_almacen(parent, app=None):
         segmented_button_unselected_hover_color='#526981',
         text_color=WHITE
     )
-    tabs.grid(row=1, column=0, sticky='nsew')
+    tabs.grid(row=0, column=0, sticky='nsew')
 
     t_catalogo = tabs.add('Catálogo')
-    t_entrada = tabs.add('Entrada')
-    t_salida = tabs.add('Salida')
-    t_kardex = tabs.add('Kardex')
+    t_entrada = tabs.add('Entradas')
+    t_salida = tabs.add('Salidas')
+    t_kardex = tabs.add('Kárdex / Historial')
+    t_admin = tabs.add('Altas/Bajas/Modificaciones')
 
     # El contenedor de pestañas se estira a todo el ancho disponible.
     tabs.grid_columnconfigure(0, weight=1)
@@ -142,7 +106,7 @@ def mostrar_almacen(parent, app=None):
         pady=0
     )
 
-    # Texto y altura de las cuatro pestañas.
+    # Texto y altura de las cinco pestañas.
     tabs._segmented_button.configure(
         font=('Segoe UI', 14),
         text_color=WHITE,
@@ -150,8 +114,8 @@ def mostrar_almacen(parent, app=None):
         height=44
     )
 
-    # Distribuir uniformemente el ancho entre las cuatro opciones.
-    for columna in range(4):
+    # Distribuir uniformemente el ancho entre las cinco opciones.
+    for columna in range(5):
         tabs._segmented_button.grid_columnconfigure(
             columna,
             weight=1,
@@ -250,30 +214,6 @@ def mostrar_almacen(parent, app=None):
     )
     btn_actualizar.grid(row=0, column=2, padx=(4, 0))
 
-    # Gestión de productos. Los cambios de catálogo nunca sustituyen movimientos.
-    acciones = ctk.CTkFrame(t_catalogo, fg_color='transparent')
-    acciones.grid(row=1, column=0, sticky='ew', padx=8, pady=(0, 5))
-    var_inactivos = ctk.BooleanVar(value=False)
-
-    def boton_producto(texto, columna, callback, color=SECONDARY):
-        btn = ctk.CTkButton(
-            acciones, text=texto, width=138, height=36, corner_radius=10,
-            fg_color=color, hover_color=BUTTON_HOVER, font=('Segoe UI', 12),
-            command=callback
-        )
-        btn.grid(row=0, column=columna, padx=(0, 7), pady=2)
-        return btn
-
-    boton_producto('+ Nuevo producto', 0, lambda: abrir_editor_producto())
-    boton_producto('Editar producto', 1, lambda: abrir_editor_producto(editar=True))
-    boton_producto('Quitar producto', 2, lambda: cambiar_estado_producto(False), color='#A72D37')
-    boton_producto('Reactivar', 3, lambda: cambiar_estado_producto(True))
-    ctk.CTkCheckBox(
-        acciones, text='Mostrar inactivos', variable=var_inactivos,
-        command=lambda: cargar_catalogo(), font=('Segoe UI', 12),
-        text_color=TEXT_PRIMARY
-    ).grid(row=0, column=4, sticky='w', padx=(12, 0))
-
     ayuda = ctk.CTkLabel(
         t_catalogo,
         text=(
@@ -316,6 +256,48 @@ def mostrar_almacen(parent, app=None):
         pady=(2, 7)
     )
 
+    # -------- ALTAS / BAJAS / MODIFICACIONES: INDEPENDIENTE DE CONSULTA --------
+    t_admin.grid_columnconfigure(0, weight=1)
+    t_admin.grid_rowconfigure(2, weight=1)
+    acciones = ctk.CTkFrame(t_admin, fg_color='transparent')
+    acciones.grid(row=0, column=0, sticky='ew', padx=8, pady=(8, 5))
+    var_inactivos = ctk.BooleanVar(value=False)
+
+    def boton_producto(texto, columna, callback, color=SECONDARY):
+        btn = ctk.CTkButton(
+            acciones, text=texto, width=138, height=36, corner_radius=10,
+            fg_color=color, hover_color=BUTTON_HOVER, font=('Segoe UI', 12),
+            command=callback
+        )
+        btn.grid(row=0, column=columna, padx=(0, 7), pady=2)
+        return btn
+
+    boton_producto('+ Nuevo producto', 0, lambda: abrir_editor_producto())
+    boton_producto('Editar producto', 1, lambda: abrir_editor_producto(editar=True))
+    boton_producto('Dar de baja', 2, lambda: cambiar_estado_producto(False), color='#A72D37')
+    boton_producto('Reactivar', 3, lambda: cambiar_estado_producto(True))
+    ctk.CTkCheckBox(
+        acciones, text='Ver inactivos', variable=var_inactivos,
+        command=lambda: mostrar_registros(), font=('Segoe UI', 12),
+        text_color=TEXT_PRIMARY
+    ).grid(row=0, column=4, sticky='w', padx=(10, 0))
+
+    barra_admin = ctk.CTkFrame(t_admin, fg_color='transparent')
+    barra_admin.grid(row=1,column=0,sticky='ew',padx=8,pady=(0,4))
+    barra_admin.grid_columnconfigure(0,weight=1)
+    buscar_admin = AxiaEntry(barra_admin,placeholder_text='Buscar código, producto o departamento...',height=35)
+    buscar_admin.grid(row=0,column=0,sticky='ew',padx=(0,8))
+    ctk.CTkButton(barra_admin,text='Actualizar',width=115,command=lambda:cargar_catalogo()).grid(row=0,column=1)
+
+    tabla_admin = NativeTreeTable(t_admin,columns=(
+        ('codigo','Código',150),('estado','Estado',105),('producto','Producto',320),
+        ('departamento','Departamento',150),('saldo','Saldo',110),
+        ('costo','Costo',100),('minimo','Mínimo',90),('maximo','Máximo',90)),height=15)
+    tabla_admin.grid(row=2,column=0,sticky='nsew',padx=7,pady=5)
+    seleccionado_admin_txt = ctk.CTkLabel(t_admin,text='Selecciona un artículo para editarlo o darlo de baja.',
+                                        text_color=TEXT_SECONDARY,anchor='w')
+    seleccionado_admin_txt.grid(row=3,column=0,sticky='ew',padx=8,pady=(2,7))
+
     entradas = {}
 
     def construir_form(tab, tipo):
@@ -323,7 +305,7 @@ def mostrar_almacen(parent, app=None):
 
         ctk.CTkLabel(
             tab,
-            text=f'Registrar {tipo.lower()} de material',
+            text=('Recepción de productos y herramientas' if tipo == 'ENTRADA' else 'Salida individual de almacén'),
             font=TITLE_MD,
             text_color=TEXT_PRIMARY
         ).grid(
@@ -339,13 +321,13 @@ def mostrar_almacen(parent, app=None):
             ('codigo', 'Código de producto *'),
             ('cantidad', 'Cantidad * (hasta 3 decimales)'),
             ('motivo', 'Motivo / descripción *'),
-            ('referencia', 'Referencia / folio / OT (opcional)'),
+            ('referencia', 'Referencia / folio de compra / OT (opcional)'),
         ]
 
         if tipo == 'SALIDA':
             definiciones.append(('destinatario', 'Recibe el material *'))
         else:
-            definiciones.append(('destinatario', 'Origen / proveedor (opcional)'))
+            definiciones.append(('destinatario', 'Proveedor / origen de mercancía *'))
 
         campos = {}
 
@@ -437,7 +419,239 @@ def mostrar_almacen(parent, app=None):
         entradas[tipo] = (campos, btn)
 
     construir_form(t_entrada, 'ENTRADA')
-    construir_form(t_salida, 'SALIDA')
+    if not servicio.remoto:
+        ctk.CTkLabel(t_entrada, text='Modo simulador: los movimientos desaparecen al cerrar esta pantalla.',
+                     font=('Segoe UI',11), text_color='#A65E09').grid(row=8,column=0,columnspan=2,sticky='w',padx=14)
+
+    t_salida.grid_columnconfigure(0, weight=1)
+    t_salida.grid_rowconfigure(1, weight=1)
+    fila_modalidad = ctk.CTkFrame(t_salida,fg_color='transparent')
+    fila_modalidad.grid(row=0,column=0,sticky='ew',padx=12,pady=(10,4))
+    ctk.CTkLabel(fila_modalidad,text='Modalidad de entrega:',font=TEXT_MD,
+                 text_color=TEXT_PRIMARY).pack(side='left',padx=(0,10))
+    formulario_pieza = ctk.CTkFrame(t_salida,fg_color='transparent')
+    formulario_pieza.grid(row=1,column=0,sticky='nsew')
+    construir_form(formulario_pieza, 'SALIDA')
+    formulario_ot = ctk.CTkScrollableFrame(t_salida,fg_color='transparent')
+    formulario_ot.grid(row=1,column=0,sticky='nsew')
+    formulario_ot.grid_remove()
+    def cambiar_modalidad(value):
+        if value == 'Por OT':
+            formulario_pieza.grid_remove()
+            formulario_ot.grid()
+        else:
+            formulario_ot.grid_remove()
+            formulario_pieza.grid()
+    control_modalidad = ctk.CTkSegmentedButton(fila_modalidad,values=['Por pieza','Por OT'],
+                           command=cambiar_modalidad,height=35)
+    control_modalidad.pack(side='left')
+    control_modalidad.set('Por pieza')
+
+    # Entrega de varias partidas por Orden de Trabajo (sin descuentos parciales).
+    formulario_ot.grid_columnconfigure(1,weight=1)
+    ctk.CTkLabel(formulario_ot,text='Entrega de materiales por Orden de Trabajo',
+                 font=TITLE_MD,text_color=TEXT_PRIMARY).grid(row=0,column=0,columnspan=3,
+                                                               sticky='w',padx=12,pady=(10,8))
+    ctk.CTkLabel(formulario_ot,text='Folio de OT *',text_color=TEXT_PRIMARY).grid(row=1,column=0,sticky='w',padx=12)
+    campo_ot = AxiaEntry(formulario_ot,height=36,placeholder_text='OT-00001')
+    campo_ot.grid(row=1,column=1,sticky='ew',padx=8,pady=5)
+    btn_ver_ot = ctk.CTkButton(formulario_ot,text='Consultar OT',width=125,command=lambda:consultar_ot())
+    btn_ver_ot.grid(row=1,column=2,padx=12,pady=5)
+    informacion_ot = ctk.CTkLabel(formulario_ot,text='Consulta la OT antes de preparar la entrega.',
+                                  text_color=TEXT_SECONDARY,anchor='w',justify='left')
+    informacion_ot.grid(row=2,column=0,columnspan=3,sticky='ew',padx=12,pady=(0,5))
+    ctk.CTkLabel(formulario_ot,text='Partidas requeridas por la OT (referencia)',
+                 text_color=TEXT_PRIMARY).grid(row=3,column=0,columnspan=3,sticky='w',padx=12,pady=(6,2))
+    lista_ot = AxiaTextbox(formulario_ot,height=94,wrap='word')
+    lista_ot.grid(row=4,column=0,columnspan=3,sticky='ew',padx=12,pady=(0,8))
+    lista_ot.configure(state='disabled')
+    fila_articulo = ctk.CTkFrame(formulario_ot,fg_color='transparent')
+    fila_articulo.grid(row=5,column=0,columnspan=3,sticky='ew',padx=12,pady=5)
+    fila_articulo.grid_columnconfigure(1,weight=1)
+    ctk.CTkLabel(fila_articulo,text='Código del producto *').grid(row=0,column=0,sticky='w',padx=(0,10))
+    campo_ot_codigo = AxiaEntry(fila_articulo,height=35,placeholder_text='Código exacto del catálogo')
+    campo_ot_codigo.grid(row=0,column=1,sticky='ew',padx=(0,10))
+    ctk.CTkLabel(fila_articulo,text='Cantidad *').grid(row=0,column=2,padx=(0,8))
+    campo_ot_cantidad = AxiaEntry(fila_articulo,height=35,width=115)
+    campo_ot_cantidad.grid(row=0,column=3,padx=(0,10))
+    ctk.CTkButton(fila_articulo,text='+ Agregar',width=105,command=lambda:agregar_partida_ot()).grid(row=0,column=4)
+    tabla_ot = NativeTreeTable(formulario_ot,columns=(
+        ('codigo','Código',155),('producto','Producto',360),
+        ('cantidad','Cantidad',115),('saldo','Saldo disponible',130)),height=6)
+    tabla_ot.grid(row=6,column=0,columnspan=3,sticky='ew',padx=12,pady=5)
+    ctk.CTkButton(formulario_ot,text='Quitar partida seleccionada',height=33,width=210,
+                  fg_color='#64748B',command=lambda:quitar_partida_ot()).grid(row=7,column=0,columnspan=3,
+                      sticky='w',padx=12,pady=3)
+    pie_ot=ctk.CTkFrame(formulario_ot,fg_color='transparent')
+    pie_ot.grid(row=8,column=0,columnspan=3,sticky='ew',padx=12,pady=(8,5))
+    pie_ot.grid_columnconfigure(1,weight=1)
+    ctk.CTkLabel(pie_ot,text='Recibe el material *').grid(row=0,column=0,sticky='w',padx=(0,8))
+    campo_ot_destinatario=AxiaEntry(pie_ot,height=35)
+    campo_ot_destinatario.grid(row=0,column=1,sticky='ew',padx=(0,10))
+    ctk.CTkLabel(pie_ot,text='Motivo *').grid(row=1,column=0,sticky='w',padx=(0,8),pady=5)
+    campo_ot_motivo=AxiaEntry(pie_ot,height=35)
+    campo_ot_motivo.grid(row=1,column=1,sticky='ew',padx=(0,10),pady=5)
+    revision_ot = ctk.BooleanVar(value=False)
+    ctk.CTkCheckBox(formulario_ot,variable=revision_ot,
+        text='Revisé las partidas de la OT y verifiqué códigos, cantidades y entrega parcial o completa.',
+        text_color=TEXT_PRIMARY).grid(row=9,column=0,columnspan=3,sticky='w',padx=12,pady=7)
+    btn_guardar_ot=ctk.CTkButton(formulario_ot,text='Confirmar salida por OT',height=43,
+                  command=lambda:guardar_ot())
+    btn_guardar_ot.grid(row=10,column=0,columnspan=3,sticky='ew',padx=12,pady=(5,8))
+    if not servicio.remoto:
+        ctk.CTkLabel(formulario_ot,text='Modo simulador: OT no validada en Supabase; los saldos se pierden al cerrar.',
+                     font=('Segoe UI',11),text_color='#A65E09').grid(row=11,column=0,columnspan=3,sticky='w',padx=12)
+    partidas_ot = []
+    ot_validada = {'folio':None,'pendientes':[]}
+    intento_ot = {'firma':None,'id':None}
+
+    def representar_partidas_ot():
+        tabla_ot.set_rows([{**p,'producto': next((r.get('producto','') for r in registros
+            if str(r.get('codigo'))==p['codigo']),''),
+             'saldo':next((r.get('saldo','0') for r in registros if str(r.get('codigo'))==p['codigo']),'0')}
+             for p in partidas_ot])
+        revision_ot.set(False)
+
+    def agregar_partida_ot():
+        codigo=campo_ot_codigo.get().strip()
+        producto=next((r for r in registros if str(r.get('codigo'))==codigo and r.get('activo',True)),None)
+        if not producto:
+            messagebox.showwarning('Almacén','El código debe existir y estar activo en Catálogo.')
+            return
+        try:
+            from services.almacen_service import cantidad_valida
+            cantidad=cantidad_valida(campo_ot_cantidad.get())
+        except ValueError as exc:
+            messagebox.showwarning('Cantidad inválida',str(exc))
+            return
+        from decimal import Decimal
+        existente=next((p for p in partidas_ot if p['codigo']==codigo),None)
+        if existente:
+            cantidad+=Decimal(existente['cantidad'])
+            try:
+                cantidad=cantidad_valida(cantidad)
+            except ValueError as exc:
+                messagebox.showwarning('Cantidad inválida',str(exc))
+                return
+            existente['cantidad']=formatear_cantidad(cantidad)
+        else:
+            if len(partidas_ot)>=80:
+                messagebox.showwarning('Límite','Máximo 80 códigos por entrega.')
+                return
+            partidas_ot.append({'codigo':codigo,'cantidad':formatear_cantidad(cantidad)})
+        campo_ot_codigo.delete(0,'end')
+        campo_ot_cantidad.delete(0,'end')
+        representar_partidas_ot()
+
+    def quitar_partida_ot():
+        p=tabla_ot.selected_payload()
+        if not p:
+            messagebox.showwarning('Almacén','Selecciona una partida de la entrega.')
+            return
+        partidas_ot[:]=[x for x in partidas_ot if x['codigo']!=p['codigo']]
+        representar_partidas_ot()
+
+    def consultar_ot():
+        folio=campo_ot.get().strip().upper()
+        if not folio:
+            messagebox.showwarning('Almacén','Indica primero el folio de OT.')
+            return
+        btn_ver_ot.configure(state='disabled')
+        informacion_ot.configure(text='Verificando Orden de Trabajo...')
+        def ok(datos):
+            btn_ver_ot.configure(state='normal')
+            ot_validada['folio']=str(datos.get('folio') or '').strip().upper()
+            sugeridas,pendientes=preparar_sugerencias_ot(datos,registros)
+            ot_validada['pendientes']=pendientes
+            partidas_ot.clear()
+            from decimal import Decimal
+            suma={}
+            for p in sugeridas:
+                suma[p['codigo']]=suma.get(p['codigo'],Decimal('0'))+Decimal(p['cantidad'])
+            partidas_ot.extend({'codigo':k,'cantidad':formatear_cantidad(v)} for k,v in suma.items())
+            representar_partidas_ot()
+            header='OT simulada (sin consultar Supabase)' if datos.get('simulador') else (
+                f'OT verificada · {datos.get("cliente", "")} · {datos.get("asunto", "")}')
+            informacion_ot.configure(text=header+' | Revisa partidas antes de confirmar.' +
+                 (f' {len(pendientes)} partida(s) sin vincular.' if pendientes else ''))
+            lines=[f'{str(p.get("cantidad") or "")}  {str(p.get("codigo") or "")}  {str(p.get("concepto") or "")}'
+                   for p in sugeridas]
+            lines += [f'POR IDENTIFICAR: {p["cantidad"]} · {p["concepto"]} (SKU: {p["codigo"] or "no indicado"})'
+                      for p in pendientes]
+            if not lines:
+                lines=['Sin partidas precargadas. Agrega manualmente los productos de la entrega.']
+            lista_ot.configure(state='normal')
+            lista_ot.delete('1.0','end')
+            lista_ot.insert('1.0','\n'.join(lines))
+            lista_ot.configure(state='disabled')
+        def err(exc):
+            btn_ver_ot.configure(state='normal')
+            ot_validada['folio']=None
+            partidas_ot.clear()
+            representar_partidas_ot()
+            informacion_ot.configure(text=f'No fue posible consultar la OT: {exc}')
+            messagebox.showerror('Orden de Trabajo',str(exc))
+        run_async(root.winfo_toplevel(),lambda:servicio.consultar_ot(folio,usuario),ok,err)
+
+    def guardar_ot():
+        if ot_validada['folio'] is None or campo_ot.get().strip().upper()!=ot_validada['folio']:
+            messagebox.showwarning('Almacén','Consulta y verifica el folio antes de registrar la entrega.')
+            return
+        if not revision_ot.get():
+            messagebox.showwarning('Almacén','Confirma que revisaste las partidas y la entrega.')
+            return
+        try:
+            solicitud=validar_entrega_ot(ot_validada['folio'],partidas_ot,
+                    campo_ot_destinatario.get(),campo_ot_motivo.get())
+            from decimal import Decimal
+            for p in solicitud['partidas']:
+                producto=next((r for r in registros if str(r.get('codigo'))==p['codigo']),None)
+                if not producto or not producto.get('activo',True):
+                    raise ValueError(f'Producto {p["codigo"]} no disponible.')
+                if Decimal(str(producto.get('saldo') or 0))<Decimal(p['cantidad']):
+                    raise ValueError(f'Saldo insuficiente de {p["codigo"]}. Actualiza el catálogo.')
+        except (ValueError,TypeError) as exc:
+            messagebox.showwarning('Revisa la entrega',str(exc))
+            return
+        detalle='\n'.join(f'{p["codigo"]}: {p["cantidad"]}' for p in solicitud['partidas'])
+        if not messagebox.askyesno('Confirmar entrega de OT',
+            f'OT: {solicitud["folio"]}\nRecibe: {solicitud["destinatario"]}\n\n'+detalle+
+            '\n\nSe registrará TODO junto o NADA.\n'
+            'La lista debe coincidir con lo que realmente se entrega.'):
+            return
+        firma=(solicitud['folio'],solicitud['destinatario'],solicitud['motivo'],
+               tuple((p['codigo'],p['cantidad']) for p in solicitud['partidas']))
+        if firma!=intento_ot['firma']:
+            intento_ot.update(firma=firma,id=str(uuid.uuid4()))
+        btn_guardar_ot.configure(state='disabled')
+        status.configure(text='Registrando entrega por OT...')
+        def ok(resultado):
+            btn_guardar_ot.configure(state='normal')
+            messagebox.showinfo('Entrega por OT',
+                 f'OT: {solicitud["folio"]}\nPartidas registradas: {resultado.get("cantidad_partidas")}\n'
+                 'Se conservan los movimientos individuales en Kárdex.')
+            partidas_ot.clear()
+            ot_validada['folio']=None
+            intento_ot.update(firma=None,id=None)
+            representar_partidas_ot()
+            revision_ot.set(False)
+            cargar_catalogo()
+            buscar_k.delete(0,'end')
+            cargar_kardex()
+        def err(exc):
+            btn_guardar_ot.configure(state='normal')
+            status.configure(text='Resultado incierto: verifica Kárdex antes de reintentar.',text_color='#B91C1C')
+            messagebox.showerror('Entrega no confirmada',str(exc)+'\n\nSi reintentas sin cambiar datos se usa el mismo ID.')
+        run_async(root.winfo_toplevel(),
+                  lambda:servicio.registrar_salida_ot(**solicitud,usuario=usuario,idempotencia=intento_ot['id']),
+                  ok,err)
+
+    def invalidar_ot_cambiada(*_):
+        if ot_validada['folio'] and campo_ot.get().strip().upper()!=ot_validada['folio']:
+            ot_validada['folio']=None
+            revision_ot.set(False)
+    campo_ot.bind('<KeyRelease>',invalidar_ot_cambiada)
+
 
     # -------- KARDEX: BÚSQUEDA Y BOTÓN ACTUALIZADOS --------
     t_kardex.grid_columnconfigure(0, weight=1)
@@ -500,7 +714,7 @@ def mostrar_almacen(parent, app=None):
 
     buscar_k = AxiaEntry(
         buscar_k_wrap,
-        placeholder_text='Buscar',
+        placeholder_text='Código de producto, folio de OT o vacío para todo el historial',
         height=34,
         fg_color='transparent',
         border_width=0,
@@ -570,6 +784,24 @@ def mostrar_almacen(parent, app=None):
         anchor='w'
     )
     kardex_info.grid(row=2, column=0, sticky='ew', padx=8, pady=6)
+    navegacion_k=ctk.CTkFrame(t_kardex,fg_color='transparent')
+    navegacion_k.grid(row=3,column=0,sticky='e',padx=8,pady=(2,4))
+    pagina_k={'valor':1,'ultimo_filtro':None}
+    btn_anterior=ctk.CTkButton(navegacion_k,text='Página anterior',width=120,
+                               command=lambda:cambiar_pagina_k(-1))
+    btn_anterior.pack(side='left',padx=4)
+    etiqueta_pagina=ctk.CTkLabel(navegacion_k,text='Página 1')
+    etiqueta_pagina.pack(side='left',padx=8)
+    btn_siguiente=ctk.CTkButton(navegacion_k,text='Página siguiente',width=120,
+                                command=lambda:cambiar_pagina_k(1))
+    btn_siguiente.pack(side='left',padx=4)
+    btn_anterior.configure(state='disabled')
+    btn_siguiente.configure(state='disabled')
+
+    def cambiar_pagina_k(salto):
+        pagina_k['valor']=max(1,pagina_k['valor']+salto)
+        cargar_kardex()
+
 
     status = ctk.CTkLabel(
         root,
@@ -577,7 +809,7 @@ def mostrar_almacen(parent, app=None):
         text_color=TEXT_SECONDARY,
         anchor='w'
     )
-    status.grid(row=2, column=0, sticky='ew', pady=(6, 0))
+    status.grid(row=1, column=0, sticky='ew', pady=(6, 0))
 
     registros = []
     pendiente: dict[str, tuple[tuple, str]] = {}
@@ -593,9 +825,9 @@ def mostrar_almacen(parent, app=None):
         run_async(root.winfo_toplevel(), tarea, on_success, err)
 
     def producto_seleccionado():
-        p = tabla.selected_payload()
+        p = tabla_admin.selected_payload()
         if not p:
-            messagebox.showwarning('Almacén', 'Selecciona primero un producto de la tabla.')
+            messagebox.showwarning('Almacén', 'Selecciona primero un producto de Altas/Bajas/Modificaciones.')
         return p
 
     def cambiar_estado_producto(reactivar=False):
@@ -757,28 +989,20 @@ def mostrar_almacen(parent, app=None):
 
     def mostrar_registros(*_):
         criterio = buscar.get().strip().casefold()
-
-        visible = [
-            r for r in registros
-            if not criterio or any(
-                criterio in str(r.get(campo, '')).casefold()
-                for campo in ('codigo', 'producto', 'departamento')
-            )
-        ]
-
-        tabla.set_rows([
-            {
-                **r,
-                'estado': 'Activo' if r.get('activo', True) else 'Inactivo',
-                'costo': _moneda(r.get('costo')),
-                'saldo_exportado': r.get('saldo_exportado', '—')
-            }
-            for r in visible
-        ])
-
-        contador.configure(
-            text=f'{len(visible):,} / {len(registros):,} productos'
-        )
+        consulta = [r for r in registros if r.get('activo',True) and
+                    (not criterio or any(criterio in str(r.get(campo,'')).casefold()
+                       for campo in ('codigo','producto','departamento')))]
+        def tabla_data(rows):
+            return [{**r,'estado':'Activo' if r.get('activo',True) else 'Inactivo',
+                     'costo':_moneda(r.get('costo')),
+                     'saldo_exportado':r.get('saldo_exportado','—')} for r in rows]
+        tabla.set_rows(tabla_data(consulta))
+        contador.configure(text=f'{len(consulta):,} productos')
+        criterio_admin=buscar_admin.get().strip().casefold()
+        admin_visible=[r for r in registros if (var_inactivos.get() or r.get('activo',True))
+                       and (not criterio_admin or any(criterio_admin in str(r.get(campo,'')).casefold()
+                           for campo in ('codigo','producto','departamento')))]
+        tabla_admin.set_rows(tabla_data(admin_visible))
 
     def cargar_catalogo():
         status.configure(
@@ -803,7 +1027,7 @@ def mostrar_almacen(parent, app=None):
                 )
 
         ejecutar(
-            lambda: servicio.catalogo(incluir_inactivos=bool(var_inactivos.get())),
+            lambda: servicio.catalogo(incluir_inactivos=True),
             ok,
             'No se pudo consultar el catálogo'
         )
@@ -819,13 +1043,21 @@ def mostrar_almacen(parent, app=None):
 
         buscar_k.delete(0, 'end')
         buscar_k.insert(0, codigo)
+        campo_ot_codigo.delete(0, 'end')
+        if registro.get('activo',True):
+            campo_ot_codigo.insert(0,codigo)
 
         seleccionado_txt.configure(
             text=f'Seleccionado: {codigo} · {str(registro.get("producto") or "")[:100]}'
         )
 
     tabla._on_select = seleccionar
+    def seleccionar_admin(registro):
+        seleccionado_admin_txt.configure(text=f'Seleccionado: {registro.get("codigo", "")} · '
+                                    f'{str(registro.get("producto") or "")[:100]}')
+    tabla_admin._on_select = seleccionar_admin
     buscar.bind('<KeyRelease>', mostrar_registros)
+    buscar_admin.bind('<KeyRelease>', mostrar_registros)
 
     def guardar(tipo):
         campos, boton = entradas[tipo]
@@ -857,6 +1089,8 @@ def mostrar_almacen(parent, app=None):
 
             if tipo == 'SALIDA' and not payload['destinatario']:
                 raise ValueError('Indica quién recibe la salida.')
+            if tipo == 'ENTRADA' and not payload['destinatario']:
+                raise ValueError('Indica el proveedor o el origen de la mercancía recibida.')
 
         except ValueError as exc:
             messagebox.showwarning('Datos incompletos', str(exc))
@@ -963,32 +1197,34 @@ def mostrar_almacen(parent, app=None):
 
     def cargar_kardex():
         codigo = buscar_k.get().strip() or None
-        kardex_info.configure(text='Consultando Kardex...')
+        if codigo != pagina_k['ultimo_filtro']:
+            pagina_k['valor']=1
+            pagina_k['ultimo_filtro']=codigo
+        pagina=pagina_k['valor']
+        kardex_info.configure(text='Consultando Kárdex...')
+        btn_anterior.configure(state='disabled')
+        btn_siguiente.configure(state='disabled')
 
         def ok(items):
             rows = list(items or [])
-
-            tabla_k.set_rows([
-                {
+            tabla_k.set_rows([{
                     **m,
                     'fecha': str(m.get('fecha') or '')[:19].replace('T', ' '),
                     'cantidad': str(m.get('cantidad') or ''),
                     'saldo_anterior': str(m.get('saldo_anterior') or ''),
                     'saldo_nuevo': str(m.get('saldo_nuevo') or ''),
-                }
-                for m in rows
-            ])
-
-            kardex_info.configure(
-                text=f'{len(rows)} movimientos · '
-                + (f'Producto {codigo}' if codigo else 'últimos movimientos')
-            )
-            tabs.set('Kardex')
+                } for m in rows])
+            kardex_info.configure(text=f'{len(rows)} movimientos · '
+                  + (f'Filtro {codigo}' if codigo else 'todos los artículos'))
+            etiqueta_pagina.configure(text=f'Página {pagina}')
+            btn_anterior.configure(state='normal' if pagina > 1 else 'disabled')
+            btn_siguiente.configure(state='normal' if len(rows)==200 else 'disabled')
+            tabs.set('Kárdex / Historial')
 
         ejecutar(
-            lambda: servicio.kardex(codigo),
+            lambda: servicio.kardex(codigo,pagina=pagina,limite=200),
             ok,
-            'No se pudo consultar Kardex'
+            'No se pudo consultar Kárdex'
         )
 
     root.after(30, inicializar)
