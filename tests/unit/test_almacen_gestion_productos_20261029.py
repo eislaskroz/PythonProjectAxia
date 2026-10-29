@@ -81,8 +81,8 @@ def test_remoto_envia_solo_acciones_autorizadas(monkeypatch):
     svc.desactivar_producto(codigo='NEW1',usuario=ADMIN)
     svc.reactivar_producto(codigo='NEW1',usuario=ADMIN)
     assert [x[0] for x in calls]==[
-        'catalogo_lab','crear_producto_lab','editar_producto_lab',
-        'desactivar_producto_lab','reactivar_producto_lab'
+        'catalogo','crear_producto','editar_producto',
+        'desactivar_producto','reactivar_producto'
     ]
     assert calls[0][1]['incluir_inactivos'] is True
     with pytest.raises(PermissionError):
@@ -96,6 +96,6 @@ def test_sql_y_edge_protegen_historial():
     assert 'SALDO_NO_CERO' in sql
     assert 'BEFORE INSERT ON public.axia_almacen_lab_movimientos' in sql
     assert 'DELETE FROM public.axia_almacen' not in sql
-    assert 'catalogo_autorizado' in ts
+    assert 'axia_almacen_maestro_desactivar_producto' in ts
     for act in ['crear_producto','editar_producto','desactivar_producto','reactivar_producto']:
         assert act in ts

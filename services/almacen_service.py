@@ -277,8 +277,8 @@ class AlmacenRemoto:
         self._usuario_id = None
         # El ambiente se define en el cliente y se codifica en acciones distintas.
         # Las tablas de produccion NO son manipuladas por la modalidad laboratorio.
-        self.laboratorio = laboratorio
-        self._sufijo = '_lab' if laboratorio else ''
+        self.laboratorio = False  # El entorno único no habilita rutas paralelas.
+        self._sufijo = ''
 
     def _peticion(self, accion: str, payload: dict | None = None, *, autenticar=False):
         import requests
@@ -314,7 +314,6 @@ class AlmacenRemoto:
     def kardex(self, codigo=None, pagina=1, limite=200):
         return self._peticion('kardex' + self._sufijo,
                               {'codigo': codigo or None, 'pagina':int(pagina),'limite':int(limite)})
-
 
     def _comprobar_usuario(self, usuario):
         if str(usuario.get('id_usuario')) != self._usuario_id:
@@ -365,15 +364,8 @@ class AlmacenRemoto:
 
 
 def crear_almacen():
-    # Sólo la activación deliberada permite conectarse a Supabase; por defecto
-    # el módulo es un simulador sin persistencia ni alteración de inventario.
-    modo = os.getenv('AXIA_ALMACEN_MODO', 'simulador').lower().strip()
-    if modo == 'remoto_pruebas':
-        return AlmacenRemoto(laboratorio=True)
-    if modo == 'remoto':
-        # Aun si se selecciona modo real, la RPC de produccion permanece
-        # cerrada por axia_almacen_config hasta autorizacion formal.
-        return AlmacenRemoto(laboratorio=False)
-    if modo != 'simulador':
-        raise ValueError('AXIA_ALMACEN_MODO inválido. Usa simulador o remoto_pruebas.')
-    return AlmacenSimulador()
+    """Una sola base operativa de Supabase desde python main.py.
+
+    La autenticación y los movimientos permanecen protegidos por la Edge Function.
+    """
+    return AlmacenRemoto(laboratorio=False)

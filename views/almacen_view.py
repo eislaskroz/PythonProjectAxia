@@ -1,12 +1,5 @@
 
-"""AXIA Almacén · catálogo consultivo, movimientos, OT y administración.
-
-Por defecto es un simulador EFÍMERO. Para conectar con Supabase se requiere:
-  - SQL de migración y Edge Function desplegados;
-  - AXIA_ALMACEN_MODO=remoto;
-  - autenticación del propio usuario, verificada por la Edge Function;
-  - autorización posterior del catálogo y existencias de apertura.
-"""
+"""Almacén AXIA · catálogo maestro único con entradas y salidas persistentes."""
 from __future__ import annotations
 from ui.form_fields import AxiaEntry, AxiaTextbox
 
@@ -22,6 +15,7 @@ from core.background_tasks import run_async
 from security.permissions import puede_ver_almacen
 from services.almacen_service import crear_almacen, formatear_cantidad
 from services.almacen_entregas_ot import validar_entrega_ot, preparar_sugerencias_ot
+from services.almacen_catalogo_maestro import COLUMNAS_TABLA, ficha_producto_maestro
 from ui.colors import (
     WHITE, TEXT_PRIMARY, TEXT_SECONDARY, SECONDARY, BUTTON_HOVER
 )
@@ -122,6 +116,23 @@ def mostrar_almacen(parent, app=None):
             uniform='pestanas_almacen'
         )
 
+    # La fuente piloto es exclusivamente CONSULTIVA. Los movimientos siguen
+    # utilizando 'registros', que se alimenta del catálogo OPERATIVO.
+    maestro = {'items': [], 'total': 0, 'pagina': 1, 'limite': 100,
+               'busqueda': '', 'cargado': False, 'solicitud': 0}
+    vista_maestro_habilitada = False  # Una sola base operativa.
+    fuente_inicial = 'Operativo'
+    COLUMNAS_OPERATIVAS = (
+        ('codigo', 'Código AXIA', 160), ('estado', 'Estado', 95),
+        ('producto', 'Producto', 320), ('categoria_axia', 'Categoría AXIA', 180),
+        ('familia_axia', 'Familia AXIA', 220), ('departamento', 'Departamento origen', 155),
+        ('saldo', 'Saldo actual', 105), ('saldo_exportado', 'ELEVENTA origen', 135),
+        ('costo', 'P. costo', 105), ('venta', 'P. venta', 105),
+        ('p_mayoreo', 'P. mayoreo', 105), ('minimo', 'Mínimo', 90), ('maximo', 'Máximo', 90),
+        ('proveedor', 'Proveedor', 145), ('codigo_proveedor', 'Cód. proveedor', 145),
+        ('codigo_origen_eleventa', 'Código ELEVENTA', 145),
+    )
+
     # -------- CATÁLOGO --------
     t_catalogo.grid_columnconfigure(0, weight=1)
     t_catalogo.grid_rowconfigure(3, weight=1)
@@ -166,7 +177,7 @@ def mostrar_almacen(parent, app=None):
 
     buscar = AxiaEntry(
         buscar_wrap,
-        placeholder_text='Buscar por código, nombre o departamento...',
+        placeholder_text='Buscar código AXIA, producto, categoría o familia...',
         height=34,
         fg_color='transparent',
         border_width=0,
@@ -210,15 +221,27 @@ def mostrar_almacen(parent, app=None):
         fg_color=SECONDARY,
         hover_color=BUTTON_HOVER,
         anchor='center',
-        command=lambda: cargar_catalogo()
+        command=lambda: refrescar_catalogo_visible()
     )
-    btn_actualizar.grid(row=0, column=2, padx=(4, 0))
+    btn_actualizar.grid(row=0, column=3, padx=(4, 0))
+
+    ctk.CTkButton(
+        barra, text='Buscar', height=30, width=85,
+        font=('Segoe UI', 13), command=lambda: buscar_en_catalogo()
+    ).grid(row=0, column=2, padx=(2, 3))
+
+    origen = ctk.CTkSegmentedButton(
+        barra, values=['Maestro AXIA (piloto)', 'Operativo'], height=34,
+        command=lambda opcion: cambiar_fuente_catalogo(opcion)
+    )
+    # Selector de fuentes oculto: solamente existe un catálogo real.
+    # Selección inicial se aplica tras crear todos los controles.
 
     ayuda = ctk.CTkLabel(
         t_catalogo,
         text=(
-            'Selecciona un producto para cargar su código en Entrada y Salida. '
-            'El saldo operativo es independiente de la existencia exportada.'
+            'CATÁLOGO ÚNICO AXIA · Selecciona un producto para su entrada o salida. '
+            'Saldo actual en Supabase; ELEVENTA es referencia histórica.'
         ),
         text_color=TEXT_SECONDARY,
         anchor='w'
@@ -227,17 +250,7 @@ def mostrar_almacen(parent, app=None):
 
     tabla = NativeTreeTable(
         t_catalogo,
-        columns=(
-            ('codigo', 'Código', 150),
-            ('estado', 'Estado', 105),
-            ('producto', 'Producto', 320),
-            ('departamento', 'Departamento', 150),
-            ('saldo', 'Saldo actual', 110),
-            ('saldo_exportado', 'Eleventa (histórico)', 145),
-            ('costo', 'P. costo', 110),
-            ('minimo', 'Mínimo', 90),
-            ('maximo', 'Máximo', 90),
-        ),
+        columns=COLUMNAS_OPERATIVAS,
         height=17
     )
     tabla.grid(row=3, column=0, sticky='nsew', padx=7, pady=5)
@@ -255,6 +268,26 @@ def mostrar_almacen(parent, app=None):
         padx=8,
         pady=(2, 7)
     )
+
+    # Detalle consultivo: incluye TODAS las columnas originales de ELEVENTA
+    # más los datos AXIA; no tiene controles de edición ni transferencias.
+    detalle_maestro = AxiaTextbox(t_catalogo, height=144, wrap='word')
+    detalle_maestro.grid(row=5, column=0, sticky='ew', padx=8, pady=(0, 5))
+    detalle_maestro.configure(state='disabled')
+    # La ficha de datos originales queda visible en el catálogo único.
+    paginacion_maestro = ctk.CTkFrame(t_catalogo, fg_color='transparent')
+    paginacion_maestro.grid(row=6, column=0, sticky='e', padx=8, pady=(0, 4))
+    btn_maestro_anterior = ctk.CTkButton(
+        paginacion_maestro, text='Anterior', width=90, height=30,
+        command=lambda: cambiar_pagina_maestro(-1))
+    btn_maestro_anterior.pack(side='left', padx=3)
+    etiqueta_pagina_maestro = ctk.CTkLabel(paginacion_maestro, text='Página 1')
+    etiqueta_pagina_maestro.pack(side='left', padx=10)
+    btn_maestro_siguiente = ctk.CTkButton(
+        paginacion_maestro, text='Siguiente', width=90, height=30,
+        command=lambda: cambiar_pagina_maestro(1))
+    btn_maestro_siguiente.pack(side='left', padx=3)
+    paginacion_maestro.grid_remove()
 
     # -------- ALTAS / BAJAS / MODIFICACIONES: INDEPENDIENTE DE CONSULTA --------
     t_admin.grid_columnconfigure(0, weight=1)
@@ -975,6 +1008,7 @@ def mostrar_almacen(parent, app=None):
                 text='Sesión segura validada.',
                 text_color='#15803D'
             )
+            # El catálogo maestro alimenta todas las operaciones.
             cargar_catalogo()
 
         ejecutar(
@@ -987,53 +1021,151 @@ def mostrar_almacen(parent, app=None):
             'Autenticación rechazada'
         )
 
+    def es_vista_maestro():
+        return origen.get() == 'Maestro AXIA (piloto)' and vista_maestro_habilitada
+
+    def cambiar_fuente_catalogo(opcion):
+        if opcion == 'Maestro AXIA (piloto)' and not vista_maestro_habilitada:
+            origen.set('Operativo')
+            messagebox.showinfo('Catálogo Maestro',
+                'El catálogo de Supabase solo está disponible en modo remoto_pruebas '
+                'con una sesión segura de Almacén. En simulador se muestra el catálogo operativo local.')
+            return
+        tabla.set_columns(COLUMNAS_TABLA if es_vista_maestro() else COLUMNAS_OPERATIVAS)
+        if es_vista_maestro():
+            ayuda.configure(text='Catálogo Maestro AXIA: SOLO CONSULTA. Existencia ELEVENTA histórica; '
+                                 'no se usa para Entradas, Salidas ni Kárdex.')
+            detalle_maestro.grid()
+            paginacion_maestro.grid()
+            if not maestro['cargado']:
+                cargar_catalogo_maestro(pagina=1)
+            else:
+                representar_maestro()
+        else:
+            ayuda.configure(text='Catálogo operativo: selecciona un producto para preparar entradas o salidas.')
+            # La ficha de datos originales queda visible en el catálogo único.
+            paginacion_maestro.grid_remove()
+            mostrar_registros()
+
+    def refrescar_catalogo_visible():
+        if es_vista_maestro():
+            cargar_catalogo_maestro(pagina=maestro['pagina'])
+        else:
+            cargar_catalogo()
+
+    def buscar_en_catalogo():
+        if es_vista_maestro():
+            maestro['busqueda'] = buscar.get().strip()
+            cargar_catalogo_maestro(pagina=1)
+        else:
+            mostrar_registros()
+
+    def representar_maestro():
+        if not es_vista_maestro():
+            return
+        tabla.set_rows(maestro['items'])
+        total = maestro['total']
+        pagina = maestro['pagina']
+        limite = maestro['limite']
+        contador.configure(text=f'{total:,} resultados')
+        ultima = max(1, (total + limite - 1) // limite)
+        etiqueta_pagina_maestro.configure(text=f'Página {pagina} de {ultima}')
+        btn_maestro_anterior.configure(state='normal' if pagina > 1 else 'disabled')
+        btn_maestro_siguiente.configure(state='normal' if pagina < ultima else 'disabled')
+        seleccionado_txt.configure(text='Selecciona un artículo para ver todos sus campos originales.')
+        detalle_maestro.configure(state='normal')
+        detalle_maestro.delete('1.0', 'end')
+        detalle_maestro.configure(state='disabled')
+
+    def cargar_catalogo_maestro(*, pagina=1):
+        if not vista_maestro_habilitada:
+            return
+        maestro['solicitud'] += 1
+        solicitud = maestro['solicitud']
+        filtro = maestro['busqueda']
+        status.configure(text='Consultando Catálogo Maestro piloto en Supabase...',
+                         text_color=TEXT_SECONDARY)
+        btn_maestro_anterior.configure(state='disabled')
+        btn_maestro_siguiente.configure(state='disabled')
+
+        def ok(resultado):
+            if solicitud != maestro['solicitud']:
+                return
+            maestro['items'] = list(resultado.get('items') or [])
+            maestro['total'] = int(resultado.get('total') or 0)
+            maestro['pagina'] = int(resultado.get('pagina') or pagina)
+            maestro['cargado'] = True
+            representar_maestro()
+            status.configure(text=f'Catálogo Maestro: {maestro["total"]:,} artículos. '
+                             'Solo consulta; sin movimientos de inventario.',
+                             text_color='#15803D')
+
+        ejecutar(lambda: servicio.catalogo_maestro_piloto(
+            pagina=pagina, limite=maestro['limite'], busqueda=filtro), ok,
+            'No fue posible consultar el catálogo maestro')
+
+    def cambiar_pagina_maestro(salto):
+        max_pagina = max(1, (maestro['total'] + maestro['limite'] - 1)//maestro['limite'])
+        pagina = min(max_pagina, max(1, maestro['pagina'] + salto))
+        if pagina != maestro['pagina']:
+            cargar_catalogo_maestro(pagina=pagina)
+
     def mostrar_registros(*_):
-        criterio = buscar.get().strip().casefold()
-        consulta = [r for r in registros if r.get('activo',True) and
-                    (not criterio or any(criterio in str(r.get(campo,'')).casefold()
-                       for campo in ('codigo','producto','departamento')))]
         def tabla_data(rows):
             return [{**r,'estado':'Activo' if r.get('activo',True) else 'Inactivo',
                      'costo':_moneda(r.get('costo')),
                      'saldo_exportado':r.get('saldo_exportado','—')} for r in rows]
-        tabla.set_rows(tabla_data(consulta))
-        contador.configure(text=f'{len(consulta):,} productos')
+        # Los datos operativos alimentan SOLO las transacciones operativas.
         criterio_admin=buscar_admin.get().strip().casefold()
         admin_visible=[r for r in registros if (var_inactivos.get() or r.get('activo',True))
                        and (not criterio_admin or any(criterio_admin in str(r.get(campo,'')).casefold()
-                           for campo in ('codigo','producto','departamento')))]
+                           for campo in ('codigo','producto','departamento','categoria_axia','familia_axia','codigo_origen_eleventa','proveedor')))]
         tabla_admin.set_rows(tabla_data(admin_visible))
+        if es_vista_maestro():
+            representar_maestro()
+            return
+        criterio = buscar.get().strip().casefold()
+        consulta = [r for r in registros if r.get('activo',True) and
+                    (not criterio or any(criterio in str(r.get(campo,'')).casefold()
+                       for campo in ('codigo','producto','departamento','categoria_axia','familia_axia','codigo_origen_eleventa','proveedor')))]
+        tabla.set_rows(tabla_data(consulta))
+        contador.configure(text=f'{len(consulta):,} productos')
 
     def cargar_catalogo():
-        status.configure(
-            text='Consultando catálogo...',
-            text_color=TEXT_SECONDARY
-        )
+        status.configure(text='Consultando Catálogo Maestro AXIA en Supabase...', text_color=TEXT_SECONDARY)
 
         def ok(items):
             nonlocal registros
             registros = list(items or [])
             mostrar_registros()
-
-            if servicio.remoto and not registros:
-                status.configure(
-                    text='Catálogo de Supabase vacío: pendiente de importación autorizada.',
-                    text_color='#A65E09'
-                )
+            if es_vista_maestro():
+                if not maestro['cargado'] and not maestro['solicitud']:
+                    cargar_catalogo_maestro(pagina=1)
+            elif servicio.remoto and not registros:
+                status.configure(text='Catálogo operativo vacío. No se autorizaron existencias.',
+                                 text_color='#A65E09')
             else:
-                status.configure(
-                    text=f'Catálogo consultado: {len(registros):,} productos.',
-                    text_color='#15803D'
-                )
+                status.configure(text=f'Catálogo Maestro conectado: {len(registros):,} productos.',
+                                 text_color='#15803D')
 
-        ejecutar(
-            lambda: servicio.catalogo(incluir_inactivos=True),
-            ok,
-            'No se pudo consultar el catálogo'
-        )
+        ejecutar(lambda: servicio.catalogo(incluir_inactivos=True), ok,
+                 'No se pudo consultar el Catálogo Maestro AXIA')
 
     def seleccionar(registro):
+        if es_vista_maestro():
+            codigo_axia = str(registro.get('codigo_axia') or '')
+            seleccionado_txt.configure(text=f'Producto maestro: {codigo_axia}. '
+                      'Consulta únicamente: no se transfiere a movimientos.')
+            detalle_maestro.configure(state='normal')
+            detalle_maestro.delete('1.0', 'end')
+            detalle_maestro.insert('1.0', ficha_producto_maestro(registro))
+            detalle_maestro.configure(state='disabled')
+            return
         codigo = str(registro.get('codigo') or '')
+        detalle_maestro.configure(state='normal')
+        detalle_maestro.delete('1.0', 'end')
+        detalle_maestro.insert('1.0', ficha_producto_maestro(registro))
+        detalle_maestro.configure(state='disabled')
 
         for formulario, _ in entradas.values():
             campo = formulario['codigo']
@@ -1056,7 +1188,8 @@ def mostrar_almacen(parent, app=None):
         seleccionado_admin_txt.configure(text=f'Seleccionado: {registro.get("codigo", "")} · '
                                     f'{str(registro.get("producto") or "")[:100]}')
     tabla_admin._on_select = seleccionar_admin
-    buscar.bind('<KeyRelease>', mostrar_registros)
+    buscar.bind('<Return>', lambda _event: buscar_en_catalogo())
+    buscar.bind('<KeyRelease>', lambda event: mostrar_registros() if not es_vista_maestro() else None)
     buscar_admin.bind('<KeyRelease>', mostrar_registros)
 
     def guardar(tipo):
@@ -1154,7 +1287,7 @@ def mostrar_almacen(parent, app=None):
                         'Movimiento de laboratorio registrado en Supabase.\n'
                         'No afecta el inventario real.\n\n'
                         if servicio.laboratorio
-                        else 'Movimiento registrado en el inventario real de Supabase.\n\n'
+                        else 'Movimiento registrado en el Catálogo Maestro AXIA (Supabase).\n\n'
                     )
                 )
                 + f'Código: {codigo}\n'
@@ -1227,4 +1360,14 @@ def mostrar_almacen(parent, app=None):
             'No se pudo consultar Kárdex'
         )
 
+    origen.set(fuente_inicial)
+    detalle_maestro.grid()
+    ayuda.configure(text='CATÁLOGO ÚNICO AXIA · Saldo disponible en Supabase. '
+                          'ELEVENTA es únicamente el saldo original importado.')
+    if vista_maestro_habilitada:
+        tabla.set_columns(COLUMNAS_TABLA)
+        ayuda.configure(text='Catálogo Maestro AXIA: SOLO CONSULTA. Existencia ELEVENTA histórica; '
+                             'no se usa para Entradas, Salidas ni Kárdex.')
+        detalle_maestro.grid()
+        paginacion_maestro.grid()
     root.after(30, inicializar)

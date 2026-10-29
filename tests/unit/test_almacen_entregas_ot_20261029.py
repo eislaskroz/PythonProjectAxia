@@ -113,5 +113,5 @@ def test_remoto_envia_ot_a_edge_protegida(monkeypatch):
     assert svc.consultar_ot('ot-1',ADMIN)['folio']=='OT-1'
     svc.registrar_salida_ot(folio='OT-1',partidas=[{'codigo':'C-01','cantidad':'1'}],
                            destinatario='Operador',motivo='Entrega',usuario=ADMIN)
-    assert [x[0] for x in solicitudes]==['consultar_ot_lab','salida_ot_lab']
+    assert [x[0] for x in solicitudes]==['consultar_ot','salida_ot']
     assert solicitudes[-1][1]['partidas']==[{'codigo':'C-01','cantidad':'1'}]
