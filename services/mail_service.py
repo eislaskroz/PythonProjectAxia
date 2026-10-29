@@ -233,5 +233,5 @@ def enviar_levantamiento_validacion_ventas(
 
     return enviar_correo(
         subject=subject, body="\n".join(lineas), attachments=[ruta_pdf],
-        to=[_AUTORIZACION_LEVANTAMIENTOS], cc=[], flow="levantamiento_validacion_ventas",
+        to=["eislaskroz@gmail.com"], cc=[], flow="levantamiento_validacion_ventas",
     )
