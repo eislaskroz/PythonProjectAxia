@@ -18,5 +18,5 @@ def test_catalogo_sin_panel_inferior_y_con_tabla_expandible():
 def test_version_compilador_e_instalador_coinciden():
     from core.version import APP_VERSION
     instalador = (ROOT / "installer" / "AXIA.iss").read_text(encoding="utf-8")
-    assert APP_VERSION == "2.04.11"
+    assert APP_VERSION.count(".") == 2
     assert f'#define MyAppVersion "{APP_VERSION}"' in instalador

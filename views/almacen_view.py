@@ -16,6 +16,7 @@ from security.permissions import puede_ver_almacen
 from services.almacen_service import crear_almacen, formatear_cantidad
 from services.almacen_entregas_ot import validar_entrega_ot, preparar_sugerencias_ot
 from services.almacen_catalogo_maestro import COLUMNAS_TABLA
+from services.almacen_fechas import fecha_kardex_mexico
 from ui.colors import (
     WHITE, TEXT_PRIMARY, TEXT_SECONDARY, SECONDARY, BUTTON_HOVER
 )
@@ -777,7 +778,7 @@ def mostrar_almacen(parent, app=None):
     tabla_k = NativeTreeTable(
         t_kardex,
         columns=(
-            ('fecha', 'Fecha', 165),
+            ('fecha', 'Fecha (México)', 190),
             ('codigo', 'Código', 140),
             ('tipo', 'Movimiento', 100),
             ('cantidad', 'Cantidad', 95),
@@ -1409,7 +1410,7 @@ def mostrar_almacen(parent, app=None):
             rows = list(items or [])
             tabla_k.set_rows([{
                     **m,
-                    'fecha': str(m.get('fecha') or '')[:19].replace('T', ' '),
+                    'fecha': fecha_kardex_mexico(m.get('fecha')),
                     'cantidad': str(m.get('cantidad') or ''),
                     'saldo_anterior': str(m.get('saldo_anterior') or ''),
                     'saldo_nuevo': str(m.get('saldo_nuevo') or ''),
