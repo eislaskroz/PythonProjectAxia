@@ -1,4 +1,4 @@
-﻿"""Bandeja de Compras AXIA."""
+"""Bandeja de Compras AXIA."""
 from __future__ import annotations
 
 import customtkinter as ctk
@@ -76,7 +76,7 @@ def mostrar_compras(parent, app=None):
             ("fecha", "Finalizada", 155),
         ),
         height=22,
-    )
+     table_id="compras_panel",)
     tabla.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 8))
 
     pie = ctk.CTkFrame(panel, fg_color="transparent")

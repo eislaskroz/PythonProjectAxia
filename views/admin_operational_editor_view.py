@@ -111,7 +111,7 @@ def mostrar_admin_operational_editor(parent, app, config):
     lbl_results = ctk.CTkLabel(left, text=config["titulo"], font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="w")
     lbl_results.grid(row=0, column=0, sticky="ew", padx=10, pady=(9, 4))
     table = NativeTreeTable(left, columns=(("folio", "Folio", 115), ("aco", "ACO", 135), ("cliente", "Cliente", 190),
-                                                ("estatus", "Estatus", 80), ("fecha", "Fecha", 110)), height=20)
+                                                ("estatus", "Estatus", 80), ("fecha", "Fecha", 110)), height=20, table_id="operaciones_editor")
     table.grid(row=1, column=0, sticky="nsew", padx=8, pady=(0, 8))
 
     shell = ctk.CTkFrame(body, fg_color=WHITE, corner_radius=16)

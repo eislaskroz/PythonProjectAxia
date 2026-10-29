@@ -65,7 +65,7 @@ def mostrar_conversion_orden_trabajo(parent, app):
     left.grid_columnconfigure(0, weight=1)
     left.grid_rowconfigure(1, weight=1)
     ctk.CTkLabel(left, text="Órdenes de Servicio", font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="w").grid(row=0, column=0, sticky="ew", padx=10, pady=(9, 4))
-    table = NativeTreeTable(left, columns=(("folio", "Folio", 105), ("cliente", "Cliente", 190), ("tipo", "Tipo", 150), ("estatus", "Estatus", 75), ("fecha", "Fecha", 105)), height=20)
+    table = NativeTreeTable(left, columns=(("folio", "Folio", 105), ("cliente", "Cliente", 190), ("tipo", "Tipo", 150), ("estatus", "Estatus", 75), ("fecha", "Fecha", 105)), height=20, table_id="ordenes_trabajo_conversion")
     table.grid(row=1, column=0, sticky="nsew", padx=8, pady=(0, 8))
 
     # Panel derecho: contenido desplazable + barra de acciones fija.

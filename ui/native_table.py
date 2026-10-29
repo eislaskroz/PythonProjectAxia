@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import tkinter as tk
 from tkinter import ttk
+from .table_columns import TableColumnManager
 from typing import Any, Callable, Iterable, Sequence
 
 
@@ -18,12 +19,14 @@ class NativeTreeTable(ttk.Frame):
         on_open: Callable[[dict[str, Any]], Any] | None = None,
         show: str = "headings",
         height: int = 14,
+        table_id: str | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(master, **kwargs)
         self._payloads: dict[str, dict[str, Any]] = {}
         self._on_select = on_select
         self._on_open = on_open
+        self._column_id = table_id
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
@@ -48,25 +51,56 @@ class NativeTreeTable(ttk.Frame):
         style.configure("Horizontal.TScrollbar", troughcolor="#EEF4FF", background="#5B8DEF",
                         arrowcolor="#0F172A", borderwidth=0)
         self.tree.configure(style="AXIA.Treeview")
+        self._columns_manager = TableColumnManager(
+            self.tree, table_id or f"tabla_{type(master).__name__}_{id(self)}"
+        )
 
         self.tree.grid(row=0, column=0, sticky="nsew")
         self.vscroll.grid(row=0, column=1, sticky="ns")
         self.hscroll.grid(row=1, column=0, sticky="ew")
 
-        for key, title, width in columns:
-            self.tree.heading(key, text=title, anchor="w")
-            self.tree.column(key, width=width, minwidth=max(60, min(width, 120)), anchor="w", stretch=True)
+        self._columns_manager.configure_columns(columns)
+        self._context_menu = tk.Menu(self, tearoff=0)
+        self._context_menu.add_command(label="Copiar contenido de celda", command=self._copy_cell)
+        self._context_menu.add_command(label="Copiar fila completa", command=self._copy_row)
+        self._context_menu.add_separator()
+        self._context_menu.add_command(label="Restablecer anchos", command=self._columns_manager.reset_widths)
+        self._context_cell: tuple[str, str] | None = None
+        self.tree.bind("<Button-3>", self._show_context, add="+")
 
         self.tree.bind("<<TreeviewSelect>>", self._selected, add="+")
         self.tree.bind("<Double-1>", self._opened, add="+")
         self.tree.bind("<Return>", self._opened, add="+")
 
     def set_columns(self, columns: Sequence[tuple[str, str, int]]) -> None:
-        ids = [item[0] for item in columns]
-        self.tree.configure(columns=ids)
-        for key, title, width in columns:
-            self.tree.heading(key, text=title, anchor="w")
-            self.tree.column(key, width=width, minwidth=max(60, min(width, 120)), anchor="w", stretch=True)
+        self._columns_manager.configure_columns(columns)
+
+    def _show_context(self, event) -> None:
+        row = self.tree.identify_row(event.y)
+        column = self.tree.identify_column(event.x)
+        self._context_cell = (row, column) if row and column and column != '#0' else None
+        self._context_menu.entryconfigure(0, state='normal' if self._context_cell else 'disabled')
+        self._context_menu.entryconfigure(1, state='normal' if self._context_cell else 'disabled')
+        try:
+            self._context_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self._context_menu.grab_release()
+
+    def _copy_cell(self) -> None:
+        if self._context_cell:
+            row, column = self._context_cell
+            if self.tree.exists(row):
+                self._clipboard(str(self.tree.set(row, column)))
+
+    def _copy_row(self) -> None:
+        if self._context_cell:
+            row, _ = self._context_cell
+            if self.tree.exists(row):
+                self._clipboard('\t'.join(str(v) for v in self.tree.item(row, 'values')))
+
+    def _clipboard(self, value: str) -> None:
+        self.clipboard_clear()
+        self.clipboard_append(value)
 
     def clear(self) -> None:
         children = self.tree.get_children()

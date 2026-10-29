@@ -183,7 +183,7 @@ def mostrar_admin_procesos(parent, app, configuracion):
         resultados,
         columns=(("folio", "Folio", 130), ("aco", "ACO", 120), ("cliente", "Cliente", 220), ("estatus", "Estatus", 100), ("fecha", "Fecha", 100), ("descripcion", "Descripción", 300)),
         height=18,
-    )
+     table_id="procesos_consulta",)
     tabla_resultados.grid(row=1, column=0, sticky="nsew", padx=8, pady=(0, 4))
     acciones_resultado = ctk.CTkFrame(resultados, fg_color="transparent")
     acciones_resultado.grid(row=2, column=0, sticky="e", padx=8, pady=(0, 8))

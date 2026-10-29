@@ -192,7 +192,7 @@ def mostrar_usuarios_admin(parent, app):
         on_select=lambda usuario: cargar_en_formulario(usuario),
         on_open=lambda usuario: cargar_en_formulario(usuario),
         height=18,
-    )
+     table_id="usuarios_catalogo",)
     tabla_resultados.grid(
         row=1,
         column=0,

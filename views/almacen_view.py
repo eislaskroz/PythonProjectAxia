@@ -252,7 +252,7 @@ def mostrar_almacen(parent, app=None):
         t_catalogo,
         columns=COLUMNAS_OPERATIVAS,
         height=17
-    )
+    , table_id="almacen_catalogo")
     tabla.grid(row=3, column=0, sticky='nsew', padx=7, pady=5)
 
     seleccionado_txt = ctk.CTkLabel(
@@ -325,7 +325,7 @@ def mostrar_almacen(parent, app=None):
     tabla_admin = NativeTreeTable(t_admin,columns=(
         ('codigo','Código',150),('estado','Estado',105),('producto','Producto',320),
         ('departamento','Departamento',150),('saldo','Saldo',110),
-        ('costo','Costo',100),('minimo','Mínimo',90),('maximo','Máximo',90)),height=15)
+        ('costo','Costo',100),('minimo','Mínimo',90),('maximo','Máximo',90)),height=15, table_id="almacen_productos_admin")
     tabla_admin.grid(row=2,column=0,sticky='nsew',padx=7,pady=5)
     seleccionado_admin_txt = ctk.CTkLabel(t_admin,text='Selecciona un artículo para editarlo o darlo de baja.',
                                         text_color=TEXT_SECONDARY,anchor='w')
@@ -510,7 +510,7 @@ def mostrar_almacen(parent, app=None):
     ctk.CTkButton(fila_articulo,text='+ Agregar',width=105,command=lambda:agregar_partida_ot()).grid(row=0,column=4)
     tabla_ot = NativeTreeTable(formulario_ot,columns=(
         ('codigo','Código',155),('producto','Producto',360),
-        ('cantidad','Cantidad',115),('saldo','Saldo disponible',130)),height=6)
+        ('cantidad','Cantidad',115),('saldo','Saldo disponible',130)),height=6, table_id="almacen_entregas_ot")
     tabla_ot.grid(row=6,column=0,columnspan=3,sticky='ew',padx=12,pady=5)
     ctk.CTkButton(formulario_ot,text='Quitar partida seleccionada',height=33,width=210,
                   fg_color='#64748B',command=lambda:quitar_partida_ot()).grid(row=7,column=0,columnspan=3,
@@ -807,7 +807,7 @@ def mostrar_almacen(parent, app=None):
             ('motivo', 'Motivo', 240),
         ),
         height=15
-    )
+    , table_id="almacen_kardex")
     tabla_k.grid(row=1, column=0, sticky='nsew', padx=7, pady=6)
 
     kardex_info = ctk.CTkLabel(

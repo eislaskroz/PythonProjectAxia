@@ -355,9 +355,9 @@ def mostrar_direccion_general(parent, app):
         'faltante': 175
     }
 
-    for c in cols:
-        tree.heading(c, text=labels[c])
-        tree.column(c, width=widths[c], minwidth=55, anchor='w')
+    # Anchos manuales persistentes y barra horizontal real.
+    gestor_columnas = TableColumnManager(tree, "direccion_general_seguimiento")
+    gestor_columnas.configure_columns([(c, labels[c], widths[c]) for c in cols])
 
     sy = ttk.Scrollbar(table_shell, orient='vertical', command=tree.yview)
     sx = ttk.Scrollbar(table_shell, orient='horizontal', command=tree.xview)

@@ -297,7 +297,7 @@ def mostrar_auditoria(parent, app):
         pady=(8, 4),
     )
 
-    tabla_auditoria = NativeTreeTable(panel, columns=(), height=18)
+    tabla_auditoria = NativeTreeTable(panel, columns=(), height=18, table_id="auditoria_eventos")
     tabla_auditoria.grid(
         row=1,
         column=0,

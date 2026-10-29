@@ -157,7 +157,7 @@ def mostrar_conversion_orden_servicio(parent, app):
         columns=(("folio", "Folio", 105), ("cliente", "Cliente", 190), ("tipo", "Trabajo", 125), ("nombre", "Nombre del servicio", 220),
                  ("estatus", "Estatus", 75), ("fecha", "Fecha", 105)),
         height=20,
-    )
+     table_id="ordenes_servicio_conversion",)
     tabla.grid(row=1, column=0, sticky="nsew", padx=8, pady=(0, 8))
 
     # Panel derecho: contenido desplazable + barra de acciones fija.

@@ -194,7 +194,7 @@ def mostrar_clientes_admin(parent, app):
         on_select=lambda cliente: cargar_en_formulario(cliente),
         on_open=lambda cliente: cargar_en_formulario(cliente),
         height=18,
-    )
+     table_id="clientes_catalogo",)
     tabla_resultados.grid(
         row=1, column=0, sticky="nsew", padx=8, pady=(0, 8)
     )

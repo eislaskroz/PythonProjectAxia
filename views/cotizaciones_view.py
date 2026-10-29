@@ -110,7 +110,7 @@ def mostrar_cotizaciones(parent, app=None):
     tabla = NativeTreeTable(
         bandeja, columns=(("folio", "Folio", 105), ("cliente", "Cliente", 150),
                           ("tipo", "Tipo", 140), ("fecha", "Fecha", 95)), height=3,
-    )
+     table_id="cotizaciones_levantamientos",)
     tabla.grid(row=1, column=0, sticky="ew", padx=8, pady=(0, 5))
 
     bandeja_cot = ctk.CTkFrame(superior, fg_color=WHITE, corner_radius=16)
@@ -121,7 +121,7 @@ def mostrar_cotizaciones(parent, app=None):
     lbl_cotizaciones.grid(row=0, column=0, sticky="ew", padx=10, pady=(6, 3))
     columnas_cot = (("folio", "Cotización", 115), ("levantamiento", "Levantamiento", 120),
                     ("cliente", "Cliente", 150), ("fecha", "Fecha", 100))
-    tabla_cot = NativeTreeTable(bandeja_cot, columns=columnas_cot, height=3)
+    tabla_cot = NativeTreeTable(bandeja_cot, columns=columnas_cot, height=3, table_id="cotizaciones_borradores")
     tabla_cot.grid(row=1, column=0, sticky="ew", padx=8, pady=(0, 5))
 
     bandeja_aut = ctk.CTkFrame(superior, fg_color=WHITE, corner_radius=16)
@@ -130,7 +130,7 @@ def mostrar_cotizaciones(parent, app=None):
     lbl_autorizadas = ctk.CTkLabel(bandeja_aut, text="Cotizaciones Autorizadas",
                                    font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="w")
     lbl_autorizadas.grid(row=0, column=0, sticky="ew", padx=10, pady=(6, 3))
-    tabla_aut = NativeTreeTable(bandeja_aut, columns=columnas_cot, height=3)
+    tabla_aut = NativeTreeTable(bandeja_aut, columns=columnas_cot, height=3, table_id="cotizaciones_autorizadas")
     tabla_aut.grid(row=1, column=0, sticky="ew", padx=8, pady=(0, 5))
 
     detalle_card = ctk.CTkFrame(root, fg_color=WHITE, corner_radius=16)
