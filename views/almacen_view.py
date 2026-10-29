@@ -17,6 +17,9 @@ from services.almacen_service import crear_almacen, formatear_cantidad
 from services.almacen_entregas_ot import validar_entrega_ot, preparar_sugerencias_ot
 from services.almacen_catalogo_maestro import COLUMNAS_TABLA
 from services.almacen_fechas import fecha_kardex_mexico
+from services.almacen_comprobantes import (
+    generar_etiqueta_entrada, generar_ticket_salida, abrir_comprobante,
+)
 from ui.colors import (
     WHITE, TEXT_PRIMARY, TEXT_SECONDARY, SECONDARY, BUTTON_HOVER
 )
@@ -69,6 +72,43 @@ def mostrar_almacen(parent, app=None):
     root.pack(fill='both', expand=True, padx=14, pady=(4, 12))
     root.grid_columnconfigure(0, weight=1)
     root.grid_rowconfigure(0, weight=1)
+
+    def ofrecer_comprobante(*, tipo, resumen, movimientos=None, codigo='', producto='',
+                            cantidad='', destinatario='', motivo='', referencia='',
+                            responsable='', identificador=None, fecha=None):
+        """Ofrece imprimir después del COMMIT confirmado. No registra inventario."""
+        es_entrada = tipo == 'ENTRADA'
+        titulo = 'Entrada registrada' if es_entrada else 'Salida registrada'
+        nombre = 'etiqueta Code 128 para el producto' if es_entrada else 'ticket de entrega (80 mm)'
+        if not messagebox.askyesno(
+            titulo, f'{resumen}\n\n¿Deseas generar {"una" if es_entrada else "un"} {nombre}?\n'
+            'Se abrirá un PDF para que elijas la impresora.', parent=root.winfo_toplevel()
+        ):
+            return
+        try:
+            if es_entrada:
+                ruta = generar_etiqueta_entrada(
+                    codigo=codigo, producto=producto, cantidad=cantidad,
+                    referencia=referencia, identificador=identificador, fecha=fecha,
+                )
+            else:
+                ruta = generar_ticket_salida(
+                    partidas=list(movimientos or ()), destinatario=destinatario,
+                    motivo=motivo, referencia=referencia, responsable=responsable,
+                    identificador=identificador, fecha=fecha,
+                )
+            try:
+                abrir_comprobante(ruta)
+            except Exception:
+                # El PDF sigue guardado; imprimirlo no altera el movimiento.
+                messagebox.showinfo('Comprobante generado',
+                    f'El archivo se guardó correctamente, pero no se pudo abrir automáticamente:\n{ruta}',
+                    parent=root.winfo_toplevel())
+        except Exception as exc:
+            messagebox.showwarning('Movimiento guardado - Comprobante pendiente',
+                f'El movimiento YA quedó registrado en Supabase.\n'
+                f'No vuelvas a registrarlo.\n\nNo se pudo generar el comprobante: {exc}',
+                parent=root.winfo_toplevel())
 
     # -------- PESTAÑAS OPERATIVAS --------
     tabs = ctk.CTkTabview(
@@ -643,9 +683,24 @@ def mostrar_almacen(parent, app=None):
         status.configure(text='Registrando entrega por OT...')
         def ok(resultado):
             btn_guardar_ot.configure(state='normal')
-            messagebox.showinfo('Entrega por OT',
-                 f'OT: {solicitud["folio"]}\nPartidas registradas: {resultado.get("cantidad_partidas")}\n'
-                 'Se conservan los movimientos individuales en Kárdex.')
+            catalogo_por_codigo = {str(p.get('codigo')): p for p in registros}
+            partidas_recibo = [
+                {'codigo': item['codigo'], 'cantidad': item['cantidad'],
+                 'producto': str(catalogo_por_codigo.get(str(item['codigo']), {}).get('producto') or '')}
+                for item in solicitud['partidas']
+            ]
+            ofrecer_comprobante(
+                tipo='SALIDA',
+                resumen=(f'OT: {solicitud["folio"]}\n'
+                         f'Partidas registradas: {resultado.get("cantidad_partidas")}\n'
+                         'El Kárdex conservó los movimientos individuales.'),
+                movimientos=partidas_recibo,
+                referencia=solicitud['folio'],
+                destinatario=solicitud['destinatario'],
+                motivo=solicitud['motivo'],
+                responsable=str(usuario.get('usu_nombre') or usuario.get('nombre') or usuario.get('usuario') or ''),
+                identificador=intento_ot['id'],
+            )
             partidas_ot.clear()
             ot_validada['folio']=None
             intento_ot.update(firma=None,id=None)
@@ -1345,23 +1400,32 @@ def mostrar_almacen(parent, app=None):
                 text_color='#15803D'
             )
 
-            messagebox.showinfo(
-                'Movimiento registrado',
-                (
-                    'Movimiento de PRUEBA registrado en memoria.\n'
-                    'No se modificó ELEVENTA ni Supabase.\n\n'
-                    if not servicio.remoto
-                    else (
-                        'Movimiento de laboratorio registrado en Supabase.\n'
-                        'No afecta el inventario real.\n\n'
-                        if servicio.laboratorio
-                        else 'Movimiento registrado en el Catálogo Maestro AXIA (Supabase).\n\n'
-                    )
-                )
-                + f'Código: {codigo}\n'
-                f'Cantidad: {formatear_cantidad(cantidad)}\n'
-                f'Saldo resultante: {mov.get("saldo_nuevo")}'
+            prefijo = (
+                'Movimiento registrado en el Catálogo Maestro AXIA (Supabase).'
+                if servicio.remoto and not servicio.laboratorio else
+                'Movimiento registrado en el Almacén.'
             )
+            resumen = (f'{prefijo}\nCódigo: {codigo}\n'
+                       f'Cantidad: {formatear_cantidad(cantidad)}\n'
+                       f'Saldo resultante: {mov.get("saldo_nuevo")}')
+            if tipo == 'ENTRADA':
+                ofrecer_comprobante(
+                    tipo='ENTRADA', resumen=resumen, codigo=codigo,
+                    producto=str(producto.get('producto') or ''), cantidad=cantidad,
+                    referencia=payload['referencia'],
+                    identificador=mov.get('id') or idem,
+                    fecha=mov.get('fecha'),
+                )
+            else:
+                ofrecer_comprobante(
+                    tipo='SALIDA', resumen=resumen,
+                    movimientos=[{'codigo': codigo, 'producto': str(producto.get('producto') or ''),
+                                   'cantidad': cantidad}],
+                    destinatario=payload['destinatario'], motivo=payload['motivo'],
+                    referencia=payload['referencia'],
+                    responsable=str(usuario.get('usu_nombre') or usuario.get('nombre') or usuario.get('usuario') or ''),
+                    identificador=mov.get('id') or idem, fecha=mov.get('fecha'),
+                )
 
             cargar_catalogo()
             buscar_k.delete(0, 'end')

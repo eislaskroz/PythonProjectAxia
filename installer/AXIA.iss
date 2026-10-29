@@ -1,5 +1,5 @@
 #define MyAppName "AXIA"
-#define MyAppVersion "2.04.12"
+#define MyAppVersion "2.04.13"
 #define MyAppPublisher "AXIA Comunicaciones"
 #define MyAppExeName "AXIA.exe"
 
