@@ -29,6 +29,7 @@ from core.background_tasks import run_async
 from services.levantamiento_catalogo_axia import (
     CatalogoAxiaLevantamientos, referencia_axia,
     categoria_canalizacion_axia, unidad_levantamiento_axia,
+    especificacion_catalogo_axia,
 )
 
 from ui.colors import (
@@ -3087,7 +3088,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         ctk.CTkLabel(seccion_canalizacion_dinamica, text="¿Se requiere?", font=FORM_TABLE_HEADER_FONT).grid(row=2, column=0, sticky="w", padx=5)
         combo_requiere = NativeComboBox(seccion_canalizacion_dinamica, variable=var_requiere_canalizacion, values=["Sí", "No"], width=120, height=31)
         combo_requiere.grid(row=3, column=0, sticky="w", padx=5, pady=(0,4))
-        for col, encabezado in enumerate(("Producto AXIA (Código y descripción)", "", "", "Cantidad", "Unidad", "Aproximado", "Acción")):
+        for col, encabezado in enumerate(("Producto / material", "", "Medida o especificación", "Cantidad", "Unidad", "Aproximado", "Acción")):
             ctk.CTkLabel(seccion_canalizacion_dinamica, text=encabezado, font=FORM_TABLE_HEADER_FONT, text_color=TEXT_PRIMARY).grid(row=4, column=col, sticky="w", padx=5, pady=(0,2))
 
         categorias = ["Tubo", "Cople", "Registro", "Cajas", "Conectores", "Abrazadera", "Tapas", "Codos", "Canaleta", "Cable"]
@@ -3123,7 +3124,15 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     "unidad_widget": combo_unidad, "aproximado_widget": lbl_aproximado}
 
             for antiguo in (combo_categoria, combo_tipo, combo_especificacion):
-                antiguo.grid_remove()  # no mostrar catálogos antiguos en pantalla
+                antiguo.grid_remove()  # No mostrar catálogos históricos en pantalla.
+            # La especificación NO es la familia: el técnico puede indicar
+            # calibre, medida, color o características que el catálogo no tenga.
+            entrada_especificacion_axia = AxiaEntry(
+                seccion_canalizacion_dinamica, textvariable=var_especificacion,
+                height=31, placeholder_text="Medida / calibre / especificación"
+            )
+            entrada_especificacion_axia.grid(row=fila, column=2, sticky='ew', padx=5, pady=2)
+            item['widgets'].append(entrada_especificacion_axia)
             def asignar_producto(producto):
                 # En General la canalización inicia en «No». Seleccionar producto
                 # confirma que se requiere y evita perder silenciosamente la fila.
@@ -3131,15 +3140,15 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     var_requiere_canalizacion.set('Sí')
                 item['referencia_axia'] = referencia_axia(producto)
                 item['categoria'].set(categoria_canalizacion_axia(producto))
-                item['tipo'].set(f"{producto.get('codigo_axia', '')} · {producto.get('producto', '')}")
-                item['especificacion'].set(str(producto.get('familia_axia') or ''))
+                item['tipo'].set(str(producto.get('producto') or ''))
+                item['especificacion'].set(especificacion_catalogo_axia(producto))
                 item['unidad'].set(unidad_forzada_canalizacion(item['categoria'].get(),
                                      unidad_levantamiento_axia(producto)))
                 item['solo_catalogo'] = True
                 actualizar_aproximado()
             selector_axia = selector_producto_axia(seccion_canalizacion_dinamica, asignar_producto,
                                                     lambda: item.update(referencia_axia={}, solo_catalogo=True))
-            selector_axia.grid(row=fila, column=0, columnspan=3, sticky='ew', padx=5, pady=2)
+            selector_axia.grid(row=fila, column=0, columnspan=2, sticky='ew', padx=5, pady=2)
             item['selector_axia'] = selector_axia
             item['solo_catalogo'] = True
             item['widgets'].append(selector_axia)
@@ -3351,7 +3360,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         font=FORM_FIELD_FONT, text_color=TEXT_SECONDARY, anchor="w", justify="left"
     ).grid(row=1, column=0, columnspan=7, sticky="w", padx=7, pady=(0, 4))
 
-    for col, encabezado in enumerate(("Producto AXIA (Código y descripción)", "", "Cantidad", "Marca", "Modelo", "Características técnicas", "Acción")):
+    for col, encabezado in enumerate(("Equipo / producto", "", "Cantidad", "Marca", "Modelo", "Características técnicas", "Acción")):
         ctk.CTkLabel(seccion_equipos, text=encabezado, font=FORM_TABLE_HEADER_FONT, text_color=TEXT_PRIMARY).grid(
             row=2, column=col, sticky="w", padx=4, pady=(0, 2)
         )
@@ -3366,7 +3375,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 familias = list(familias) + [familia_inicial]
         subfamilias = obtener_subfamilias(tipo_levantamiento, familia_inicial)
         if producto_axia:
-            subfamilias = [f"{producto_axia.get('codigo_axia', '')} · {producto_axia.get('producto', '')}"]
+            subfamilias = [str(producto_axia.get('producto') or '')]
         var_familia_eq = ctk.StringVar(value=familia_inicial)
         var_subfamilia_eq = ctk.StringVar(value=subfamilias[0] if subfamilias else "Otro")
         var_cantidad_eq = ctk.StringVar(value="1")
@@ -3429,7 +3438,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         def seleccionar_equipo(producto):
             item_equipo['referencia_axia'] = referencia_axia(producto)
             var_familia_eq.set(str(producto.get('familia_axia') or 'Equipo AXIA'))
-            var_subfamilia_eq.set(f"{producto.get('codigo_axia', '')} · {producto.get('producto', '')}")
+            var_subfamilia_eq.set(str(producto.get('producto') or ''))
             item_equipo['solo_catalogo'] = True
         selector_axia = selector_producto_axia(seccion_equipos, seleccionar_equipo,
                                                 lambda: item_equipo.update(referencia_axia={}, solo_catalogo=True))
@@ -3500,7 +3509,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         font=FORM_FIELD_FONT, text_color=TEXT_SECONDARY, anchor="w", justify="left"
     ).grid(row=1, column=0, columnspan=5, sticky="w", padx=7, pady=(0, 4))
 
-    for col, encabezado in enumerate(("Producto AXIA", "Cantidad", "Unidad", "Especificación / medida", "Acción")):
+    for col, encabezado in enumerate(("Producto / material", "Cantidad", "Unidad", "Especificación / medida", "Acción")):
         ctk.CTkLabel(seccion_misc, text=encabezado, font=FORM_TABLE_HEADER_FONT, text_color=TEXT_PRIMARY).grid(
             row=2, column=col, sticky="w", padx=5, pady=(0, 2)
         )
@@ -3557,7 +3566,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         entrada_material.grid_remove()
         def seleccionar_material(producto):
             item_material['referencia_axia'] = referencia_axia(producto)
-            var_material.set(f"{producto.get('codigo_axia', '')} · {producto.get('producto', '')}")
+            var_material.set(str(producto.get('producto') or ''))
             var_categoria.set(str(producto.get('categoria_axia') or 'Otro'))
             var_unidad.set(unidad_levantamiento_axia(producto))
             item_material['solo_catalogo'] = True
@@ -5612,6 +5621,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     item['referencia_axia'] = {k: fila.get(k, '') for k in (
                         'codigo_axia', 'producto_axia', 'categoria_axia',
                         'familia_axia', 'unidad_inventario_axia')}
+                    # Mostrar nombre, no el código concatenado por versiones previas.
+                    if fila.get('producto_axia'):
+                        item['tipo'].set(str(fila['producto_axia']))
                     item['selector_axia'].mostrar_guardado(fila.get('codigo_axia'), fila.get('producto_axia'))
                 else:
                     item['solo_catalogo'] = False
@@ -5627,6 +5639,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     item['referencia_axia'] = {k: fila.get(k, '') for k in (
                         'codigo_axia', 'producto_axia', 'categoria_axia',
                         'familia_axia', 'unidad_inventario_axia')}
+                    if fila.get('producto_axia'):
+                        item['subfamilia'].set(str(fila['producto_axia']))
                     item['selector_axia'].mostrar_guardado(fila.get('codigo_axia'), fila.get('producto_axia'))
                 else:
                     item['solo_catalogo'] = False
@@ -5643,6 +5657,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     item['referencia_axia'] = {k: fila.get(k, '') for k in (
                         'codigo_axia', 'producto_axia', 'categoria_axia',
                         'familia_axia', 'unidad_inventario_axia')}
+                    if fila.get('producto_axia'):
+                        item['material'].set(str(fila['producto_axia']))
                     item['selector_axia'].mostrar_guardado(fila.get('codigo_axia'), fila.get('producto_axia'))
                 else:
                     item['solo_catalogo'] = False

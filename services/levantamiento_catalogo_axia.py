@@ -5,6 +5,8 @@ El nombre y el código del producto quedan congelados en el JSON del LEV.
 """
 from __future__ import annotations
 
+import re
+
 from services.almacen_service import AlmacenRemoto
 
 # Token emitido durante el login normal de DESKTOP; nunca se guarda en disco.
@@ -92,3 +94,19 @@ def unidad_levantamiento_axia(producto: dict) -> str:
     if 'juego' in unidad: return 'Juego(s)'
     if 'caja' in unidad: return 'Caja(s)'
     return 'Pieza(s)'
+
+
+def especificacion_catalogo_axia(producto: dict) -> str:
+    """Extrae solo medidas EXPLÍCITAS del nombre, sin inventar características.
+
+    Cuando el catálogo no declara medida/calibre, el técnico lo captura en
+    el campo libre visible del levantamiento. La familia nunca es una medida.
+    """
+    nombre = str(producto.get('producto') or '').strip()
+    medidas = re.findall(
+        r'(?<!\w)(?:\d+\s+)?\d+/\d+(?:\s*(?:["″]|pulg(?:adas)?))?'
+        r'|(?<!\w)\d+(?:[.,]\d+)?\s*(?:mm|cm|metros?|mts?\b|awg\b|["″])'
+        r'|(?<!\w)cat\s*[568](?:e|a)?\b',
+        nombre, flags=re.IGNORECASE
+    )
+    return ' / '.join(dict.fromkeys(m.strip() for m in medidas))
