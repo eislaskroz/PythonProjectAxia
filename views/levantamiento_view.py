@@ -396,7 +396,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 'No se realizó ningún movimiento de Almacén.')
         run_async(form_body, catalogo_axia_lectura.todos, on_success=recibido, on_error=fallo)
 
-    form_body.after(300, cargar_catalogo_axia)
+    # La carga se agenda al FINAL del constructor, una vez creado form_body
+    # y todos los selectores. Programarla aquí causaba UnboundLocalError.
 
     # Campos dedicados del formulario Seguridad y Monitoreo.
     # Se guardan dentro de los campos descriptivos existentes para evitar
@@ -6375,3 +6376,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     ).grid(row=0, column=3, padx=4)
 
     enfocar_inicio_formulario(card)
+
+    # Solicitar el catálogo únicamente cuando la vista ya está completamente
+    # construida. El callback corre en el hilo de Tk, sin bloquear el formulario.
+    if form_body.winfo_exists():
+        form_body.after(300, cargar_catalogo_axia)
