@@ -1,4 +1,4 @@
--- AXIA DESKTOP 2.04.11: alta real de productos con código AXIA automático.
+-- AXIA DESKTOP 2.05.00: alta real de productos con código AXIA automático.
 -- Requiere catálogo operativo único de la versión 2.04.08.
 -- No cambia saldos, partidas ni movimientos existentes.
 -- Respaldar public.axia_almacen_catalogo ANTES de ejecutar.
