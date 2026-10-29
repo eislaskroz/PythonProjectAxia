@@ -19,7 +19,7 @@ def test_catalogo_se_programa_despues_de_crear_form_body():
     agenda = [n.lineno for n in ast.walk(mostrar) if isinstance(n, ast.Call)
               and isinstance(n.func, ast.Attribute) and n.func.attr == 'after'
               and isinstance(n.func.value, ast.Name) and n.func.value.id == 'form_body'
-              and any(isinstance(arg, ast.Name) and arg.id == 'cargar_catalogo_axia'
+              and any(isinstance(arg, ast.Name) and arg.id == 'cargar_referencias_almacen'
                       for arg in n.args)]
     assert len(creaciones) == 1
     assert len(agenda) == 1
@@ -28,4 +28,4 @@ def test_catalogo_se_programa_despues_de_crear_form_body():
 
 def test_catalogo_se_agenda_despues_de_terminar_interfaz():
     code = VIEW.read_text(encoding='utf-8')
-    assert code.index('enfocar_inicio_formulario(card)') < code.index('form_body.after(300, cargar_catalogo_axia)')
+    assert code.index('enfocar_inicio_formulario(card)') < code.index('form_body.after(300, cargar_referencias_almacen)')

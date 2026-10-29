@@ -32,8 +32,8 @@ def test_selector_permite_todos_y_no_filtra_ciento_veinte():
     view=(ROOT/'views/levantamiento_view.py').read_text(encoding='utf-8')
     assert 'encontrados[:120]' not in fuente
     assert 'self._combo.configure(values=encontrados)' in fuente
-    assert 'entrada_especificacion_axia' in view
-    assert 'columnspan=2' in view
+    assert '"Tamaño / calibre / especificación"' in view
+    assert 'selector_producto_axia' not in view
     assert 'codigo_axia' in fuente  # Sólo búsqueda e identidad interna.
-    assert 'No se realizó ningún movimiento de Almacén.' in view
-    assert 'No se realizó ningún movimiento de Almacén.' not in fuente
+    assert 'correlacionador_almacen.canalizacion(' in view
+    assert 'registrar_salida_ot(' not in view

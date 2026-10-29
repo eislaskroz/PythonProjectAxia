@@ -54,10 +54,14 @@ def test_lev_cat_maestro_directo_tres_secciones_sin_botones_viejos():
     assert 'Buscar producto AXIA' not in view
     assert 'Buscar equipo AXIA' not in view
     assert 'Buscar material AXIA' not in view
-    assert view.count('selector_producto_axia(') >= 4
-    assert 'catalogo_axia_lectura.todos' in view
+    assert 'selector_producto_axia' not in view
+    assert '"Categoría", "Tipo", "Tamaño / calibre / especificación"' in view
+    assert 'correlacionador_almacen.canalizacion(' in view
+    assert 'correlacionador_almacen.equipo(' in view
+    assert 'correlacionador_almacen.material(' in view
+    assert 'servicio.todos' in view
     assert 'establecer_sesion_catalogo(resultado.get("token_catalogo")' in login
-    assert view.count('**item.get("referencia_axia", {})') >= 3
+    assert view.count('referencia_de_partida(') >= 4
     assert '"canalizacion_materiales"' in view
 
 
