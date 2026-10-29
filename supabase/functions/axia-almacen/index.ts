@@ -212,9 +212,10 @@ Deno.serve(async (request: Request) => {
       return reply(200,{ok:true,resultado});
     }
     if (['crear_producto','editar_producto','desactivar_producto','reactivar_producto'].includes(accion)) {
-      const codigo=String(data.codigo??(data.producto as Record<string,unknown>|null)?.codigo??'').trim();
-      if(!/^[A-Z]{3}-[A-Z]{3}-[0-9]{5}$/.test(codigo))
-        return reply(400,{ok:false,error:'Código AXIA inválido. Formato: TUB-CAN-00001.'});
+      // En el ALTA, el código AXIA se genera exclusivamente en Supabase.
+      const codigo=String(data.codigo??'').trim();
+      if(accion!=='crear_producto'&&!/^[A-Z]{3}-[A-Z]{3}-[0-9]{5}$/.test(codigo))
+        return reply(400,{ok:false,error:'Código AXIA inválido.'});
       if(accion==='desactivar_producto') {
         const {data:ok,error}=await db.rpc('axia_almacen_maestro_desactivar_producto',{p_codigo:codigo});
         if(error) return errorMovimiento(error);
@@ -228,39 +229,59 @@ Deno.serve(async (request: Request) => {
         return reply(200,{ok:true,resultado:{codigo,activo:true}});
       }
       const datos=(data.producto??{}) as Record<string,unknown>;
-      const nombre=String(datos.producto??'').trim();
-      const departamento=String(datos.departamento??'SIN DEPARTAMENTO').trim();
-      const parseNumero=(value:unknown,decimales:number):number|null=>{
-        const str=String(value??'0').trim();
-        if(!/^\d+(?:\.\d+)?$/.test(str))return null;
-        const n=Number(str);
-        return Number.isFinite(n)&&n>=0&&n<=999999999999&&
-          Math.abs(n*10**decimales-Math.round(n*10**decimales))<0.00001?n:null;
+      const safeText=(field:string,max:number,required=false):string|null=>{
+        const value=String(datos[field]??'').trim();
+        if(value.length>max||(required&&!value)) throw new Error('FICHA_INVALIDA:'+field);
+        return value||null;
       };
-      const costo=parseNumero(datos.costo,2),venta=parseNumero(datos.venta,2);
-      const minimo=parseNumero(datos.minimo,3),maximo=parseNumero(datos.maximo,3);
-      if(nombre.length<1||nombre.length>500||departamento.length<1||departamento.length>150||
-         [costo,venta,minimo,maximo].some((x)=>x===null))
-        return reply(400,{ok:false,error:'Revisa descripción y datos numéricos.'});
-      const changes={producto:nombre,departamento_origen:departamento,p_costo:costo,
-        p_venta:venta,inv_minimo:minimo,inv_maximo:maximo,actualizado_el:new Date().toISOString()};
+      const parseNumero=(field:string):number=>{
+        const raw=String(datos[field]??'0').replace(/[$,]/g,'').trim();
+        if(!/^\d+(?:\.\d{1,6})?$/.test(raw))throw new Error('FICHA_INVALIDA:'+field);
+        const n=Number(raw);
+        if(!Number.isFinite(n)||n<0||n>999999999999)throw new Error('FICHA_INVALIDA:'+field);
+        return n;
+      };
+      let cambios:Record<string,unknown>;
+      try {
+        cambios={
+          producto:safeText('producto',500,true),
+          departamento_origen:safeText('departamento',150),
+          categoria_axia:safeText('categoria_axia',150,true),
+          familia_axia:safeText('familia_axia',200,true),
+          proveedor:safeText('proveedor',200),
+          codigo_proveedor:safeText('codigo_proveedor',160),
+          unidad_inventario:safeText('unidad_inventario',100),
+          seguimiento_sugerido:safeText('seguimiento_sugerido',150),
+          estado_clasificacion:safeText('estado_clasificacion',150),
+          posible_equivalencia:safeText('posible_equivalencia',300),
+          p_costo:parseNumero('costo'),p_venta:parseNumero('venta'),
+          p_mayoreo:parseNumero('p_mayoreo'),inv_minimo:parseNumero('minimo'),
+          inv_maximo:parseNumero('maximo'),
+        };
+      } catch {
+        return reply(400,{ok:false,error:'La ficha tiene campos inválidos o demasiado largos.'});
+      }
       if(accion==='editar_producto') {
-        const {data:updated,error}=await db.from(tabla).update(changes)
+        const {data:updated,error}=await db.from(tabla).update({...cambios,actualizado_el:new Date().toISOString()})
           .eq('codigo_axia',codigo).eq('activo',true).select('codigo_axia').maybeSingle();
         if(error)throw error;
         if(!updated)return reply(404,{ok:false,error:'Artículo no localizado o inactivo.'});
         return reply(200,{ok:true,resultado:{codigo}});
       }
-      const partes=codigo.split('-');
-      const nuevo={codigo_axia:codigo,...changes,categoria_axia:partes[1],familia_axia:partes[0],
-        prefijo_familia:partes[0],prefijo_categoria:partes[1],estatus:'Activo',activo:true,
-        saldo_actual:0,saldo_inicial_origen:'ALTA_AXIA_SIN_EXISTENCIA'};
-      const {data:insertado,error}=await db.from(tabla).insert(nuevo).select('codigo_axia').single();
-      if(error) {
-        if(error.code==='23505')return reply(409,{ok:false,error:'Ya existe ese código AXIA.'});
+      const solicitud=String(datos.solicitud_id??'');
+      if(!uuidValido(solicitud))return reply(400,{ok:false,error:'Identificador de alta inválido.'});
+      const {data:creado,error}=await db.rpc('axia_almacen_maestro_crear_producto',{
+        p_datos:cambios,p_idempotencia:solicitud,
+      });
+      if(error){
+        const mensaje=String(error.message??'');
+        if(mensaje.includes('FAMILIA_NO_REGISTRADA'))return reply(400,{ok:false,error:'Selecciona una categoría y familia oficiales del catálogo.'});
+        if(mensaje.includes('IDEMPOTENCIA_CON_DATOS_DISTINTOS'))return reply(409,{ok:false,error:'Esta solicitud ya se utilizó para otros datos. Cancela y abre un alta nueva.'});
+        if(mensaje.includes('CONSECUTIVO_AGOTADO'))return reply(409,{ok:false,error:'Esta familia agotó sus consecutivos. Contacta a TI.'});
+        if(mensaje.includes('23505')||error.code==='23505')return reply(409,{ok:false,error:'Ya existe ese código o identificador de alta.'});
         throw error;
       }
-      return reply(200,{ok:true,resultado:{codigo:insertado.codigo_axia}});
+      return reply(200,{ok:true,resultado:creado});
     }
     return reply(400,{ok:false,error:'Acción desconocida.'});
   } catch(err) {

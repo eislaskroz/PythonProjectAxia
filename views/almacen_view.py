@@ -15,7 +15,7 @@ from core.background_tasks import run_async
 from security.permissions import puede_ver_almacen
 from services.almacen_service import crear_almacen, formatear_cantidad
 from services.almacen_entregas_ot import validar_entrega_ot, preparar_sugerencias_ot
-from services.almacen_catalogo_maestro import COLUMNAS_TABLA, ficha_producto_maestro
+from services.almacen_catalogo_maestro import COLUMNAS_TABLA
 from ui.colors import (
     WHITE, TEXT_PRIMARY, TEXT_SECONDARY, SECONDARY, BUTTON_HOVER
 )
@@ -255,26 +255,8 @@ def mostrar_almacen(parent, app=None):
     , table_id="almacen_catalogo")
     tabla.grid(row=3, column=0, sticky='nsew', padx=7, pady=5)
 
-    seleccionado_txt = ctk.CTkLabel(
-        t_catalogo,
-        text='Selecciona una fila de la tabla.',
-        text_color=TEXT_SECONDARY,
-        anchor='w'
-    )
-    seleccionado_txt.grid(
-        row=4,
-        column=0,
-        sticky='ew',
-        padx=8,
-        pady=(2, 7)
-    )
-
-    # Detalle consultivo: incluye TODAS las columnas originales de ELEVENTA
-    # más los datos AXIA; no tiene controles de edición ni transferencias.
-    detalle_maestro = AxiaTextbox(t_catalogo, height=144, wrap='word')
-    detalle_maestro.grid(row=5, column=0, sticky='ew', padx=8, pady=(0, 5))
-    detalle_maestro.configure(state='disabled')
-    # La ficha de datos originales queda visible en el catálogo único.
+    # El catálogo utiliza todo el espacio libre para la tabla.
+    # Se retiraron el aviso de selección y la ficha inferior de detalle.
     paginacion_maestro = ctk.CTkFrame(t_catalogo, fg_color='transparent')
     paginacion_maestro.grid(row=6, column=0, sticky='e', padx=8, pady=(0, 4))
     btn_maestro_anterior = ctk.CTkButton(
@@ -899,85 +881,190 @@ def mostrar_almacen(parent, app=None):
         ejecutar(lambda: op(codigo=codigo, usuario=usuario), ok, 'No se pudo actualizar el producto')
 
     def abrir_editor_producto(editar=False):
+        """Ficha completa del Catálogo Maestro (no permite cambiar folio/saldo)."""
         registro = producto_seleccionado() if editar else None
         if editar and not registro:
             return
         if editar and not registro.get('activo', True):
             messagebox.showwarning('Almacén', 'Reactiva el producto antes de editarlo.')
             return
+
+        # Estas equivalencias provienen del catálogo que realmente se consultó.
+        # Así no inventamos prefijos y conservamos los oficiales de AXIA.
+        familias_por_categoria = {}
+        for producto in registros:
+            categoria = str(producto.get('categoria_axia') or '').strip()
+            familia = str(producto.get('familia_axia') or '').strip()
+            if categoria and familia:
+                familias_por_categoria.setdefault(categoria, set()).add(familia)
+        if not familias_por_categoria and not editar:
+            messagebox.showwarning('Catálogo no disponible',
+                'Primero consulta el catálogo para elegir una categoría y familia AXIA.')
+            return
+
         ventana = ctk.CTkToplevel(root)
         ventana.title('AXIA Almacén · ' + ('Editar producto' if editar else 'Nuevo producto'))
-        ventana.geometry('665x475')
-        ventana.minsize(600, 450)
+        ventana.geometry('980x740')
+        ventana.minsize(760, 560)
         ventana.transient(root.winfo_toplevel())
-        ventana.grid_columnconfigure(1, weight=1)
+        ventana.grid_columnconfigure(0, weight=1)
+        ventana.grid_rowconfigure(1, weight=1)
+        ctk.CTkLabel(ventana, text='Ficha completa del Catálogo Maestro AXIA',
+                     font=TITLE_MD, text_color=TEXT_PRIMARY).grid(
+                         row=0, column=0, sticky='w', padx=24, pady=(16, 7))
+        cuerpo = ctk.CTkScrollableFrame(ventana, fg_color='transparent')
+        cuerpo.grid(row=1, column=0, sticky='nsew', padx=12, pady=(0, 4))
+        for col in (1, 3):
+            cuerpo.grid_columnconfigure(col, weight=1)
         entradas_producto = {}
-        campos_def = (
-            ('codigo', 'Código *'), ('producto', 'Nombre del producto *'),
-            ('departamento', 'Departamento'), ('costo', 'Precio de costo'),
-            ('venta', 'Precio de venta'), ('minimo', 'Existencia mínima'),
-            ('maximo', 'Existencia máxima'),
-        )
-        ctk.CTkLabel(
-            ventana, text='Datos del producto', font=TITLE_MD, text_color=TEXT_PRIMARY
-        ).grid(row=0,column=0,columnspan=2,sticky='w',padx=20,pady=(16,8))
-        for index, (campo, leyenda) in enumerate(campos_def, start=1):
-            ctk.CTkLabel(ventana, text=leyenda, anchor='w', text_color=TEXT_PRIMARY).grid(
-                row=index, column=0, sticky='w', padx=(20,10), pady=5)
-            entry = AxiaEntry(ventana,height=33)
-            entry.grid(row=index,column=1,sticky='ew',padx=(0,20),pady=5)
-            valor = registro.get(campo) if registro else None
-            if valor is None and campo in ('costo','venta','minimo','maximo'):
-                valor = '0'
-            if valor is not None:
-                entry.insert(0,str(valor).replace('$','').replace(',',''))
-            if editar and campo=='codigo':
-                entry.configure(state='disabled')
-            entradas_producto[campo]=entry
 
-        ctk.CTkLabel(
-            ventana,
-            text='Las existencias se modifican únicamente desde Entradas y Salidas.\n'
-                 'El código no se cambia al editar para proteger el historial de movimientos.',
-            text_color=TEXT_SECONDARY, justify='left', anchor='w'
-        ).grid(row=8,column=0,columnspan=2,sticky='w',padx=20,pady=(8,5))
-        controles = ctk.CTkFrame(ventana,fg_color='transparent')
-        controles.grid(row=9,column=0,columnspan=2,sticky='e',padx=20,pady=(5,16))
-        ctk.CTkButton(
-            controles,text='Cancelar',width=100,fg_color='#64748B',
-            command=ventana.destroy
-        ).pack(side='left',padx=(0,10))
+        def valor_guardado(campo):
+            if not registro:
+                return ''
+            equivalencias = {
+                'codigo': 'codigo', 'departamento': 'departamento_origen',
+                'costo': 'p_costo', 'venta': 'p_venta', 'minimo': 'inv_minimo',
+                'maximo': 'inv_maximo',
+            }
+            v = registro.get(campo)
+            if v is None:
+                v = registro.get(equivalencias.get(campo, campo))
+            return '' if v is None else str(v)
+
+        def seccion(texto, fila):
+            ctk.CTkLabel(cuerpo, text=texto, font=TITLE_MD,
+                         text_color=TEXT_PRIMARY, anchor='w').grid(
+                row=fila, column=0, columnspan=4, sticky='ew',
+                padx=8, pady=(16 if fila else 6, 7))
+
+        def campo_texto(key, label, fila, lado=0, *, editable=True, default=''):
+            col = 0 if lado == 0 else 2
+            ctk.CTkLabel(cuerpo, text=label, anchor='w', text_color=TEXT_PRIMARY
+                         ).grid(row=fila, column=col, sticky='w', padx=(10, 8), pady=7)
+            widget = AxiaEntry(cuerpo, height=34)
+            widget.grid(row=fila, column=col+1, sticky='ew', padx=(0, 14), pady=7)
+            value = valor_guardado(key) if editar else default
+            if value:
+                widget.insert(0, value)
+            if not editable:
+                widget.configure(state='disabled')
+            else:
+                entradas_producto[key] = widget
+            return widget
+
+        seccion('Identificación y clasificación', 0)
+        codigo_widget = campo_texto('codigo', 'Código AXIA', 1, editable=False,
+                            default='Se asignará automáticamente al guardar')
+        campo_texto('producto', 'Producto *', 1, lado=1)
+        categorias = sorted(familias_por_categoria)
+        categorias_iniciales = categorias or [valor_guardado('categoria_axia')]
+        if editar and valor_guardado('categoria_axia') not in categorias_iniciales:
+            categorias_iniciales.append(valor_guardado('categoria_axia'))
+        categoria_inicial = valor_guardado('categoria_axia') if editar else categorias_iniciales[0]
+        ctk.CTkLabel(cuerpo,text='Categoría AXIA *',anchor='w',text_color=TEXT_PRIMARY
+                     ).grid(row=2,column=0,sticky='w',padx=(10,8),pady=7)
+        selector_categoria = ctk.CTkOptionMenu(cuerpo, values=categorias_iniciales,
+            height=34, fg_color='#31597B', button_color=SECONDARY,
+            text_color=WHITE)
+        selector_categoria.grid(row=2,column=1,sticky='ew',padx=(0,14),pady=7)
+        familias_iniciales = sorted(familias_por_categoria.get(categoria_inicial, []))
+        if editar and valor_guardado('familia_axia') not in familias_iniciales:
+            familias_iniciales.append(valor_guardado('familia_axia'))
+        if not familias_iniciales:
+            familias_iniciales = ['Sin familia']
+        ctk.CTkLabel(cuerpo,text='Familia AXIA *',anchor='w',text_color=TEXT_PRIMARY
+                     ).grid(row=2,column=2,sticky='w',padx=(10,8),pady=7)
+        selector_familia = ctk.CTkOptionMenu(cuerpo, values=familias_iniciales,
+            height=34, fg_color='#31597B', button_color=SECONDARY,
+            text_color=WHITE)
+        selector_familia.grid(row=2,column=3,sticky='ew',padx=(0,14),pady=7)
+        if categoria_inicial:
+            selector_categoria.set(categoria_inicial)
+        selector_familia.set(valor_guardado('familia_axia') if editar else familias_iniciales[0])
+        def actualizar_familias(categoria):
+            opciones = sorted(familias_por_categoria.get(categoria, [])) or ['Sin familia']
+            selector_familia.configure(values=opciones)
+            selector_familia.set(opciones[0])
+        selector_categoria.configure(command=actualizar_familias)
+
+        campo_texto('departamento', 'Departamento original', 3)
+        campo_texto('unidad_inventario', 'Unidad de inventario', 3, lado=1)
+        seccion('Proveedor y referencias comerciales', 4)
+        campo_texto('proveedor', 'Proveedor', 5)
+        campo_texto('codigo_proveedor', 'Código proveedor', 5, lado=1)
+        campo_texto('costo', 'Precio de costo', 6, default='0')
+        campo_texto('venta', 'Precio de venta', 6, lado=1, default='0')
+        campo_texto('p_mayoreo', 'Precio mayoreo', 7, default='0')
+        campo_texto('minimo', 'Inventario mínimo', 7, lado=1, default='0')
+        campo_texto('maximo', 'Inventario máximo', 8, default='0')
+        seccion('Información de clasificación', 9)
+        campo_texto('seguimiento_sugerido', 'Seguimiento sugerido', 10)
+        campo_texto('estado_clasificacion', 'Estado de clasificación', 10, lado=1,
+                    default='Validado')
+        campo_texto('posible_equivalencia', 'Posible equivalencia', 11)
+        seccion('Datos históricos de consulta · solo lectura', 12)
+        campo_texto('codigo_origen_eleventa', 'Código origen ELEVENTA', 13,
+                    editable=False)
+        campo_texto('fila_origen_eleventa', 'Fila original ELEVENTA', 13, lado=1,
+                    editable=False)
+        campo_texto('existencia_eleventa', 'Existencia ELEVENTA original', 14,
+                    editable=False)
+        campo_texto('saldo', 'Saldo actual en Supabase', 14, lado=1,
+                    editable=False, default='0')
+        campo_texto('saldo_inicial_origen', 'Origen del saldo inicial', 15,
+                    editable=False)
+        campo_texto('estatus', 'Estatus del catálogo', 15, lado=1,
+                    editable=False, default='Activo')
+        ctk.CTkLabel(cuerpo, text='El Código AXIA se asigna al crear el producto y no se modifica. '
+            'Los saldos únicamente cambian mediante Entradas y Salidas. '
+            'Los datos históricos de ELEVENTA se conservan.',
+            wraplength=850, text_color=TEXT_SECONDARY, justify='left', anchor='w').grid(
+                row=16, column=0, columnspan=4, sticky='ew', padx=10, pady=(12, 14))
+
+        solicitud_alta_id = str(uuid.uuid4())  # Mismo ID para reintentos de esta alta.
+        controles = ctk.CTkFrame(ventana, fg_color='transparent')
+        controles.grid(row=2, column=0, sticky='e', padx=22, pady=(8, 16))
+        ctk.CTkButton(controles,text='Cancelar',width=110,fg_color='#64748B',
+            command=ventana.destroy).pack(side='left',padx=(0,10))
 
         def guardar_producto():
-            datos={k: w.get().strip() if not (editar and k=='codigo')
-                   else str(registro['codigo']) for k,w in entradas_producto.items()}
+            datos = {k: w.get().strip() for k, w in entradas_producto.items()}
+            datos['categoria_axia'] = selector_categoria.get().strip()
+            datos['familia_axia'] = selector_familia.get().strip()
             try:
-                from services.almacen_service import validar_producto
-                validos=validar_producto(datos)
+                from services.almacen_service import validar_producto_maestro
+                validos = validar_producto_maestro(datos,
+                    codigo=str(registro['codigo']) if editar else None)
+                if not editar:
+                    validos['solicitud_id'] = solicitud_alta_id
             except ValueError as exc:
                 messagebox.showwarning('Revisa el producto',str(exc),parent=ventana)
                 return
-            if not messagebox.askyesno('Confirmación',
-                    ('Guardar cambios de' if editar else 'Agregar') +
-                    f'\n{validos["codigo"]} · {validos["producto"]}?',parent=ventana):
+            ref = (str(registro['codigo']) if editar else 'Código AXIA automático')
+            if not messagebox.askyesno('Confirmar',
+                ('Guardar cambios de' if editar else 'Registrar') +
+                f'\n{ref} · {validos["producto"]}?', parent=ventana):
                 return
             btn_guardar.configure(state='disabled')
             operacion = servicio.editar_producto if editar else servicio.crear_producto
-            args={'datos':validos,'usuario':usuario}
+            args = {'datos': validos, 'usuario': usuario}
             if editar:
-                args['codigo']=str(registro['codigo'])
-            def ok(_):
+                args['codigo'] = str(registro['codigo'])
+            def ok(resultado):
+                codigo_final = (resultado or {}).get('codigo', ref) if isinstance(resultado, dict) else ref
                 if ventana.winfo_exists():
                     ventana.destroy()
-                status.configure(text='Producto guardado correctamente.',text_color='#15803D')
+                status.configure(text=f'Producto {codigo_final} guardado correctamente.',
+                                 text_color='#15803D')
                 cargar_catalogo()
             def err(exc):
                 if ventana.winfo_exists():
                     btn_guardar.configure(state='normal')
-                messagebox.showerror('No se guardó el producto',str(exc))
-            run_async(root.winfo_toplevel(),lambda:operacion(**args),ok,err)
+                messagebox.showerror('No se guardó el producto',str(exc),parent=ventana)
+            run_async(root.winfo_toplevel(), lambda:operacion(**args), ok, err)
 
-        btn_guardar=ctk.CTkButton(controles,text='Guardar producto',width=145,command=guardar_producto)
+        btn_guardar = ctk.CTkButton(controles, text='Guardar producto', width=160,
+                                    command=guardar_producto)
         btn_guardar.pack(side='left')
         ventana.after(70,lambda:ventana.grab_set() if ventana.winfo_exists() else None)
 
@@ -1035,7 +1122,6 @@ def mostrar_almacen(parent, app=None):
         if es_vista_maestro():
             ayuda.configure(text='Catálogo Maestro AXIA: SOLO CONSULTA. Existencia ELEVENTA histórica; '
                                  'no se usa para Entradas, Salidas ni Kárdex.')
-            detalle_maestro.grid()
             paginacion_maestro.grid()
             if not maestro['cargado']:
                 cargar_catalogo_maestro(pagina=1)
@@ -1043,7 +1129,6 @@ def mostrar_almacen(parent, app=None):
                 representar_maestro()
         else:
             ayuda.configure(text='Catálogo operativo: selecciona un producto para preparar entradas o salidas.')
-            # La ficha de datos originales queda visible en el catálogo único.
             paginacion_maestro.grid_remove()
             mostrar_registros()
 
@@ -1072,10 +1157,6 @@ def mostrar_almacen(parent, app=None):
         etiqueta_pagina_maestro.configure(text=f'Página {pagina} de {ultima}')
         btn_maestro_anterior.configure(state='normal' if pagina > 1 else 'disabled')
         btn_maestro_siguiente.configure(state='normal' if pagina < ultima else 'disabled')
-        seleccionado_txt.configure(text='Selecciona un artículo para ver todos sus campos originales.')
-        detalle_maestro.configure(state='normal')
-        detalle_maestro.delete('1.0', 'end')
-        detalle_maestro.configure(state='disabled')
 
     def cargar_catalogo_maestro(*, pagina=1):
         if not vista_maestro_habilitada:
@@ -1152,21 +1233,11 @@ def mostrar_almacen(parent, app=None):
                  'No se pudo consultar el Catálogo Maestro AXIA')
 
     def seleccionar(registro):
+        # Mantener las acciones existentes al seleccionar una fila de Catálogo.
+        # La ficha inferior ya no se muestra para aprovechar el espacio de la tabla.
         if es_vista_maestro():
-            codigo_axia = str(registro.get('codigo_axia') or '')
-            seleccionado_txt.configure(text=f'Producto maestro: {codigo_axia}. '
-                      'Consulta únicamente: no se transfiere a movimientos.')
-            detalle_maestro.configure(state='normal')
-            detalle_maestro.delete('1.0', 'end')
-            detalle_maestro.insert('1.0', ficha_producto_maestro(registro))
-            detalle_maestro.configure(state='disabled')
             return
         codigo = str(registro.get('codigo') or '')
-        detalle_maestro.configure(state='normal')
-        detalle_maestro.delete('1.0', 'end')
-        detalle_maestro.insert('1.0', ficha_producto_maestro(registro))
-        detalle_maestro.configure(state='disabled')
-
         for formulario, _ in entradas.values():
             campo = formulario['codigo']
             campo.delete(0, 'end')
@@ -1176,12 +1247,8 @@ def mostrar_almacen(parent, app=None):
         buscar_k.delete(0, 'end')
         buscar_k.insert(0, codigo)
         campo_ot_codigo.delete(0, 'end')
-        if registro.get('activo',True):
-            campo_ot_codigo.insert(0,codigo)
-
-        seleccionado_txt.configure(
-            text=f'Seleccionado: {codigo} · {str(registro.get("producto") or "")[:100]}'
-        )
+        if registro.get('activo', True):
+            campo_ot_codigo.insert(0, codigo)
 
     tabla._on_select = seleccionar
     def seleccionar_admin(registro):
@@ -1361,13 +1428,11 @@ def mostrar_almacen(parent, app=None):
         )
 
     origen.set(fuente_inicial)
-    detalle_maestro.grid()
     ayuda.configure(text='CATÁLOGO ÚNICO AXIA · Saldo disponible en Supabase. '
                           'ELEVENTA es únicamente el saldo original importado.')
     if vista_maestro_habilitada:
         tabla.set_columns(COLUMNAS_TABLA)
         ayuda.configure(text='Catálogo Maestro AXIA: SOLO CONSULTA. Existencia ELEVENTA histórica; '
                              'no se usa para Entradas, Salidas ni Kárdex.')
-        detalle_maestro.grid()
         paginacion_maestro.grid()
     root.after(30, inicializar)

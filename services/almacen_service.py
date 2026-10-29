@@ -64,6 +64,47 @@ def validar_producto(datos: dict) -> dict:
     return normalized
 
 
+# Catálogo maestro: todos los atributos editables, sin permitir modificar
+# el identificador AXIA ni el saldo operativo desde Altas/Modificaciones.
+CAMPOS_MAESTROS_TEXTO = {
+    'producto': 500, 'departamento': 150, 'categoria_axia': 150,
+    'familia_axia': 200, 'proveedor': 200, 'codigo_proveedor': 160,
+    'unidad_inventario': 100, 'seguimiento_sugerido': 150,
+    'estado_clasificacion': 150, 'posible_equivalencia': 300,
+}
+CAMPOS_MAESTROS_NUM = {
+    'costo': 6, 'venta': 6, 'p_mayoreo': 6,
+    'minimo': 6, 'maximo': 6,
+}
+
+
+def validar_producto_maestro(datos: dict, *, codigo: str | None = None) -> dict:
+    """Valida datos de catálogo en DESKTOP, dejando el folio para el servidor."""
+    if not isinstance(datos, dict):
+        raise ValueError('Los datos de producto no son válidos.')
+    normalized = {}
+    for campo, max_len in CAMPOS_MAESTROS_TEXTO.items():
+        valor = str(datos.get(campo) or '').strip()
+        if len(valor) > max_len:
+            raise ValueError(f'{campo}: máximo {max_len} caracteres.')
+        if campo in ('producto', 'categoria_axia', 'familia_axia') and not valor:
+            raise ValueError(f'{campo}: este dato es obligatorio.')
+        normalized[campo] = valor
+    for campo, decimales in CAMPOS_MAESTROS_NUM.items():
+        bruto = str(datos.get(campo) or '0').replace('$', '').replace(',', '').strip()
+        valor = _valor_decimal(bruto)
+        if not valor.is_finite() or not (0 <= valor <= Decimal('999999999999')):
+            raise ValueError(f'{campo}: introduce un número no negativo.')
+        if valor != valor.quantize(Decimal('1').scaleb(-decimales)):
+            raise ValueError(f'{campo}: máximo {decimales} decimales.')
+        normalized[campo] = format(valor, f'.{decimales}f')
+    if codigo is not None:
+        normalized['codigo'] = str(codigo).strip()
+        if datos.get('codigo') not in (None, '', normalized['codigo']):
+            raise ValueError('El Código AXIA no puede modificarse.')
+    return normalized
+
+
 class AlmacenSimulador:
     """Pruebas en memoria. Saldos empiezan siempre desde CERO; sin persistencia."""
 
@@ -321,13 +362,16 @@ class AlmacenRemoto:
 
     def crear_producto(self, *, datos: dict, usuario: dict):
         self._comprobar_usuario(usuario)
-        return self._peticion('crear_producto' + self._sufijo, {'producto': validar_producto(datos)})
+        # No se recibe un código AXIA desde DESKTOP: lo asigna Supabase.
+        validado = validar_producto_maestro(datos)
+        solicitud = str(datos.get('solicitud_id') or uuid.uuid4())
+        uuid.UUID(solicitud)  # Rechazar IDs no válidos antes de llegar a Supabase.
+        return self._peticion('crear_producto' + self._sufijo,
+                              {'producto': {**validado, 'solicitud_id': solicitud}})
 
     def editar_producto(self, *, codigo: str, datos: dict, usuario: dict):
         self._comprobar_usuario(usuario)
-        validado = validar_producto({**datos, 'codigo': codigo})
-        if str(datos.get('codigo', codigo)).strip() != codigo:
-            raise ValueError('No se permite cambiar el código de un producto registrado.')
+        validado = validar_producto_maestro(datos, codigo=codigo)
         return self._peticion('editar_producto' + self._sufijo, {'codigo': codigo, 'producto': validado})
 
     def desactivar_producto(self, *, codigo: str, usuario: dict):

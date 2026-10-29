@@ -15,7 +15,8 @@ DEMO = {'codigo':'OLD1','producto':'Tubo EMT','departamento':'MATERIALES',
 
 def nuevo(codigo='NEW1'):
     return {'codigo':codigo,'producto':'Conector','departamento':'REDES','costo':'2.30',
-            'venta':'3.50','minimo':'1.500','maximo':'10'}
+            'venta':'3.50','minimo':'1.500','maximo':'10',
+            'categoria_axia':'Redes','familia_axia':'Conectores'}
 
 
 def test_crear_editar_y_conservar_saldo():
