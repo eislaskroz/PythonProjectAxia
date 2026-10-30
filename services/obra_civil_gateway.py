@@ -53,7 +53,8 @@ def peticion_obra_civil(accion: str, solicitud: str, *, usuario_id: object, dato
 
 
 def gestionar_obra_civil(accion: str, *, usuario_id: object, folio: str = '',
-                        busqueda: str = '', cambios: dict | None = None):
+                        busqueda: str = '', cambios: dict | None = None,
+                        solicitud: str = ''):
     """Listado, modificación y validación de OBC por servidor, sin RLS público.
 
     La identidad y el permiso de cada acción se verifican nuevamente en Edge.
@@ -74,6 +75,7 @@ def gestionar_obra_civil(accion: str, *, usuario_id: object, folio: str = '',
             raise ValueError('Selecciona un folio OBC válido.')
     if accion == 'actualizar':
         payload['cambios'] = dict(cambios or {})
+        payload['solicitud'] = str(uuid.UUID(solicitud)) if solicitud else str(uuid.uuid4())
     try:
         respuesta = requests.post(
             ENDPOINT,

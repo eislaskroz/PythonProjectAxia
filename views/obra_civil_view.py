@@ -54,9 +54,14 @@ ESTADOS = ["Pendiente", "En proceso", "Terminado"]
 RESULTADOS = ["Aprobadas", "Reprobadas", "Pendiente"]
 
 
-def mostrar_obra_civil(parent, app, aco=None, borrador=None):
+def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=None, al_guardar=None):
+    """Mismo formulario para alta y edición; en edición no crea borradores ni INSERT."""
+    modo_edicion = isinstance(obra_edicion, dict) and bool(obra_edicion.get('obc_id'))
+    if modo_edicion:
+        from services.obra_civil_edicion import preparar_borrador_edicion
+        borrador = preparar_borrador_edicion(obra_edicion)
     usuario_activo = obtener_usuario_actual()
-    if not puede_generar_levantamiento(usuario_activo):
+    if not modo_edicion and not puede_generar_levantamiento(usuario_activo):
         messagebox.showerror("Acceso denegado", "No tienes permisos para generar registros de obra civil.")
         app.mostrar_vista_inicio_aco()
         return
@@ -72,6 +77,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
     campos_validables = []
     nombres_validables = {}
     evidencias = []
+    evidencias_existentes = []
     archivos_adjuntos = []
     archivos_adjuntos_existentes = []
     materiales_miscelaneos_items = []
@@ -165,7 +171,10 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
 
     if not aco and clientes_por_nombre:
         opciones_reales = [nombre for nombre in sorted(clientes_por_nombre) if nombre.casefold() != "otros"]
-        var_cliente_selector.set(opciones_reales[0] if opciones_reales else OPCION_CLIENTE_OTROS)
+        cliente_edicion = str(obra_edicion.get('obc_cliente') or '') if modo_edicion else ''
+        var_cliente_selector.set(cliente_edicion if cliente_edicion in opciones_reales else
+                                 (OPCION_CLIENTE_OTROS if cliente_edicion else
+                                  (opciones_reales[0] if opciones_reales else OPCION_CLIENTE_OTROS)))
     elif not aco:
         var_cliente_selector.set(OPCION_CLIENTE_OTROS)
     elif aco:
@@ -304,6 +313,8 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         form.grid_columnconfigure(col, weight=1, uniform="cols")
 
     _validar_preview_after_id = None
+    secciones_formulario = []
+    bloqueos_editor = {}
 
     def validar_preview():
         try:
@@ -311,9 +322,9 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
             estado = "normal" if completo else "disabled"
             if btn_preview is not None:
                 btn_preview.configure(state=estado)
-            if btn_guardar is not None:
+            if btn_guardar is not None and not modo_edicion:
                 btn_guardar.configure(state=estado)
-            if lbl_faltantes is not None:
+            if lbl_faltantes is not None and not modo_edicion:
                 pendientes = campos_faltantes_obra() if not completo else []
                 if completo:
                     lbl_faltantes.configure(text="✓ Formulario completo. Ya puedes guardar o generar el Preview PDF.", text_color="#15803D")
@@ -339,7 +350,15 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
             validar_preview()
 
     def seccion(texto, fila):
-        ctk.CTkLabel(form, text=texto, font=SECTION_FONT, text_color=TEXT_PRIMARY).grid(row=fila, column=0, columnspan=5, sticky="w", pady=(6, 3))
+        cabecera = ctk.CTkFrame(form, fg_color="transparent")
+        cabecera.grid(row=fila, column=0, columnspan=5, sticky="ew", pady=(6, 3))
+        ctk.CTkLabel(cabecera, text=texto, font=SECTION_FONT, text_color=TEXT_PRIMARY).pack(side="left")
+        if modo_edicion:
+            boton = ctk.CTkButton(cabecera, text="🔒 Desbloquear sección", width=185, height=29,
+                                  fg_color="#102A8B", hover_color="#173B5C")
+            boton.pack(side="right", padx=6)
+            bloqueos_editor[texto] = {'activo':False, 'boton':boton, 'originales':{}}
+        secciones_formulario.append((texto, fila))
 
     def celda(fila, col, colspan=1):
         frame = ctk.CTkFrame(form, fg_color="transparent")
@@ -1149,9 +1168,11 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         btn_eliminar_evidencia.configure(state="normal" if desea and evidencias else "disabled")
         if not desea:
             evidencias.clear()
-            lbl_evidencias.configure(text="No se requieren fotografías")
+            lbl_evidencias.configure(text="Sin nuevas fotografías" if modo_edicion else "No se requieren fotografías")
         else:
-            lbl_evidencias.configure(text=f"{len(evidencias)} fotografía(s) seleccionada(s)" if evidencias else "Pendiente de cargar fotografías")
+            n_existentes=len(evidencias_existentes)
+            texto=f"{n_existentes} ya guardadas · {len(evidencias)} nuevas" if modo_edicion else f"{len(evidencias)} fotografía(s) seleccionada(s)"
+            lbl_evidencias.configure(text=texto if (evidencias or n_existentes) else "Pendiente de cargar fotografías")
         validar_preview()
 
     def agregar_evidencia():
@@ -1220,8 +1241,9 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         btn_agregar_archivo.configure(state="normal" if desea else "disabled")
         btn_eliminar_archivo.configure(state="normal" if desea and archivos_adjuntos else "disabled")
         if not desea:
-            archivos_adjuntos.clear(); archivos_adjuntos_existentes.clear()
-            lbl_archivos.configure(text="No se requieren archivos")
+            archivos_adjuntos.clear()
+            if not modo_edicion: archivos_adjuntos_existentes.clear()
+            lbl_archivos.configure(text="Sin nuevos archivos" if modo_edicion else "No se requieren archivos")
         else:
             lbl_archivos.configure(text=f"{total_archivos_obra()} archivo(s) adjunto(s)" if total_archivos_obra() else "Pendiente de cargar PDF o planos")
         validar_preview()
@@ -1323,6 +1345,13 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
                     if str(r.get("id_obra_concepto")) == str(fila.get("id_obra_concepto"))
                     or (str(r.get("obra_partida") or "") == str(fila.get("partida") or "")
                         and str(r.get("obra_concepto") or "") == str(fila.get("concepto") or ""))), None)
+                if not registro and fila.get("concepto"):
+                    # Un concepto histórico debe seguir viéndose aunque haya
+                    # sido retirado del catálogo; edición manual reversible.
+                    item["tipo"].set(TIPO_CONCEPTO_OTROS)
+                    item["cambiar_tipo"](TIPO_CONCEPTO_OTROS, restaurar=True)
+                    item["concepto_label"].set(str(fila.get("concepto") or ""))
+                    item["unidad"].set(str(fila.get("unidad") or ""))
                 if registro:
                     tipo = str(registro.get("obra_tipo") or "")
                     seleccion = filtrar_conceptos_por_tipo(tipo, catalogo_conceptos_obra)
@@ -1370,7 +1399,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
                     continue
                 item["categoria"].set(str(fila.get("categoria") or "Tubo"))
                 item["tipo"].set(str(fila.get("tipo") or ""))
-                item["especificacion"].set(str(fila.get("especificacion") or ""))
+                item["especificacion"].set(str(fila.get("tamano_calibre_especificacion") or fila.get("especificacion") or ""))
                 item["cantidad"].set(str(fila.get("cantidad") or ""))
                 item["unidad"].set(unidad_forzada_canalizacion(item["categoria"].get(), fila.get("unidad")))
         for ruta in estado.get("evidencias_locales", []) if isinstance(estado.get("evidencias_locales"), list) else []:
@@ -1384,6 +1413,15 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
 
     _restaurar_borrador_obra()
     bloquear_autollenados()
+    if modo_edicion:
+        # Los adjuntos guardados en Supabase no son rutas locales. Se muestran
+        # con su contador pero jamás se borran ni se suben al solo editar.
+        existentes_fotos = guardado_servidor.get('fotos') or []
+        existentes_archivos = guardado_servidor.get('archivos') or []
+        evidencias_existentes[:] = list(existentes_fotos)
+        archivos_adjuntos_existentes[:] = list(existentes_archivos)
+        actualizar_evidencias()
+        actualizar_archivos()
 
     def formulario_completo():
         if not all(v.get().strip() for v in campos_validables):
@@ -1392,7 +1430,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
             return False
         if var_desea_anotacion_plano.get() == "Sí" and not var_anotacion_plano_base64.get().strip():
             return False
-        if var_desea_evidencias.get() == "Sí" and not evidencias:
+        if var_desea_evidencias.get() == "Sí" and not (evidencias or (modo_edicion and evidencias_existentes)):
             return False
         if var_desea_archivos_adjuntos.get() == "Sí" and total_archivos_obra() == 0:
             return False
@@ -1550,6 +1588,55 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
             ("Canalización, cableado y materiales", ["Categoría", "Tipo", "Especificación", "Cantidad", "Unidad"], seccion_canalizacion_pdf()),
         ])
 
+    def _capturar_datos_obra():
+        datos = {
+            "id_aco": datos_aco.get("id_aco"),
+            "id_sucursal": (None if modo_manual_cliente["activo"] else
+                            seleccion_catalogo.get("id_sucursal") or datos_aco.get("id_sucursal")),
+            "id_contacto": (None if modo_manual_cliente["activo"] else
+                            seleccion_catalogo.get("id_contacto") or datos_aco.get("id_contacto")),
+            "obc_fecha": var_fecha.get().strip() or None,
+            "obc_aco_numero": var_aco.get().strip(),
+            "obc_cliente": var_cliente.get().strip(), "obc_contacto": var_contacto.get().strip(), "obc_sucursal": var_sucursal.get().strip(),
+            "obc_direccion": var_direccion.get().strip(), "obc_responsable_axia": var_responsable.get().strip(), "obc_supervisor": var_supervisor.get().strip(),
+            "obc_dias_trabajo": int(var_dias_trabajo.get().strip() or 0), "obc_personas_considerar": int(var_personas_considerar.get().strip() or 0),
+            "obc_tipo_giro": var_tipo_giro.get().strip(), "obc_nombre_proyecto": var_nombre_proyecto.get().strip(),
+            "obc_superficie_disponible": var_superficie.get(), "obc_superficie_adecuada": var_superficie_ok.get(), "obc_planos_arquitectonicos": var_planos_arq.get(),
+            "obc_requiere_maquinaria": var_maquinaria.get(), "obc_permisos": var_permisos.get(), "obc_observaciones_iniciales": obtener_textbox(txt_observaciones_iniciales),
+            "obc_ejecucion_json": json.dumps({
+                **{k: v.get() for k, v in ejecucion_vars.items()},
+                "_notas_cliente": {"desea_agregar": var_desea_notas_cliente.get(), "notas": var_notas_cliente.get().strip() if var_desea_notas_cliente.get() == "Sí" else ""},
+                "_datos_generales_axia": {
+                    "supervisor": var_supervisor.get().strip(),
+                    "encargado_proyecto": var_responsable.get().strip(),
+                    "tecnico": var_tecnico.get().strip(),
+                    "telefono_encargado_sucursal": var_telefono.get().strip(),
+                    "correo_encargado_sucursal": var_correo.get().strip(),
+                    "dias_trabajo": var_dias_trabajo.get().strip(),
+                    "personas_considerar": var_personas_considerar.get().strip(),
+                },
+                "_conceptos_obra": obtener_conceptos_obra_seleccionados(),
+                "_epp": {"requiere": var_requiere_epp.get(), "partidas": obtener_epp_obra()},
+                "_acceso_alturas_riesgos": {
+                    "trabajo_alturas": var_trabajo_alturas.get(),
+                    "sistema_acceso_temporal": var_sistema_acceso.get() if var_trabajo_alturas.get() == "Sí" else "",
+                    "altura": var_altura_trabajo.get() if var_trabajo_alturas.get() == "Sí" else "",
+                    "riesgo": var_riesgo_trabajo.get() if var_trabajo_alturas.get() == "Sí" else "",
+                },
+                "_materiales_miscelaneos": obtener_materiales_misc_obra(),
+                "_canalizacion_materiales": {
+                    "requiere": var_requiere_canalizacion.get(),
+                    "partidas": obtener_canalizacion_materiales_obra(),
+                },
+            }, ensure_ascii=False),
+            "obc_planos_acabados": var_planos_acabados.get(), "obc_generacion_planos": var_generacion_planos.get(), "obc_etapa_acabados": var_etapa_acabados.get(),
+            "obc_obra_blanca": var_obra_blanca.get(), "obc_evidencias_json": "[]", "obc_archivos_adjuntos_json": "[]",
+            "obc_anotacion_plano_json": json.dumps({"habilitado": var_desea_anotacion_plano.get() == "Sí", "imagen_base64": var_anotacion_plano_base64.get().strip() if var_desea_anotacion_plano.get() == "Sí" else ""}, ensure_ascii=False),
+            "obc_observaciones_finales": obtener_textbox(txt_finales),
+            "obc_estatus": 1, "creado_por": usuario_activo.get("usuario"),
+        }
+        return datos
+
     def guardar_obra():
         if not formulario_completo():
             messagebox.showwarning("Campos obligatorios", "Debes llenar los campos obligatorios.")
@@ -1642,52 +1729,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
                     )
                     return
 
-        datos = {
-            "id_aco": datos_aco.get("id_aco"),
-            "id_sucursal": (None if modo_manual_cliente["activo"] else
-                            seleccion_catalogo.get("id_sucursal") or datos_aco.get("id_sucursal")),
-            "id_contacto": (None if modo_manual_cliente["activo"] else
-                            seleccion_catalogo.get("id_contacto") or datos_aco.get("id_contacto")),
-            "obc_fecha": var_fecha.get().strip() or None,
-            "obc_aco_numero": var_aco.get().strip(),
-            "obc_cliente": var_cliente.get().strip(), "obc_contacto": var_contacto.get().strip(), "obc_sucursal": var_sucursal.get().strip(),
-            "obc_direccion": var_direccion.get().strip(), "obc_responsable_axia": var_responsable.get().strip(), "obc_supervisor": var_supervisor.get().strip(),
-            "obc_dias_trabajo": int(var_dias_trabajo.get().strip()), "obc_personas_considerar": int(var_personas_considerar.get().strip()),
-            "obc_tipo_giro": var_tipo_giro.get().strip(), "obc_nombre_proyecto": var_nombre_proyecto.get().strip(),
-            "obc_superficie_disponible": var_superficie.get(), "obc_superficie_adecuada": var_superficie_ok.get(), "obc_planos_arquitectonicos": var_planos_arq.get(),
-            "obc_requiere_maquinaria": var_maquinaria.get(), "obc_permisos": var_permisos.get(), "obc_observaciones_iniciales": obtener_textbox(txt_observaciones_iniciales),
-            "obc_ejecucion_json": json.dumps({
-                **{k: v.get() for k, v in ejecucion_vars.items()},
-                "_notas_cliente": {"desea_agregar": var_desea_notas_cliente.get(), "notas": var_notas_cliente.get().strip() if var_desea_notas_cliente.get() == "Sí" else ""},
-                "_datos_generales_axia": {
-                    "supervisor": var_supervisor.get().strip(),
-                    "encargado_proyecto": var_responsable.get().strip(),
-                    "tecnico": var_tecnico.get().strip(),
-                    "telefono_encargado_sucursal": var_telefono.get().strip(),
-                    "correo_encargado_sucursal": var_correo.get().strip(),
-                    "dias_trabajo": var_dias_trabajo.get().strip(),
-                    "personas_considerar": var_personas_considerar.get().strip(),
-                },
-                "_conceptos_obra": obtener_conceptos_obra_seleccionados(),
-                "_epp": {"requiere": var_requiere_epp.get(), "partidas": obtener_epp_obra()},
-                "_acceso_alturas_riesgos": {
-                    "trabajo_alturas": var_trabajo_alturas.get(),
-                    "sistema_acceso_temporal": var_sistema_acceso.get() if var_trabajo_alturas.get() == "Sí" else "",
-                    "altura": var_altura_trabajo.get() if var_trabajo_alturas.get() == "Sí" else "",
-                    "riesgo": var_riesgo_trabajo.get() if var_trabajo_alturas.get() == "Sí" else "",
-                },
-                "_materiales_miscelaneos": obtener_materiales_misc_obra(),
-                "_canalizacion_materiales": {
-                    "requiere": var_requiere_canalizacion.get(),
-                    "partidas": obtener_canalizacion_materiales_obra(),
-                },
-            }, ensure_ascii=False),
-            "obc_planos_acabados": var_planos_acabados.get(), "obc_generacion_planos": var_generacion_planos.get(), "obc_etapa_acabados": var_etapa_acabados.get(),
-            "obc_obra_blanca": var_obra_blanca.get(), "obc_evidencias_json": "[]", "obc_archivos_adjuntos_json": "[]",
-            "obc_anotacion_plano_json": json.dumps({"habilitado": var_desea_anotacion_plano.get() == "Sí", "imagen_base64": var_anotacion_plano_base64.get().strip() if var_desea_anotacion_plano.get() == "Sí" else ""}, ensure_ascii=False),
-            "obc_observaciones_finales": obtener_textbox(txt_finales),
-            "obc_estatus": 1, "creado_por": usuario_activo.get("usuario"),
-        }
+        datos = _capturar_datos_obra()
         # Subir evidencias ANTES del INSERT evita necesitar un UPDATE en una
         # tabla cuya RLS todavía está pendiente de migración a autenticación
         # de usuarios con tokens del servidor. También preserva los archivos
@@ -1854,11 +1896,143 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
             "__obra_civil_borrador": estado,
         }
 
-    try:
-        if hasattr(app, "registrar_proveedor_borrador_levantamiento"):
-            app.registrar_proveedor_borrador_levantamiento("Obra Civil", _snapshot_borrador_obra)
-    except Exception:
-        logger.debug("No fue posible registrar autoguardado de Obra Civil.", exc_info=True)
+    if not modo_edicion:
+        try:
+            if hasattr(app, "registrar_proveedor_borrador_levantamiento"):
+                app.registrar_proveedor_borrador_levantamiento("Obra Civil", _snapshot_borrador_obra)
+        except Exception:
+            logger.debug("No fue posible registrar autoguardado de Obra Civil.", exc_info=True)
+
+    if modo_edicion:
+        from services.obra_civil_edicion import cambios_secciones, CAMPOS_POR_SECCION
+        from services.obra_civil_gateway import gestionar_obra_civil
+        from core.background_tasks import run_async
+        # Captura de referencia DESPUÉS de restaurar los widgets y sus filas.
+        # Así los valores originales de un formulario histórico no se sobreescriben
+        # porque algún selector predeterminado tenga valores distintos.
+        datos_base_editor = _capturar_datos_obra()
+        solicitud_edicion = str(uuid4())
+        # Reutilizar metadatos subidos si la red cae tras completar Storage.
+        subidas_editor = {'fotos':None, 'archivos':None}
+
+        def _recorrer_controles(widget):
+            for hijo in widget.winfo_children():
+                if isinstance(hijo,(ctk.CTkEntry,ctk.CTkTextbox,ctk.CTkButton,NativeComboBox)):
+                    yield hijo
+                yield from _recorrer_controles(hijo)
+
+        def _controles_seccion(posicion):
+            nombre, desde = secciones_formulario[posicion]
+            hasta = (secciones_formulario[posicion + 1][1]
+                     if posicion+1 < len(secciones_formulario) else 10000)
+            for widget in form.winfo_children():
+                info = widget.grid_info()
+                fila = int(info.get('row', -1)) if info else -1
+                if desde < fila < hasta:
+                    yield from _recorrer_controles(widget)
+
+        # El formulario de captura se reutiliza íntegro (campos y catálogos,
+        # botones para filas dinámicas, mismos tamaños, mismas dependencias).
+        # Se bloquean controles de cada grupo y no el frame completo.
+        for pos, (nombre, _fila) in enumerate(secciones_formulario):
+            estado = bloqueos_editor[nombre]
+            controles = list(_controles_seccion(pos))
+            for control in controles:
+                try:
+                    estado['originales'][control] = control.cget('state')
+                    control.configure(state='disabled')
+                except (ValueError,AttributeError):
+                    pass
+            def alternar(i=pos, titulo=nombre, estado=estado):
+                nuevo = not estado['activo']
+                estado['activo']=nuevo
+                for control in _controles_seccion(i):
+                    try:
+                        # Los widgets dinámicos pueden crearse mientras está desbloqueado.
+                        if control not in estado['originales'] and not nuevo:
+                            estado['originales'][control]=control.cget('state')
+                        original=estado['originales'].get(control, 'normal')
+                        control.configure(state=original if nuevo else 'disabled')
+                    except (ValueError,AttributeError):
+                        pass
+                estado['boton'].configure(text='🔓 Bloquear sección' if nuevo else '🔒 Desbloquear sección')
+            estado['boton'].configure(command=alternar)
+
+        def guardar_edicion_obra():
+            habilitadas = {n for n, info in bloqueos_editor.items() if info['activo']}
+            if not habilitadas:
+                messagebox.showinfo('Sin cambios','Desbloquea una sección para modificarla.',parent=parent.winfo_toplevel())
+                return
+            try:
+                actuales = _capturar_datos_obra()
+                cambios = cambios_secciones(obra_edicion, datos_base_editor, actuales, habilitadas)
+            except (TypeError,ValueError) as error:
+                messagebox.showwarning('Información inválida',str(error),parent=parent.winfo_toplevel())
+                return
+            nuevas_fotos = list(evidencias) if 'Evidencia fotográfica' in habilitadas else []
+            nuevos_archivos = list(archivos_adjuntos) if 'Archivos PDF o planos' in habilitadas else []
+            # No se permite quitar referencias de Storage por accidente.
+            if ('Evidencia fotográfica' in habilitadas and evidencias_existentes
+                    and var_desea_evidencias.get() != 'Sí') or (
+                'Archivos PDF o planos' in habilitadas and archivos_adjuntos_existentes
+                    and var_desea_archivos_adjuntos.get() != 'Sí'):
+                messagebox.showwarning('Anexos existentes protegidos',
+                    'Los anexos guardados no pueden desvincularse desde esta ventana. '
+                    'Conserva la opción Sí; puedes agregar nuevos sin perder los existentes.',
+                    parent=parent.winfo_toplevel())
+                return
+            if not cambios and not (nuevas_fotos or nuevos_archivos):
+                messagebox.showinfo('Sin cambios','No se detectaron modificaciones reales. El folio permanece igual.',parent=parent.winfo_toplevel())
+                return
+            if not str(cambios.get('obc_cliente',obra_edicion.get('obc_cliente')) or '').strip() or not str(cambios.get('obc_nombre_proyecto',obra_edicion.get('obc_nombre_proyecto')) or '').strip():
+                messagebox.showwarning('Datos obligatorios','Cliente y nombre del proyecto son obligatorios.',parent=parent.winfo_toplevel())
+                return
+            if any(cambios.get(k,1) <= 0 for k in ('obc_dias_trabajo','obc_personas_considerar')):
+                messagebox.showwarning('Valores inválidos','Los días y personas deben ser mayores que cero.',parent=parent.winfo_toplevel())
+                return
+            btn_guardar.configure(state='disabled')
+            lbl_faltantes.configure(text='Guardando versión y folio de manera atómica...',text_color=TEXT_SECONDARY)
+            def exito(resultado):
+                if not isinstance(resultado,dict) or not resultado.get('obc_id'):
+                    fracaso('Supabase no confirmó la actualización.')
+                    return
+                if callable(al_guardar):
+                    al_guardar(resultado)
+                messagebox.showinfo('Obra Civil actualizada',
+                    f"Cambios guardados. Nuevo folio: {resultado['obc_folio']}. "
+                    'Se conserva el mismo registro, sin duplicarlo.',parent=parent.winfo_toplevel())
+                parent.winfo_toplevel().destroy()
+            def fracaso(error):
+                btn_guardar.configure(state='normal')
+                lbl_faltantes.configure(text='No se confirmó la actualización. Puedes reintentar.',text_color='#B45309')
+                messagebox.showerror('No fue posible guardar la versión',str(error),parent=parent.winfo_toplevel())
+            def guardar_en_servidor():
+                cambios_finales=dict(cambios)
+                if nuevas_fotos:
+                    for ruta in nuevas_fotos:
+                        if not Path(ruta).is_file():
+                            raise FileNotFoundError(f'No se encuentra la fotografía: {ruta}')
+                    if subidas_editor['fotos'] is None:
+                        resultado=subir_evidencias_obra_civil('EDICION-'+solicitud_edicion, nuevas_fotos)
+                        if len(resultado)!=len(nuevas_fotos):
+                            raise RuntimeError('No terminaron de subir todas las fotografías.')
+                        subidas_editor['fotos']=resultado
+                    cambios_finales['obc_evidencias_json']=json.dumps(
+                        list(evidencias_existentes)+subidas_editor['fotos'],ensure_ascii=False)
+                if nuevos_archivos:
+                    for ruta in nuevos_archivos:
+                        if not Path(ruta).is_file():
+                            raise FileNotFoundError(f'No se encuentra el archivo: {ruta}')
+                    if subidas_editor['archivos'] is None:
+                        resultado=subir_archivos_obra_civil('EDICION-'+solicitud_edicion, nuevos_archivos)
+                        if len(resultado)!=len(nuevos_archivos):
+                            raise RuntimeError('No terminaron de subir todos los archivos.')
+                        subidas_editor['archivos']=resultado
+                    cambios_finales['obc_archivos_adjuntos_json']=json.dumps(
+                        list(archivos_adjuntos_existentes)+subidas_editor['archivos'],ensure_ascii=False)
+                return gestionar_obra_civil('actualizar', usuario_id=usuario_activo.get('id_usuario'),
+                    folio=obra_edicion['obc_folio'], cambios=cambios_finales, solicitud=solicitud_edicion)
+            run_async(parent.winfo_toplevel(), guardar_en_servidor, exito, fracaso)
 
     botones = ctk.CTkFrame(contenedor, fg_color="#F4F4F4", height=78, corner_radius=0)
     botones.grid(row=1, column=0, sticky="ew")
@@ -1866,11 +2040,21 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
     lbl_faltantes.pack(fill="x", padx=12, pady=(3, 0))
     barra_botones = ctk.CTkFrame(botones, fg_color="transparent")
     barra_botones.pack(anchor="center", pady=4)
-    ctk.CTkButton(barra_botones, text="⬅ Atrás", width=120, height=38, corner_radius=10, fg_color="#64748B", hover_color="#475569", font=BUTTON_FONT, command=app.volver_atras).grid(row=0, column=0, padx=4)
-    btn_guardar = ctk.CTkButton(barra_botones, text="💾 Guardar Obra Civil", width=190, height=38, corner_radius=10, fg_color=SECONDARY, hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=guardar_obra, state="disabled")
+    ctk.CTkButton(barra_botones, text="⬅ Atrás" if not modo_edicion else "⬅ Cerrar",
+                  width=120, height=38, corner_radius=10, fg_color="#64748B", hover_color="#475569",
+                  font=BUTTON_FONT, command=app.volver_atras if not modo_edicion else parent.winfo_toplevel().destroy).grid(row=0, column=0, padx=4)
+    btn_guardar = ctk.CTkButton(barra_botones, text="💾 Guardar cambios" if modo_edicion else "💾 Guardar Obra Civil",
+                               width=190, height=38, corner_radius=10, fg_color=SECONDARY, hover_color=BUTTON_HOVER,
+                               font=BUTTON_FONT, command=guardar_edicion_obra if modo_edicion else guardar_obra,
+                               state="normal" if modo_edicion else "disabled")
     btn_guardar.grid(row=0, column=1, padx=4)
-    btn_preview = ctk.CTkButton(barra_botones, text="👁 Preview PDF", width=165, height=38, corner_radius=10, fg_color="#1F4E79", hover_color="#173B5C", font=BUTTON_FONT, command=preview_pdf, state="disabled")
+    btn_preview = ctk.CTkButton(barra_botones, text="👁 Preview PDF", width=165, height=38, corner_radius=10, fg_color="#1F4E79", hover_color="#173B5C", font=BUTTON_FONT, command=preview_pdf, state="disabled" if not modo_edicion else "normal")
     btn_preview.grid(row=0, column=2, padx=4)
-    ctk.CTkButton(barra_botones, text="↩ Cancelar", width=130, height=38, corner_radius=10, fg_color="gray", font=BUTTON_FONT, command=app.mostrar_vista_inicio_aco).grid(row=0, column=3, padx=4)
+    ctk.CTkButton(barra_botones, text="↩ Cancelar", width=130, height=38, corner_radius=10, fg_color="gray", font=BUTTON_FONT,
+                  command=app.mostrar_vista_inicio_aco if not modo_edicion else parent.winfo_toplevel().destroy).grid(row=0, column=3, padx=4)
     enfocar_inicio_formulario(card, foco_inicial)
     validar_preview()
+    if modo_edicion:
+        btn_guardar.configure(state='normal')
+        lbl_faltantes.configure(text=f"Edición de {obra_edicion['obc_folio']} · Desbloquea solamente las secciones a modificar. "
+            'Los anexos guardados se conservan; puedes agregar más.',text_color=TEXT_SECONDARY)

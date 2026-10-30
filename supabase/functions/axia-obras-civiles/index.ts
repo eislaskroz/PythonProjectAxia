@@ -117,12 +117,14 @@ Deno.serve(async (request: Request) => {
       const permitidoEditar=[1,2,3,5].includes(user.tipo);
       if ((accion==='actualizar' && !permitidoEditar) || (accion==='validar' && user.tipo!==5))
         return reply(403,{ok:false,error:'Tu rol no está autorizado para esta operación.'});
-      const {data:actual,error:lecturaError}=await db.from(tabla)
-        .select('obc_id,obc_folio,obc_validado_ventas').eq('obc_folio',folio).maybeSingle();
-      if (lecturaError) throw lecturaError;
-      if (!actual) return reply(404,{ok:false,error:'No se encontró la Obra Civil solicitada.'});
-      if (actual.obc_validado_ventas) return reply(409,{ok:false,error:'La Obra Civil ya fue validada. No se puede modificar o validar nuevamente.'});
+      // La validación sí requiere encontrar el folio actual. La actualización
+      // tiene un RPC idempotente que admite reintentar con el folio anterior.
       if (accion==='validar') {
+        const {data:actual,error:lecturaError}=await db.from(tabla)
+          .select('obc_id,obc_folio,obc_validado_ventas').eq('obc_folio',folio).maybeSingle();
+        if (lecturaError) throw lecturaError;
+        if (!actual) return reply(404,{ok:false,error:'No se encontró la Obra Civil solicitada.'});
+        if (actual.obc_validado_ventas) return reply(409,{ok:false,error:'La Obra Civil ya fue validada.'});
         const {data,error}=await db.from(tabla).update({
           obc_validado_ventas:true, obc_validado_por:user.nickname,
           obc_fecha_validacion:new Date().toISOString(),
@@ -141,28 +143,46 @@ Deno.serve(async (request: Request) => {
         'obc_responsable_axia','obc_dias_trabajo','obc_personas_considerar',
         'obc_superficie_disponible','obc_superficie_adecuada','obc_planos_arquitectonicos',
         'obc_requiere_maquinaria','obc_permisos','obc_planos_acabados',
-        'obc_generacion_planos','obc_etapa_acabados','obc_obra_blanca']);
+        'obc_generacion_planos','obc_etapa_acabados','obc_obra_blanca',
+        'obc_anotacion_plano_json','obc_evidencias_json','obc_archivos_adjuntos_json']);
       const entradas=Object.entries(raw as Record<string,unknown>);
       if (!entradas.length || entradas.some(([k])=>!editables.has(k)))
         return reply(400,{ok:false,error:'Se intentó modificar un campo protegido.'});
       if (entradas.some(([k,v])=> ((k==='obc_dias_trabajo'||k==='obc_personas_considerar')
         ? (typeof v!=='number' || !Number.isInteger(v) || v<0 || v>100000)
-        : (typeof v!=='string' || (v as string).length>120000))))
+        : (typeof v!=='string' || (v as string).length>(k==='obc_anotacion_plano_json'?7_000_000:120000)))))
         return reply(400,{ok:false,error:'Hay textos no válidos o demasiado largos.'});
       const cambios=Object.fromEntries(entradas);
       if ('obc_cliente' in cambios && !String(cambios.obc_cliente||'').trim())
         return reply(400,{ok:false,error:'Cliente obligatorio.'});
       if ('obc_nombre_proyecto' in cambios && !String(cambios.obc_nombre_proyecto||'').trim())
         return reply(400,{ok:false,error:'Nombre del proyecto obligatorio.'});
-      if ('obc_ejecucion_json' in cambios) {
-        try { const detalle=JSON.parse(cambios.obc_ejecucion_json as string);
-          if (!detalle || typeof detalle!=='object' || Array.isArray(detalle)) throw new Error('JSON inválido');
-        } catch {return reply(400,{ok:false,error:'El detalle técnico debe ser JSON válido.'});}
+      for (const campoJson of ['obc_ejecucion_json','obc_anotacion_plano_json','obc_evidencias_json','obc_archivos_adjuntos_json']) {
+        if (campoJson in cambios) {
+          try { const detalle=JSON.parse(cambios[campoJson] as string);
+            const esAnexos=['obc_evidencias_json','obc_archivos_adjuntos_json'].includes(campoJson);
+            if (esAnexos ? !Array.isArray(detalle) : (!detalle || typeof detalle!=='object' || Array.isArray(detalle)))
+              throw new Error('JSON inválido');
+          } catch { return reply(400,{ok:false,error:`${campoJson}: estructura inválida.`}); }
+        }
       }
-      const {data,error}=await db.from(tabla).update(cambios).eq('obc_id',actual.obc_id)
-         .eq('obc_validado_ventas',false).select('*').maybeSingle();
-      if (error) throw error;
-      if (!data) return reply(409,{ok:false,error:'Otro usuario validó la Obra Civil mientras editabas.'});
+      // ÚNICAMENTE un RPC PostgreSQL atómico actualiza la obra y le asigna
+      // otro folio de la secuencia global. Sin INSERT ni cambio de obc_id.
+      const solicitud=String(payload.solicitud||'').trim();
+      if (!uuid.test(solicitud))
+        return reply(400,{ok:false,error:'Identificador de edición inválido.'});
+      const {data,error}=await db.rpc('axia_obc_actualizar_versionada',{
+        p_folio_anterior:folio,p_cambios:cambios,
+        p_usuario:user.nickname,p_solicitud:solicitud,
+      });
+      if (error) {
+        const msg=String(error.message||'');
+        if (/FOLIO_DESACTUALIZADO|EDICION_CONFLICTO|OBRA_VALIDADA_NO_EDITABLE/.test(msg))
+          return reply(409,{ok:false,error:'Esta obra cambió o fue validada por otro usuario. Vuelve a abrirla.'});
+        throw error;
+      }
+      if (!data?.obc_id || !data?.obc_folio)
+        throw new Error('RESPUESTA_VERSION_NO_CONFIRMADA');
       return reply(200,{ok:true,resultado:data});
     }
     const solicitud=String(payload.solicitud||'').trim();
