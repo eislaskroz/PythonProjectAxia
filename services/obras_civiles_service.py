@@ -14,47 +14,43 @@ TABLA_OBRAS_CIVILES = "db_obras_civiles"
 COLUMNAS_OBRAS_CIVILES = "obc_id,obc_aco_numero,obc_anotacion_plano_json,obc_cliente,obc_contacto,obc_direccion,obc_ejecucion_json,obc_entrega_formal,obc_estatus,obc_etapa_acabados,obc_evidencias_json,obc_archivos_adjuntos_json,obc_fecha,obc_fecha_entrega,obc_firma_cliente_base64,obc_firma_tecnico_base64,obc_folio,obc_generacion_planos,obc_nombre_proyecto,obc_obra_blanca,obc_observaciones_finales,obc_observaciones_iniciales,obc_permisos,obc_planos_acabados,obc_planos_arquitectonicos,obc_preentrega_observaciones,obc_preentrega_resultado,obc_pruebas_observaciones,obc_pruebas_resultado,obc_requiere_maquinaria,obc_responsable_axia,obc_sucursal,obc_dias_trabajo,obc_personas_considerar,obc_superficie_adecuada,obc_superficie_disponible,obc_supervisor,obc_tipo_giro,fecha_registro"
 
 
-def _consultar_solicitud(solicitud: str):
-    """Consulta por token opaco; no exige SELECT público sobre Obras Civiles."""
-    respuesta = supabase.rpc("axia_obc_consultar_solicitud", {"p_solicitud": str(solicitud)}).execute()
-    filas = getattr(respuesta, "data", None) or []
-    if isinstance(filas, dict):
-        filas = [filas]
-    if not isinstance(filas, list):
-        raise RuntimeError("Respuesta inesperada al verificar la solicitud de Obra Civil.")
-    return filas
+def crear_obra_civil(datos_obra, *, usuario_id):
+    """Guardado autenticado e idempotente; no depende de políticas públicas RLS.
 
+    Un corte después de confirmar puede dejar la respuesta pendiente; el mismo
+    UUID se recupera desde el servidor, sin crear una segunda Obra Civil.
+    """
+    from uuid import UUID
+    from services.obra_civil_gateway import peticion_obra_civil, SesionObraCivilInvalida
 
-def crear_obra_civil(datos_obra):
-    """INSERT idempotente por solicitud; nunca recrear un folio calculado."""
+    datos = normalizar_campos_fecha(dict(datos_obra or {}))
+    solicitud = str(UUID(str(datos.pop("obc_request_id"))))
+    datos.pop("obc_folio", None)
+    # El servidor asigna creado_por, estatus e identidad: nunca confiar en el cliente.
+    datos.pop("creado_por", None)
+    datos.pop("obc_estatus", None)
     try:
-        from uuid import UUID
-        datos_obra = dict(datos_obra or {})
-        solicitud = str(UUID(str(datos_obra["obc_request_id"])))
-        datos_obra["obc_request_id"] = solicitud
-        datos_obra.pop("obc_folio", None)
-        datos_obra = normalizar_campos_fecha(datos_obra)
-        # Antes de insertar, comprueba si esta misma captura ya fue recibida.
-        confirmados = _consultar_solicitud(solicitud)
-        if confirmados:
-            return confirmados
+        previo = peticion_obra_civil('consultar', solicitud, usuario_id=usuario_id)
+        if previo:
+            return [previo]
         try:
-            respuesta = supabase.table(TABLA_OBRAS_CIVILES).insert(datos_obra).execute()
-            registros = getattr(respuesta, "data", None) or []
-            if isinstance(registros, list) and registros and registros[0].get("obc_folio") and registros[0].get("obc_id"):
+            nuevo = peticion_obra_civil('guardar', solicitud, usuario_id=usuario_id, datos=datos)
+            if nuevo:
                 registrar_movimiento_seguro(
                     modulo="OBRAS_CIVILES", accion="CREAR",
                     descripcion="Creación de registro de obra civil",
-                    registro_afectado=registros[0]["obc_folio"],
+                    registro_afectado=nuevo['obc_folio'],
                 )
-                return registros
+                return [nuevo]
+        except SesionObraCivilInvalida:
+            raise
         except Exception:
-            # La petición pudo confirmarse en BD antes de perder la red.
-            logger.warning("INSERT de Obra Civil sin confirmación: verificando token.", exc_info=True)
-        # Incluye respuesta vacía, duplicado del token y conexiones cortadas.
-        # Si la consulta RPC también falla, se devuelve None (fail closed).
-        confirmados = _consultar_solicitud(solicitud)
-        return confirmados or None
+            logger.warning('Respuesta de Obra Civil no confirmada: consultando UUID.', exc_info=True)
+        # Si se insertó antes de perder Internet, devolvemos el folio ya asignado.
+        recuperado = peticion_obra_civil('consultar', solicitud, usuario_id=usuario_id)
+        return [recuperado] if recuperado else None
+    except SesionObraCivilInvalida:
+        raise
     except Exception as error:
         register_error(error, "Registrar obra civil")
         logger.exception("No fue posible verificar o registrar Obra Civil.")

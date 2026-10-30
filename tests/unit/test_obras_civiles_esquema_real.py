@@ -57,5 +57,7 @@ def test_service_view_and_backup_use_pk_of_real_table():
 
 def test_pk_in_response_for_retry():
     src = (ROOT / 'services/obras_civiles_service.py').read_text(encoding='utf-8')
-    assert 'registros[0].get("obc_id")' in src
+    assert "peticion_obra_civil('guardar'" in src
+    edge = (ROOT / 'supabase/functions/axia-obras-civiles/index.ts').read_text(encoding='utf-8')
+    assert "select('obc_id,obc_folio,obc_request_id')" in edge
     assert '"obc_id"' in (ROOT / 'views/obra_civil_view.py').read_text(encoding='utf-8')

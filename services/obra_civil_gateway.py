@@ -1,0 +1,52 @@
+"""Pasarela de Obra Civil con sesión de empleado verificada por Edge Function.
+
+Nunca se envía una service_role key desde DESKTOP. Todos los reintentos
+conservan el obc_request_id del borrador original.
+"""
+from __future__ import annotations
+
+import uuid
+import requests
+
+from supabase_config import SUPABASE_URL, SUPABASE_KEY
+from services.levantamiento_catalogo_axia import obtener_token_sesion_catalogo
+
+ENDPOINT = SUPABASE_URL.rstrip('/') + '/functions/v1/axia-obras-civiles'
+
+
+class SesionObraCivilInvalida(PermissionError):
+    """Se necesita renovar la sesión del empleado antes de guardar."""
+
+
+def peticion_obra_civil(accion: str, solicitud: str, *, usuario_id: object, datos: dict | None = None):
+    """Consultar o guardar; no se permite ninguna acción que modifique obras existentes."""
+    if accion not in ('consultar', 'guardar'):
+        raise ValueError('Acción de Obra Civil no autorizada.')
+    token = obtener_token_sesion_catalogo(usuario_id)
+    if not token:
+        raise SesionObraCivilInvalida('La sesión segura de AXIA no está disponible. Inicia sesión nuevamente.')
+    solicitud = str(uuid.UUID(str(solicitud)))
+    payload = {'accion': accion, 'solicitud': solicitud}
+    if accion == 'guardar':
+        payload['datos'] = dict(datos or {})
+    try:
+        respuesta = requests.post(
+            ENDPOINT,
+            headers={'apikey': SUPABASE_KEY, 'Content-Type': 'application/json',
+                     'X-Axia-Almacen-Session': token},
+            json=payload,
+            timeout=(10, 65),
+        )
+        result = respuesta.json()
+    except (requests.RequestException, ValueError) as exc:
+        raise ConnectionError('No se pudo confirmar el resultado con Supabase. Conserva el borrador.') from exc
+    if respuesta.status_code in (401, 403):
+        raise SesionObraCivilInvalida(str(result.get('error') or 'La sesión debe renovarse.'))
+    if respuesta.status_code >= 400 or not result.get('ok'):
+        raise RuntimeError(str(result.get('error') or 'Supabase rechazó el registro de Obra Civil.'))
+    data = result.get('resultado')
+    if data is not None and (not isinstance(data, dict) or
+        not data.get('obc_folio') or not data.get('obc_id') or
+        str(data.get('obc_request_id') or '') != solicitud):
+        raise RuntimeError('La respuesta de Supabase no contiene un folio confirmado para esta solicitud.')
+    return data

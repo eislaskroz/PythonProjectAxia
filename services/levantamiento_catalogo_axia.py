@@ -19,6 +19,13 @@ def establecer_sesion_catalogo(token: str | None, id_usuario: object) -> None:
     _id_lectura = str(id_usuario) if token else None
 
 
+def obtener_token_sesion_catalogo(id_usuario: object) -> str | None:
+    """Únicamente la sesión actual en memoria; jamás la contraseña ni el token en disco."""
+    if _id_lectura != str(id_usuario):
+        return None
+    return _token_lectura
+
+
 
 class CatalogoAxiaLevantamientos(AlmacenRemoto):
     def iniciar_lectura(self, nickname: str, password: str, expected_id: object) -> None:

@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 import customtkinter as ctk
 from ui.form_fields import AxiaEntry, AxiaTextbox
-from tkinter import messagebox, filedialog
+from tkinter import messagebox, filedialog, simpledialog
 from ui.native_combobox import NativeComboBox
 from views.levantamientos.catalogos_canalizacion import (
     TIPOS_ABRAZADERAS, TIPOS_CABLE_DATOS_CONTROL, TIPOS_CANALIZACION,
@@ -1578,6 +1578,70 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
                 "del formulario. Conserva esta ventana abierta y contacta a soporte."
             )
             return
+        # Autenticación y consulta previa ANTES de subir fotos o PDFs.
+        # El UUID proviene del borrador: no crear una solicitud nueva al reintentar.
+        if not guardado_servidor["id"]:
+            from services.obra_civil_gateway import peticion_obra_civil, SesionObraCivilInvalida
+            from services.levantamiento_catalogo_axia import (
+                CatalogoAxiaLevantamientos, establecer_sesion_catalogo,
+            )
+            def consultar_con_sesion():
+                return peticion_obra_civil(
+                    "consultar", guardado_servidor["solicitud"],
+                    usuario_id=usuario_activo.get("id_usuario"),
+                )
+            try:
+                existente = consultar_con_sesion()
+            except SesionObraCivilInvalida:
+                password = simpledialog.askstring(
+                    "Autorización de Obra Civil",
+                    "Confirma tu contraseña AXIA para guardar de forma segura.",
+                    show="*", parent=parent.winfo_toplevel(),
+                )
+                if not password:
+                    messagebox.showwarning(
+                        "Borrador conservado",
+                        "No se registró la obra. Conservamos la captura para reintentar."
+                    )
+                    return
+                try:
+                    lectura = CatalogoAxiaLevantamientos()
+                    lectura.iniciar_lectura(
+                        str(usuario_activo.get("usuario") or ""),
+                        password, usuario_activo.get("id_usuario"),
+                    )
+                    establecer_sesion_catalogo(lectura.token, usuario_activo.get("id_usuario"))
+                    existente = consultar_con_sesion()
+                except Exception as error:
+                    logger.exception("No se pudo renovar la sesión de Obra Civil.")
+                    messagebox.showerror(
+                        "Acceso no confirmado",
+                        "No se pudo validar la sesión del empleado. "
+                        "El borrador permanece guardado. Verifica la contraseña "
+                        "o solicita a TI revisar la autenticación."
+                    )
+                    return
+            except Exception:
+                logger.exception("No se pudo verificar el estado previo de Obra Civil.")
+                messagebox.showwarning(
+                    "Borrador conservado",
+                    "Supabase no confirmó si esta solicitud ya existe. "
+                    "No se intentó enviar otra vez ni subir anexos. "
+                    "Conserva este borrador y verifica la conexión."
+                )
+                return
+            if existente:
+                guardado_servidor["id"] = existente["obc_id"]
+                guardado_servidor["folio"] = existente["obc_folio"]
+                var_folio.set(guardado_servidor["folio"])
+                if not proteger_captura():
+                    messagebox.showwarning(
+                        "Obra registrada; respaldo pendiente",
+                        "El registro ya existe en Supabase. "
+                        "No vuelvas a enviarlo; primero respalda el borrador."
+                    )
+                    return
+
         datos = {
             "id_aco": datos_aco.get("id_aco"),
             "id_sucursal": (None if modo_manual_cliente["activo"] else
@@ -1664,7 +1728,16 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
             datos["obc_evidencias_json"] = json.dumps(guardado_servidor["fotos"] or [], ensure_ascii=False)
             datos["obc_archivos_adjuntos_json"] = json.dumps(guardado_servidor["archivos"] or [], ensure_ascii=False)
             datos["obc_request_id"] = guardado_servidor["solicitud"]
-            resultado = crear_obra_civil(datos)
+            try:
+                resultado = crear_obra_civil(datos, usuario_id=usuario_activo.get("id_usuario"))
+            except Exception:
+                logger.exception("La sesión de Obra Civil expiró al guardar; solicitud conservada.")
+                messagebox.showwarning(
+                    "Borrador conservado",
+                    "La sesión expiró durante el guardado. No vuelvas a capturar. "
+                    "Desde este borrador podrás verificar y reintentar con el mismo identificador."
+                )
+                return
             if not resultado:
                 messagebox.showwarning(
                     "Registro pendiente de verificar",
