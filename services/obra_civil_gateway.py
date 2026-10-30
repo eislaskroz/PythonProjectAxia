@@ -50,3 +50,42 @@ def peticion_obra_civil(accion: str, solicitud: str, *, usuario_id: object, dato
         str(data.get('obc_request_id') or '') != solicitud):
         raise RuntimeError('La respuesta de Supabase no contiene un folio confirmado para esta solicitud.')
     return data
+
+
+def gestionar_obra_civil(accion: str, *, usuario_id: object, folio: str = '',
+                        busqueda: str = '', cambios: dict | None = None):
+    """Listado, modificación y validación de OBC por servidor, sin RLS público.
+
+    La identidad y el permiso de cada acción se verifican nuevamente en Edge.
+    Nunca se incluye una service_role key en DESKTOP.
+    """
+    if accion not in ('listar', 'detalle', 'actualizar', 'validar'):
+        raise ValueError('Operación administrativa de Obra Civil desconocida.')
+    token = obtener_token_sesion_catalogo(usuario_id)
+    if not token:
+        raise SesionObraCivilInvalida(
+            'La sesión segura AXIA no está disponible. Cierra sesión e ingresa nuevamente.')
+    payload = {'accion': accion}
+    if accion == 'listar':
+        payload['busqueda'] = str(busqueda or '').strip()[:120]
+    else:
+        payload['folio'] = str(folio or '').strip().upper()
+        if not payload['folio'].startswith('OBC-'):
+            raise ValueError('Selecciona un folio OBC válido.')
+    if accion == 'actualizar':
+        payload['cambios'] = dict(cambios or {})
+    try:
+        respuesta = requests.post(
+            ENDPOINT,
+            headers={'apikey': SUPABASE_KEY, 'Content-Type': 'application/json',
+                     'X-Axia-Almacen-Session': token},
+            json=payload, timeout=(10, 65),
+        )
+        resultado = respuesta.json()
+    except (requests.RequestException, ValueError) as exc:
+        raise ConnectionError('No fue posible consultar Obra Civil. No se realizó otro guardado.') from exc
+    if respuesta.status_code in (401, 403):
+        raise SesionObraCivilInvalida(str(resultado.get('error') or 'Acceso no autorizado.'))
+    if respuesta.status_code >= 400 or not resultado.get('ok'):
+        raise RuntimeError(str(resultado.get('error') or 'Operación no confirmada en Supabase.'))
+    return resultado.get('resultado')

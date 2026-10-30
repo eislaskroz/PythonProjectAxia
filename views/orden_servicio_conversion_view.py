@@ -28,6 +28,11 @@ from views.formato_helpers import ruta_documentos_axia
 from ui.colors import WHITE, TEXT_PRIMARY, TEXT_SECONDARY, SECONDARY, BUTTON_HOVER
 from ui.fonts import TITLE_MD, TEXT_MD, TEXT_SM, BUTTON_FONT
 from ui.native_table import NativeTreeTable
+from services.obra_civil_gateway import gestionar_obra_civil
+from services.obras_civiles_universal import (
+    es_obra_civil, transformar_obra_civil,
+    cambios_obra_civil_desde_formulario, generar_pdf_obra_civil_desde_registro,
+)
 
 logger = configurar_logger(__name__)
 
@@ -174,6 +179,7 @@ def mostrar_conversion_orden_servicio(parent, app):
 
     seleccionado = {"registro": None, "editando": False, "cotizacion_finalizada": {}, "ot_existente": {}}
     widgets_editables = []
+    entradas_por_campo = {}
     vars_campos = {
         "lev_folio": ctk.StringVar(), "lev_aco_numero": ctk.StringVar(), "lev_cliente": ctk.StringVar(),
         "lev_contacto": ctk.StringVar(), "lev_correo": ctk.StringVar(), "lev_telefono": ctk.StringVar(),
@@ -188,6 +194,7 @@ def mostrar_conversion_orden_servicio(parent, app):
         ctk.CTkLabel(marco, text=label, font=TEXT_SM, text_color=TEXT_PRIMARY, anchor="w").pack(fill="x")
         ent = AxiaEntry(marco, textvariable=vars_campos[key], height=36)
         ent.pack(fill="x")
+        entradas_por_campo[key] = ent
         if disabled:
             ent.configure(state="disabled")
         else:
@@ -240,8 +247,14 @@ def mostrar_conversion_orden_servicio(parent, app):
                 widget.configure(state=estado)
             except Exception:
                 pass
+        # OBC tiene su propio esquema; bloquear campos sin correspondencia.
+        if habilitado and es_obra_civil(seleccionado.get("registro")):
+            for clave in ("lev_fecha_programada", "lev_tipo", "lev_modalidad_operativa", "lev_prioridad"):
+                entradas_por_campo[clave].configure(state="disabled")
         # El folio siempre es de solo lectura.
-        btn_editar.configure(state="disabled" if habilitado else ("normal" if seleccionado.get("registro") else "disabled"))
+        btn_editar.configure(state="disabled" if habilitado or (
+            es_obra_civil(seleccionado.get("registro")) and seleccionado["registro"].get("lev_validado_ventas"))
+            else ("normal" if seleccionado.get("registro") else "disabled"))
         btn_guardar.configure(state="normal" if habilitado else "disabled")
         if habilitado:
             btn_validar.configure(state="disabled")
@@ -258,8 +271,10 @@ def mostrar_conversion_orden_servicio(parent, app):
             btn_convertir.configure(state="normal" if puede_convertir else "disabled")
         if seleccionado.get("registro"):
             lbl_estado.configure(
-                text=("Modo edición habilitado. Guarda los cambios antes de continuar." if habilitado
-                      else "Modo consulta. Usa Editar si necesitas modificar información."),
+                text=("Edición de Obra Civil: modifica los campos disponibles y guarda sin alterar el folio."
+                      if habilitado and es_obra_civil(seleccionado["registro"]) else
+                      "Modo edición habilitado. Guarda los cambios antes de continuar."
+                      if habilitado else "Modo consulta. Usa Editar si necesitas modificar información."),
                 text_color=TEXT_SECONDARY,
             )
 
@@ -281,6 +296,20 @@ def mostrar_conversion_orden_servicio(parent, app):
         if not registro:
             messagebox.showinfo("Selecciona un levantamiento", "Selecciona una fila de la tabla.")
             return
+        if es_obra_civil(registro) and not registro.get('_obc_completo'):
+            folio = registro.get('obc_folio')
+            lbl_estado.configure(text=f"Consultando detalle completo de {folio}...", text_color=TEXT_SECONDARY)
+            def ok_detalle(obra):
+                if not isinstance(obra, dict) or not obra.get('obc_id'):
+                    messagebox.showerror("Obra Civil", "No se obtuvo el detalle de la obra.")
+                    return
+                registro.update(transformar_obra_civil(obra))
+                registro['_obc_completo'] = True
+                cargar_seleccion()
+            run_async(parent.winfo_toplevel(),
+                lambda: gestionar_obra_civil('detalle', usuario_id=usuario.get('id_usuario'), folio=folio),
+                ok_detalle, lambda e: messagebox.showerror('Consulta de Obra Civil', str(e)))
+            return
         seleccionado["registro"] = dict(registro)
         # Habilita temporalmente para cargar los valores y vuelve a bloquear al final.
         for widget in widgets_editables:
@@ -297,6 +326,21 @@ def mostrar_conversion_orden_servicio(parent, app):
         if isinstance(detalle, (dict, list)):
             detalle = json.dumps(detalle, ensure_ascii=False, indent=2)
         poner_texto(txt_detalle, str(detalle or ""))
+        if es_obra_civil(registro):
+            # No buscar un ID LEV ficticio ni habilitar conversiones LEV -> OT.
+            seleccionado["ot_existente"] = {}
+            seleccionado["cotizacion_finalizada"] = {}
+            btn_preview.configure(state="normal")
+            _set_modo_edicion(False)
+            btn_convertir.configure(state="disabled")
+            lbl_estado.configure(
+                text=("Obra Civil validada; se conserva en su tabla OBC."
+                      if registro.get("lev_validado_ventas") else
+                      "Obra Civil: consulta, edición, PDF y validación disponibles según tu rol. "
+                      "La conversión a OT desde OBC requiere su propio flujo."),
+                text_color=TEXT_SECONDARY,
+            )
+            return
         existente = buscar_orden_trabajo_por_levantamiento(
             registro.get("lev_folio"), registro.get("id_levantamiento")
         )
@@ -349,10 +393,32 @@ def mostrar_conversion_orden_servicio(parent, app):
 
     def ejecutar_busqueda():
         termino = var_busqueda.get().strip()
-        tarea = (lambda: buscar_levantamientos(termino)) if termino else (lambda: obtener_levantamientos())
-        lbl_resultados.configure(text="Consultando...")
-        run_async(parent.winfo_toplevel(), tarea, lambda r: filas((r or [])[:100]),
-                  lambda e: messagebox.showerror("Error", f"No fue posible consultar levantamientos.\n\n{e}"))
+        lbl_resultados.configure(text="Consultando LEV y OBC...")
+
+        def tarea():
+            registros_lev = buscar_levantamientos(termino) if termino else obtener_levantamientos()
+            error_obc = None
+            try:
+                obras = gestionar_obra_civil('listar', usuario_id=usuario.get('id_usuario'), busqueda=termino)
+            except Exception as exc:
+                obras, error_obc = [], str(exc)
+            registros = list(registros_lev or []) + [transformar_obra_civil(o) for o in (obras or [])]
+            registros.sort(key=lambda r: str(r.get('fecha_registro') or ''), reverse=True)
+            return registros[:100], error_obc
+
+        def mostrar_resultado(resultado):
+            registros, error_obc = resultado
+            filas(registros)
+            if error_obc:
+                messagebox.showwarning(
+                    'Consulta parcial de levantamientos',
+                    'Se muestran los LEV disponibles, pero no fue posible consultar Obra Civil. '
+                    'El listado está incompleto hasta que se conecte la Edge Function.\n\n' + error_obc,
+                )
+
+        run_async(parent.winfo_toplevel(), tarea, mostrar_resultado,
+                  lambda e: messagebox.showerror("Error de consulta",
+                      f"No fue posible consultar levantamientos.\n\n{e}"))
 
     def _capturar_cambios():
         # El supervisor es una asignación operativa posterior y puede quedar
@@ -386,6 +452,13 @@ def mostrar_conversion_orden_servicio(parent, app):
         return cambios
 
     def abrir_editor_origen():
+        if es_obra_civil(seleccionado.get("registro")):
+            if seleccionado.get("registro", {}).get("lev_validado_ventas"):
+                messagebox.showwarning("Obra validada", "Una Obra Civil validada ya no puede editarse.")
+                return
+            _set_modo_edicion(True)
+            lbl_estado.configure(text="Editando Obra Civil. Guarda los cambios desde esta ventana.", text_color=TEXT_SECONDARY)
+            return
         original = normalizar_registro_levantamiento(seleccionado.get("registro"))
         if not original:
             messagebox.showwarning("Selecciona un levantamiento", "Primero carga un levantamiento de la tabla.")
@@ -436,6 +509,37 @@ def mostrar_conversion_orden_servicio(parent, app):
         )
 
     def guardar_cambios():
+        if es_obra_civil(seleccionado.get("registro")):
+            original = seleccionado["registro"]
+            if not seleccionado.get("editando"):
+                return
+            try:
+                cambios = cambios_obra_civil_desde_formulario(
+                    original, {k: v.get() for k, v in vars_campos.items()},
+                    txt_descripcion.get("1.0", "end").strip(),
+                    txt_requerimientos.get("1.0", "end").strip(),
+                    txt_observaciones.get("1.0", "end").strip(),
+                    txt_detalle.get("1.0", "end").strip(),
+                )
+            except ValueError as exc:
+                messagebox.showwarning("Información inválida", str(exc))
+                return
+            btn_guardar.configure(state="disabled")
+            lbl_estado.configure(text="Guardando cambios de Obra Civil...", text_color=TEXT_SECONDARY)
+            def ok(obra):
+                if not isinstance(obra, dict) or not obra.get("obc_id"):
+                    btn_guardar.configure(state="normal")
+                    messagebox.showerror("Error al guardar", "Supabase no confirmó la actualización.")
+                    return
+                seleccionado["registro"] = transformar_obra_civil(obra)
+                _set_modo_edicion(False)
+                lbl_estado.configure(text="Obra Civil actualizada correctamente.", text_color="#15803D")
+                messagebox.showinfo("Cambios guardados", "Se guardaron los cambios de Obra Civil.")
+            run_async(parent.winfo_toplevel(),
+                lambda: gestionar_obra_civil('actualizar', usuario_id=usuario.get('id_usuario'),
+                   folio=original.get('obc_folio'), cambios=cambios), ok,
+                lambda e: (btn_guardar.configure(state="normal"), messagebox.showerror("Error al guardar OBC", str(e))))
+            return
         original = normalizar_registro_levantamiento(seleccionado.get("registro"))
         if not original:
             messagebox.showwarning("Selecciona un levantamiento", "Primero carga un levantamiento de la tabla.")
@@ -475,6 +579,9 @@ def mostrar_conversion_orden_servicio(parent, app):
 
     def validar_y_convertir():
         original = seleccionado.get("registro")
+        if es_obra_civil(original):
+            messagebox.showinfo("Obra Civil", "La conversión OBC -> OT requiere el flujo de cotización específico de Obra Civil; no se creará una OT incorrecta.")
+            return
         if not original:
             messagebox.showwarning("Selecciona un levantamiento", "Primero carga un levantamiento de la tabla.")
             return
@@ -602,6 +709,49 @@ def mostrar_conversion_orden_servicio(parent, app):
                 "Guarda o finaliza la edición antes de validar el levantamiento.",
             )
             return
+        if es_obra_civil(seleccionado["registro"]):
+            original = seleccionado["registro"]
+            if original.get("lev_validado_ventas"):
+                messagebox.showinfo("Ya validada", "Esta Obra Civil ya fue validada.")
+                return
+            folio = original.get("obc_folio")
+            if not messagebox.askyesno("Validar Obra Civil",
+                f"Se enviará el PDF de {folio} a Ventas y se marcará la obra como validada.\n\n¿Continuar?"):
+                return
+            btn_validar.configure(state="disabled")
+            lbl_estado.configure(text="Generando y enviando PDF de Obra Civil...", text_color=TEXT_SECONDARY)
+            def tarea_obc():
+                from services.axia_pdf_engine import AxiaPdfEngine
+                ruta = ruta_documentos_axia("obras_civiles") / f"AXIA_{folio}.pdf"
+                archivo = generar_pdf_obra_civil_desde_registro(
+                    original["_obc_original"], ruta_salida=ruta, abrir=False)
+                if not archivo or not Path(archivo).is_file():
+                    raise RuntimeError("No se pudo preparar el PDF de Obra Civil.")
+                correo = enviar_levantamiento_validacion_ventas({
+                    'lev_folio': folio, 'lev_cliente': original.get('lev_cliente'),
+                    'lev_tipo_levantamiento': 'Obra Civil',
+                    'lev_fecha_realizacion': original.get('lev_fecha_realizacion'),
+                }, archivo, usuario=str(usuario.get('usuario') or usuario.get('nombre') or ''))
+                if not correo.sent:
+                    raise RuntimeError(correo.detail or "El servidor no confirmó el correo.")
+                return gestionar_obra_civil('validar', usuario_id=usuario.get('id_usuario'), folio=folio)
+            def ok_obc(registro_validado):
+                if not registro_validado or not registro_validado.get('obc_validado_ventas'):
+                    raise RuntimeError('Supabase no confirmó la validación de Obra Civil.')
+                original['lev_validado_ventas'] = True
+                original['_obc_original']['obc_validado_ventas'] = True
+                _set_modo_edicion(False)
+                btn_validar.configure(state="disabled")
+                btn_editar.configure(state="disabled")
+                lbl_estado.configure(text=f"Obra Civil {folio} validada y enviada a Ventas.", text_color="#15803D")
+                messagebox.showinfo("Obra Civil validada", f"Se validó {folio} y se envió su PDF a Ventas.")
+            def error_obc(exc):
+                # Si falló solo la confirmación, evitar confirmar dos veces sin refrescar.
+                btn_validar.configure(state="normal")
+                lbl_estado.configure(text="No se confirmó la validación OBC; consulta su estado antes de reintentar.", text_color="#B91C1C")
+                messagebox.showerror("Validación pendiente", str(exc))
+            run_async(parent.winfo_toplevel(), tarea_obc, ok_obc, error_obc)
+            return
         try:
             registro_pdf = _registro_levantamiento_para_pdf()
         except Exception as exc:
@@ -682,6 +832,16 @@ def mostrar_conversion_orden_servicio(parent, app):
         if not seleccionado.get("registro"):
             messagebox.showinfo("Selecciona un levantamiento", "Carga primero un levantamiento.")
             return
+        if es_obra_civil(seleccionado["registro"]):
+            if seleccionado.get("editando"):
+                messagebox.showwarning("Edición pendiente", "Guarda antes de generar el PDF de Obra Civil.")
+                return
+            try:
+                generar_pdf_obra_civil_desde_registro(seleccionado["registro"]["_obc_original"], abrir=True)
+            except Exception as exc:
+                logger.exception("PDF de Obra Civil desde consulta universal.")
+                messagebox.showerror("PDF Obra Civil", str(exc))
+            return
         try:
             registro_pdf = _registro_levantamiento_para_pdf()
             generar_pdf_registro(
@@ -702,7 +862,8 @@ def mostrar_conversion_orden_servicio(parent, app):
     # Barra fija: queda visible aunque el usuario haga scroll en el formulario.
     acciones = ctk.CTkFrame(panel_form_shell, fg_color=WHITE, corner_radius=0)
     acciones.grid(row=1, column=0, sticky="ew", padx=8, pady=(4, 10))
-    acciones.grid_columnconfigure(0, weight=1)
+    for columna in range(3):
+        acciones.grid_columnconfigure(columna, weight=1, uniform="acciones_levantamientos")
 
     carpeta_iconos = Path(__file__).resolve().parent.parent / "assets" / "iconos"
 
@@ -724,73 +885,77 @@ def mostrar_conversion_orden_servicio(parent, app):
     icono_votar = cargar_icono_boton("votar.png")
 
     fila_superior = ctk.CTkFrame(acciones, fg_color="transparent")
-    fila_superior.grid(row=0, column=0, sticky="e", pady=(0, 6))
+    fila_superior.grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 6))
+    for columna in range(3):
+        fila_superior.grid_columnconfigure(columna, weight=1, uniform="botones_sup")
 
     ctk.CTkButton(
         fila_superior,
         text="Cargar seleccionado",
         image=icono_detalle,
         compound="left",
-        width=200,
-        height=40,
+        width=145,
+        height=38,
         corner_radius=10,
         fg_color="#2563EB",
         hover_color="#1D4ED8",
         text_color=WHITE,
-        font=("Segoe UI", 12),
+        font=("Segoe UI", 11),
         border_width=0,
         hover=True,
         command=cargar_seleccion,
-    ).pack(side="left", padx=4)
+    ).grid(row=0, column=0, sticky="ew", padx=3)
 
     btn_preview = ctk.CTkButton(
         fila_superior,
         text="PDF Levantamiento",
         image=icono_pdf,
         compound="left",
-        width=200,
-        height=40,
+        width=145,
+        height=38,
         corner_radius=10,
         fg_color="#2563EB",
         hover_color="#1D4ED8",
         text_color=WHITE,
-        font=("Segoe UI", 12),
+        font=("Segoe UI", 11),
         border_width=0,
         hover=True,
         command=previsualizar_levantamiento,
         state="disabled",
     )
-    btn_preview.pack(side="left", padx=4)
+    btn_preview.grid(row=0, column=1, sticky="ew", padx=3)
 
     btn_editar = ctk.CTkButton(
         fila_superior,
         text="Editar",
         image=icono_editar,
         compound="left",
-        width=140,
-        height=40,
+        width=115,
+        height=38,
         corner_radius=10,
         fg_color="#3B82F6",
         hover_color="#2563EB",
         text_color=WHITE,
-        font=("Segoe UI", 12),
+        font=("Segoe UI", 11),
         border_width=0,
         hover=True,
         command=abrir_editor_origen,
         state="disabled",
     )
-    btn_editar.pack(side="left", padx=4)
+    btn_editar.grid(row=0, column=2, sticky="ew", padx=3)
 
     fila_inferior = ctk.CTkFrame(acciones, fg_color="transparent")
-    fila_inferior.grid(row=1, column=0, sticky="e")
+    fila_inferior.grid(row=1, column=0, columnspan=3, sticky="ew")
+    for columna in range(3):
+        fila_inferior.grid_columnconfigure(columna, weight=1, uniform="botones_inf")
 
     btn_guardar = ctk.CTkButton(
         fila_inferior,
         text="Guardar",
         image=icono_guardar,
         compound="left",
-        width=140,
-        height=40,
+        width=115,
+        height=38,
         corner_radius=10,
         fg_color=SECONDARY,
         hover_color=BUTTON_HOVER,
@@ -801,28 +966,28 @@ def mostrar_conversion_orden_servicio(parent, app):
         command=guardar_cambios,
         state="disabled",
     )
-    btn_guardar.pack(side="left", padx=4)
+    btn_guardar.grid(row=0, column=0, sticky="ew", padx=3)
     btn_validar = ctk.CTkButton(
         fila_inferior,
         text="Validar Levantamiento",
         image=icono_votar,
         compound="left",
-        width=200,
-        height=40,
+        width=145,
+        height=38,
         corner_radius=10,
         fg_color=SECONDARY,
         hover_color=BUTTON_HOVER,
         command=validar_levantamiento_ventas,
         state="disabled",
     )
-    btn_validar.pack(side="left", padx=4)
+    btn_validar.grid(row=0, column=1, sticky="ew", padx=3)
     btn_convertir = ctk.CTkButton(
         fila_inferior,
         text="Convertir a OT",
         image=icono_votar,
         compound="left",
-        width=180,
-        height=40,
+        width=130,
+        height=38,
         corner_radius=10,
         fg_color=SECONDARY,
         hover_color=BUTTON_HOVER,
@@ -833,7 +998,7 @@ def mostrar_conversion_orden_servicio(parent, app):
         command=validar_y_convertir,
         state="disabled",
     )
-    btn_convertir.pack(side="left", padx=4)
+    btn_convertir.grid(row=0, column=2, sticky="ew", padx=3)
 
     _set_modo_edicion(False)
     ejecutar_busqueda()

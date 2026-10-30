@@ -48,7 +48,7 @@ async function usuarioAutorizado(header: string) {
     .eq('id_usuario',claims!.uid).maybeSingle();
   if (error || !data || ![1,2,3,4,5,6].includes(Number(data.usu_tipo)))
     throw new Error('SESION_INVALIDA');
-  return { id: String(data.id_usuario), nickname:String(data.usu_nickname||'') };
+  return { id: String(data.id_usuario), nickname:String(data.usu_nickname||''), tipo: Number(data.usu_tipo) };
 }
 
 // Lista explícita: no admitir campos nuevos, obc_folio, obc_id, IDs del sistema ni creado_por desde cliente.
@@ -87,6 +87,78 @@ Deno.serve(async (request: Request) => {
     if (!payload || typeof payload !== 'object' || Array.isArray(payload))
       return reply(400,{ok:false,error:'Solicitud inválida.'});
     const accion=String(payload.accion||'');
+    // La ventana universal consulta Obra Civil por un canal distinto del INSERT.
+    // Autorizar cada acción en el servidor: ocultar controles no constituye seguridad.
+    if (accion === 'listar' || accion === 'detalle') {
+      if (![1,2,3,5].includes(user.tipo)) return reply(403,{ok:false,error:'No puedes consultar Obras Civiles desde esta ventana.'});
+      if (accion === 'detalle') {
+        const folio=String(payload.folio||'').trim().toUpperCase();
+        if (!/^OBC-[0-9]{4,}$/.test(folio)) return reply(400,{ok:false,error:'Folio de Obra Civil inválido.'});
+        const {data,error}=await db.from(tabla).select('*').eq('obc_folio',folio).maybeSingle();
+        if (error) throw error;
+        if (!data) return reply(404,{ok:false,error:'La Obra Civil no existe.'});
+        return reply(200,{ok:true,resultado:data});
+      }
+      const termino=String(payload.busqueda||'').trim().slice(0,120);
+      // Evita descargar anexos y fotografías de 100 OBC en una sola petición.
+      let consulta=db.from(tabla).select('obc_id,obc_folio,obc_cliente,obc_nombre_proyecto,obc_fecha,obc_estatus,obc_validado_ventas,fecha_registro').order('fecha_registro',{ascending:false}).limit(100);
+      if (termino) {
+        // El término se trata como texto, no como expresión de PostgREST.
+        const limpio=termino.replace(/[^\p{L}\p{N}\s-]/gu,' ').trim();
+        if (limpio) consulta=consulta.or(`obc_folio.ilike.%${limpio}%,obc_cliente.ilike.%${limpio}%,obc_nombre_proyecto.ilike.%${limpio}%`);
+      }
+      const {data,error}=await consulta;
+      if (error) throw error;
+      return reply(200,{ok:true,resultado:data||[]});
+    }
+    if (accion === 'actualizar' || accion === 'validar') {
+      const folio=String(payload.folio||'').trim().toUpperCase();
+      if (!/^OBC-[0-9]{4,}$/.test(folio)) return reply(400,{ok:false,error:'Folio de Obra Civil inválido.'});
+      const permitidoEditar=[1,2,3,5].includes(user.tipo);
+      if ((accion==='actualizar' && !permitidoEditar) || (accion==='validar' && user.tipo!==5))
+        return reply(403,{ok:false,error:'Tu rol no está autorizado para esta operación.'});
+      const {data:actual,error:lecturaError}=await db.from(tabla)
+        .select('obc_id,obc_folio,obc_validado_ventas').eq('obc_folio',folio).maybeSingle();
+      if (lecturaError) throw lecturaError;
+      if (!actual) return reply(404,{ok:false,error:'No se encontró la Obra Civil solicitada.'});
+      if (actual.obc_validado_ventas) return reply(409,{ok:false,error:'La Obra Civil ya fue validada. No se puede modificar o validar nuevamente.'});
+      if (accion==='validar') {
+        const {data,error}=await db.from(tabla).update({
+          obc_validado_ventas:true, obc_validado_por:user.nickname,
+          obc_fecha_validacion:new Date().toISOString(),
+        }).eq('obc_id',actual.obc_id).eq('obc_validado_ventas',false)
+          .select('obc_id,obc_folio,obc_validado_ventas,obc_validado_por').maybeSingle();
+        if (error) throw error;
+        if (!data) return reply(409,{ok:false,error:'La obra ya fue validada por otro usuario.'});
+        return reply(200,{ok:true,resultado:data});
+      }
+      const raw=payload.cambios;
+      if (!raw || typeof raw!=='object' || Array.isArray(raw))
+        return reply(400,{ok:false,error:'Faltan cambios para guardar.'});
+      const editables=new Set(['obc_cliente','obc_contacto','obc_direccion','obc_sucursal',
+        'obc_supervisor','obc_fecha','obc_nombre_proyecto','obc_tipo_giro',
+        'obc_observaciones_iniciales','obc_ejecucion_json']);
+      const entradas=Object.entries(raw as Record<string,unknown>);
+      if (!entradas.length || entradas.some(([k])=>!editables.has(k)))
+        return reply(400,{ok:false,error:'Se intentó modificar un campo protegido.'});
+      if (entradas.some(([k,v])=>typeof v!=='string' || (v as string).length>120000))
+        return reply(400,{ok:false,error:'Hay textos no válidos o demasiado largos.'});
+      const cambios=Object.fromEntries(entradas);
+      if ('obc_cliente' in cambios && !String(cambios.obc_cliente||'').trim())
+        return reply(400,{ok:false,error:'Cliente obligatorio.'});
+      if ('obc_nombre_proyecto' in cambios && !String(cambios.obc_nombre_proyecto||'').trim())
+        return reply(400,{ok:false,error:'Nombre del proyecto obligatorio.'});
+      if ('obc_ejecucion_json' in cambios) {
+        try { const detalle=JSON.parse(cambios.obc_ejecucion_json as string);
+          if (!detalle || typeof detalle!=='object' || Array.isArray(detalle)) throw new Error('JSON inválido');
+        } catch {return reply(400,{ok:false,error:'El detalle técnico debe ser JSON válido.'});}
+      }
+      const {data,error}=await db.from(tabla).update(cambios).eq('obc_id',actual.obc_id)
+         .eq('obc_validado_ventas',false).select('*').maybeSingle();
+      if (error) throw error;
+      if (!data) return reply(409,{ok:false,error:'Otro usuario validó la Obra Civil mientras editabas.'});
+      return reply(200,{ok:true,resultado:data});
+    }
     const solicitud=String(payload.solicitud||'').trim();
     if (!uuid.test(solicitud)) return reply(400,{ok:false,error:'Identificador de captura inválido.'});
     if (accion !== 'consultar' && accion !== 'guardar') return reply(400,{ok:false,error:'Acción desconocida.'});
