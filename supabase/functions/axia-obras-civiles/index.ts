@@ -137,11 +137,17 @@ Deno.serve(async (request: Request) => {
         return reply(400,{ok:false,error:'Faltan cambios para guardar.'});
       const editables=new Set(['obc_cliente','obc_contacto','obc_direccion','obc_sucursal',
         'obc_supervisor','obc_fecha','obc_nombre_proyecto','obc_tipo_giro',
-        'obc_observaciones_iniciales','obc_ejecucion_json']);
+        'obc_observaciones_iniciales','obc_observaciones_finales','obc_ejecucion_json',
+        'obc_responsable_axia','obc_dias_trabajo','obc_personas_considerar',
+        'obc_superficie_disponible','obc_superficie_adecuada','obc_planos_arquitectonicos',
+        'obc_requiere_maquinaria','obc_permisos','obc_planos_acabados',
+        'obc_generacion_planos','obc_etapa_acabados','obc_obra_blanca']);
       const entradas=Object.entries(raw as Record<string,unknown>);
       if (!entradas.length || entradas.some(([k])=>!editables.has(k)))
         return reply(400,{ok:false,error:'Se intentó modificar un campo protegido.'});
-      if (entradas.some(([k,v])=>typeof v!=='string' || (v as string).length>120000))
+      if (entradas.some(([k,v])=> ((k==='obc_dias_trabajo'||k==='obc_personas_considerar')
+        ? (typeof v!=='number' || !Number.isInteger(v) || v<0 || v>100000)
+        : (typeof v!=='string' || (v as string).length>120000))))
         return reply(400,{ok:false,error:'Hay textos no válidos o demasiado largos.'});
       const cambios=Object.fromEntries(entradas);
       if ('obc_cliente' in cambios && !String(cambios.obc_cliente||'').trim())

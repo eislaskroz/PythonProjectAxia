@@ -453,11 +453,20 @@ def mostrar_conversion_orden_servicio(parent, app):
 
     def abrir_editor_origen():
         if es_obra_civil(seleccionado.get("registro")):
-            if seleccionado.get("registro", {}).get("lev_validado_ventas"):
+            registro = seleccionado["registro"]
+            if registro.get("lev_validado_ventas"):
                 messagebox.showwarning("Obra validada", "Una Obra Civil validada ya no puede editarse.")
                 return
-            _set_modo_edicion(True)
-            lbl_estado.configure(text="Editando Obra Civil. Guarda los cambios desde esta ventana.", text_color=TEXT_SECONDARY)
+            obra = registro.get('_obc_original') or {}
+            if not obra.get('obc_id'):
+                messagebox.showwarning('Consulta pendiente', 'Abre primero el detalle completo de la obra.')
+                return
+            from views.obra_civil_editor_view import abrir_editor_obra_civil
+            def al_guardar(obra_actualizada):
+                seleccionado['registro'] = transformar_obra_civil(obra_actualizada)
+                _set_modo_edicion(False)
+                ejecutar_busqueda()
+            abrir_editor_obra_civil(parent.winfo_toplevel(), obra, al_guardar)
             return
         original = normalizar_registro_levantamiento(seleccionado.get("registro"))
         if not original:
