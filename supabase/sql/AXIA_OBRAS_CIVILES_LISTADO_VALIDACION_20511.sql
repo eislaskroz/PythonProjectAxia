@@ -1,4 +1,4 @@
--- AXIA 2.05.11: validación independiente de Obra Civil en listado universal.
+-- AXIA 2.06.00: validación independiente de Obra Civil en listado universal.
 -- NO duplica obras en db_levantamientos ni habilita acceso público a Obra Civil.
 BEGIN;
 ALTER TABLE public.db_obras_civiles

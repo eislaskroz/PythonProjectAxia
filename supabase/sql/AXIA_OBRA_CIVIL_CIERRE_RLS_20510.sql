@@ -1,4 +1,4 @@
--- AXIA Obra Civil 2.05.10 — cierre de permisos temporales
+-- AXIA Obra Civil 2.06.00 — cierre de permisos temporales
 -- Ejecutar después de desplegar la Edge Function y confirmar una inserción.
 -- No altera folios, obras existentes ni archivos.
 BEGIN;

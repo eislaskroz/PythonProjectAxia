@@ -1,4 +1,4 @@
-"""Cobertura de selector universal de Levantamientos 2.05.06."""
+"""Cobertura de selector universal de Levantamientos 2.06.00."""
 from pathlib import Path
 from ui.catalogo_axia_inline import etiquetas_catalogo, etiqueta_producto, detalle_producto, normalizar
 from services.levantamiento_catalogo_axia import referencia_axia, especificacion_catalogo_axia

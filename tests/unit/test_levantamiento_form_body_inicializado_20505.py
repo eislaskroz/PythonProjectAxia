@@ -1,6 +1,6 @@
 """Regresión: el catálogo solo se carga después de construir el formulario.
 
-En 2.05.04 se invocaba form_body.after() antes de crear form_body,
+En 2.06.00 se invocaba form_body.after() antes de crear form_body,
 causando UnboundLocalError al abrir un levantamiento.
 """
 import ast
