@@ -103,6 +103,10 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
     var_aco = ctk.StringVar(value=datos_aco.get("aco_numero", ""))
     var_cliente = ctk.StringVar(value=datos_aco.get("cliente", ""))
     var_cliente_selector = ctk.StringVar()
+    OPCION_CLIENTE_OTROS = "Otros"
+    modo_manual_cliente = {"activo": False}
+    controles_cliente = {"manual_cliente": None, "direccion": None, "telefono": None, "correo": None}
+    controles_manual_catalogo = {}
     var_contacto = ctk.StringVar(value=datos_aco.get("contacto", ""))
     var_telefono = ctk.StringVar(value=datos_aco.get("telefono", ""))
     var_correo = ctk.StringVar(value=datos_aco.get("correo", ""))
@@ -160,9 +164,12 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
             clientes_por_nombre[nombre] = cliente_db
 
     if not aco and clientes_por_nombre:
-        primer_cliente = sorted(clientes_por_nombre.keys())[0]
-        var_cliente_selector.set(primer_cliente)
+        opciones_reales = [nombre for nombre in sorted(clientes_por_nombre) if nombre.casefold() != "otros"]
+        var_cliente_selector.set(opciones_reales[0] if opciones_reales else OPCION_CLIENTE_OTROS)
+    elif not aco:
+        var_cliente_selector.set(OPCION_CLIENTE_OTROS)
     elif aco:
+        var_cliente_selector.set(str(var_cliente.get() or "").strip() or OPCION_CLIENTE_OTROS)
         cliente_aco = clientes_por_nombre.get(str(var_cliente.get() or "").strip())
         if cliente_aco:
             var_direccion.set(construir_direccion_cliente(cliente_aco))
@@ -196,6 +203,9 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         return f"{nombre} — {puesto}" if nombre and puesto else (nombre or "Contacto sin nombre")
 
     def cargar_encargado(nombre=None):
+        if modo_manual_cliente["activo"]:
+            var_contacto.set(var_encargado_sucursal.get().strip())
+            return
         contacto = contactos_por_nombre.get(str(nombre or var_encargado_sucursal.get() or "").strip())
         seleccion_catalogo["id_contacto"] = _id_contacto(contacto) if contacto else None
         if contacto:
@@ -204,6 +214,8 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
             var_correo.set(str(contacto.get("con_correo") or "").strip())
 
     def _restaurar_datos_cliente_principal():
+        if modo_manual_cliente["activo"]:
+            return
         cliente_db = clientes_por_nombre.get(str(var_cliente.get() or var_cliente_selector.get() or "").strip())
         if not cliente_db:
             return
@@ -218,6 +230,9 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
             combo_encargado["widget"].configure(values=["Contacto principal del cliente"])
 
     def cargar_contactos(nombre=None, id_contacto_preferido=None):
+        if modo_manual_cliente["activo"]:
+            var_contacto.set(var_encargado_sucursal.get().strip())
+            return
         etiqueta = str(nombre or var_sucursal.get() or "").strip()
         if etiqueta == OPCION_PRINCIPAL or etiqueta == "Sin sucursales registradas":
             contactos_por_nombre.clear()
@@ -256,6 +271,8 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
             cargar_encargado(elegido)
 
     def cargar_sucursales(id_cliente, id_sucursal_preferida=None, id_contacto_preferido=None):
+        if modo_manual_cliente["activo"]:
+            return
         seleccion_catalogo["id_cliente"] = id_cliente
         sucursales_por_nombre.clear()
         for sucursal in obtener_sucursales_por_cliente(id_cliente) or []:
@@ -361,20 +378,69 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
             var.trace_add("write", lambda *_: programar_validacion_preview())
         return o
 
+    def _mostrar_entrada_manual_catalogo(tipo, activar):
+        conjunto = controles_manual_catalogo.get(tipo) or {}
+        selector = conjunto.get("selector")
+        entrada = conjunto.get("entrada")
+        if selector is None or entrada is None:
+            return
+        if activar:
+            selector.pack_forget()
+            entrada.pack(fill="x")
+        else:
+            entrada.pack_forget()
+            selector.pack(fill="x")
+
+    def activar_captura_manual(conservar_datos=False):
+        """Habilita datos generales independientes de db_clientes, sin tocar el folio."""
+        if modo_manual_cliente["activo"] and not conservar_datos:
+            return
+        modo_manual_cliente["activo"] = True
+        seleccion_catalogo.update(id_cliente=None, id_sucursal=None, id_contacto=None)
+        if not conservar_datos:
+            for variable in (var_cliente, var_contacto, var_sucursal, var_encargado_sucursal,
+                             var_direccion, var_telefono, var_correo):
+                variable.set("")
+        if controles_cliente["manual_cliente"] is not None:
+            controles_cliente["manual_cliente"].pack(fill="x", pady=(4, 0))
+        for tipo in ("sucursal", "contacto"):
+            _mostrar_entrada_manual_catalogo(tipo, True)
+        for nombre in ("direccion", "telefono", "correo"):
+            widget = controles_cliente.get(nombre)
+            if widget is not None:
+                widget.configure(state="normal")
+        programar_validacion_preview()
+
+    def desactivar_captura_manual():
+        modo_manual_cliente["activo"] = False
+        if controles_cliente["manual_cliente"] is not None:
+            controles_cliente["manual_cliente"].pack_forget()
+        for tipo in ("sucursal", "contacto"):
+            _mostrar_entrada_manual_catalogo(tipo, False)
+        for nombre in ("direccion", "telefono", "correo"):
+            widget = controles_cliente.get(nombre)
+            if widget is not None:
+                widget.configure(state="disabled")
+        programar_validacion_preview()
+
     def cliente_selector(texto, fila, col, colspan=1):
         c = celda(fila, col, colspan)
         label(c, texto)
-        nombres = sorted(clientes_por_nombre.keys())
+        if aco:
+            nombre_aco = str(datos_aco.get("cliente") or "").strip()
+            nombres = [nombre_aco] if nombre_aco else []
+        else:
+            nombres = [nombre for nombre in sorted(clientes_por_nombre) if nombre.casefold() != "otros"]
         o = NativeComboBox(
-            c,
-            variable=var_cliente_selector,
-            values=nombres or ["Sin clientes registrados"],
-            height=OPTION_H,
-            corner_radius=8,
-            font=SMALL_FONT,
+            c, variable=var_cliente_selector,
+            values=nombres + [OPCION_CLIENTE_OTROS],
+            height=OPTION_H, corner_radius=8, font=SMALL_FONT,
             command=lambda nombre: cargar_cliente(nombre),
         )
         o.pack(fill="x")
+        e_manual = AxiaEntry(c, textvariable=var_cliente, height=ENTRY_H,
+                             placeholder_text="Escribe el nombre del cliente", font=SMALL_FONT)
+        controles_cliente["manual_cliente"] = e_manual
         campos_validables.append(var_cliente)
         nombres_validables[id(var_cliente)] = texto
         var_cliente.trace_add("write", lambda *_: programar_validacion_preview())
@@ -385,13 +451,22 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         label(c, texto)
         opciones = ["Sin sucursales registradas"] if tipo == "sucursal" else ["Sin encargados registrados"]
         command = cargar_contactos if tipo == "sucursal" else cargar_encargado
-        o = NativeComboBox(c, variable=var, values=opciones, height=OPTION_H, corner_radius=8, font=SMALL_FONT, command=command)
+        o = NativeComboBox(c, variable=var, values=opciones, height=OPTION_H,
+                           corner_radius=8, font=SMALL_FONT, command=command)
         o.pack(fill="x")
+        e = AxiaEntry(c, textvariable=var, height=ENTRY_H, font=SMALL_FONT,
+                      placeholder_text="Captura manual")
+        controles_manual_catalogo[tipo] = {"selector": o, "entrada": e}
         if tipo == "sucursal":
             combo_sucursal["widget"] = o
         else:
             combo_encargado["widget"] = o
         return o
+
+    var_encargado_sucursal.trace_add(
+        "write", lambda *_: (var_contacto.set(var_encargado_sucursal.get().strip())
+                               if modo_manual_cliente["activo"] else None)
+    )
 
     def textbox(texto, fila, col, colspan=5, height=70):
         c = celda(fila, col, colspan)
@@ -401,8 +476,9 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         return box
 
     def bloquear_autollenados():
-        for e in entradas_bloqueadas:
-            e.configure(state="disabled")
+        if not modo_manual_cliente["activo"]:
+            for e in entradas_bloqueadas:
+                e.configure(state="disabled")
 
     def cargar_aco():
         nonlocal datos_aco
@@ -425,13 +501,26 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         validar_preview()
 
     def cargar_cliente(nombre=None):
-        """Autollena datos generales desde db_clientes cuando el flujo no tiene ACO."""
+        """Selecciona cliente del catálogo o permite capturar todos sus datos en Otros."""
         nombre_cliente = str(nombre or var_cliente_selector.get() or "").strip()
+        if nombre_cliente.casefold() == OPCION_CLIENTE_OTROS.casefold():
+            activar_captura_manual()
+            return
+        desactivar_captura_manual()
+        if aco and nombre_cliente == str(datos_aco.get("cliente") or "").strip():
+            var_cliente.set(nombre_cliente)
+            var_contacto.set(str(datos_aco.get("contacto") or ""))
+            var_telefono.set(str(datos_aco.get("telefono") or ""))
+            var_correo.set(str(datos_aco.get("correo") or ""))
+            var_direccion.set(str(datos_aco.get("direccion") or ""))
+            cargar_sucursales(datos_aco.get("id_cliente"), datos_aco.get("id_sucursal"),
+                               datos_aco.get("id_contacto"))
+            validar_preview()
+            return
         cliente_db = clientes_por_nombre.get(nombre_cliente)
         if not cliente_db:
             return
         var_cliente.set(nombre_cliente)
-        # db_clientes es siempre la fuente principal al seleccionar un cliente.
         var_contacto.set(str(cliente_db.get("cli_contacto") or "").strip())
         var_telefono.set(str(cliente_db.get("cli_telefono") or "").strip())
         var_correo.set(str(cliente_db.get("cli_correo") or "").strip())
@@ -443,25 +532,23 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
     seccion("Datos generales", 0)
     entry("Folio OBC", var_folio, 1, 0, "Automático", state="disabled", required=False)
 
+    cliente_selector("Cliente", 1, 1)
+    controles_cliente["direccion"] = entry("Dirección Fiscal", var_direccion, 1, 2,
+        "Dirección fiscal del cliente", lock=True, colspan=3)
+    catalogo_selector("Sucursal", var_sucursal, 2, 0, tipo="sucursal")
+    catalogo_selector("Encargado de sucursal", var_encargado_sucursal, 2, 1,
+                      tipo="contacto", colspan=2)
+    controles_cliente["telefono"] = entry("Teléfono", var_telefono, 2, 3,
+        "Autollenado desde encargado", state="disabled", required=False)
+    controles_cliente["correo"] = entry("Correo", var_correo, 2, 4,
+        "Autollenado desde encargado", state="disabled", required=False)
+    foco_inicial = None
     if aco:
-        entry("Cliente", var_cliente, 1, 1, "Autollenado desde ACO", lock=True)
-        entry("Dirección Fiscal", var_direccion, 1, 2, "Dirección fiscal del cliente", lock=True, colspan=3)
-        catalogo_selector("Sucursal", var_sucursal, 2, 0, tipo="sucursal")
-        catalogo_selector("Encargado de sucursal", var_encargado_sucursal, 2, 1, tipo="contacto", colspan=2)
-        entry("Teléfono", var_telefono, 2, 3, "Autollenado desde encargado", state="disabled", required=False)
-        entry("Correo", var_correo, 2, 4, "Autollenado desde encargado", state="disabled", required=False)
-        cargar_sucursales(datos_aco.get("id_cliente"), datos_aco.get("id_sucursal"), datos_aco.get("id_contacto"))
-        foco_inicial = None
+        cargar_cliente(var_cliente_selector.get())
+    elif var_cliente_selector.get().casefold() == OPCION_CLIENTE_OTROS.casefold():
+        activar_captura_manual()
     else:
-        cliente_selector("Cliente", 1, 1)
-        entry("Dirección Fiscal", var_direccion, 1, 2, "Dirección fiscal del cliente", lock=True, colspan=3)
-        catalogo_selector("Sucursal", var_sucursal, 2, 0, tipo="sucursal")
-        catalogo_selector("Encargado de sucursal", var_encargado_sucursal, 2, 1, tipo="contacto", colspan=2)
-        entry("Teléfono", var_telefono, 2, 3, "Autollenado desde encargado", state="disabled", required=False)
-        entry("Correo", var_correo, 2, 4, "Autollenado desde encargado", state="disabled", required=False)
-        foco_inicial = None
-        if clientes_por_nombre:
-            cargar_cliente(var_cliente_selector.get())
+        cargar_cliente(var_cliente_selector.get())
 
     option("Supervisor", var_supervisor, supervisores_disponibles or ["Sin usuarios tipo 2 o 3 registrados"], 3, 0, colspan=2)
     option("Encargado de Proyecto", var_responsable, encargados_proyecto_disponibles or ["Sin usuarios tipo 3 o 4 registrados"], 3, 2, colspan=2)
@@ -594,7 +681,9 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
     for col, encabezado in enumerate(("Tipo", "Partida / concepto", "Unidad", "Cantidad", "Acción")):
         ctk.CTkLabel(panel_conceptos, text=encabezado, font=("Montserrat", 12)).grid(row=0, column=col, sticky="w", padx=3)
 
-    tipos_concepto_obra = obtener_tipos_concepto_obra(catalogo_conceptos_obra)
+    TIPO_CONCEPTO_OTROS = "OTROS"
+    tipos_concepto_obra = [t for t in obtener_tipos_concepto_obra(catalogo_conceptos_obra)
+                           if t.casefold() != TIPO_CONCEPTO_OTROS.casefold()] + [TIPO_CONCEPTO_OTROS]
 
     def _etiqueta_concepto_obra(item):
         partida = str(item.get("obra_partida") or "").strip()
@@ -603,98 +692,159 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         return f"{partida} — {concepto}" if concepto else partida
 
     def agregar_concepto_obra():
-        fila_concepto = 1 + len(conceptos_obra_items)
-        tipo_inicial = tipos_concepto_obra[0] if tipos_concepto_obra else "Sin catálogo"
-        conceptos_tipo = filtrar_conceptos_por_tipo(tipo_inicial, catalogo_conceptos_obra)
+        # El identificador de fila se incrementa para evitar solapamientos tras eliminar.
+        fila_concepto = 1 + max((x["fila"] for x in conceptos_obra_items), default=0)
+        tipo_inicial = next((tipo for tipo in tipos_concepto_obra if tipo != TIPO_CONCEPTO_OTROS), TIPO_CONCEPTO_OTROS)
+        conceptos_tipo = filtrar_conceptos_por_tipo(tipo_inicial, catalogo_conceptos_obra) if tipo_inicial != TIPO_CONCEPTO_OTROS else []
         etiquetas = [_etiqueta_concepto_obra(item) for item in conceptos_tipo] or ["Sin conceptos disponibles"]
 
         vtipo = ctk.StringVar(value=tipo_inicial)
-        vconcepto = ctk.StringVar(value=etiquetas[0])
+        vconcepto = ctk.StringVar(value=etiquetas[0] if conceptos_tipo else "")
         vunidad = ctk.StringVar(value=str((conceptos_tipo[0].get("obra_unidad") if conceptos_tipo else "") or ""))
         vcantidad = ctk.StringVar(value="1")
-        vcantidad.trace_add("write", lambda *_: programar_validacion_preview())
+        for variable in (vtipo, vconcepto, vunidad, vcantidad):
+            variable.trace_add("write", lambda *_: programar_validacion_preview())
 
-        otipo = NativeComboBox(panel_conceptos, variable=vtipo, values=tipos_concepto_obra or ["Sin catálogo"], height=30)
+        otipo = NativeComboBox(panel_conceptos, variable=vtipo, values=tipos_concepto_obra, height=30)
         otipo.grid(row=fila_concepto, column=0, sticky="ew", padx=3, pady=2)
-        oconcepto = NativeComboBox(panel_conceptos, variable=vconcepto, values=etiquetas, height=30)
-        oconcepto.grid(row=fila_concepto, column=1, sticky="ew", padx=3, pady=2)
-        eunidad = AxiaEntry(panel_conceptos, textvariable=vunidad, width=68, height=30, state="disabled")
+        # El Combobox nativo solo muestra una línea y recorta las partidas largas.
+        # Se conserva para elegir conceptos del catálogo, con una vista multilínea
+        # desplazable dentro de la misma celda (tres renglones visibles).
+        cont_concepto = ctk.CTkFrame(panel_conceptos, fg_color="transparent")
+        cont_concepto.grid(row=fila_concepto, column=1, sticky="ew", padx=3, pady=3)
+        cont_concepto.grid_columnconfigure(0, weight=1)
+        oconcepto = NativeComboBox(cont_concepto, variable=vconcepto, values=etiquetas, height=30)
+        oconcepto.grid(row=0, column=0, sticky="ew", pady=(0, 3))
+        concepto_vista = AxiaTextbox(cont_concepto, height=66, wrap="word", state="disabled")
+        concepto_vista.grid(row=1, column=0, sticky="ew")
+        # OTROS: tres renglones editables y desplazamiento cuando el texto es mayor.
+        econcepto = AxiaTextbox(cont_concepto, height=99, wrap="word")
+
+        def _sincronizar_vista_concepto(*_):
+            texto = vconcepto.get()
+            concepto_vista.configure(state="normal")
+            concepto_vista.delete("1.0", "end")
+            concepto_vista.insert("1.0", texto)
+            concepto_vista.configure(state="disabled")
+            actual = econcepto.get("1.0", "end-1c")
+            if actual != texto:
+                econcepto.delete("1.0", "end")
+                econcepto.insert("1.0", texto)
+
+        def _capturar_concepto_manual(_evento=None):
+            if vtipo.get() == TIPO_CONCEPTO_OTROS:
+                texto = econcepto.get("1.0", "end-1c")
+                if texto != vconcepto.get():
+                    vconcepto.set(texto)
+
+        vconcepto.trace_add("write", _sincronizar_vista_concepto)
+        econcepto.bind("<KeyRelease>", _capturar_concepto_manual)
+        econcepto.bind("<FocusOut>", _capturar_concepto_manual)
+        _sincronizar_vista_concepto()
+        econcepto.grid_remove()
+        eunidad = AxiaEntry(panel_conceptos, textvariable=vunidad, width=68, height=30, state="disabled",
+                            placeholder_text="Unidad")
         eunidad.grid(row=fila_concepto, column=2, sticky="ew", padx=3, pady=2)
         ecantidad = AxiaEntry(panel_conceptos, textvariable=vcantidad, width=72, height=30, placeholder_text="Ej. 12.5")
         aplicar_mascara_numerica(ecantidad, vcantidad, NUMBER)
         ecantidad.grid(row=fila_concepto, column=3, sticky="ew", padx=3, pady=2)
 
         item_concepto = {
-            "tipo": vtipo, "concepto_label": vconcepto, "unidad": vunidad, "cantidad": vcantidad,
+            "fila": fila_concepto, "tipo": vtipo, "concepto_label": vconcepto,
+            "unidad": vunidad, "cantidad": vcantidad,
             "conceptos_tipo": conceptos_tipo, "registro": conceptos_tipo[0] if conceptos_tipo else {},
-            "widgets": [otipo, oconcepto, eunidad, ecantidad],
+            "widgets": [otipo, oconcepto, econcepto, eunidad, ecantidad,
+                        concepto_vista, cont_concepto],
         }
 
         def seleccionar_concepto(_valor=None):
-            etiqueta = vconcepto.get()
-            registro = next((x for x in item_concepto.get("conceptos_tipo", []) if _etiqueta_concepto_obra(x) == etiqueta), {})
+            if vtipo.get() == TIPO_CONCEPTO_OTROS:
+                return
+            registro = next((x for x in item_concepto["conceptos_tipo"]
+                             if _etiqueta_concepto_obra(x) == vconcepto.get()), {})
             item_concepto["registro"] = registro
             vunidad.set(str(registro.get("obra_unidad") or ""))
             validar_preview()
 
-        def cambiar_tipo(valor):
-            nuevos = filtrar_conceptos_por_tipo(valor, catalogo_conceptos_obra)
-            item_concepto["conceptos_tipo"] = nuevos
-            nuevas_etiquetas = [_etiqueta_concepto_obra(x) for x in nuevos] or ["Sin conceptos disponibles"]
-            oconcepto.configure(values=nuevas_etiquetas)
-            vconcepto.set(nuevas_etiquetas[0])
-            seleccionar_concepto()
+        def cambiar_tipo(valor, *, restaurar=False):
+            if valor == TIPO_CONCEPTO_OTROS:
+                item_concepto["registro"] = {}
+                oconcepto.grid_remove()
+                concepto_vista.grid_remove()
+                econcepto.grid(row=0, column=0, sticky="ew")
+                eunidad.configure(state="normal")
+                if not restaurar:
+                    vconcepto.set("")
+                    vunidad.set("")
+            else:
+                nuevos = filtrar_conceptos_por_tipo(valor, catalogo_conceptos_obra)
+                item_concepto["conceptos_tipo"] = nuevos
+                nuevas_etiquetas = [_etiqueta_concepto_obra(x) for x in nuevos] or ["Sin conceptos disponibles"]
+                oconcepto.configure(values=nuevas_etiquetas)
+                econcepto.grid_remove()
+                oconcepto.grid(row=0, column=0, sticky="ew", pady=(0, 3))
+                concepto_vista.grid(row=1, column=0, sticky="ew")
+                eunidad.configure(state="disabled")
+                vconcepto.set(nuevas_etiquetas[0] if nuevos else "")
+                seleccionar_concepto()
+            programar_validacion_preview()
 
         otipo.configure(command=cambiar_tipo)
         oconcepto.configure(command=seleccionar_concepto)
 
         def eliminar_concepto():
-            for widget in item_concepto.get("widgets", []):
-                try:
-                    widget.destroy()
-                except Exception:
-                    logger.debug("Excepción recuperable controlada.", exc_info=True)
+            for widget in item_concepto["widgets"]:
+                widget.destroy()
             conceptos_obra_items[:] = [x for x in conceptos_obra_items if x is not item_concepto]
-            validar_preview()
+            programar_validacion_preview()
 
-        btn = ctk.CTkButton(panel_conceptos, text="Eliminar", width=76, height=30, fg_color="#DC2626", hover_color="#B91C1C", command=eliminar_concepto)
+        btn = ctk.CTkButton(panel_conceptos, text="Eliminar", width=76, height=30,
+                            fg_color="#DC2626", hover_color="#B91C1C", command=eliminar_concepto)
         btn.grid(row=fila_concepto, column=4, sticky="ew", padx=3, pady=2)
         item_concepto["widgets"].append(btn)
+        item_concepto["cambiar_tipo"] = cambiar_tipo
         conceptos_obra_items.append(item_concepto)
+        if tipo_inicial == TIPO_CONCEPTO_OTROS:
+            cambiar_tipo(TIPO_CONCEPTO_OTROS)
 
     def obtener_conceptos_obra_seleccionados():
         seleccion = []
         for item in conceptos_obra_items:
-            registro = item.get("registro") or {}
             cantidad = item["cantidad"].get().strip()
+            if item["tipo"].get() == TIPO_CONCEPTO_OTROS:
+                texto = item["concepto_label"].get().strip()
+                unidad = item["unidad"].get().strip()
+                if texto and unidad and cantidad:
+                    seleccion.append({
+                        "id_obra_concepto": None, "catalogo_ref": None,
+                        "tipo": TIPO_CONCEPTO_OTROS, "partida": "OTROS",
+                        "unidad": unidad, "concepto": texto,
+                        "precio_unitario_referencia": None, "cantidad": cantidad,
+                    })
+                continue
+            registro = item.get("registro") or {}
             if not registro or not cantidad:
                 continue
             seleccion.append({
                 "id_obra_concepto": registro.get("id_obra_concepto"),
                 "catalogo_ref": registro.get("obra_catalogo_ref"),
-                "tipo": registro.get("obra_tipo"),
-                "partida": registro.get("obra_partida"),
-                "unidad": registro.get("obra_unidad"),
-                "concepto": registro.get("obra_concepto"),
-                "precio_unitario_referencia": registro.get("obra_precio_unitario"),
-                "cantidad": cantidad,
+                "tipo": registro.get("obra_tipo"), "partida": registro.get("obra_partida"),
+                "unidad": registro.get("obra_unidad"), "concepto": registro.get("obra_concepto"),
+                "precio_unitario_referencia": registro.get("obra_precio_unitario"), "cantidad": cantidad,
             })
         return seleccion
 
     if catalogo_conceptos_obra:
         agregar_concepto_obra()
     else:
-        ctk.CTkLabel(
-            panel_conceptos,
-            text="Catálogo no disponible. Ejecuta la migración db_obra_conceptos en Supabase.",
-            font=SMALL_FONT, text_color="#B45309"
-        ).grid(row=1, column=0, columnspan=5, sticky="w", padx=3, pady=4)
+        ctk.CTkLabel(panel_conceptos,
+                     text="Catálogo no disponible. Puedes agregar conceptos manuales con OTROS.",
+                     font=SMALL_FONT, text_color="#B45309").grid(row=1, column=0, columnspan=5,
+                                                                 sticky="w", padx=3, pady=4)
 
-    ctk.CTkButton(
-        panel_conceptos, text="+ Agregar concepto", width=180, height=30,
-        fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=agregar_concepto_obra,
-        state="normal" if catalogo_conceptos_obra else "disabled"
-    ).grid(row=99, column=0, columnspan=2, sticky="w", padx=3, pady=(4, 2))
+    ctk.CTkButton(panel_conceptos, text="+ Agregar concepto", width=180, height=30,
+                  fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=agregar_concepto_obra
+                  ).grid(row=99, column=0, columnspan=2, sticky="w", padx=3, pady=(4, 2))
 
     seccion("Materiales misceláneos y consumibles", 24)
     panel_misc = celda(25, 0, 5)
@@ -1140,6 +1290,12 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
                 if clave == "folio" and not guardado_servidor["id"]:
                     continue  # Ignorar antiguos OBC provisionales de borradores.
                 variable.set(str(estado.get(clave) or ""))
+        if estado.get("cliente_manual") or (estado.get("cliente") and
+                str(estado.get("cliente") or "").strip() not in clientes_por_nombre and not aco):
+            var_cliente_selector.set(OPCION_CLIENTE_OTROS)
+            activar_captura_manual(conservar_datos=True)
+        else:
+            var_cliente_selector.set(str(estado.get("cliente_selector") or var_cliente_selector.get()))
         for clave, variable in ejecucion_vars.items():
             if clave in (estado.get("ejecucion") or {}):
                 variable.set(str(estado["ejecucion"].get(clave) or ""))
@@ -1150,11 +1306,18 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
             pass
         # Recuperar las filas dinámicas SIN crear nuevos registros en Supabase.
         conceptos_guardados = estado.get("conceptos_obra")
-        if isinstance(conceptos_guardados, list) and conceptos_guardados and catalogo_conceptos_obra:
+        if isinstance(conceptos_guardados, list) and conceptos_guardados:
             while len(conceptos_obra_items) < len(conceptos_guardados):
                 agregar_concepto_obra()
             for item, fila in zip(conceptos_obra_items, conceptos_guardados):
                 if not isinstance(fila, dict):
+                    continue
+                if str(fila.get("tipo") or "").upper() == TIPO_CONCEPTO_OTROS:
+                    item["tipo"].set(TIPO_CONCEPTO_OTROS)
+                    item["cambiar_tipo"](TIPO_CONCEPTO_OTROS, restaurar=True)
+                    item["concepto_label"].set(str(fila.get("concepto") or ""))
+                    item["unidad"].set(str(fila.get("unidad") or ""))
+                    item["cantidad"].set(str(fila.get("cantidad") or "1"))
                     continue
                 registro = next((r for r in catalogo_conceptos_obra
                     if str(r.get("id_obra_concepto")) == str(fila.get("id_obra_concepto"))
@@ -1166,6 +1329,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
                     item["tipo"].set(tipo)
                     item["conceptos_tipo"] = seleccion
                     item["widgets"][1].configure(values=[_etiqueta_concepto_obra(r) for r in seleccion])
+                    item["cambiar_tipo"](tipo, restaurar=True)
                     item["concepto_label"].set(_etiqueta_concepto_obra(registro))
                     item["registro"] = registro
                     item["unidad"].set(str(registro.get("obra_unidad") or ""))
@@ -1248,19 +1412,26 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
                         return False
         except (TypeError, ValueError):
             return False
-        # Si el catálogo está disponible, cada concepto visible debe ser válido y tener cantidad > 0.
-        if catalogo_conceptos_obra:
-            if not conceptos_obra_items:
+        if modo_manual_cliente["activo"]:
+            if not all(v.get().strip() for v in (
+                var_cliente, var_direccion, var_sucursal, var_encargado_sucursal,
+                var_telefono, var_correo,
+            )):
                 return False
-            for item in conceptos_obra_items:
-                if not (item.get("registro") or {}):
+        # Cada concepto visible requiere datos completos, sea de catálogo o manual.
+        if catalogo_conceptos_obra and not conceptos_obra_items:
+            return False
+        for item in conceptos_obra_items:
+            if item["tipo"].get() == TIPO_CONCEPTO_OTROS:
+                if not item["concepto_label"].get().strip() or not item["unidad"].get().strip():
                     return False
-                cantidad = item["cantidad"].get().strip().replace(",", ".")
-                try:
-                    if float(cantidad) <= 0:
-                        return False
-                except (TypeError, ValueError):
+            elif not (item.get("registro") or {}):
+                return False
+            try:
+                if float(item["cantidad"].get().strip().replace(",", ".")) <= 0:
                     return False
+            except (TypeError, ValueError):
+                return False
         return True
 
     def campos_faltantes_obra():
@@ -1293,13 +1464,25 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
                 try:
                     if float(str(item.get("cantidad") or "0").replace(",", ".")) <= 0: agregar("Cantidad de EPP"); break
                 except (TypeError, ValueError): agregar("Cantidad de EPP"); break
-        if catalogo_conceptos_obra:
-            if not conceptos_obra_items: agregar("Conceptos de obra")
-            for item in conceptos_obra_items:
-                if not (item.get("registro") or {}): agregar("Concepto de obra válido")
-                try:
-                    if float(item["cantidad"].get().strip().replace(",", ".") or 0) <= 0: agregar("Cantidad de concepto de obra")
-                except (TypeError, ValueError): agregar("Cantidad de concepto de obra")
+        if modo_manual_cliente["activo"]:
+            for nombre, variable in (("Cliente", var_cliente), ("Dirección Fiscal", var_direccion),
+                ("Sucursal", var_sucursal), ("Encargado de sucursal", var_encargado_sucursal),
+                ("Teléfono", var_telefono), ("Correo", var_correo)):
+                if not variable.get().strip():
+                    agregar(nombre)
+        if catalogo_conceptos_obra and not conceptos_obra_items:
+            agregar("Conceptos de obra")
+        for item in conceptos_obra_items:
+            if item["tipo"].get() == TIPO_CONCEPTO_OTROS:
+                if not item["concepto_label"].get().strip(): agregar("Partida / concepto manual")
+                if not item["unidad"].get().strip(): agregar("Unidad del concepto manual")
+            elif not (item.get("registro") or {}):
+                agregar("Concepto de obra válido")
+            try:
+                if float(item["cantidad"].get().strip().replace(",", ".") or 0) <= 0:
+                    agregar("Cantidad de concepto de obra")
+            except (TypeError, ValueError):
+                agregar("Cantidad de concepto de obra")
         return faltan
 
     def datos_pdf():
@@ -1396,7 +1579,13 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
             )
             return
         datos = {
-            "id_aco": datos_aco.get("id_aco"), "id_sucursal": seleccion_catalogo.get("id_sucursal") or datos_aco.get("id_sucursal"), "id_contacto": seleccion_catalogo.get("id_contacto") or datos_aco.get("id_contacto"), "obc_fecha": var_fecha.get().strip() or None, "obc_aco_numero": var_aco.get().strip(),
+            "id_aco": datos_aco.get("id_aco"),
+            "id_sucursal": (None if modo_manual_cliente["activo"] else
+                            seleccion_catalogo.get("id_sucursal") or datos_aco.get("id_sucursal")),
+            "id_contacto": (None if modo_manual_cliente["activo"] else
+                            seleccion_catalogo.get("id_contacto") or datos_aco.get("id_contacto")),
+            "obc_fecha": var_fecha.get().strip() or None,
+            "obc_aco_numero": var_aco.get().strip(),
             "obc_cliente": var_cliente.get().strip(), "obc_contacto": var_contacto.get().strip(), "obc_sucursal": var_sucursal.get().strip(),
             "obc_direccion": var_direccion.get().strip(), "obc_responsable_axia": var_responsable.get().strip(), "obc_supervisor": var_supervisor.get().strip(),
             "obc_dias_trabajo": int(var_dias_trabajo.get().strip()), "obc_personas_considerar": int(var_personas_considerar.get().strip()),
@@ -1543,6 +1732,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None):
         estado = {
             "obra_guardada": dict(guardado_servidor),
             "folio": var_folio.get(), "fecha": var_fecha.get(), "desea_notas_cliente": var_desea_notas_cliente.get(), "notas_cliente": var_notas_cliente.get(), "aco": var_aco.get(), "cliente": var_cliente.get(),
+            "cliente_manual": modo_manual_cliente["activo"], "cliente_selector": var_cliente_selector.get(),
             "contacto": var_contacto.get(), "telefono": var_telefono.get(), "correo": var_correo.get(),
             "sucursal": var_sucursal.get(), "encargado_sucursal": var_encargado_sucursal.get(),
             "direccion": var_direccion.get(), "responsable": var_responsable.get(), "supervisor": var_supervisor.get(),
