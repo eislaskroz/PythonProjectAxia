@@ -35,6 +35,10 @@ class _EstiloCampo:
         # parámetros: fuente, altura, esquinas, variable y estado funcional.
         kwargs["fg_color"] = fondo
         kwargs["border_color"] = borde
+        # Uniformidad visual AXIA: campos de texto cuadrados;
+        # los selectores nativos ya conservan borde recto y los botones
+        # mantienen su propio radio configurado en cada vista.
+        kwargs["corner_radius"] = 0
         if isinstance(self, ctk.CTkEntry):
             kwargs.setdefault("placeholder_text_color", "#64748B")
         super().__init__(*args, **kwargs)
