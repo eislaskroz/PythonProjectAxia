@@ -14,6 +14,7 @@ from services.admin_registros_service import TIPOS, EDITABLES, ejecutar
 from ui.colors import WHITE, TEXT_PRIMARY, TEXT_SECONDARY, SECONDARY
 from ui.form_fields import AxiaEntry, AxiaTextbox
 from ui.native_table import NativeTreeTable
+from views.admin_registros_formularios import FormularioSeccionado
 
 
 def _formato(valor):
@@ -201,7 +202,7 @@ def dialogo_registro(tabla, original, clave, root, *, editar=False, eliminar=Fal
     zona=ctk.CTkScrollableFrame(marco,fg_color="#F7F9FC")
     zona.pack(fill="both",expand=True)
     widgets={}
-    campos=EDITABLES[tabla] if editar else tuple(original.keys()) if not eliminar else ()
+    campos=() if editar or eliminar else tuple(original.keys())
     for campo in campos:
         if campo not in original:continue
         valor=original[campo]
@@ -228,6 +229,7 @@ def dialogo_registro(tabla, original, clave, root, *, editar=False, eliminar=Fal
             else:
                 ctk.CTkLabel(fila,text=texto,justify="left",anchor="w",wraplength=530).pack(
                     side="left",fill="x",expand=True)
+    formulario_admin = FormularioSeccionado(zona, tabla, original, root=root) if editar else None
     if eliminar:
         ctk.CTkLabel(zona,text="La eliminación es permanente. Se guarda una copia del registro en el historial.\n"
                      "Si tiene registros relacionados, el servidor rechazará la operación.",
@@ -272,12 +274,9 @@ def dialogo_registro(tabla, original, clave, root, *, editar=False, eliminar=Fal
             args['confirmacion']=folio
             accion='eliminar'
         else:
-            cambios={}
             try:
-                for campo,(widget,previo,largo) in widgets.items():
-                    nuevo=_convertir(previo,widget.get('1.0','end-1c') if largo else widget.get(),campo)
-                    if nuevo!=previo:cambios[campo]=nuevo
-            except (ValueError,TypeError,json.JSONDecodeError) as err:
+                cambios = formulario_admin.cambios()
+            except (ValueError,TypeError,json.JSONDecodeError,KeyError) as err:
                 messagebox.showerror("Dato inválido",str(err),parent=ventana)
                 return
             if not cambios:
