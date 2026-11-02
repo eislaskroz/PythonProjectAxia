@@ -57,6 +57,9 @@ from services.sucursales_service import (
 )
 
 from services.movimientos_service import registrar_movimiento
+from services.usuarios_service import obtener_usuarios_por_tipos
+from security.permissions import TIPOS_VALIDOS
+from services.aco_form_helpers import datos_contacto_aco
 
 from security.permissions import (
     puede_crear_aco,
@@ -535,7 +538,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
         var_contacto_correo = ctk.StringVar()
         var_cliente_telefono = ctk.StringVar()
         var_cliente_correo = ctk.StringVar()
-        var_responsable = ctk.StringVar()
+        var_responsable = ctk.StringVar(value="Selecciona responsable")
         var_fecha_inicio = ctk.StringVar()
         var_fecha_compromiso = ctk.StringVar()
 
@@ -546,6 +549,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             "selector_sucursal": None,
             "selector_contacto": None,
             "selector_cliente": None,
+            "responsables_por_nombre": {},
         }
 
         # Anchura responsiva: los controles se estiran con la ventana en vez de
@@ -776,6 +780,9 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
                 command=guardar_cliente_modal,
             ).pack(side="right", padx=5)
 
+        # Mismo concepto de sucursal principal que en los demás levantamientos.
+        OPCION_SUCURSAL_PRINCIPAL = "Principal / datos del cliente"
+
         def refrescar_sucursales(cliente_db):
             id_cliente = cliente_db.get("id_cliente") if cliente_db else None
             sucursales = obtener_sucursales_por_cliente(id_cliente) if id_cliente else []
@@ -785,13 +792,16 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
                 if str(s.get("suc_nombre", "") or "").strip()
             }
             seleccion_operativa["sucursales_por_nombre"] = sucursales_por_nombre
-            nombres = sorted(sucursales_por_nombre.keys()) or ["Sin sucursales registradas"]
+            nombres = ([OPCION_SUCURSAL_PRINCIPAL] + sorted(sucursales_por_nombre)) if cliente_db else ["Sin sucursales registradas"]
+            # No se asigna una sucursal aleatoria: se comienza por el contacto
+            # principal y el usuario elige una sucursal real si la necesita.
             var_sucursal.set(nombres[0])
             if seleccion_operativa.get("selector_sucursal"):
                 seleccion_operativa["selector_sucursal"].configure(values=nombres)
             cargar_datos_sucursal()
 
         def refrescar_contactos(sucursal_db):
+            cliente_db = seleccion_operativa["clientes_por_nombre"].get(var_cliente.get())
             suc_id = sucursal_db.get("suc_id") if sucursal_db else None
             contactos = obtener_contactos_por_sucursal(suc_id) if suc_id else []
             contactos_por_nombre = {
@@ -800,7 +810,15 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
                 if str(c.get("con_nombre", "") or "").strip()
             }
             seleccion_operativa["contactos_por_nombre"] = contactos_por_nombre
-            nombres = sorted(contactos_por_nombre.keys()) or ["Sin contactos registrados"]
+            nombre_principal = str((cliente_db or {}).get("cli_contacto") or "").strip()
+            # Siempre se puede regresar al contacto maestro si la sucursal no
+            # tiene responsables o si los datos de contacto son incompletos.
+            if sucursal_db and contactos_por_nombre:
+                nombres = sorted(contactos_por_nombre)
+                if nombre_principal and nombre_principal not in contactos_por_nombre:
+                    nombres.append(nombre_principal)
+            else:
+                nombres = [nombre_principal] if nombre_principal else ["Sin contactos registrados"]
             var_contacto_operativo.set(nombres[0])
             if seleccion_operativa.get("selector_contacto"):
                 seleccion_operativa["selector_contacto"].configure(values=nombres)
@@ -815,27 +833,25 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
                 refrescar_sucursales(None)
                 return
             var_cliente_domicilio.set(construir_direccion_cliente(cliente_db))
-            var_cliente_telefono.set(cliente_db.get("cli_telefono", "") or "")
-            var_cliente_correo.set(cliente_db.get("cli_correo", "") or "")
+            var_cliente_telefono.set(str(cliente_db.get("cli_telefono") or "").strip())
+            var_cliente_correo.set(str(cliente_db.get("cli_correo") or "").strip())
             refrescar_sucursales(cliente_db)
 
         def cargar_datos_sucursal():
             sucursal_db = seleccion_operativa["sucursales_por_nombre"].get(var_sucursal.get())
             if not sucursal_db:
                 var_sucursal_domicilio.set("")
-                refrescar_contactos(None)
-                return
-            var_sucursal_domicilio.set(construir_domicilio_sucursal(sucursal_db))
+            else:
+                var_sucursal_domicilio.set(construir_domicilio_sucursal(sucursal_db))
             refrescar_contactos(sucursal_db)
 
         def cargar_datos_contacto():
+            cliente_db = seleccion_operativa["clientes_por_nombre"].get(var_cliente.get())
+            sucursal_db = seleccion_operativa["sucursales_por_nombre"].get(var_sucursal.get())
             contacto_db = seleccion_operativa["contactos_por_nombre"].get(var_contacto_operativo.get())
-            if not contacto_db:
-                var_contacto_telefono.set("")
-                var_contacto_correo.set("")
-                return
-            var_contacto_telefono.set(contacto_db.get("con_telefono", "") or "")
-            var_contacto_correo.set(contacto_db.get("con_correo", "") or "")
+            datos = datos_contacto_aco(cliente_db, sucursal_db, contacto_db)
+            var_contacto_telefono.set(datos["telefono"])
+            var_contacto_correo.set(datos["correo"])
 
         def crear_selector_sucursal(variable):
             selector = NativeComboBox(
@@ -924,7 +940,22 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
         crear_entry(var_cliente_correo, "Autollenado desde cliente", state="disabled")
 
         crear_label("Responsable")
-        crear_entry(var_responsable, "Responsable del pedido")
+        # La asignación del ACO admite personal de TODAS las áreas AXIA,
+        # no solo responsables técnicos. Se consulta db_usuarios sin contraseñas.
+        empleados = obtener_usuarios_por_tipos(TIPOS_VALIDOS, limite=3000)
+        nombres_empleados = [usuario["etiqueta"] for usuario in empleados]
+        seleccion_operativa["responsables_por_nombre"] = {
+            usuario["etiqueta"]: usuario for usuario in empleados
+        }
+        opciones_responsable = ["Selecciona responsable", *nombres_empleados]
+        if not nombres_empleados:
+            opciones_responsable = ["No hay empleados disponibles"]
+            var_responsable.set(opciones_responsable[0])
+        selector_responsable = NativeComboBox(
+            form, variable=var_responsable, values=opciones_responsable,
+            height=38,
+        )
+        _grid_control(selector_responsable)
 
         crear_label("Fecha de inicio")
         crear_entry(var_fecha_inicio, "Selecciona fecha", date=True)
@@ -945,6 +976,14 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             fecha_inicio = var_fecha_inicio.get().strip()
             fecha_compromiso = var_fecha_compromiso.get().strip()
             observaciones = txt_observaciones.get("1.0", "end").strip()
+
+            if responsable not in seleccion_operativa["responsables_por_nombre"]:
+                messagebox.showwarning(
+                    "Responsable requerido",
+                    "Selecciona un empleado de AXIA como responsable del ACO. "
+                    "Si no aparecen nombres, comprueba el acceso a db_usuarios.",
+                )
+                return
 
             if not cliente or cliente == "Sin clientes registrados":
                 messagebox.showwarning(

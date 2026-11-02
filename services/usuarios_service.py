@@ -516,18 +516,34 @@ def obtener_usuarios_por_tipos(tipos, limite=500):
         if not tipos_validos:
             return []
 
-        respuesta = (
-            supabase
-            .table(TABLA_USUARIOS)
-            .select("id_usuario,usu_nickname,usu_nombre,usu_apellido,usu_tipo,usu_correo,usu_telefono")
-            .in_("usu_tipo", tipos_validos)
-            .limit(limite)
-            .execute()
-        )
+        # Paginar: una consulta .limit(3000) puede devolver solo el máximo
+        # que PostgREST tenga configurado (normalmente 1000 filas). Un ACO
+        # debe poder seleccionar a cualquier empleado registrado, sin perder
+        # los de las páginas siguientes.
+        registros = []
+        pagina = 1
+        tamano_pagina = min(300, max(1, int(limite)))
+        while len(registros) < limite:
+            inicio = (pagina - 1) * tamano_pagina
+            fin = min(inicio + tamano_pagina, limite) - 1
+            respuesta = (
+                supabase
+                .table(TABLA_USUARIOS)
+                .select("id_usuario,usu_nickname,usu_nombre,usu_apellido,usu_tipo,usu_correo,usu_telefono")
+                .in_("usu_tipo", tipos_validos)
+                .order("id_usuario")
+                .range(inicio, fin)
+                .execute()
+            )
+            lote = list(respuesta.data or [])
+            registros.extend(lote)
+            if len(lote) < (fin - inicio + 1):
+                break
+            pagina += 1
 
         registros_validos = []
         frecuencias = {}
-        for registro in respuesta.data or []:
+        for registro in registros:
             nombre_base = _nombre_mostrable_usuario(registro)
             if not nombre_base:
                 continue
