@@ -128,6 +128,11 @@ def puede_ver_direccion_general(usuario_activo) -> bool:
     return _es_rol(usuario_activo, ADMINISTRADOR)
 
 
+def puede_administrar_registros(usuario_activo) -> bool:
+    """Mantenimiento de documentos operativos: exclusivamente rol 1."""
+    return es_admin(usuario_activo)
+
+
 def puede_ver_auditoria(usuario_activo) -> bool:
     """Login y bitácora de movimientos: exclusivamente Administrador."""
     return _es_rol(usuario_activo, ADMINISTRADOR)

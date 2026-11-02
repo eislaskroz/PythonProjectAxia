@@ -566,6 +566,7 @@ class AxiaApp(ctk.CTk):
             "direccion_general": self.navigation.mostrar_direccion_general,
             "usuarios": self.navigation.mostrar_usuarios,
             "clientes": self.navigation.mostrar_clientes,
+            "admin_registros": self.navigation.mostrar_admin_registros,
             "auditoria": self.navigation.mostrar_auditoria,
             "mi_usuario": self.navigation.mostrar_mi_usuario,
             "mi_bitacora": self.navigation.mostrar_mi_usuario,

@@ -65,6 +65,7 @@ from security.permissions import (
     puede_ver_almacen,
     puede_generar_orden_servicio,
     puede_ver_auditoria,
+    puede_administrar_registros,
     puede_ver_reportes,
     puede_ver_direccion_general,
     puede_ver_bitacoras_operativas,
@@ -297,6 +298,10 @@ def _opciones_menu_por_rol(usuario_activo, callbacks):
     if puede_ver_reportes(usuario_activo):
         opciones["sistema"].append((
             "reportes", "📈", "Reportes", callbacks["reportes"],
+        ))
+    if puede_administrar_registros(usuario_activo):
+        opciones["sistema"].append((
+            "admin_registros", "🗂️", "Administrar registros", callbacks["admin_registros"],
         ))
     if puede_ver_auditoria(usuario_activo):
         opciones["sistema"].append((

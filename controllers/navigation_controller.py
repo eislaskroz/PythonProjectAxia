@@ -41,6 +41,7 @@ from security.permissions import (
     puede_generar_levantamiento,
     puede_generar_bitacora,
     puede_ver_auditoria,
+    puede_administrar_registros,
     puede_ver_reportes, puede_ver_direccion_general,
     puede_ver_bitacoras_operativas,
 )
@@ -943,6 +944,20 @@ class NavigationController:
     # =================================================
     # VISTA: AUDITORÍA ADMINISTRATIVA
     # =================================================
+    def mostrar_admin_registros(self):
+        """Abre el mantenimiento protegido de ACO/LEV/OT/OS/bitácoras."""
+        if not self._verificar_permiso(
+            puede_administrar_registros,
+            "La administración de registros es exclusiva del Administrador.",
+        ):
+            return
+        self._registrar_vista("mostrar_admin_registros")
+        self.limpiar_contenido()
+        self.cambiar_titulo("Administración de Registros",
+                           "Consulta, edición y eliminación auditadas del ciclo operativo.")
+        from views.admin_registros_view import mostrar_admin_registros
+        mostrar_admin_registros(self.content, self.app)
+
     def mostrar_auditoria(self):
         """
         Carga la vista administrativa de auditoría.
