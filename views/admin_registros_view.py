@@ -294,7 +294,14 @@ def dialogo_registro(tabla, original, clave, root, *, editar=False, eliminar=Fal
         def error(err):
             if ventana.winfo_exists():
                 btn.configure(state="normal",text="Eliminar definitivamente" if eliminar else "Guardar cambios")
-                messagebox.showerror("Operación no aplicada",str(err),parent=ventana)
+                if eliminar:
+                    texto = (f"{err}\n\n"
+                             "La eliminación no quedó confirmada. Consulta nuevamente el "
+                             "registro antes de intentar otra operación. "
+                             "No se realizan borrados en cascada desde este módulo.")
+                    messagebox.showerror("Eliminación no confirmada", texto, parent=ventana)
+                else:
+                    messagebox.showerror("Operación no aplicada",str(err),parent=ventana)
         run_async(root=root,task=lambda: ejecutar(tabla,accion,pwd,**args),on_success=confirmado,on_error=error)
     btn.configure(command=aplicar)
     ventana.after(120,ventana.focus_force)

@@ -18,6 +18,47 @@ const SPECS: Record<string,{pk:string,folio:string,cliente:string,fecha:string,e
 function respond(body:unknown,status=200) {
  return new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
 }
+/** Los errores de PostgREST son objetos planos (no instancias de Error).
+ * Nunca usar String(err): produce «[object Object]» y oculta la causa real.
+ * No se incluyen filas, contraseñas ni payloads de la base en la respuesta.
+ */
+function errorAdministrativo(err: unknown): {error: string; codigo?: string} {
+  const info = err && typeof err === 'object'
+    ? err as {message?: unknown; code?: unknown}
+    : undefined;
+  const codigo = typeof info?.code === 'string' && /^[A-Za-z0-9]{5,12}$/.test(info.code)
+    ? info.code : undefined;
+  const mensaje = typeof info?.message === 'string' ? info.message.trim()
+    : typeof err === 'string' ? err.trim() : '';
+  let error: string;
+  switch (codigo) {
+    case '23503':
+      error = 'No se puede eliminar: este registro tiene otros registros relacionados. No se borró nada en cascada.';
+      break;
+    case '23505':
+      error = 'Hay un valor duplicado que viola una restricción de la base de datos.';
+      break;
+    case '23502':
+      error = 'Falta un dato obligatorio para completar la operación.';
+      break;
+    case '42501':
+      error = 'La base de datos rechazó la operación por falta de permisos.';
+      break;
+    case 'PGRST202':
+      error = 'No se encontró la función administrativa SQL esperada. Verifica la migración de instalación.';
+      break;
+    case '22P02':
+      error = 'El registro contiene un valor con formato no válido para su columna.';
+      break;
+    default:
+      // Los mensajes RAISE EXCEPTION de nuestro SQL explican el conflicto
+      // («registros relacionados», «registro cambió», etc.). Se conservan.
+      error = mensaje && mensaje !== '[object Object]'
+        ? mensaje : 'Supabase rechazó la operación sin un mensaje legible. Consulta los logs de la Edge Function.';
+  }
+  return codigo ? {error: error.slice(0,400), codigo} : {error: error.slice(0,400)};
+}
+
 Deno.serve(async (req)=>{
  if(req.method!=='POST')return respond({error:'Método no admitido'},405);
  if(!URL||!SERVICE_KEY)return respond({error:'Servicio no configurado'},503);
@@ -96,8 +137,8 @@ Deno.serve(async (req)=>{
    }
    return respond({error:'Operación desconocida'},400);
  }catch(err){
-   // Nunca registrar ni reflejar contraseñas/payloads en logs.
-   const message=err instanceof Error?err.message:String(err);
-   return respond({error:message.slice(0,400)},409);
+   // No reflejar contraseñas ni payloads. Los errores de Supabase
+   // son objetos planos y deben normalizarse antes de responder.
+   return respond(errorAdministrativo(err),409);
  }
 });

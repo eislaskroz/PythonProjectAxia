@@ -32,6 +32,30 @@ class AdministracionError(RuntimeError):
     pass
 
 
+def _mensaje_error_servidor(resultado, status):
+    """Convierte errores JSON de Edge/PostgREST a un mensaje útil y seguro.
+
+    Compatible con el despliegue anterior, que entregaba «[object Object]»,
+    y con el nuevo, que devuelve {error: texto, codigo: codigo_pg}.
+    """
+    if not isinstance(resultado, dict):
+        return f"El servidor devolvió HTTP {status} sin información de error legible."
+    detalle = resultado.get("error") or resultado.get("message")
+    codigo = resultado.get("codigo")
+    if isinstance(detalle, dict):
+        codigo = codigo or detalle.get("code") or detalle.get("codigo")
+        detalle = detalle.get("message") or detalle.get("error")
+    if isinstance(detalle, list):
+        detalle = "; ".join(str(parte) for parte in detalle[:3])
+    if not isinstance(detalle, str) or not detalle.strip() or detalle.strip() == "[object Object]":
+        detalle = ("Supabase devolvió un error sin su causa. Actualiza la Edge "
+                   "Function axia-admin-registros y vuelve a consultar el registro.")
+    detalle = detalle.strip()[:380]
+    if isinstance(codigo, str) and codigo.isalnum() and len(codigo) <= 12:
+        return f"{detalle} (código {codigo})"
+    return detalle
+
+
 def ejecutar(tabla: str, accion: str, contrasena: str, **argumentos):
     usuario = obtener_usuario_actual()
     if not es_admin(usuario):
@@ -56,6 +80,5 @@ def ejecutar(tabla: str, accion: str, contrasena: str, **argumentos):
     except ValueError as exc:
         raise AdministracionError("Respuesta inválida del servidor. ¿Se desplegó la Edge Function?") from exc
     if not response.ok or not isinstance(resultado,dict) or resultado.get('error'):
-        detalle=resultado.get('error','') if isinstance(resultado,dict) else ''
-        raise AdministracionError(str(detalle or f"Servidor HTTP {response.status_code}")[:430])
+        raise AdministracionError(_mensaje_error_servidor(resultado, response.status_code))
     return resultado
