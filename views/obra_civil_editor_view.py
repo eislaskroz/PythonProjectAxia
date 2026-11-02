@@ -3,6 +3,7 @@
 No contiene una copia simplificada ni editores JSON. El folio versionado se
 asigna exclusivamente en Supabase al confirmar una modificación real.
 """
+from utils import centrar_ventana
 import customtkinter as ctk
 from tkinter import messagebox
 
@@ -15,8 +16,8 @@ def abrir_editor_obra_civil(padre, obra, al_guardar):
     ventana.title(f"Edición integral de Obra Civil · {obra['obc_folio']}")
     sw,sh=ventana.winfo_screenwidth(),ventana.winfo_screenheight()
     w,h=min(sw,max(980,int(sw*.91))),min(sh,max(650,int(sh*.9)))
-    ventana.geometry(f'{w}x{h}+{max(0,(sw-w)//2)}+{max(0,(sh-h)//2)}')
-    ventana.transient(padre)
+    ventana.transient(padre.winfo_toplevel())
+    centrar_ventana(ventana, w, h, padre=padre.winfo_toplevel())
     host=ctk.CTkFrame(ventana,fg_color='transparent')
     host.pack(fill='both',expand=True)
     try:

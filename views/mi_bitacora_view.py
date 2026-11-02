@@ -17,6 +17,7 @@ import customtkinter as ctk
 from ui.form_fields import AxiaEntry, AxiaTextbox
 from tkinter import messagebox
 
+from core.date_utils import fecha_para_vista
 from app_context import obtener_usuario_actual
 from ui.colors import WHITE, TEXT_PRIMARY, TEXT_SECONDARY, PRIMARY, SECONDARY, BUTTON_HOVER
 from ui.fonts import TITLE_MD, TEXT_MD, TEXT_SM, BUTTON_FONT, FONT_FAMILY
@@ -106,7 +107,7 @@ def _normalizar_valor_usuario(campo, valor):
     if campo == "usu_tipo":
         mapa = {1: "Administrador", 2: "Jefe de Operaciones", 3: "Supervisor", 4: "Operador", 5: "Administrativo", 6: "Especial", "1": "Administrador", "2": "Jefe de Operaciones", "3": "Supervisor", "4": "Operador", "5": "Administrativo", "6": "Especial"}
         return mapa.get(valor, _valor_visible(valor))
-    return _valor_visible(valor)
+    return _valor_visible(fecha_para_vista(campo, valor))
 
 def _campos_usuario_ordenados(usuario):
     usuario = usuario or {}
@@ -376,7 +377,7 @@ def mostrar_mi_usuario(parent, app):
             for columna, (campo, _titulo) in enumerate(CAMPOS_MOVIMIENTOS):
                 peso = 2 if campo == "descripcion" else 1
                 fila.grid_columnconfigure(columna, weight=peso, uniform="mi_usuario_mov")
-                valor = str(movimiento.get(campo, "") or "-")
+                valor = str(fecha_para_vista(campo, movimiento.get(campo, "")) or "-")
                 ctk.CTkLabel(
                     fila,
                     text=valor,

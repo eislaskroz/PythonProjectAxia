@@ -33,6 +33,7 @@ from services.bitacoras_service import obtener_bitacoras, buscar_bitacora_por_fo
 from services.obras_civiles_service import obtener_obras_civiles, buscar_obra_civil_por_folio, buscar_obras_civiles
 from services.export_service import exportar_registros_dialogo
 from ui.detail_popup import mostrar_detalle_registro
+from core.date_utils import fecha_para_vista
 
 
 REPORTES = [
@@ -324,7 +325,7 @@ def crear_bloque_reporte(parent, reporte):
 
             for columna, campo in enumerate(reporte["campos"]):
                 fila.grid_columnconfigure(columna, weight=1, uniform="cols")
-                valor = registro.get(campo, "")
+                valor = fecha_para_vista(campo, registro.get(campo, ""))
                 ctk.CTkLabel(
                     fila,
                     text=str(valor or "-"),

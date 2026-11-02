@@ -21,6 +21,8 @@ from core.error_reporting import register_error
 from core.date_utils import normalizar_campos_fecha
 from core.performance import page_range
 from core.search_utils import normalizar_termino_busqueda, puntaje_coincidencia
+from app_context import obtener_usuario_actual
+from security.permissions import obtener_tipo_usuario, JEFE_OPERACIONES, SUPERVISOR
 
 logger = configurar_logger(__name__)
 from services.movimientos_service import registrar_movimiento_seguro
@@ -101,6 +103,23 @@ def crear_levantamiento(datos_levantamiento):
         logger.exception("Error al crear levantamiento.")
         return None
 
+# Visibilidad de las consultas operativas (el mantenimiento del Administrador
+# se realiza mediante la Edge Function autenticada, nunca por estas consultas).
+# NOTA: esta comprobación de aplicación NO sustituye RLS con identidad real.
+def _filtro_autor_levantamiento(usuario=None):
+    usuario = obtener_usuario_actual() if usuario is None else usuario
+    nickname = str((usuario or {}).get("usuario") or "").strip()
+    if not (usuario or {}).get("id_usuario") or not nickname or nickname.upper() == "DESCONOCIDO":
+        return None, False
+    if obtener_tipo_usuario(usuario) in (JEFE_OPERACIONES, SUPERVISOR):
+        return None, True
+    return nickname, True
+
+
+def _aplicar_filtro_autor(query, autor):
+    return query.eq("creado_por", autor) if autor is not None else query
+
+
 # =====================================================
 # FUNCIÓN: obtener_levantamientos()
 # =====================================================
@@ -115,11 +134,14 @@ def obtener_levantamientos(page=1, page_size=100):
     """
 
     try:
+        autor, autorizado = _filtro_autor_levantamiento()
+        if not autorizado:
+            return []
         respuesta = execute_select_compatible(
             supabase,
             TABLA_LEVANTAMIENTOS,
             COLUMNAS_LEVANTAMIENTOS,
-            lambda query: query
+            lambda query: _aplicar_filtro_autor(query, autor)
             .order("fecha_registro", desc=True)
             .range(*page_range(page, page_size))
         )
@@ -154,11 +176,14 @@ def obtener_levantamientos_por_aco(aco_numero, page=1, page_size=100):
     """
 
     try:
+        autor, autorizado = _filtro_autor_levantamiento()
+        if not autorizado:
+            return []
         respuesta = execute_select_compatible(
             supabase,
             TABLA_LEVANTAMIENTOS,
             COLUMNAS_LEVANTAMIENTOS,
-            lambda query: query
+            lambda query: _aplicar_filtro_autor(query, autor)
             .eq("lev_aco_numero", aco_numero)
             .order("fecha_registro", desc=True)
             .range(*page_range(page, page_size))
@@ -181,12 +206,16 @@ def obtener_levantamientos_por_aco(aco_numero, page=1, page_size=100):
 # FUNCIÓN: buscar_levantamientos()
 # =====================================================
 def buscar_levantamientos(termino, limite=100):
-    """Busca coincidencias parciales por folio, ACO y datos relacionados."""
+    """Búsqueda con restricción por autor ANTES de aplicar el límite."""
+    autor, autorizado = _filtro_autor_levantamiento()
+    if not autorizado:
+        return []
     resultados = buscar_parcial_supabase(
         supabase=supabase, tabla=TABLA_LEVANTAMIENTOS,
         columnas=COLUMNAS_LEVANTAMIENTOS, termino=termino,
         campos=("lev_folio", "lev_aco_numero", "lev_cliente", "lev_ubicacion", "lev_tecnico", "lev_supervisor", "lev_estatus", "lev_tipo"),
         id_campos=("id_levantamiento", "lev_folio"), orden="fecha_registro", limite=limite,
+        filtro_query=(lambda query: _aplicar_filtro_autor(query, autor)),
     )
     termino_normalizado = normalizar_termino_busqueda(termino)
     registrar_movimiento_seguro(
@@ -215,11 +244,14 @@ def buscar_levantamiento_por_folio(folio):
     """
 
     try:
+        autor, autorizado = _filtro_autor_levantamiento()
+        if not autorizado:
+            return None
         respuesta = execute_select_compatible(
             supabase,
             TABLA_LEVANTAMIENTOS,
             COLUMNAS_LEVANTAMIENTOS,
-            lambda query: query
+            lambda query: _aplicar_filtro_autor(query, autor)
             .eq("lev_folio", str(folio).strip().upper())
         )
 

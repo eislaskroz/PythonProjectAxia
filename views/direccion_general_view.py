@@ -1,3 +1,5 @@
+from utils import centrar_ventana
+from core.date_utils import formatear_fecha_visual
 
 """Dashboard ejecutivo de Dirección General: resumen, etapas, alertas y trazabilidad."""
 from pathlib import Path
@@ -32,7 +34,7 @@ CONTAINER_BORDER_WIDTH = 2
 def _fmt(v):
     if not v:
         return '—'
-    return str(v).replace('T', ' ')[:16]
+    return str(formatear_fecha_visual(v))
 
 
 def _dur(v, unit='h'):
@@ -389,7 +391,8 @@ def mostrar_direccion_general(parent, app):
 
         win = ctk.CTkToplevel(parent)
         win.title(f"Trazabilidad {r['folio']}")
-        win.geometry('940x720')
+        win.transient(parent.winfo_toplevel())
+        centrar_ventana(win, 940, 720, padre=parent.winfo_toplevel())
         win.grab_set()
 
         sc = ctk.CTkScrollableFrame(win, fg_color=CONTENT_BG)

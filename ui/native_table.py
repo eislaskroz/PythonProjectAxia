@@ -4,6 +4,7 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk
 from .table_columns import TableColumnManager
+from core.date_utils import formatear_fecha_visual, es_campo_fecha
 from typing import Any, Callable, Iterable, Sequence
 
 
@@ -27,6 +28,7 @@ class NativeTreeTable(ttk.Frame):
         self._on_select = on_select
         self._on_open = on_open
         self._column_id = table_id
+        self._fechas_ids = {item[0] for item in columns if es_campo_fecha(item[0]) or es_campo_fecha(item[1])}
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
@@ -73,6 +75,7 @@ class NativeTreeTable(ttk.Frame):
         self.tree.bind("<Return>", self._opened, add="+")
 
     def set_columns(self, columns: Sequence[tuple[str, str, int]]) -> None:
+        self._fechas_ids = {item[0] for item in columns if es_campo_fecha(item[0]) or es_campo_fecha(item[1])}
         self._columns_manager.configure_columns(columns)
 
     def _show_context(self, event) -> None:
@@ -120,7 +123,9 @@ class NativeTreeTable(ttk.Frame):
         keys = tuple(value_keys or columns)
         for index, row in enumerate(rows):
             values = value_factory(row) if value_factory else [row.get(key, "") for key in keys]
-            iid = self.tree.insert("", "end", values=tuple("" if v is None else str(v) for v in values))
+            visibles = [formatear_fecha_visual(v) if columna in self._fechas_ids else v
+                        for columna, v in zip(columns, values)]
+            iid = self.tree.insert("", "end", values=tuple("" if v is None else str(v) for v in visibles))
             self._payloads[iid] = row
             self.tree.item(iid, tags=("fila_azul",) if index % 2 else ("fila_blanca",))
         self.tree.tag_configure("fila_blanca", background="#FFFFFF", foreground="#0F172A")

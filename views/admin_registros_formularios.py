@@ -18,6 +18,7 @@ from ui.colors import SECONDARY, TEXT_PRIMARY, TEXT_SECONDARY, WHITE
 from ui.form_fields import AxiaEntry, AxiaTextbox
 from ui.native_combobox import NativeComboBox
 from ui.date_picker import abrir_selector_fecha
+from core.date_utils import es_campo_fecha, formatear_fecha_visual, fecha_desde_vista
 from core.background_tasks import run_async
 from services.admin_registros_service import EDITABLES
 
@@ -388,7 +389,7 @@ class FormularioSeccionado:
                                 lambda activo:cuadro.configure(state='normal' if activo else 'disabled'))
 
         entrada = AxiaEntry(padre, height=32)
-        entrada.insert(0,'' if valor is None else str(valor))
+        entrada.insert(0, '' if valor is None else str(formatear_fecha_visual(valor) if es_campo_fecha(campo) else valor))
         entrada.configure(state='disabled')
         entrada.pack(fill='x')
         if '_fecha' in campo or campo.endswith('_fecha'):
@@ -402,7 +403,9 @@ class FormularioSeccionado:
                 variable.trace_add('write', escribir)
                 abrir_selector_fecha(entrada, variable, formato_salida='iso')
             entrada.bind('<Button-1>', calendario, add='+')
-        return ControlAdmin(campo,seccion,lambda:_convertir_hoja(entrada.get(),valor),
+        return ControlAdmin(campo,seccion,
+                            lambda: fecha_desde_vista(entrada.get(), valor) if es_campo_fecha(campo)
+                            else _convertir_hoja(entrada.get(),valor),
                             lambda activo:entrada.configure(state='normal' if activo else 'disabled'))
 
     def _control_tecnicos(self, padre, campo, seccion, valor):

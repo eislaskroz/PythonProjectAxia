@@ -3,6 +3,7 @@
 
 import customtkinter as ctk
 from utils import centrar_ventana
+from core.date_utils import fecha_para_vista
 
 
 def mostrar_detalle_registro(parent, titulo, registro):
@@ -36,7 +37,7 @@ def mostrar_detalle_registro(parent, titulo, registro):
         ).grid(row=fila, column=0, sticky="nw", padx=6, pady=3)
         ctk.CTkLabel(
             scroll,
-            text=str(valor or "-"),
+            text=str(fecha_para_vista(campo, valor) or "-"),
             font=("Montserrat", 12),
             anchor="w",
             justify="left",

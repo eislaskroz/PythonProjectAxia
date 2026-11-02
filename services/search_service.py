@@ -3,7 +3,7 @@ from core.search_utils import normalizar_termino_busqueda, puntaje_coincidencia
 from services.query_compat import execute_select_compatible
 
 
-def buscar_parcial_supabase(*, supabase, tabla, columnas, termino, campos, id_campos=(), orden=None, limite=100):
+def buscar_parcial_supabase(*, supabase, tabla, columnas, termino, campos, id_campos=(), orden=None, limite=100, filtro_query=None):
     termino_normalizado = normalizar_termino_busqueda(termino)
     if not termino_normalizado:
         return []
@@ -13,6 +13,8 @@ def buscar_parcial_supabase(*, supabase, tabla, columnas, termino, campos, id_ca
     for campo in campos:
         try:
             def configurar(query, campo=campo):
+                if filtro_query is not None:
+                    query = filtro_query(query)
                 query = query.ilike(campo, f"%{termino_normalizado}%")
                 if orden:
                     query = query.order(orden, desc=True)

@@ -1,6 +1,7 @@
 
 """Almacén AXIA · catálogo maestro único con entradas y salidas persistentes."""
 from __future__ import annotations
+from utils import centrar_ventana
 from ui.form_fields import AxiaEntry, AxiaTextbox
 
 import uuid
@@ -1061,9 +1062,9 @@ def mostrar_almacen(parent, app=None):
 
         ventana = ctk.CTkToplevel(root)
         ventana.title('AXIA Almacén · ' + ('Editar producto' if editar else 'Nuevo producto'))
-        ventana.geometry('980x740')
         ventana.minsize(760, 560)
         ventana.transient(root.winfo_toplevel())
+        centrar_ventana(ventana, 980, 740, padre=root.winfo_toplevel())
         ventana.grid_columnconfigure(0, weight=1)
         ventana.grid_rowconfigure(1, weight=1)
         ctk.CTkLabel(ventana, text='Ficha completa del Catálogo Maestro AXIA',

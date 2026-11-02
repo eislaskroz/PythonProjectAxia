@@ -4,6 +4,7 @@ El cliente no edita ni borra directamente Supabase: cada operación pasa por
 Edge Function + RPC transaccional con contraseña/rol verificados en el servidor.
 """
 from __future__ import annotations
+from utils import centrar_ventana
 import json
 from tkinter import messagebox
 import customtkinter as ctk
@@ -14,6 +15,7 @@ from services.admin_registros_service import TIPOS, EDITABLES, ejecutar
 from ui.colors import WHITE, TEXT_PRIMARY, TEXT_SECONDARY, SECONDARY
 from ui.form_fields import AxiaEntry, AxiaTextbox
 from ui.native_table import NativeTreeTable
+from core.date_utils import fecha_para_vista
 from views.admin_registros_formularios import FormularioSeccionado
 
 
@@ -84,7 +86,7 @@ def mostrar_admin_registros(parent, app):
     status.pack(fill="x",padx=10,pady=8)
     tabla=NativeTreeTable(resultado,columns=(
         ("folio","Folio",150),("cliente","Cliente",275),("estado","Estatus",105),
-        ("fecha","Fecha",150),("id","ID",90)),height=16,table_id="admin_registros_axia")
+        ("fecha","Fecha",185),("id","ID",90)),height=16,table_id="admin_registros_axia")
     tabla.pack(fill="both",expand=True,padx=9,pady=(0,8))
     footer=ctk.CTkFrame(resultado,fg_color="transparent")
     footer.pack(fill="x",padx=9,pady=(0,11))
@@ -161,12 +163,12 @@ def mostrar_admin_registros(parent, app):
         def mostrar_historial(data):
             win=ctk.CTkToplevel(root)
             win.title(f"Historial de administración · {tipo.get()}")
-            win.geometry("980x520")
             win.transient(root)
+            centrar_ventana(win, 980, 520, padre=root)
             ctk.CTkLabel(win,text="Últimos 75 cambios, incluidos registros eliminados",
                 font=("Montserrat",15,"bold")).pack(anchor="w",padx=15,pady=10)
             tabla_auditoria=NativeTreeTable(win,columns=(
-                ("fecha","Fecha",155),("folio","Folio",145),("accion","Acción",100),
+                ("fecha","Fecha",185),("folio","Folio",145),("accion","Acción",100),
                 ("usuario","Administrador",175),("motivo","Motivo",320)),
                 table_id="axia_admin_historial",height=15)
             tabla_auditoria.pack(fill="both",expand=True,padx=12,pady=(0,10))
@@ -192,9 +194,9 @@ def dialogo_registro(tabla, original, clave, root, *, editar=False, eliminar=Fal
     identificador=str(original.get(idcol) or '')
     ventana=ctk.CTkToplevel(root)
     ventana.title(f"{'Eliminar' if eliminar else 'Editar' if editar else 'Consultar'} {folio}")
-    ventana.geometry("920x710")
     ventana.minsize(690,480)
     ventana.transient(root)
+    centrar_ventana(ventana, 920, 710, padre=root)
     marco=ctk.CTkFrame(ventana,fg_color="transparent")
     marco.pack(fill="both",expand=True,padx=12,pady=8)
     ctk.CTkLabel(marco,text=f"{folio}   |   {identificador}",font=("Montserrat",18,"bold")).pack(anchor="w",pady=4)
@@ -209,7 +211,7 @@ def dialogo_registro(tabla, original, clave, root, *, editar=False, eliminar=Fal
         fila=ctk.CTkFrame(zona,fg_color="transparent")
         fila.pack(fill="x",padx=8,pady=3)
         ctk.CTkLabel(fila,text=campo,width=240,anchor="w").pack(side="left",padx=(0,10))
-        texto=_formato(valor)
+        texto=_formato(fecha_para_vista(campo, valor))
         es_largo=isinstance(valor,(dict,list)) or campo.endswith('_json') or len(texto)>140
         if editar:
             if es_largo:

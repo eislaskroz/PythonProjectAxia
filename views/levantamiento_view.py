@@ -1,3 +1,4 @@
+from utils import centrar_ventana
 from core.error_reporting import show_operation_error
 """
 =========================================================
@@ -78,7 +79,7 @@ def _abrir_selector_dias_horario(parent, variable):
 
     win = ctk.CTkToplevel(parent)
     win.title("Días y horario permitido")
-    win.geometry("520x420")
+    centrar_ventana(win, 520, 420, padre=parent.winfo_toplevel())
     win.resizable(False, False)
     try:
         win.transient(parent.winfo_toplevel())

@@ -28,8 +28,8 @@ DECLARE
     v_col text; v_set text := ''; v_sql text; v_ref record; v_existe boolean;
     v_valor text; v_revision text; v_tabla text; v_campo text;
 BEGIN
-    -- Defensa redundante: únicamente puede ser llamada con el JWT service_role.
-    IF coalesce(current_setting('request.jwt.claim.role', true),'') <> 'service_role' THEN
+    -- Seguridad: SECURITY INVOKER y rol PostgreSQL efectivo de PostgREST; no confiar en GUC heredado.
+    IF current_user <> 'service_role' THEN
         RAISE EXCEPTION 'Operación reservada al servicio administrativo';
     END IF;
     IF p_accion NOT IN ('EDITAR','ELIMINAR') OR length(trim(coalesce(p_motivo,''))) < 8
