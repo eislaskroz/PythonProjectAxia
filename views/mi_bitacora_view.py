@@ -125,6 +125,35 @@ def _campos_usuario_ordenados(usuario):
     return campos
 
 
+
+def _columnas_perfil_para_ancho(ancho):
+    """Distribución fluida sin cortar las fichas al estrechar la ventana.
+
+    En escritorio ancho caben siete datos por fila; en tamaños intermedios,
+    seis. Se mantiene un mínimo razonable de ancho por dato.
+    """
+    if ancho >= 1350:
+        return 7
+    if ancho >= 1120:
+        return 6
+    if ancho >= 930:
+        return 5
+    if ancho >= 740:
+        return 4
+    if ancho >= 550:
+        return 3
+    return 2
+
+
+def _alto_texto_perfil(texto, ancho, *, etiqueta=False):
+    """Reserva altura para las etiquetas largas sin recortar su contenido."""
+    from math import ceil
+
+    fuente_aproximada = 6.0 if etiqueta else 6.5
+    lineas = max(1, ceil(len(str(texto)) * fuente_aproximada / max(ancho, 1)))
+    return (17 if etiqueta else 19) * lineas + 2
+
+
 def mostrar_mi_usuario(parent, app):
     """Renderiza la sección Mi Usuario."""
 
@@ -143,61 +172,85 @@ def mostrar_mi_usuario(parent, app):
     # DATOS GENERALES
     # =================================================
     card_datos = ctk.CTkFrame(contenedor, fg_color=WHITE, corner_radius=14)
-    card_datos.pack(fill="x", pady=(0, 6))
-    columnas_datos = 4
-    card_datos.grid_columnconfigure(tuple(range(columnas_datos)), weight=1, uniform="datos_usuario")
+    card_datos.pack(fill="x", pady=(0, 5))
 
-    ctk.CTkLabel(
+    titulo_perfil = ctk.CTkLabel(
         card_datos,
         text="👤 Mi Usuario",
         font=TITLE_MD,
         text_color=TEXT_PRIMARY,
-        anchor="w"
-    ).grid(row=0, column=0, columnspan=columnas_datos, sticky="ew", padx=8, pady=(6, 1))
+        anchor="w",
+    )
+    titulo_perfil.grid(row=0, column=0, columnspan=7, sticky="ew", padx=7, pady=(4, 0))
 
-    ctk.CTkLabel(
+    subtitulo_perfil = ctk.CTkLabel(
         card_datos,
         text="Información de tu cuenta. Estos datos son de solo consulta.",
         font=TEXT_SM,
         text_color=TEXT_SECONDARY,
-        anchor="w"
-    ).grid(row=1, column=0, columnspan=columnas_datos, sticky="ew", padx=8, pady=(0, 4))
+        anchor="w",
+    )
+    subtitulo_perfil.grid(row=1, column=0, columnspan=7, sticky="ew", padx=7, pady=(0, 2))
 
-    fila = 2
-    columna = 0
+    # Las fichas se crean una única vez; al cambiar el tamaño de la ventana
+    # solo se reordenan. No se alteran datos, consultas ni permisos.
+    fichas = []
     for campo, valor in _campos_usuario_ordenados(usuario):
         etiqueta = ETIQUETAS_USUARIO.get(campo, campo.replace("_", " ").title())
-        bloque = ctk.CTkFrame(card_datos, fg_color="#F8FAFC", corner_radius=10)
-        bloque.grid(
-            row=fila,
-            column=columna,
-            sticky="ew",
-            padx=(16 if columna == 0 else 6, 16 if columna == columnas_datos - 1 else 6),
-            pady=2,
-        )
+        texto_valor = _normalizar_valor_usuario(campo, valor)
+        bloque = ctk.CTkFrame(card_datos, fg_color="#F8FAFC", corner_radius=7,
+                              border_width=1, border_color="#DFE7F1")
         bloque.grid_columnconfigure(0, weight=1)
 
-        ctk.CTkLabel(
-            bloque,
-            text=etiqueta,
-            font=(FONT_FAMILY, 11),
-            text_color=TEXT_SECONDARY,
-            anchor="w"
-        ).grid(row=0, column=0, sticky="ew", padx=5, pady=(3, 0))
+        titulo_campo = ctk.CTkLabel(
+            bloque, text=etiqueta, font=(FONT_FAMILY, 10),
+            text_color=TEXT_SECONDARY, anchor="w", justify="left",
+            height=19, wraplength=180,
+        )
+        titulo_campo.grid(row=0, column=0, sticky="ew", padx=4, pady=(3, 0))
 
-        ctk.CTkLabel(
-            bloque,
-            text=_normalizar_valor_usuario(campo, valor),
-            font=(FONT_FAMILY, 12),
-            text_color=TEXT_PRIMARY,
-            anchor="w",
-            wraplength=220
-        ).grid(row=1, column=0, sticky="ew", padx=5, pady=(0, 3))
+        valor_campo = ctk.CTkLabel(
+            bloque, text=texto_valor, font=(FONT_FAMILY, 11),
+            text_color=TEXT_PRIMARY, anchor="w", justify="left",
+            height=21, wraplength=180,
+        )
+        valor_campo.grid(row=1, column=0, sticky="ew", padx=4, pady=(0, 3))
+        fichas.append((bloque, titulo_campo, valor_campo, etiqueta, texto_valor))
 
-        columna += 1
-        if columna >= columnas_datos:
-            columna = 0
-            fila += 1
+    estado_cuadricula = {"columnas": None, "ancho_texto": None}
+
+    def acomodar_fichas(ancho_disponible):
+        columnas = _columnas_perfil_para_ancho(ancho_disponible)
+        # Se reserva espacio para bordes y los márgenes compactos de cada ficha.
+        ancho_texto = max(88, int((ancho_disponible - 16) / columnas) - 18)
+        if (estado_cuadricula["columnas"] == columnas and
+                estado_cuadricula["ancho_texto"] is not None and
+                abs(estado_cuadricula["ancho_texto"] - ancho_texto) < 8):
+            return
+
+        estado_cuadricula.update(columnas=columnas, ancho_texto=ancho_texto)
+        for indice in range(7):
+            card_datos.grid_columnconfigure(indice, weight=0, uniform="")
+        card_datos.grid_columnconfigure(tuple(range(columnas)), weight=1, uniform="perfil_usuario")
+        titulo_perfil.grid_configure(columnspan=columnas)
+        subtitulo_perfil.grid_configure(columnspan=columnas)
+
+        for indice, (bloque, titulo_campo, valor_campo, etiqueta, texto_valor) in enumerate(fichas):
+            bloque.grid(row=2 + indice // columnas, column=indice % columnas,
+                        sticky="nsew", padx=3, pady=2)
+            titulo_campo.configure(
+                wraplength=ancho_texto,
+                height=_alto_texto_perfil(etiqueta, ancho_texto, etiqueta=True),
+            )
+            valor_campo.configure(
+                wraplength=ancho_texto,
+                height=_alto_texto_perfil(texto_valor, ancho_texto),
+            )
+
+    # La vista se adapta al tamaño real después del primer dibujo y al
+    # maximizar/restaurar, sin reconstruir fichas ni ejecutar consultas.
+    acomodar_fichas(1440)
+    card_datos.bind("<Configure>", lambda evento: acomodar_fichas(evento.width), add="+")
 
     # =================================================
     # CAMBIO DE CONTRASEÑA
