@@ -4,6 +4,7 @@ from pathlib import Path
 from PIL import Image
 import customtkinter as ctk
 from ui.form_fields import AxiaEntry, AxiaTextbox
+from ui.table_columns import TableColumnManager
 from tkinter import ttk, messagebox, Canvas
 
 from app_context import obtener_usuario_actual
