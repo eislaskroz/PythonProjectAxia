@@ -184,9 +184,10 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     ).grid(row=1, column=0, sticky="ew", padx=18, pady=(0, 0))
 
     frame_botones = ctk.CTkFrame(panel_aco_opciones, fg_color="transparent")
-    frame_botones.grid(row=2, column=0, sticky="sew", padx=18, pady=(0, 4))
-    frame_botones.grid_columnconfigure(0, weight=1)
-    frame_botones.grid_columnconfigure(1, weight=1)
+    # Botonera compacta centrada: no se extiende al ancho de la tarjeta.
+    frame_botones.grid(row=2, column=0, sticky="s", padx=12, pady=(0, 6))
+    frame_botones.grid_columnconfigure(0, weight=0)
+    frame_botones.grid_columnconfigure(1, weight=0)
 
     # Centro: validación del ACO siempre visible para evitar un segundo bloque
     # vertical y aprovechar mejor el ancho disponible.
@@ -266,15 +267,15 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     btn_validar_aco_top = ctk.CTkButton(
         panel_validar_aco,
         text="Validar ACO",
-        width=180,
-        height=30,
+        width=160,
+        height=25,
         corner_radius=12,
         fg_color=SECONDARY,
         hover_color=BUTTON_HOVER,
         font=BUTTON_FONT,
         command=lambda: validar_aco_superior()
     )
-    btn_validar_aco_top.grid(row=2, column=0, sticky="ew", padx=18, pady=(0, 2))
+    btn_validar_aco_top.grid(row=2, column=0, padx=18, pady=(0, 3))
 
     # Derecha: levantamiento independiente de permisos/estado del ACO.
     acceso_levantamiento = ctk.CTkFrame(
@@ -311,14 +312,14 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     ctk.CTkButton(
         acceso_levantamiento,
         text="Generar levantamiento",
-        width=220,
-        height=32,
+        width=190,
+        height=26,
         corner_radius=12,
         fg_color=SECONDARY,
         hover_color=BUTTON_HOVER,
         font=BUTTON_FONT,
         command=abrir_selector_levantamiento_directo
-    ).grid(row=1, column=0, sticky="ew", padx=18, pady=(0, 3))
+    ).grid(row=1, column=0, padx=18, pady=(0, 3))
 
     # =================================================
     # PANEL DINÁMICO PRINCIPAL
@@ -1106,8 +1107,8 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     ctk.CTkButton(
         frame_botones,
         text="Sí, tengo ACO",
-        width=220,
-        height=32,
+        width=154,
+        height=26,
         corner_radius=12,
         fg_color=SECONDARY,
         hover_color=BUTTON_HOVER,
@@ -1116,15 +1117,14 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     ).grid(
         row=0,
         column=0,
-        padx=5,
-        sticky="ew"
+        padx=5
     )
 
     ctk.CTkButton(
         frame_botones,
         text="No tengo ACO",
-        width=220,
-        height=32,
+        width=154,
+        height=26,
         corner_radius=12,
         fg_color=PRIMARY,
         hover_color=BUTTON_HOVER,
@@ -1135,8 +1135,7 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     ).grid(
         row=0,
         column=1,
-        padx=5,
-        sticky="ew"
+        padx=5
     )
 
     if aco_validado:
