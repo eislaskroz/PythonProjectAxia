@@ -95,9 +95,31 @@ def mostrar_usuarios_admin(parent, app):
     contenedor = ctk.CTkFrame(parent, fg_color="transparent")
     contenedor.pack(fill="both", expand=True, padx=14, pady=4)
 
-    barra = ctk.CTkFrame(contenedor, fg_color="transparent")
-    barra.pack(fill="x", pady=(0, 5))
+    # RH: búsqueda y resultados comparten una misma franja, 50/50.
+    # Los demás perfiles conservan su presentación y navegación existentes.
+    franja_rrhh = None
+    if solo_rrhh:
+        franja_rrhh = ctk.CTkFrame(contenedor, fg_color="transparent")
+        franja_rrhh.pack(fill="x", pady=(0, 6))
+        franja_rrhh.grid_columnconfigure(0, weight=1, uniform="rrhh_superior")
+        franja_rrhh.grid_columnconfigure(1, weight=1, uniform="rrhh_superior")
+        franja_rrhh.grid_rowconfigure(0, weight=1)
+
+    barra = ctk.CTkFrame(
+        franja_rrhh if solo_rrhh else contenedor,
+        fg_color=WHITE if solo_rrhh else "transparent",
+        corner_radius=16 if solo_rrhh else 0,
+    )
+    if solo_rrhh:
+        barra.grid(row=0, column=0, sticky="nsew", padx=(0, 4))
+        ctk.CTkLabel(
+            barra, text="Buscar empleado", font=("Montserrat", 16, "bold"),
+            text_color=TEXT_PRIMARY, anchor="w",
+        ).grid(row=0, column=0, columnspan=2, sticky="ew", padx=10, pady=(8, 4))
+    else:
+        barra.pack(fill="x", pady=(0, 5))
     barra.grid_columnconfigure(0, weight=1)
+    fila_busqueda = 1 if solo_rrhh else 0
 
     var_busqueda = ctk.StringVar()
     carpeta_iconos = Path(__file__).resolve().parent.parent / "assets" / "iconos"
@@ -123,7 +145,11 @@ def mostrar_usuarios_admin(parent, app):
         border_width=1,
         border_color="#D9E2EC",
     )
-    buscador.grid(row=0, column=0, sticky="ew", padx=(0, 5))
+    buscador.grid(
+        row=fila_busqueda, column=0, sticky="ew",
+        padx=(10, 5) if solo_rrhh else (0, 5),
+        pady=(0, 7) if solo_rrhh else 0,
+    )
     buscador.grid_columnconfigure(1, weight=1)
 
     ctk.CTkLabel(
@@ -146,7 +172,13 @@ def mostrar_usuarios_admin(parent, app):
     entry_busqueda.grid(row=0, column=1, sticky="ew", padx=(0, 12), pady=6)
 
     # Texto de ayuda integrado al campo; no crea un rectángulo blanco sobre el gris.
-    entry_busqueda.configure(placeholder_text='Buscar usuario por nickname, nombre, apellido o correo empresarial...', placeholder_text_color="#64748B")
+    entry_busqueda.configure(
+        placeholder_text=(
+            'Nombre, usuario o correo...' if solo_rrhh
+            else 'Buscar usuario por nickname, nombre, apellido o correo empresarial...'
+        ),
+        placeholder_text_color="#64748B",
+    )
 
     btn_buscar = ctk.CTkButton(
         barra,
@@ -160,35 +192,40 @@ def mostrar_usuarios_admin(parent, app):
         font=BUTTON_FONT,
         command=lambda: cargar_resultados(var_busqueda.get()),
     )
-    btn_buscar.grid(row=0, column=1)
+    btn_buscar.grid(
+        row=fila_busqueda, column=1,
+        padx=(0, 10) if solo_rrhh else 0,
+        pady=(0, 7) if solo_rrhh else 0,
+    )
+    if solo_rrhh:
+        ctk.CTkLabel(
+            barra,
+            text="Selecciona un resultado para consultar o actualizar su expediente.",
+            font=TEXT_SM, text_color=TEXT_SECONDARY,
+            anchor="w", justify="left",
+        ).grid(row=2, column=0, columnspan=2, sticky="w", padx=12, pady=(0, 7))
 
     cuerpo = ctk.CTkFrame(contenedor, fg_color="transparent")
     cuerpo.pack(fill="both", expand=True)
 
     if solo_rrhh:
-        # Layout vertical para RRHH: tabla arriba y expediente abajo,
-        # similar a la distribución solicitada por el usuario.
+        # El expediente se expande a todo el ancho justo debajo de la franja.
         cuerpo.grid_columnconfigure(0, weight=1)
-        cuerpo.grid_rowconfigure(0, weight=0)
-        cuerpo.grid_rowconfigure(1, weight=1)
+        cuerpo.grid_rowconfigure(0, weight=1)
     else:
         cuerpo.grid_columnconfigure(0, weight=1)
         cuerpo.grid_columnconfigure(1, weight=2)
         cuerpo.grid_rowconfigure(0, weight=1)
 
     panel_resultados = ctk.CTkFrame(
-        cuerpo,
+        franja_rrhh if solo_rrhh else cuerpo,
         fg_color=WHITE,
         corner_radius=16,
     )
-    panel_resultados.grid(
-        row=0,
-        column=0,
-        sticky="nsew",
-        padx=(0, 6) if not solo_rrhh else 0,
-        pady=(0, 4) if solo_rrhh else 0,
-        columnspan=2 if solo_rrhh else 1,
-    )
+    if solo_rrhh:
+        panel_resultados.grid(row=0, column=1, sticky="nsew", padx=(4, 0))
+    else:
+        panel_resultados.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
     panel_resultados.grid_rowconfigure(1, weight=1)
     panel_resultados.grid_columnconfigure(0, weight=1)
 
@@ -229,7 +266,7 @@ def mostrar_usuarios_admin(parent, app):
         corner_radius=16,
     )
     if solo_rrhh:
-        panel_formulario.grid(row=1, column=0, sticky="nsew", pady=(2, 0))
+        panel_formulario.grid(row=0, column=0, sticky="nsew")
     else:
         panel_formulario.grid(row=0, column=1, sticky="nsew")
 
