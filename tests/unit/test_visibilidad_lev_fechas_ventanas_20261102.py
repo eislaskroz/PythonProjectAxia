@@ -5,7 +5,7 @@ from pathlib import Path
 from datetime import datetime
 
 from core.date_utils import formatear_fecha_visual, fecha_desde_vista, fecha_para_vista
-from security.permissions import obtener_tipo_usuario, JEFE_OPERACIONES, SUPERVISOR
+from security.permissions import obtener_tipo_usuario, ADMINISTRADOR, JEFE_OPERACIONES, SUPERVISOR
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -15,16 +15,16 @@ def _funcion_aislada(nombre):
     nodes = [n for n in codigo.body if isinstance(n, ast.FunctionDef) and n.name == nombre]
     assert len(nodes) == 1
     scope = {'obtener_usuario_actual': lambda: None, 'obtener_tipo_usuario': obtener_tipo_usuario,
-             'JEFE_OPERACIONES': JEFE_OPERACIONES, 'SUPERVISOR': SUPERVISOR}
+             'ADMINISTRADOR': ADMINISTRADOR, 'JEFE_OPERACIONES': JEFE_OPERACIONES, 'SUPERVISOR': SUPERVISOR}
     exec(compile(ast.Module(body=nodes, type_ignores=[]), '<lev>', 'exec'), scope)
     return scope[nombre]
 
 
-def test_unicamente_jefe_y_supervisor_ven_todos():
+def test_administrador_jefe_y_supervisor_ven_todos():
     policy = _funcion_aislada('_filtro_autor_levantamiento')
-    for role in (2, 3):
+    for role in (1, 2, 3):
         assert policy({'id_usuario': 10, 'usuario': 'usuario_a', 'usu_tipo': role}) == (None, True)
-    for role in (1, 4, 5, 6, 7, 8):
+    for role in (4, 5, 6, 7, 8, 9, 10):
         assert policy({'id_usuario': 10, 'usuario': 'usuario_a', 'usu_tipo': role}) == ('usuario_a', True)
     assert policy({'id_usuario': None, 'usuario': 'usuario_a', 'usu_tipo': 3}) == (None, False)
     assert policy({'id_usuario': 10, 'usuario': 'DESCONOCIDO', 'usu_tipo': 2}) == (None, False)
