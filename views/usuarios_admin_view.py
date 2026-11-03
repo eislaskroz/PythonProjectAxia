@@ -164,9 +164,17 @@ def mostrar_usuarios_admin(parent, app):
 
     cuerpo = ctk.CTkFrame(contenedor, fg_color="transparent")
     cuerpo.pack(fill="both", expand=True)
-    cuerpo.grid_columnconfigure(0, weight=1)
-    cuerpo.grid_columnconfigure(1, weight=2)
-    cuerpo.grid_rowconfigure(0, weight=1)
+
+    if solo_rrhh:
+        # Layout vertical para RRHH: tabla arriba y expediente abajo,
+        # similar a la distribución solicitada por el usuario.
+        cuerpo.grid_columnconfigure(0, weight=1)
+        cuerpo.grid_rowconfigure(0, weight=0)
+        cuerpo.grid_rowconfigure(1, weight=1)
+    else:
+        cuerpo.grid_columnconfigure(0, weight=1)
+        cuerpo.grid_columnconfigure(1, weight=2)
+        cuerpo.grid_rowconfigure(0, weight=1)
 
     panel_resultados = ctk.CTkFrame(
         cuerpo,
@@ -177,7 +185,9 @@ def mostrar_usuarios_admin(parent, app):
         row=0,
         column=0,
         sticky="nsew",
-        padx=(0, 6),
+        padx=(0, 6) if not solo_rrhh else 0,
+        pady=(0, 4) if solo_rrhh else 0,
+        columnspan=2 if solo_rrhh else 1,
     )
     panel_resultados.grid_rowconfigure(1, weight=1)
     panel_resultados.grid_columnconfigure(0, weight=1)
@@ -191,7 +201,7 @@ def mostrar_usuarios_admin(parent, app):
         column=0,
         sticky="ew",
         padx=9,
-        pady=(8, 4),
+        pady=(8, 3),
     )
 
     tabla_resultados = NativeTreeTable(
@@ -203,14 +213,14 @@ def mostrar_usuarios_admin(parent, app):
         ),
         on_select=lambda usuario: cargar_en_formulario(usuario),
         on_open=lambda usuario: cargar_en_formulario(usuario),
-        height=18,
+        height=4 if solo_rrhh else 18,
      table_id="usuarios_catalogo",)
     tabla_resultados.grid(
         row=1,
         column=0,
         sticky="nsew",
         padx=8,
-        pady=(0, 8),
+        pady=(0, 5),
     )
 
     panel_formulario = ctk.CTkScrollableFrame(
@@ -218,7 +228,10 @@ def mostrar_usuarios_admin(parent, app):
         fg_color=WHITE,
         corner_radius=16,
     )
-    panel_formulario.grid(row=0, column=1, sticky="nsew")
+    if solo_rrhh:
+        panel_formulario.grid(row=1, column=0, sticky="nsew", pady=(2, 0))
+    else:
+        panel_formulario.grid(row=0, column=1, sticky="nsew")
 
     ctk.CTkLabel(
         panel_formulario,
@@ -237,7 +250,7 @@ def mostrar_usuarios_admin(parent, app):
             text_color=TEXT_SECONDARY,
             justify="left",
             anchor="w",
-            wraplength=620,
+            wraplength=980 if solo_rrhh else 620,
         ).pack(fill="x", padx=10, pady=(0, 7))
 
     form_grid = ctk.CTkFrame(
@@ -249,6 +262,8 @@ def mostrar_usuarios_admin(parent, app):
     form_grid.grid_columnconfigure(1, weight=1)
     form_grid.grid_columnconfigure(2, weight=1)
 
+    total_columnas_formulario = 3
+
     # RH puede identificar la cuenta, pero no tiene necesidad de ver ni de
     # editar el control de contraseña. Para Admin y Jefe no cambia la pantalla.
     campos_visibles = [
@@ -256,8 +271,8 @@ def mostrar_usuarios_admin(parent, app):
         if not (solo_rrhh and dato[0] == "usu_password")
     ]
     for indice, (campo, etiqueta, obligatorio) in enumerate(campos_visibles):
-        fila = indice // 3
-        columna = indice % 3
+        fila = indice // total_columnas_formulario
+        columna = indice % total_columnas_formulario
 
         wrapper = ctk.CTkFrame(
             form_grid,
@@ -267,9 +282,7 @@ def mostrar_usuarios_admin(parent, app):
             row=fila,
             column=columna,
             sticky="ew",
-            padx=(0, 4) if columna == 0 else (
-                (8, 8) if columna == 1 else (8, 0)
-            ),
+            padx=(0, 4) if columna == 0 else ((4, 4) if columna == 1 else (4, 0)),
             pady=2,
         )
         wrapper.grid_columnconfigure(0, weight=1)
