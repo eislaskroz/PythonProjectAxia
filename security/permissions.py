@@ -10,6 +10,8 @@ La base de datos almacena el nivel en ``db_usuarios.usu_tipo``:
 6 = Especial
 7 = Compras
 8 = Almacén
+9 = DG y Calidad
+10 = Recursos Humanos
 
 Los permisos se validan tanto al construir la navegación como al abrir cada
 vista sensible. Ocultar un botón no se considera una medida de seguridad por sí
@@ -28,6 +30,8 @@ ADMINISTRATIVO = 5
 ESPECIAL = 6
 COMPRAS = 7
 ALMACEN = 8
+DG_Y_CALIDAD = 9
+RECURSOS_HUMANOS = 10
 
 # Alias conservado para compatibilidad con módulos anteriores.
 ADMIN = ADMINISTRADOR
@@ -41,6 +45,8 @@ NOMBRES_ROL = {
     ESPECIAL: "Especial",
     COMPRAS: "Compras",
     ALMACEN: "Almacén",
+    DG_Y_CALIDAD: "DG y Calidad",
+    RECURSOS_HUMANOS: "Recursos Humanos",
 }
 
 TIPOS_VALIDOS = frozenset(NOMBRES_ROL)
@@ -111,6 +117,16 @@ def puede_administrar_clientes(usuario_activo) -> bool:
 
 def puede_ver_dashboard(usuario_activo) -> bool:
     return obtener_tipo_usuario(usuario_activo) in ROLES_GESTION_OPERATIVA
+
+
+def puede_ver_usuarios(usuario_activo) -> bool:
+    """Acceso a la pantalla: Admin/Jefe administran; RH solo expedientes."""
+    return _es_rol(usuario_activo, ADMINISTRADOR, JEFE_OPERACIONES, RECURSOS_HUMANOS)
+
+
+def puede_editar_expedientes_rrhh(usuario_activo) -> bool:
+    """RH no administra cuentas ni contraseñas."""
+    return _es_rol(usuario_activo, RECURSOS_HUMANOS)
 
 
 def puede_administrar_usuarios(usuario_activo) -> bool:
@@ -247,7 +263,9 @@ def matriz_permisos() -> dict[int, dict[str, bool]]:
             "almacen": tipo in {ADMINISTRADOR, ALMACEN},
             "bitacoras_operativas": tipo in ROLES_TODOS,
             "reportes_operativos": tipo in ROLES_GESTION_OPERATIVA,
-            "usuarios": tipo in {ADMINISTRADOR, JEFE_OPERACIONES},
+            "usuarios": tipo in {ADMINISTRADOR, JEFE_OPERACIONES, RECURSOS_HUMANOS},
+            "administrar_cuentas": tipo in {ADMINISTRADOR, JEFE_OPERACIONES},
+            "editar_expedientes_rrhh": tipo == RECURSOS_HUMANOS,
             "clientes": tipo in {ADMINISTRADOR, JEFE_OPERACIONES},
             "auditoria_login_movimientos": tipo == ADMINISTRADOR,
         }

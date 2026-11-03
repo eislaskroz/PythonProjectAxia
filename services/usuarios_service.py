@@ -102,10 +102,10 @@ def validar_datos_usuario(datos):
     try:
         usu_tipo = int(datos.get("usu_tipo", OPERADOR))
     except (TypeError, ValueError):
-        return False, "El tipo de usuario debe ser un número entre 1 y 8."
+        return False, "El tipo de usuario debe ser un número entre 1 y 10."
 
     if usu_tipo not in TIPOS_VALIDOS:
-        return False, "El tipo de usuario debe estar entre 1 y 8."
+        return False, "El tipo de usuario debe estar entre 1 y 10."
 
     datos["usu_tipo"] = usu_tipo
     return True, "Datos válidos"
@@ -302,9 +302,9 @@ def actualizar_usuario_admin(id_usuario, datos):
             try:
                 datos_guardar["usu_tipo"] = int(datos_guardar["usu_tipo"])
             except (TypeError, ValueError):
-                return False, "El tipo de usuario debe ser un número entre 1 y 8.", None
+                return False, "El tipo de usuario debe ser un número entre 1 y 10.", None
             if datos_guardar["usu_tipo"] not in TIPOS_VALIDOS:
-                return False, "El tipo de usuario debe estar entre 1 y 8.", None
+                return False, "El tipo de usuario debe estar entre 1 y 10.", None
 
         password = datos_guardar.get("usu_password", "")
         if password:

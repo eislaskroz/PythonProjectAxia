@@ -34,11 +34,11 @@ def establecer_usuario_actual(
     try:
         tipo = int(usu_tipo)
     except (TypeError, ValueError):
-        tipo = SUPERVISOR
+        tipo = 0
 
-    # Un valor fuera del catálogo no obtiene permisos por defecto.
+    # Los roles inválidos no deben heredarse como Supervisor.
     if tipo not in NOMBRES_ROL:
-        tipo = SUPERVISOR
+        tipo = 0
 
     usuario_actual["id_usuario"] = id_usuario
     usuario_actual["usuario"] = usuario

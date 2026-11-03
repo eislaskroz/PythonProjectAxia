@@ -30,7 +30,7 @@ from tkinter import messagebox
 from app_context import obtener_usuario_actual
 from security.permissions import (
     puede_administrar_clientes,
-    puede_administrar_usuarios,
+    puede_ver_usuarios,
     puede_consultar_procesos,
     puede_avanzar_flujo_operativo,
     puede_modificar_levantamientos,
@@ -829,7 +829,7 @@ class NavigationController:
         """
 
         if not self._verificar_permiso(
-            puede_administrar_usuarios,
+            puede_ver_usuarios,
             "Tu nivel de usuario no tiene permiso para administrar usuarios.",
         ):
             return

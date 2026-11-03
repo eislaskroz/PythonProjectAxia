@@ -56,7 +56,7 @@ from security.permissions import (
     obtener_tipo_usuario,
     es_admin,
     puede_administrar_clientes,
-    puede_administrar_usuarios,
+    puede_ver_usuarios,
     puede_consultar_procesos,
     puede_entrar_inicio_aco,
     puede_generar_levantamiento,
@@ -307,7 +307,7 @@ def _opciones_menu_por_rol(usuario_activo, callbacks):
         opciones["sistema"].append((
             "auditoria", "🛡️", "Auditoría", callbacks["auditoria"],
         ))
-    if puede_administrar_usuarios(usuario_activo):
+    if puede_ver_usuarios(usuario_activo):
         opciones["sistema"].append((
             "usuarios", "👥", "Usuarios", callbacks["usuarios"],
         ))

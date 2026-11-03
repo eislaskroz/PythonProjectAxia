@@ -12,12 +12,12 @@ from ui.form_fields import AxiaEntry, AxiaTextbox
 from ui.iconos import cargar_icono
 _AXIA_ICON_BUSCAR = cargar_icono("buscar.png", (18, 18))
 _AXIA_ICON_BUSCAR_BLANCO = cargar_icono("buscar.png", (16, 16), blanco=True)
-from tkinter import messagebox
+from tkinter import messagebox, simpledialog
 from pathlib import Path
 from PIL import Image
 
 from app_context import obtener_usuario_actual
-from security.permissions import puede_administrar_usuarios
+from security.permissions import puede_ver_usuarios, puede_editar_expedientes_rrhh
 from ui.date_picker import abrir_selector_fecha
 from ui.native_table import NativeTreeTable
 from ui.colors import WHITE, TEXT_PRIMARY, TEXT_SECONDARY, SECONDARY, BUTTON_HOVER
@@ -28,6 +28,9 @@ from services.usuarios_service import (
     actualizar_usuario_admin,
     UsuarioServiceError,
 )
+from services.rrhh_usuarios_service import (
+    CAMPOS_RRHH, buscar_usuarios_rrhh, actualizar_usuario_rrhh,
+)
 
 
 CAMPOS_USUARIO = [
@@ -35,7 +38,7 @@ CAMPOS_USUARIO = [
     ("usu_password", "Nueva contraseña", False),
     ("usu_nombre", "Nombre", True),
     ("usu_apellido", "Apellido", True),
-    ("usu_tipo", "Tipo de usuario (1-8)", True),
+    ("usu_tipo", "Tipo de usuario (1-10)", True),
     ("usu_rfc", "RFC", False),
     ("usu_curp", "CURP", False),
     ("usu_imss", "IMSS", False),
@@ -61,13 +64,22 @@ def mostrar_usuarios_admin(parent, app):
     """
 
     usuario_activo = obtener_usuario_actual()
-    if not puede_administrar_usuarios(usuario_activo):
+    if not puede_ver_usuarios(usuario_activo):
         messagebox.showerror(
             "Acceso denegado",
             "Tu nivel de usuario no tiene permiso para administrar usuarios."
         )
         app.mostrar_vista_inicio_aco()
         return
+
+    solo_rrhh = puede_editar_expedientes_rrhh(usuario_activo)
+
+    def solicitar_clave_rrhh(proposito):
+        return simpledialog.askstring(
+            'Validación de Recursos Humanos',
+            f'Confirma tu contraseña para {proposito}:',
+            show='*', parent=app,
+        )
 
     for widget in parent.winfo_children():
         widget.destroy()
@@ -358,6 +370,8 @@ def mostrar_usuarios_admin(parent, app):
         column=1,
         padx=(0, 6),
     )
+    if solo_rrhh:
+        btn_guardar.configure(state='disabled', text='Alta solo administradores')
 
     # Botón 2: Actualizar seleccionado
     btn_actualizar = ctk.CTkButton(
@@ -384,22 +398,26 @@ def mostrar_usuarios_admin(parent, app):
             entry.configure(state="disabled")
 
         estado["modo"] = "lectura"
-        btn_guardar.configure(text="Guardar nuevo")
+        btn_guardar.configure(text='Alta solo administradores' if solo_rrhh else 'Guardar nuevo')
         btn_actualizar.configure(text="Actualizar seleccionado")
 
     def desbloquear_formulario(modo):
         """Desbloquea campos únicamente cuando se va a crear o actualizar."""
         estado["modo"] = modo
 
-        for entry in estado["entradas"].values():
-            entry.configure(state="normal")
+        for campo, entry in estado["entradas"].items():
+            autorizado = not solo_rrhh or (modo == 'editar' and campo in CAMPOS_RRHH)
+            entry.configure(state='normal' if autorizado else 'disabled')
 
         if modo == "nuevo":
+            if solo_rrhh:
+                bloquear_formulario()
+                return
             btn_guardar.configure(text="✓ Confirmar guardado")
             btn_actualizar.configure(text="Actualizar seleccionado")
 
         elif modo == "editar":
-            btn_guardar.configure(text="Guardar nuevo")
+            btn_guardar.configure(text='Alta solo administradores' if solo_rrhh else 'Guardar nuevo')
             btn_actualizar.configure(text="✓ Confirmar actualización")
 
     def datos_formulario():
@@ -487,7 +505,13 @@ def mostrar_usuarios_admin(parent, app):
             return
 
         try:
-            estado["resultados"] = buscar_usuarios(termino)
+            if solo_rrhh:
+                clave = solicitar_clave_rrhh('consultar expedientes')
+                if not clave:
+                    return
+                estado["resultados"] = buscar_usuarios_rrhh(termino, clave)
+            else:
+                estado["resultados"] = buscar_usuarios(termino)
 
         except UsuarioServiceError as error:
             estado["resultados"] = []
@@ -507,6 +531,10 @@ def mostrar_usuarios_admin(parent, app):
             )
 
     def guardar_nuevo():
+        if solo_rrhh:
+            messagebox.showwarning('Acceso restringido',
+                'Recursos Humanos puede actualizar expedientes, no crear cuentas.')
+            return
         if estado.get("modo") != "nuevo":
             limpiar_formulario()
             desbloquear_formulario("nuevo")
@@ -544,10 +572,22 @@ def mostrar_usuarios_admin(parent, app):
         if not confirmar:
             return
 
-        exito, mensaje, _ = actualizar_usuario_admin(
-            seleccionado.get("id_usuario"),
-            datos_formulario(),
-        )
+        if solo_rrhh:
+            motivo = simpledialog.askstring('Motivo de actualización',
+                'Describe el motivo de la actualización (mínimo 8 caracteres):', parent=app)
+            if motivo is None:
+                return
+            clave = solicitar_clave_rrhh('guardar cambios en el expediente')
+            if not clave:
+                return
+            exito, mensaje, _ = actualizar_usuario_rrhh(
+                seleccionado.get('id_usuario'), datos_formulario(),
+                seleccionado, clave, motivo,
+            )
+        else:
+            exito, mensaje, _ = actualizar_usuario_admin(
+                seleccionado.get("id_usuario"), datos_formulario(),
+            )
 
         if exito:
             messagebox.showinfo("Usuarios", mensaje)

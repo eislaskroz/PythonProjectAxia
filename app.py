@@ -220,12 +220,14 @@ class AxiaApp(ctk.CTk):
 
     def _cargar_vista_inicial(self):
         with measure("app: vista inicial por rol"):
-            from security.permissions import obtener_tipo_usuario, COMPRAS, ALMACEN
+            from security.permissions import obtener_tipo_usuario, COMPRAS, ALMACEN, RECURSOS_HUMANOS
             tipo = obtener_tipo_usuario(self.usuario_activo)
             if tipo == COMPRAS:
                 self.navigation.mostrar_compras()
             elif tipo == ALMACEN:
                 self.navigation.mostrar_almacen()
+            elif tipo == RECURSOS_HUMANOS:
+                self.navigation.mostrar_usuarios()
             else:
                 self.navigation.mostrar_inicio_aco()
 
