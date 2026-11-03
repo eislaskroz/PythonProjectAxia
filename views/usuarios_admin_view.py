@@ -115,7 +115,7 @@ def mostrar_usuarios_admin(parent, app):
         ctk.CTkLabel(
             barra, text="Buscar empleado", font=("Montserrat", 16, "bold"),
             text_color=TEXT_PRIMARY, anchor="w",
-        ).grid(row=0, column=0, columnspan=2, sticky="ew", padx=10, pady=(8, 4))
+        ).grid(row=0, column=0, columnspan=2, sticky="ew", padx=10, pady=(5, 2))
     else:
         barra.pack(fill="x", pady=(0, 5))
     barra.grid_columnconfigure(0, weight=1)
@@ -203,7 +203,7 @@ def mostrar_usuarios_admin(parent, app):
             text="Selecciona un resultado para consultar o actualizar su expediente.",
             font=TEXT_SM, text_color=TEXT_SECONDARY,
             anchor="w", justify="left",
-        ).grid(row=2, column=0, columnspan=2, sticky="w", padx=12, pady=(0, 7))
+        ).grid(row=2, column=0, columnspan=2, sticky="w", padx=12, pady=(0, 4))
 
     cuerpo = ctk.CTkFrame(contenedor, fg_color="transparent")
     cuerpo.pack(fill="both", expand=True)
@@ -238,7 +238,7 @@ def mostrar_usuarios_admin(parent, app):
         column=0,
         sticky="ew",
         padx=9,
-        pady=(8, 3),
+        pady=(5, 2) if solo_rrhh else (8, 3),
     )
 
     tabla_resultados = NativeTreeTable(
@@ -250,14 +250,16 @@ def mostrar_usuarios_admin(parent, app):
         ),
         on_select=lambda usuario: cargar_en_formulario(usuario),
         on_open=lambda usuario: cargar_en_formulario(usuario),
-        height=4 if solo_rrhh else 18,
+        # Dos filas visibles en RH reducen ~30% la altura del bloque superior;
+        # el desplazamiento de la tabla permite seguir consultando los resultados.
+        height=2 if solo_rrhh else 18,
      table_id="usuarios_catalogo",)
     tabla_resultados.grid(
         row=1,
         column=0,
         sticky="nsew",
         padx=8,
-        pady=(0, 5),
+        pady=(0, 3) if solo_rrhh else (0, 5),
     )
 
     panel_formulario = ctk.CTkScrollableFrame(
