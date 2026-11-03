@@ -55,7 +55,13 @@ TIPOS_CONECTORES = [
 
 TIPOS_ABRAZADERAS = [
     "Tipo Omega", "Uña", "Unicanal", "Tipo U", "Tipo P", "Plástico o PVC", "De Clip",
+    "Para Viga",
 ]
+
+# La abrazadera para viga se ofrece únicamente en las dos medidas solicitadas.
+# Se reutilizan las etiquetas del catálogo general para mantener consistencia
+# con los levantamientos anteriores y los formatos PDF.
+MEDIDAS_ABRAZADERA_PARA_VIGA = ['1" (25mm)', '3/4" (19mm)']
 
 TIPOS_CABLE_ELECTRICO = [
     "THW / THHW", "THHN / THWN", "SPT (Cable dúplex)", "SJT (Uso rudo)",
@@ -100,6 +106,8 @@ def especificaciones_por_categoria(categoria, tipo=""):
     """Devuelve las medidas/calibres válidos para la partida de canalización."""
     categoria = str(categoria or "").strip()
     tipo = str(tipo or "").strip()
+    if categoria == "Abrazadera" and tipo == "Para Viga":
+        return list(MEDIDAS_ABRAZADERA_PARA_VIGA)
     if categoria in CATEGORIAS_CON_MEDIDA_TUBO:
         return list(TAMANOS_TUBOS)
     if categoria == "Canaleta":
