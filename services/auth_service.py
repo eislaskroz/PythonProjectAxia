@@ -144,7 +144,7 @@ def validar_login(nickname, password):
             .table(TABLA_USUARIOS)
             .select(
                 "id_usuario, usu_nombre, usu_apellido, "
-                "usu_nickname, usu_tipo, usu_password"
+                "usu_nickname, usu_tipo, usu_password, usu_activo, usu_acceso_habilitado"
             )
             .ilike("usu_nickname", nickname)
             .limit(1)
@@ -155,6 +155,9 @@ def validar_login(nickname, password):
             return None
 
         usuario = respuesta.data[0]
+        # Baja laboral o alta pendiente de habilitación administrativa.
+        if usuario.get('usu_activo') is not True or usuario.get('usu_acceso_habilitado') is not True:
+            return None
         password_guardado = usuario.get("usu_password", "")
 
         if not verificar_password(password, password_guardado):

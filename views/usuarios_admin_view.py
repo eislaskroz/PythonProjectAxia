@@ -30,6 +30,7 @@ from services.usuarios_service import (
 )
 from services.rrhh_usuarios_service import (
     CAMPOS_RRHH, buscar_usuarios_rrhh, actualizar_usuario_rrhh,
+    alta_usuario_rrhh, baja_usuario_rrhh,
 )
 
 
@@ -200,7 +201,7 @@ def mostrar_usuarios_admin(parent, app):
     if solo_rrhh:
         ctk.CTkLabel(
             barra,
-            text="Selecciona un resultado para consultar o actualizar su expediente.",
+            text="Busca empleados, registra altas y administra bajas sin borrar el historial.",
             font=TEXT_SM, text_color=TEXT_SECONDARY,
             anchor="w", justify="left",
         ).grid(row=2, column=0, columnspan=2, sticky="w", padx=12, pady=(0, 4))
@@ -247,6 +248,11 @@ def mostrar_usuarios_admin(parent, app):
             ("nickname", "Usuario", 120),
             ("nombre", "Nombre completo", 210),
             ("tipo", "Tipo", 70),
+        ) if not solo_rrhh else (
+            ("nickname", "Usuario", 100),
+            ("nombre", "Nombre completo", 205),
+            ("tipo", "Rol", 50),
+            ("estado", "Estado", 105),
         ),
         on_select=lambda usuario: cargar_en_formulario(usuario),
         on_open=lambda usuario: cargar_en_formulario(usuario),
@@ -282,9 +288,9 @@ def mostrar_usuarios_admin(parent, app):
     if solo_rrhh:
         ctk.CTkLabel(
             panel_formulario,
-            text=("Recursos Humanos: solo datos personales y laborales. "
-                  "La creación de cuentas, los roles y las contraseñas "
-                  "permanecen restringidos."),
+            text=("Recursos Humanos: alta y baja laboral de personal, y actualización "
+                  "de expedientes. Los roles, las contraseñas y el acceso a "
+                  "las aplicaciones los habilita el Administrador."),
             font=TEXT_SM,
             text_color=TEXT_SECONDARY,
             justify="left",
@@ -445,7 +451,7 @@ def mostrar_usuarios_admin(parent, app):
         padx=(0, 6),
     )
     if solo_rrhh:
-        btn_guardar.configure(state='disabled', text='Alta solo administradores')
+        btn_guardar.configure(text='Registrar alta')
 
     # Botón 2: Actualizar seleccionado
     btn_actualizar = ctk.CTkButton(
@@ -466,32 +472,70 @@ def mostrar_usuarios_admin(parent, app):
         padx=(6, 0),
     )
 
+    btn_baja = None
+    if solo_rrhh:
+        btn_baja = ctk.CTkButton(
+            acciones, text="Dar de baja", width=145, height=38,
+            fg_color="#C52C35", hover_color="#9A1F27", font=BUTTON_FONT,
+            command=lambda: dar_de_baja_seleccionado(), state="disabled",
+        )
+        btn_baja.grid(row=0, column=3, padx=(10, 0))
+        acciones.grid_columnconfigure(3, weight=0)
+        acciones.grid_columnconfigure(4, weight=1)
+
+    estado_laboral = None
+    if solo_rrhh:
+        estado_laboral = ctk.CTkLabel(
+            panel_formulario,
+            text="Selecciona un empleado o pulsa Registrar alta.",
+            text_color=TEXT_SECONDARY, font=TEXT_SM, anchor="w",
+        )
+        estado_laboral.pack(fill="x", padx=12, pady=(0, 7))
+
+    def puede_baja_actual():
+        seleccionado = estado.get('seleccionado')
+        if not solo_rrhh or not seleccionado or seleccionado.get('usu_activo') is not True:
+            return False
+        if int(seleccionado.get('usu_tipo') or 0) in (1, 10):
+            return False
+        return str(seleccionado.get('id_usuario')) != str(usuario_activo.get('id_usuario'))
+
+    def estado_empleado_label(usuario):
+        if usuario.get('usu_activo') is not True:
+            return 'BAJA'
+        return 'ACTIVO' if usuario.get('usu_acceso_habilitado') is True else 'ALTA PENDIENTE'
+
     def bloquear_formulario():
         """Bloquea todos los campos para evitar ediciones accidentales."""
         for entry in estado["entradas"].values():
             entry.configure(state="disabled")
 
         estado["modo"] = "lectura"
-        btn_guardar.configure(text='Alta solo administradores' if solo_rrhh else 'Guardar nuevo')
+        btn_guardar.configure(text='Registrar alta' if solo_rrhh else 'Guardar nuevo')
         btn_actualizar.configure(text="Actualizar seleccionado")
+        if solo_rrhh:
+            btn_baja.configure(state='normal' if puede_baja_actual() else 'disabled')
+
 
     def desbloquear_formulario(modo):
         """Desbloquea campos únicamente cuando se va a crear o actualizar."""
         estado["modo"] = modo
 
         for campo, entry in estado["entradas"].items():
-            autorizado = not solo_rrhh or (modo == 'editar' and campo in CAMPOS_RRHH)
+            autorizado = not solo_rrhh or (
+                (modo == 'editar' and campo in CAMPOS_RRHH)
+                or (modo == 'nuevo' and (campo == 'usu_nickname' or campo in CAMPOS_RRHH))
+            )
             entry.configure(state='normal' if autorizado else 'disabled')
 
+        if solo_rrhh:
+            btn_baja.configure(state='disabled')
         if modo == "nuevo":
-            if solo_rrhh:
-                bloquear_formulario()
-                return
-            btn_guardar.configure(text="✓ Confirmar guardado")
+            btn_guardar.configure(text="✓ Confirmar alta" if solo_rrhh else "✓ Confirmar guardado")
             btn_actualizar.configure(text="Actualizar seleccionado")
 
         elif modo == "editar":
-            btn_guardar.configure(text='Alta solo administradores' if solo_rrhh else 'Guardar nuevo')
+            btn_guardar.configure(text='Registrar alta' if solo_rrhh else 'Guardar nuevo')
             btn_actualizar.configure(text="✓ Confirmar actualización")
 
     def datos_formulario():
@@ -504,9 +548,11 @@ def mostrar_usuarios_admin(parent, app):
 
     def limpiar_formulario():
         estado["seleccionado"] = None
-
         for variable in estado["variables"].values():
             variable.set("")
+        if solo_rrhh:
+            estado["variables"]["usu_tipo"].set("4")
+            estado_laboral.configure(text="Nueva alta · Rol inicial 4 (Operador) · Acceso pendiente del Administrador")
 
     def cargar_en_formulario(usuario):
         estado["seleccionado"] = usuario
@@ -518,6 +564,8 @@ def mostrar_usuarios_admin(parent, app):
                 variable.set(str(usuario.get(campo, "") or ""))
 
         bloquear_formulario()
+        if solo_rrhh:
+            estado_laboral.configure(text=f"Estado laboral: {estado_empleado_label(usuario)}")
 
     def crear_item_resultado(usuario, texto):
         """
@@ -563,6 +611,11 @@ def mostrar_usuarios_admin(parent, app):
                 f"{usuario.get('usu_nombre', '')} "
                 f"{usuario.get('usu_apellido', '')}".strip(),
                 usuario.get("usu_tipo", "-"),
+            ) if not solo_rrhh else (
+                usuario.get('usu_nickname', '-'),
+                f"{usuario.get('usu_nombre', '')} {usuario.get('usu_apellido', '')}".strip(),
+                usuario.get('usu_tipo', '-'),
+                estado_empleado_label(usuario),
             ),
         )
 
@@ -605,24 +658,66 @@ def mostrar_usuarios_admin(parent, app):
             )
 
     def guardar_nuevo():
-        if solo_rrhh:
-            messagebox.showwarning('Acceso restringido',
-                'Recursos Humanos puede actualizar expedientes, no crear cuentas.')
-            return
         if estado.get("modo") != "nuevo":
             limpiar_formulario()
             desbloquear_formulario("nuevo")
             return
 
-        exito, mensaje, _ = crear_usuario_admin(datos_formulario())
+        if solo_rrhh:
+            if not messagebox.askyesno('Confirmar alta laboral',
+                '¿Registrar este expediente como nuevo empleado?\n\n'
+                'La cuenta NO podrá iniciar sesión hasta que el Administrador configure sus credenciales.'):
+                return
+            motivo = simpledialog.askstring('Motivo de alta',
+                'Describe el motivo del alta (mínimo 8 caracteres):', parent=app)
+            if motivo is None:
+                return
+            clave = solicitar_clave_rrhh('registrar un alta laboral')
+            if not clave:
+                return
+            datos = datos_formulario()
+            exito, mensaje, _ = alta_usuario_rrhh(datos, clave, motivo)
+        else:
+            exito, mensaje, _ = crear_usuario_admin(datos_formulario())
 
         if exito:
-            messagebox.showinfo("Usuarios", mensaje)
+            messagebox.showinfo('Usuarios', mensaje)
+            termino = datos_formulario().get('usu_nickname') if solo_rrhh else var_busqueda.get()
+            limpiar_formulario()
+            bloquear_formulario()
+            if solo_rrhh:
+                var_busqueda.set(termino)
+            cargar_resultados(termino)
+        else:
+            messagebox.showerror("Usuarios", mensaje)
+
+    def dar_de_baja_seleccionado():
+        if not puede_baja_actual():
+            messagebox.showwarning('Baja restringida',
+                'Selecciona un empleado activo que no sea Administrador ni Recursos Humanos.')
+            return
+        empleado = estado['seleccionado']
+        nombre = f"{empleado.get('usu_nombre','')} {empleado.get('usu_apellido','')}".strip()
+        if not messagebox.askyesno('Confirmar baja laboral',
+            f"¿Dar de baja a {nombre}?\n\n"
+            'Se conservarán su expediente y todos los registros históricos. '
+            'La contraseña actual quedará invalidada. La operación requiere confirmación.'):
+            return
+        motivo = simpledialog.askstring('Motivo de baja laboral',
+            'Describe el motivo de baja (mínimo 8 caracteres):', parent=app)
+        if motivo is None:
+            return
+        clave = solicitar_clave_rrhh('registrar la baja laboral')
+        if not clave:
+            return
+        exito, mensaje, _ = baja_usuario_rrhh(empleado, clave, motivo)
+        if exito:
+            messagebox.showinfo('Recursos Humanos', mensaje)
             limpiar_formulario()
             bloquear_formulario()
             cargar_resultados(var_busqueda.get())
         else:
-            messagebox.showerror("Usuarios", mensaje)
+            messagebox.showerror('Recursos Humanos', mensaje)
 
     def actualizar_seleccionado():
         seleccionado = estado.get("seleccionado")

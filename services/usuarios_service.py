@@ -309,6 +309,9 @@ def actualizar_usuario_admin(id_usuario, datos):
         password = datos_guardar.get("usu_password", "")
         if password:
             datos_guardar["usu_password"] = encriptar_password(password)
+            # Habilitar credenciales de altas de RH solo después de que el
+            # Administrador establezca una contraseña. No reactiva bajas.
+            datos_guardar["usu_acceso_habilitado"] = True
         else:
             datos_guardar.pop("usu_password", None)
 

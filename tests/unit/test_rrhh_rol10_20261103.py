@@ -47,8 +47,10 @@ def test_sql_y_edge_no_aceptan_roles_ni_passwords():
     assert 'usu_tipo' not in srv.split('CAMPOS_RRHH = ',1)[1].split('))',1)[0]
 
 
-def test_interfaz_bloquea_alta_y_controla_campos():
+def test_interfaz_altas_bajas_separadas_del_control_de_accesos():
     ui=(Path(__file__).resolve().parents[2]/'views/usuarios_admin_view.py').read_text()
-    assert 'btn_guardar.configure(state=\'disabled\'' in ui
+    assert "Registrar alta" in ui
+    assert "Dar de baja" in ui
     assert "campo in CAMPOS_RRHH" in ui
-    assert 'solicitar_clave_rrhh' in ui
+    assert "solicitar_clave_rrhh" in ui
+    assert "usu_nickname' or campo in CAMPOS_RRHH" in ui

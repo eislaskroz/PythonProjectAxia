@@ -110,3 +110,55 @@ def actualizar_usuario_rrhh(id_usuario, datos: dict, seleccionado: dict,
         return False, str(error), None
     except Exception:
         return False, 'No se completó la actualización de RRHH. No se confirmó el cambio.', None
+
+
+
+def alta_usuario_rrhh(datos: dict, contrasena: str, motivo: str):
+    """Alta laboral. No asigna contraseñas ni roles privilegiados desde Desktop."""
+    try:
+        nickname = str(datos.get('usu_nickname') or '').strip()
+        nombre = str(datos.get('usu_nombre') or '').strip()
+        apellido = str(datos.get('usu_apellido') or '').strip()
+        if not __import__('re').fullmatch(r'[A-Za-z0-9._-]{3,40}', nickname):
+            return False, 'El usuario debe tener 3 a 40 caracteres (letras, números, ., _ o -).', None
+        if not nombre or not apellido:
+            return False, 'Nombre y apellido son obligatorios.', None
+        if len(str(motivo or '').strip()) < 8:
+            return False, 'El motivo del alta necesita al menos 8 caracteres.', None
+        correo = str(datos.get('usu_correo') or '').strip()
+        if correo and ('@' not in correo or '.' not in correo.rsplit('@', 1)[-1]):
+            return False, 'El correo corporativo no tiene un formato válido.', None
+        expediente = {campo: str(datos.get(campo) or '').strip() or None for campo in CAMPOS_RRHH}
+        for campo in ('usu_rfc','usu_curp','usu_imss','usu_ine'):
+            if expediente.get(campo):
+                expediente[campo] = expediente[campo].upper()
+        if expediente.get('usu_correo'):
+            expediente['usu_correo'] = expediente['usu_correo'].lower()
+        expediente = cifrar_diccionario(expediente, CAMPOS_CIFRADOS_RRHH)
+        respuesta = _ejecutar('alta', contrasena, nickname=nickname, datos=expediente, motivo=motivo.strip())
+        return True, 'Alta laboral registrada. La cuenta queda pendiente de credenciales del Administrador.', respuesta.get('resultado')
+    except UsuarioServiceError as exc:
+        return False, str(exc), None
+    except Exception:
+        return False, 'No se confirmó el alta. Consulta nuevamente antes de reintentar.', None
+
+
+def baja_usuario_rrhh(seleccionado: dict, contrasena: str, motivo: str):
+    """Baja lógica y revocación del password, sin borrar historial ni registros."""
+    try:
+        if not isinstance(seleccionado,dict) or not seleccionado.get('id_usuario'):
+            return False, 'Selecciona un empleado existente.', None
+        if seleccionado.get('usu_activo') is not True:
+            return False, 'El expediente ya se encuentra dado de baja.', None
+        if int(seleccionado.get('usu_tipo') or 0) in (1,10):
+            return False, 'La baja de Administradores y RH está restringida.', None
+        if len(str(motivo or '').strip()) < 8:
+            return False, 'Describe el motivo de baja (mínimo 8 caracteres).', None
+        respuesta = _ejecutar('baja', contrasena,
+            id_usuario=int(seleccionado['id_usuario']),
+            activo_esperado=True, motivo=motivo.strip())
+        return True, 'Baja laboral registrada. El acceso fue revocado sin borrar el expediente.', respuesta.get('resultado')
+    except UsuarioServiceError as exc:
+        return False, str(exc), None
+    except Exception:
+        return False, 'No se confirmó la baja. Consulta el estado antes de reintentar.', None
