@@ -222,10 +222,23 @@ def mostrar_usuarios_admin(parent, app):
 
     ctk.CTkLabel(
         panel_formulario,
-        text="Datos del usuario",
+        text="Expediente de personal" if solo_rrhh else "Datos del usuario",
         font=("Montserrat", 18, "bold"),
         text_color=TEXT_PRIMARY,
     ).pack(anchor="w", padx=10, pady=(9, 3))
+
+    if solo_rrhh:
+        ctk.CTkLabel(
+            panel_formulario,
+            text=("Recursos Humanos: solo datos personales y laborales. "
+                  "La creación de cuentas, los roles y las contraseñas "
+                  "permanecen restringidos."),
+            font=TEXT_SM,
+            text_color=TEXT_SECONDARY,
+            justify="left",
+            anchor="w",
+            wraplength=620,
+        ).pack(fill="x", padx=10, pady=(0, 7))
 
     form_grid = ctk.CTkFrame(
         panel_formulario,
@@ -236,7 +249,13 @@ def mostrar_usuarios_admin(parent, app):
     form_grid.grid_columnconfigure(1, weight=1)
     form_grid.grid_columnconfigure(2, weight=1)
 
-    for indice, (campo, etiqueta, obligatorio) in enumerate(CAMPOS_USUARIO):
+    # RH puede identificar la cuenta, pero no tiene necesidad de ver ni de
+    # editar el control de contraseña. Para Admin y Jefe no cambia la pantalla.
+    campos_visibles = [
+        dato for dato in CAMPOS_USUARIO
+        if not (solo_rrhh and dato[0] == "usu_password")
+    ]
+    for indice, (campo, etiqueta, obligatorio) in enumerate(campos_visibles):
         fila = indice // 3
         columna = indice % 3
 
@@ -294,7 +313,10 @@ def mostrar_usuarios_admin(parent, app):
         if "fecha" in campo.lower():
             entry.bind(
                 "<Button-1>",
-                lambda _event, var=var: abrir_selector_fecha(wrapper, var),
+                lambda _event, var=var, entry=entry, wrapper=wrapper: (
+                    abrir_selector_fecha(wrapper, var)
+                    if str(entry.cget("state")) == "normal" else None
+                ),
             )
 
         entry.configure(state="disabled")

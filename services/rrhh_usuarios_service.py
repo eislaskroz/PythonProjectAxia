@@ -80,6 +80,11 @@ def actualizar_usuario_rrhh(id_usuario, datos: dict, seleccionado: dict,
         originales = seleccionado.get('_axia_original_cifrado')
         if not isinstance(originales, dict):
             return False, 'Vuelve a consultar al empleado antes de actualizar.', None
+        # No permitir borrar los campos identificadores requeridos del
+        # expediente; el resto de datos opcionales sí pueden corregirse.
+        for requerido in ('usu_nombre', 'usu_apellido'):
+            if not str(datos.get(requerido) or '').strip():
+                return False, 'Nombre y apellido son obligatorios para el expediente.', None
         cambios = {}
         for campo in CAMPOS_RRHH:
             valor = str(datos.get(campo) or '').strip()

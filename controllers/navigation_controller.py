@@ -839,10 +839,13 @@ class NavigationController:
         logger.info("Cargando vista: Administración de Usuarios")
         self.limpiar_contenido()
 
-        self.cambiar_titulo(
-            "Usuarios",
-            "Busca, actualiza o registra usuarios del sistema."
+        from security.permissions import puede_editar_expedientes_rrhh
+        titulo_secundario = (
+            "Consulta y actualiza expedientes de empleados (sin administrar cuentas)."
+            if puede_editar_expedientes_rrhh(obtener_usuario_actual())
+            else "Busca, actualiza o registra usuarios del sistema."
         )
+        self.cambiar_titulo("Usuarios", titulo_secundario)
 
         from views.usuarios_admin_view import mostrar_usuarios_admin
 
