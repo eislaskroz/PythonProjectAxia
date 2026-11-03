@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import tkinter as tk
 from tkinter import ttk
+from tkinter import font as tkfont
 from .table_columns import TableColumnManager
 from core.date_utils import formatear_fecha_visual, es_campo_fecha
 from typing import Any, Callable, Iterable, Sequence
@@ -28,6 +29,10 @@ class NativeTreeTable(ttk.Frame):
         self._on_select = on_select
         self._on_open = on_open
         self._column_id = table_id
+        self._measure_font = None
+        self._hover_cell = None
+        self._hover_job = None
+        self._hover_popup = None
         self._fechas_ids = {item[0] for item in columns if es_campo_fecha(item[0]) or es_campo_fecha(item[1])}
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -73,6 +78,71 @@ class NativeTreeTable(ttk.Frame):
         self.tree.bind("<<TreeviewSelect>>", self._selected, add="+")
         self.tree.bind("<Double-1>", self._opened, add="+")
         self.tree.bind("<Return>", self._opened, add="+")
+        # Si la pantalla es estrecha, el usuario puede consultar el valor
+        # completo de una celda truncada sin ensanchar todos los paneles.
+        self.tree.bind("<Motion>", self._hover_moved, add="+")
+        self.tree.bind("<Leave>", self._hide_hover, add="+")
+        self.tree.bind("<ButtonPress>", self._hide_hover, add="+")
+        self.tree.bind("<MouseWheel>", self._hide_hover, add="+")
+
+    def _hide_hover(self, _event=None) -> None:
+        if self._hover_job is not None:
+            try:
+                self.tree.after_cancel(self._hover_job)
+            except tk.TclError:
+                pass
+            self._hover_job = None
+        self._hover_cell = None
+        if self._hover_popup is not None:
+            try:
+                self._hover_popup.destroy()
+            except tk.TclError:
+                pass
+            self._hover_popup = None
+
+    def _hover_moved(self, event) -> None:
+        row = self.tree.identify_row(event.y)
+        col = self.tree.identify_column(event.x)
+        cell = (row, col) if row and col and col != '#0' else None
+        if cell == self._hover_cell:
+            return
+        self._hide_hover()
+        if cell is None:
+            return
+        try:
+            key = self.tree['columns'][int(col[1:]) - 1]
+            value = str(self.tree.set(row, key))
+            available = self.tree.column(key, 'width') - 22
+            if self._measure_font is None:
+                self._measure_font = tkfont.Font(root=self.tree, family='Segoe UI', size=10)
+            if not value.strip() or self._measure_font.measure(value) <= available:
+                return
+        except (IndexError, KeyError, ValueError, tk.TclError):
+            return
+        self._hover_cell = cell
+        self._hover_job = self.tree.after(650, lambda: self._show_hover(cell, value))
+
+    def _show_hover(self, cell, value) -> None:
+        self._hover_job = None
+        if self._hover_cell != cell:
+            return
+        try:
+            x_root = self.tree.winfo_pointerx() + 15
+            y_root = self.tree.winfo_pointery() + 18
+            popup = tk.Toplevel(self.tree)
+            popup.wm_overrideredirect(True)
+            popup.configure(background='#CBD5E1')
+            label = tk.Label(popup, text=value, background='#FFFFFF',
+                             foreground='#0F172A', font=('Segoe UI', 10),
+                             justify='left', wraplength=540, padx=8, pady=6)
+            label.pack(padx=1, pady=1)
+            popup.update_idletasks()
+            x_root = min(x_root, max(0, popup.winfo_screenwidth() - popup.winfo_reqwidth() - 5))
+            y_root = min(y_root, max(0, popup.winfo_screenheight() - popup.winfo_reqheight() - 5))
+            popup.wm_geometry(f'+{x_root}+{y_root}')
+            self._hover_popup = popup
+        except tk.TclError:
+            self._hide_hover()
 
     def set_columns(self, columns: Sequence[tuple[str, str, int]]) -> None:
         self._fechas_ids = {item[0] for item in columns if es_campo_fecha(item[0]) or es_campo_fecha(item[1])}
@@ -130,6 +200,21 @@ class NativeTreeTable(ttk.Frame):
             self.tree.item(iid, tags=("fila_azul",) if index % 2 else ("fila_blanca",))
         self.tree.tag_configure("fila_blanca", background="#FFFFFF", foreground="#0F172A")
         self.tree.tag_configure("fila_azul", background="#EAF3FF", foreground="#0F172A")
+        # Ajustar también el contenido real (fechas, folios y nombres) en
+        # lugar de limitarse al ancho inicial del encabezado. El máximo evita
+        # que una descripción de varios párrafos consuma toda la pantalla.
+        if self._measure_font is None:
+            self._measure_font = tkfont.Font(root=self.tree, family="Segoe UI", size=10)
+        medidos: dict[str, int] = {}
+        for iid in self.tree.get_children(""):
+            valores = self.tree.item(iid, 'values')
+            for columna, valor in zip(columns, valores):
+                if medidos.get(columna, 0) >= 520:
+                    continue
+                tamano = min(520, self._measure_font.measure(str(valor)[:110]) + 26)
+                if tamano > medidos.get(columna, 0):
+                    medidos[columna] = tamano
+        self._columns_manager.set_content_widths(medidos)
 
     def selected_payload(self) -> dict[str, Any] | None:
         selection = self.tree.selection()
