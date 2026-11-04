@@ -13,7 +13,7 @@ TIPOS_TUBOS = [
     "Pared delgada (EMT)",
     "Conduit metálico de pared intermedia (IMC)",
     "Metálico de pared gruesa (RMC)",
-    "Helicoidal metálico",
+    "Helicoidal metálico / Flexible ZAPA",
     "PVC Pesado",
     "Poliducto corrugado (Ligero)",
     "Vorrugado no metálico (ENT)",
@@ -50,7 +50,7 @@ TIPOS_CONECTORES = [
     "Regletas o clemas de conexión", "Torsión (Capuchones)",
     "Presión o empalme rápido (Wago)", "Anillo y Horquilla", "Pala y Bala",
     "Mecánicos y de compresión (C y H)", "Cilíndricos e impermeables",
-    "Liquatite", "Conduit PVC", "Conduit galvanizado",
+    "Liquatite", "Conduit PVC", "Conduit galvanizado", "Conector de ZAPA",
 ]
 
 TIPOS_ABRAZADERAS = [
@@ -146,6 +146,7 @@ def normalizar_tipo_canalizacion(tipo):
     aliases = {
         "Policloruro de Vinilo (PVC)": "PVC Pesado",
         "Liquidtight": "Liquidtight /Licuatite",
+        "Helicoidal metálico": "Helicoidal metálico / Flexible ZAPA",
         "Canalización": "Canaleta",
         "Conector": "Conectores",
     }
