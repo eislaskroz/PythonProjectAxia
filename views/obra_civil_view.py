@@ -998,7 +998,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                                                 values=["Sí", "No"], width=120, height=31)
     combo_requiere_canalizacion.grid(row=2, column=0, sticky="w", padx=3, pady=(0, 5))
     for col, encabezado in enumerate(("Categoría", "Material", "Tipo", "Tamaño/calibre",
-                                     "Color/Modelo", "Cantidad", "Unidad", "Aproximado", "Acción")):
+                                     "Color/Modelo", "Cantidad", "Unidad", "Aprox.", "Acción")):
         ctk.CTkLabel(panel_canalizacion, text=encabezado, font=("Montserrat", 11),
                      text_color=TEXT_PRIMARY).grid(row=3, column=col, sticky="w", padx=3, pady=(0, 2))
 
