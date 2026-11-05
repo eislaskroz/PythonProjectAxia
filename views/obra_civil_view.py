@@ -986,19 +986,19 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
     # para conservar compatibilidad con el esquema actual de Supabase.
     seccion("Canalización, cableado y materiales", 26)
     panel_canalizacion = celda(27, 0, 5)
-    for col, peso in enumerate((3, 2, 3, 3, 1, 2, 1, 1)):
+    for col, peso in enumerate((3, 2, 3, 1.65, 1.6, 0.9, 1.25, 1.0, 0)):
         panel_canalizacion.grid_columnconfigure(col, weight=peso)
     ctk.CTkLabel(
         panel_canalizacion,
         text="Selecciona categoría y material, después el tipo, medida y cantidad.",
         font=SMALL_FONT, text_color=TEXT_SECONDARY,
-    ).grid(row=0, column=0, columnspan=8, sticky="w", padx=3, pady=(0, 6))
+    ).grid(row=0, column=0, columnspan=9, sticky="w", padx=3, pady=(0, 6))
     ctk.CTkLabel(panel_canalizacion, text="¿Se requiere?", font=("Montserrat", 11)).grid(row=1, column=0, sticky="w", padx=3)
     combo_requiere_canalizacion = NativeComboBox(panel_canalizacion, variable=var_requiere_canalizacion,
                                                 values=["Sí", "No"], width=120, height=31)
     combo_requiere_canalizacion.grid(row=2, column=0, sticky="w", padx=3, pady=(0, 5))
-    for col, encabezado in enumerate(("Categoría", "Material", "Tipo", "Tamaño / calibre / especificación",
-                                     "Cantidad", "Unidad", "Aproximado", "Acción")):
+    for col, encabezado in enumerate(("Categoría", "Material", "Tipo", "Tamaño/calibre",
+                                     "Color/Modelo", "Cantidad", "Unidad", "Aproximado", "Acción")):
         ctk.CTkLabel(panel_canalizacion, text=encabezado, font=("Montserrat", 11),
                      text_color=TEXT_PRIMARY).grid(row=3, column=col, sticky="w", padx=3, pady=(0, 2))
 
@@ -1019,6 +1019,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                 "especialidad_uso": uso_de_material(material),
                 "tipo": tipo,
                 "tamano_calibre_especificacion": item["especificacion"].get().strip(),
+                "color_modelo": item["color_modelo"].get().strip(),
                 "cantidad": cantidad,
                 "unidad": unidad_forzada_canalizacion(material, item["unidad"].get()),
             })
@@ -1050,25 +1051,28 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
         vcategoria = ctk.StringVar(value=material_inicial)
         vtipo = ctk.StringVar()
         vespecificacion = ctk.StringVar()
+        vcolor_modelo = ctk.StringVar()
         vcantidad = ctk.StringVar()
         vunidad = ctk.StringVar(value=unidad_inicial_material(material_inicial))
         ofamilia = NativeComboBox(panel_canalizacion, variable=vfamilia, values=familias_materiales(), width=250, height=31)
         ocategoria = NativeComboBox(panel_canalizacion, variable=vcategoria,
                                     values=materiales_de_familia(vfamilia.get()), width=175, height=31)
         otipo = NativeComboBox(panel_canalizacion, variable=vtipo, values=[], width=255, height=31)
-        oespecificacion = NativeComboBox(panel_canalizacion, variable=vespecificacion, values=[], width=215, height=31)
-        ecantidad = AxiaEntry(panel_canalizacion, textvariable=vcantidad, width=85, height=31, placeholder_text="Ej. 2")
+        oespecificacion = NativeComboBox(panel_canalizacion, variable=vespecificacion, values=[], width=143, height=31)
+        ecolor_modelo = AxiaEntry(panel_canalizacion, textvariable=vcolor_modelo, width=130, height=31, placeholder_text="Color o modelo")
+        ecantidad = AxiaEntry(panel_canalizacion, textvariable=vcantidad, width=65, height=31, placeholder_text="Ej. 2")
         aplicar_mascara_numerica(ecantidad, vcantidad, NUMBER)
         ounidad = NativeComboBox(panel_canalizacion, variable=vunidad,
-                                 values=unidades_de_material(material_inicial), width=120, height=31)
+                                 values=unidades_de_material(material_inicial), width=102, height=31)
         laproximado = ctk.CTkLabel(panel_canalizacion, text="—", font=SMALL_FONT,
                                    text_color="#15803D", anchor="w")
-        widgets = [ofamilia, ocategoria, otipo, oespecificacion, ecantidad, ounidad]
+        widgets = [ofamilia, ocategoria, otipo, oespecificacion, ecolor_modelo, ecantidad, ounidad]
         for col, widget in enumerate(widgets):
             widget.grid(row=fila, column=col, sticky="ew", padx=3, pady=2)
-        laproximado.grid(row=fila, column=6, sticky="ew", padx=3, pady=2)
+        laproximado.grid(row=fila, column=7, sticky="ew", padx=3, pady=2)
         item = {"familia": vfamilia, "categoria": vcategoria, "tipo": vtipo,
-                "especificacion": vespecificacion, "cantidad": vcantidad, "unidad": vunidad,
+                "especificacion": vespecificacion, "color_modelo": vcolor_modelo,
+                "cantidad": vcantidad, "unidad": vunidad,
                 "widgets": widgets, "unidad_widget": ounidad, "aproximado_widget": laproximado}
 
         def actualizar_aproximado(*_):
@@ -1101,6 +1105,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                 if cambio_material:
                     vtipo.set("")
                     vespecificacion.set("")
+                    vcolor_modelo.set("")
                     vunidad.set(unidad_inicial_material(material))
                     ultimo_material = material
                 tipos = tipos_de_material(material, "Obra Civil")
@@ -1136,6 +1141,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
         vunidad.trace_add("write", actualizar_aproximado)
         actualizar_catalogos()
         vcantidad.trace_add("write", lambda *_: programar_validacion_preview())
+        vcolor_modelo.trace_add("write", lambda *_: programar_validacion_preview())
 
         def eliminar_partida():
             for widget in item.get("widgets", []):
@@ -1146,9 +1152,10 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
             canalizacion_materiales_items[:] = [x for x in canalizacion_materiales_items if x is not item]
             validar_preview()
 
-        btn_eliminar = ctk.CTkButton(panel_canalizacion, text="Eliminar", width=78, height=31,
+        btn_eliminar = ctk.CTkButton(panel_canalizacion, text="✕", width=34, height=30,
+                                     corner_radius=11, font=("Arial", 17, "bold"),
                                      fg_color="#DC2626", hover_color="#B91C1C", command=eliminar_partida)
-        btn_eliminar.grid(row=fila, column=7, sticky="ew", padx=3, pady=2)
+        btn_eliminar.grid(row=fila, column=8, padx=3, pady=2)
         item["widgets"].append(btn_eliminar)
         canalizacion_materiales_items.append(item)
         validar_preview()
@@ -1462,6 +1469,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                 item["categoria"].set(normalizar_material(fila.get("material") or fila.get("categoria") or "Tubo"))
                 item["tipo"].set(str(fila.get("tipo") or ""))
                 item["especificacion"].set(str(fila.get("tamano_calibre_especificacion") or fila.get("especificacion") or ""))
+                item["color_modelo"].set(str(fila.get("color_modelo") or fila.get("Color/Modelo") or ""))
                 item["cantidad"].set(str(fila.get("cantidad") or ""))
                 item["unidad"].set(unidad_forzada_canalizacion(item["categoria"].get(), fila.get("unidad")))
         for ruta in estado.get("evidencias_locales", []) if isinstance(estado.get("evidencias_locales"), list) else []:
@@ -1637,6 +1645,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
             "Categoría": m.get("familia", ""), "Material": m.get("material") or m.get("categoria", ""),
             "Tipo": m.get("tipo", ""),
             "Especificación": m.get("tamano_calibre_especificacion", ""),
+            "Color/Modelo": m.get("color_modelo", ""),
             "Cantidad": m.get("cantidad", ""), "Unidad": m.get("unidad", ""),
         } for m in obtener_canalizacion_materiales_obra()]
 
@@ -1946,6 +1955,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                  "categoria": fila["categoria"].get(),
                  "tipo": fila["tipo"].get(),
                  "especificacion": fila["especificacion"].get(),
+                 "color_modelo": fila["color_modelo"].get(),
                  "cantidad": fila["cantidad"].get(),
                  "unidad": fila["unidad"].get()}
                 for fila in canalizacion_materiales_items

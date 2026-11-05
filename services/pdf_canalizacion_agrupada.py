@@ -16,7 +16,7 @@ from views.levantamientos.catalogos_materiales_jerarquicos import (
 )
 
 TITULO_CANALIZACION = "Canalización, cableado y materiales"
-ENCABEZADOS_CANALIZACION = ("Material", "Tipo", "Tamaño / calibre", "Cantidad", "Unidad")
+ENCABEZADOS_CANALIZACION = ("Material", "Tipo", "Tamaño / calibre", "Color/Modelo", "Cantidad", "Unidad")
 
 
 def _texto(valor: Any) -> str:
@@ -87,6 +87,7 @@ def agrupar_partidas_canalizacion(partidas: Sequence[Mapping] | None) -> list[tu
             "Material": material,
             "Tipo": _valor(item, "tipo", "Tipo") or "Por definir",
             "Tamaño / calibre": _valor(item, "tamano_calibre_especificacion", "tamano", "calibre", "Especificación", "Tamaño/Calibre", "Tamaño / calibre") or "Por definir",
+            "Color/Modelo": _valor(item, "color_modelo", "Color/Modelo", "color", "modelo"),
             "Cantidad": cantidad or "-",
             "Unidad": unidad or "-",
         })

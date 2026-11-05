@@ -131,7 +131,8 @@ def partidas_desde_detalle_levantamiento(detalle) -> list[dict]:
                         concepto = " - ".join(filter(None, [text(item.get("familia")),
                                                             text(item.get("material") or item.get("categoria")),
                                                             text(item.get("tipo")), spec]))
-                        add(unidad=item.get("unidad"), cantidad=item.get("cantidad"), concepto=concepto, grupo="Materiales")
+                        add(unidad=item.get("unidad"), cantidad=item.get("cantidad"),
+                            modelo=item.get("color_modelo"), concepto=concepto, grupo="Materiales")
                     continue
                 if key_norm in {"equipos_principales", "equipos", "equipos_requeridos"} or "equipos_principales" in key_norm:
                     for item in value:
@@ -168,7 +169,7 @@ def partidas_desde_detalle_levantamiento(detalle) -> list[dict]:
                         if material and spec and spec.casefold() not in {"n/a", "no aplica"}:
                             concepto = f"{material} - {spec}"
                         grupo = "Misceláneos" if ("miscel" in key_norm or "consumible" in key_norm) else "Materiales"
-                        add(unidad=item.get("unidad"), cantidad=item.get("cantidad"), modelo=item.get("modelo"), marca=item.get("marca"), concepto=concepto, grupo=grupo)
+                        add(unidad=item.get("unidad"), cantidad=item.get("cantidad"), modelo=item.get("color_modelo") or item.get("modelo"), marca=item.get("marca"), concepto=concepto, grupo=grupo)
                 walk(value)
 
     walk(detalle)

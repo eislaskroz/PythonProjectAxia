@@ -55,7 +55,7 @@ def test_lev_cat_maestro_directo_tres_secciones_sin_botones_viejos():
     assert 'Buscar equipo AXIA' not in view
     assert 'Buscar material AXIA' not in view
     assert 'selector_producto_axia' not in view
-    assert '"Categoría", "Material", "Tipo", "Tamaño / calibre / especificación"' in view
+    assert '"Categoría", "Material", "Tipo", "Tamaño/calibre", "Color/Modelo"' in view
     assert 'correlacionador_almacen.canalizacion(' in view
     assert 'correlacionador_almacen.equipo(' in view
     assert 'correlacionador_almacen.material(' in view

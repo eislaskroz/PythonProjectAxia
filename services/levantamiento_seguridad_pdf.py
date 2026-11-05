@@ -780,7 +780,7 @@ def generar_pdf_seguridad_instalacion(
             filas = [[p[columna] for columna in ENCABEZADOS_CANALIZACION] for p in partidas]
             story.append(_section_matrix_table(
                 familia, ENCABEZADOS_CANALIZACION, filas,
-                [1.40*inch, 2.05*inch, 1.65*inch, .75*inch, 1.05*inch],
+                [1.20*inch, 1.60*inch, 1.38*inch, 1.10*inch, .64*inch, .98*inch],
                 normal, header,
             ))
             story.append(Spacer(1, 4))
@@ -1529,7 +1529,7 @@ def generar_pdf_levantamiento_maestro(
             filas = [[p[columna] for columna in ENCABEZADOS_CANALIZACION] for p in partidas]
             story.append(_section_matrix_table(
                 familia, ENCABEZADOS_CANALIZACION, filas,
-                [1.40*inch, 2.05*inch, 1.65*inch, .75*inch, 1.05*inch], normal, header,
+                [1.20*inch, 1.60*inch, 1.38*inch, 1.10*inch, .64*inch, .98*inch], normal, header,
             ))
             story.append(Spacer(1, 4))
 

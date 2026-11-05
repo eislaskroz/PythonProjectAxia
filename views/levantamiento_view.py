@@ -2970,6 +2970,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 "especialidad_uso": uso_de_material(categoria),
                 "tipo": tipo,
                 "tamano_calibre_especificacion": item["especificacion"].get().strip(),
+                "color_modelo": item["color_modelo"].get().strip(),
                 "cantidad": cantidad,
                 "unidad": unidad_forzada_canalizacion(categoria, item["unidad"].get()),
             }
@@ -3047,6 +3048,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             linea = f"- {fila.get('familia', '')} / {fila['categoria']}: {fila['tipo']}"
             if extra and extra not in ("No aplica", "Por definir"):
                 linea += f" | {extra}"
+            if fila.get("color_modelo"):
+                linea += f" | Color/Modelo: {fila['color_modelo']}"
             linea += f" | {fila['cantidad']} {fila['unidad']}"
             lineas.append(linea)
         return "\n".join(lineas)
@@ -3055,19 +3058,19 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         seccion_canalizacion_dinamica = ctk.CTkFrame(form_body, fg_color="#F7F9FC", corner_radius=14, border_width=1, border_color="#DCE5EF")
         _fondo_seccion(seccion_canalizacion_dinamica)
         seccion_canalizacion_dinamica.grid(row=fila_textos, column=0, columnspan=5, sticky="ew", pady=(2, 5))
-        for col, peso in enumerate((3, 2, 3, 3, 1, 2, 1, 1)):
+        for col, peso in enumerate((3, 2, 3, 1.65, 1.6, 0.9, 1.25, 1.0, 0)):
             seccion_canalizacion_dinamica.grid_columnconfigure(col, weight=peso)
         ctk.CTkLabel(seccion_canalizacion_dinamica, text="🧱 Canalización, cableado y materiales",
                      font=FORM_SECTION_FONT, text_color=TEXT_PRIMARY).grid(
-            row=0, column=0, columnspan=8, sticky="w", padx=7, pady=(5, 1))
+            row=0, column=0, columnspan=9, sticky="w", padx=7, pady=(5, 1))
         ctk.CTkLabel(seccion_canalizacion_dinamica,
                      text="Selecciona la categoría y el material; después su tipo, medida, cantidad y unidad.",
                      font=FORM_FIELD_FONT, text_color=TEXT_SECONDARY).grid(
-            row=1, column=0, columnspan=8, sticky="w", padx=7, pady=(0, 4))
+            row=1, column=0, columnspan=9, sticky="w", padx=7, pady=(0, 4))
         ctk.CTkLabel(seccion_canalizacion_dinamica, text="¿Se requiere?", font=FORM_TABLE_HEADER_FONT).grid(row=2, column=0, sticky="w", padx=5)
         combo_requiere = NativeComboBox(seccion_canalizacion_dinamica, variable=var_requiere_canalizacion, values=["Sí", "No"], width=120, height=31)
         combo_requiere.grid(row=3, column=0, sticky="w", padx=5, pady=(0,4))
-        for col, encabezado in enumerate(("Categoría", "Material", "Tipo", "Tamaño / calibre / especificación", "Cantidad", "Unidad", "Aproximado", "Acción")):
+        for col, encabezado in enumerate(("Categoría", "Material", "Tipo", "Tamaño/calibre", "Color/Modelo", "Cantidad", "Unidad", "Aproximado", "Acción")):
             ctk.CTkLabel(seccion_canalizacion_dinamica, text=encabezado, font=FORM_TABLE_HEADER_FONT, text_color=TEXT_PRIMARY).grid(row=4, column=col, sticky="w", padx=5, pady=(0,2))
 
         def agregar_partida_canalizacion(categoria_inicial="Tubo"):
@@ -3077,6 +3080,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             var_categoria = ctk.StringVar(value=material_inicial)  # Identificador histórico del material
             var_tipo_item = ctk.StringVar()
             var_especificacion = ctk.StringVar()
+            var_color_modelo = ctk.StringVar()
             var_cantidad_item = ctk.StringVar()
             var_unidad_item = ctk.StringVar(value=unidad_inicial_material(material_inicial))
             combo_familia = NativeComboBox(seccion_canalizacion_dinamica, variable=var_familia,
@@ -3085,22 +3089,24 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                                             values=materiales_de_familia(var_familia.get()), width=175, height=31)
             combo_tipo = NativeComboBox(seccion_canalizacion_dinamica, variable=var_tipo_item, values=[], width=255, height=31)
             combo_especificacion = NativeComboBox(seccion_canalizacion_dinamica, variable=var_especificacion,
-                                                  values=[], width=215, height=31)
+                                                  values=[], width=143, height=31)
+            entrada_color_modelo = AxiaEntry(seccion_canalizacion_dinamica, textvariable=var_color_modelo,
+                                            width=130, height=31, placeholder_text="Color o modelo")
             entrada_cantidad = AxiaEntry(seccion_canalizacion_dinamica, textvariable=var_cantidad_item,
-                                         width=85, height=31, placeholder_text="Ej. 2")
+                                         width=65, height=31, placeholder_text="Ej. 2")
             aplicar_mascara_numerica(entrada_cantidad, var_cantidad_item, NUMBER)
             combo_unidad = NativeComboBox(seccion_canalizacion_dinamica, variable=var_unidad_item,
-                                          values=unidades_de_material(material_inicial), width=120, height=31)
+                                          values=unidades_de_material(material_inicial), width=102, height=31)
             lbl_aproximado = ctk.CTkLabel(seccion_canalizacion_dinamica, text="—", font=FORM_FIELD_FONT,
                                          text_color="#15803D", anchor="w")
             widgets = [combo_familia, combo_categoria, combo_tipo, combo_especificacion,
-                       entrada_cantidad, combo_unidad]
+                       entrada_color_modelo, entrada_cantidad, combo_unidad]
             for col, widget in enumerate(widgets):
                 widget.grid(row=fila, column=col, sticky="ew", padx=5, pady=2)
-            lbl_aproximado.grid(row=fila, column=6, sticky="ew", padx=5, pady=2)
+            lbl_aproximado.grid(row=fila, column=7, sticky="ew", padx=5, pady=2)
             item = {"familia": var_familia, "categoria": var_categoria, "tipo": var_tipo_item,
-                    "especificacion": var_especificacion, "cantidad": var_cantidad_item,
-                    "unidad": var_unidad_item, "widgets": widgets, "unidad_widget": combo_unidad,
+                    "especificacion": var_especificacion, "color_modelo": var_color_modelo,
+                    "cantidad": var_cantidad_item, "unidad": var_unidad_item, "widgets": widgets, "unidad_widget": combo_unidad,
                     "aproximado_widget": lbl_aproximado}
 
             def actualizar_aproximado(*_):
@@ -3135,6 +3141,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                         # especificaciones de un conector con las de una tubería.
                         var_tipo_item.set("")
                         var_especificacion.set("")
+                        var_color_modelo.set("")
                         var_unidad_item.set(unidad_inicial_material(material))
                         ultimo_material = material
                     tipos = catalogo_tipos_por_categoria(material)
@@ -3170,7 +3177,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             var_unidad_item.trace_add("write", actualizar_aproximado)
             actualizar_catalogos()
             for variable in (var_familia, var_categoria, var_tipo_item, var_especificacion,
-                             var_cantidad_item, var_unidad_item):
+                             var_color_modelo, var_cantidad_item, var_unidad_item):
                 variable.trace_add("write", lambda *_: programar_actualizacion_estado_preview())
 
             def eliminar():
@@ -3182,9 +3189,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 canalizacion_materiales_items[:] = [x for x in canalizacion_materiales_items if x is not item]
                 programar_actualizacion_estado_preview()
 
-            btn_eliminar = ctk.CTkButton(seccion_canalizacion_dinamica, text="Eliminar", width=78,
-                                         height=31, fg_color="#DC2626", hover_color="#B91C1C", command=eliminar)
-            btn_eliminar.grid(row=fila, column=7, sticky="ew", padx=5, pady=2)
+            btn_eliminar = ctk.CTkButton(seccion_canalizacion_dinamica, text="✕", width=34,
+                                         height=30, corner_radius=11, font=("Arial", 17, "bold"),
+                                         fg_color="#DC2626", hover_color="#B91C1C", command=eliminar)
+            btn_eliminar.grid(row=fila, column=8, padx=3, pady=2)
             item["widgets"].append(btn_eliminar)
             canalizacion_materiales_items.append(item)
             try: programar_actualizacion_estado_preview()
@@ -5576,7 +5584,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 item = canalizacion_materiales_items[-1]
                 item["familia"].set(familia_de_partida(fila))
                 item["categoria"].set(categoria_guardada)
-                for k, destino in (("tipo","tipo"),("tamano_calibre_especificacion","especificacion"),("cantidad","cantidad"),("unidad","unidad")):
+                for k, destino in (("tipo","tipo"),("tamano_calibre_especificacion","especificacion"),
+                                   ("color_modelo","color_modelo"),("cantidad","cantidad"),("unidad","unidad")):
                     if k in fila and destino in item:
                         valor = fila.get(k) or ""
                         if k == "tipo":

@@ -9,7 +9,7 @@ from services.pdf_canalizacion_agrupada import (
 
 def _ejemplo():
     return [
-        {"familia": "Conductores y Canalización", "material": "Tubo", "tipo": "EMT", "tamano_calibre_especificacion": '1/2"', "cantidad": "2", "unidad": "Pieza(s)"},
+        {"familia": "Conductores y Canalización", "material": "Tubo", "tipo": "EMT", "tamano_calibre_especificacion": '1/2"', "color_modelo": "Gris / ZP-10", "cantidad": "2", "unidad": "Pieza(s)"},
         {"familia": "Fijación y Soporte", "material": "Abrazadera", "tipo": "Para Viga", "tamano_calibre_especificacion": '3/4"', "cantidad": "5", "unidad": "Pieza(s)"},
         {"familia": "Conductores y Canalización", "material": "Cable", "tipo": "UTP Cat6", "tamano_calibre_especificacion": "23 AWG", "cantidad": "25", "unidad": "Metro(s)"},
     ]
@@ -20,6 +20,7 @@ def test_categorias_unicas_y_partidas_conservadas():
     assert [category for category, _ in groups] == ["Conductores y Canalización", "Fijación y Soporte"]
     assert [row["Material"] for row in groups[0][1]] == ["Tubo", "Cable"]
     assert groups[0][1][0]["Cantidad"] == "2"
+    assert groups[0][1][0]["Color/Modelo"] == "Gris / ZP-10"
     assert list(groups[0][1][0]) == list(ENCABEZADOS_CANALIZACION)
     assert "Aproximado" not in groups[0][1][0]
     assert groups[1][1][0]["Tipo"] == "Para Viga"
@@ -66,6 +67,7 @@ def test_pdf_levantamiento_grupos(tmp_path: Path):
     assert "CONDUCTORES Y CANALIZACIÓN" in texto.upper()
     assert "FIJACIÓN Y SOPORTE" in texto.upper()
     assert "Para Viga" in texto
+    assert "Gris / ZP-10" in texto
     assert "Aproximado" not in texto
     assert "6 metros" not in texto
 
@@ -77,6 +79,7 @@ def test_pdf_obra_civil_grupos(tmp_path: Path):
     archivo = tmp_path / "demo-obc.pdf"
     filas = [{"Categoría": p["familia"], "Material": p["material"], "Tipo": p["tipo"],
               "Especificación": p["tamano_calibre_especificacion"],
+              "Color/Modelo": p.get("color_modelo", ""),
               "Cantidad": p["cantidad"], "Unidad": p["unidad"]} for p in _ejemplo()]
     generado = generar_pdf_preview(
         "Obra Civil", {"Folio OBC": "OBC-DEMO", "Cliente": "Prueba"},
@@ -100,7 +103,7 @@ def test_pdf_no_imprime_aproximado_historico():
     ]
     grupos = agrupar_partidas_canalizacion(filas)
     assert len(grupos) == 2
-    assert list(ENCABEZADOS_CANALIZACION) == ["Material", "Tipo", "Tamaño / calibre", "Cantidad", "Unidad"]
+    assert list(ENCABEZADOS_CANALIZACION) == ["Material", "Tipo", "Tamaño / calibre", "Color/Modelo", "Cantidad", "Unidad"]
     for _, partidas in grupos:
         for partida in partidas:
             assert "Aproximado" not in partida
