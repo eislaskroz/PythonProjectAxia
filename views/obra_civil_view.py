@@ -35,6 +35,7 @@ from services.usuarios_service import (
     obtener_tecnicos_responsables,
 )
 from services.movimientos_service import registrar_movimiento
+from services.recursos_epp import EPP_BASICO, personas_para_epp
 from services.materiales_catalogo_service import obtener_materiales_por_especialidad, UNIDADES_MATERIAL
 from services.equipos_catalogo_service import (
     MARCAS_COMUNES, obtener_nombres_familias, obtener_subfamilias,
@@ -578,6 +579,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
     entry("¿Cuántas personas se consideran?", var_personas_considerar, 5, 1, "Ej. 4", colspan=1)
 
     # EPP común para Obra Civil. Se conserva dentro de obc_ejecucion_json para evitar cambios de esquema.
+    EPP_BASE = EPP_BASICO
     CATALOGO_EPP = [
         "Casco de seguridad", "Casco dieléctrico", "Lentes de seguridad", "Careta facial",
         "Guantes de protección mecánica", "Guantes de carnaza", "Guantes dieléctricos", "Guantes de polietileno",
@@ -603,9 +605,11 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
 
     def agregar_epp_obra(datos=None):
         datos = dict(datos or {})
+        automatico = bool(datos.get("automatico", False))
         fila_e = 1 + len(epp_items)
         ve = ctk.StringVar(value=str(datos.get("epp") or "Casco de seguridad"))
-        vc = ctk.StringVar(value=str(datos.get("cantidad") or "1"))
+        vc = ctk.StringVar(value=(str(personas_para_epp(var_personas_considerar.get())) if automatico
+                                  else str(datos.get("cantidad") or "1")))
         vo = ctk.StringVar(value=str(datos.get("observaciones") or ""))
         opciones = list(CATALOGO_EPP)
         if ve.get() not in opciones: opciones.append(ve.get())
@@ -616,7 +620,12 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
         ec.grid(row=fila_e,column=1,sticky="w",padx=3,pady=2)
         eo = AxiaEntry(epp_rows,textvariable=vo,height=ENTRY_H,corner_radius=0,placeholder_text="Talla, clase, norma o detalle especial")
         eo.grid(row=fila_e,column=2,sticky="ew",padx=3,pady=2)
-        item={"epp":ve,"cantidad":vc,"observaciones":vo,"widgets":[ce,ec,eo]}
+        item={"epp":ve,"cantidad":vc,"observaciones":vo,"automatico":automatico,"widgets":[ce,ec,eo]}
+        # Los cuatro EPP de dotación básica no se eliminan ni editan a mano;
+        # la cantidad sigue el total de personas estimadas del proyecto.
+        if automatico:
+            ce.configure(state="disabled")
+            ec.configure(state="disabled")
         def borrar():
             for w in item["widgets"]:
                 try:w.destroy()
@@ -627,26 +636,44 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
             except (NameError, UnboundLocalError):
                 pass
         b=ctk.CTkButton(epp_rows,text="Eliminar",width=78,height=ENTRY_H,fg_color="#DC2626",command=borrar)
+        if automatico:
+            b.configure(state="disabled")
         b.grid(row=fila_e,column=3,sticky="ew",padx=3,pady=2); item["widgets"].append(b); epp_items.append(item)
 
     btn_epp_add=ctk.CTkButton(epp_rows,text="➕ Agregar EPP",height=30,fg_color=PRIMARY,command=lambda:agregar_epp_obra(None))
     btn_epp_add.grid(row=999,column=0,columnspan=2,sticky="w",padx=3,pady=(3,4))
     def obtener_epp_obra():
         if var_requiere_epp.get() != "Sí": return []
-        return [{"epp":i["epp"].get().strip(),"cantidad":i["cantidad"].get().strip() or "1","observaciones":i["observaciones"].get().strip()} for i in epp_items if i["epp"].get().strip()]
+        cantidad_base = str(personas_para_epp(var_personas_considerar.get()))
+        return [{"epp":i["epp"].get().strip(),
+                 "cantidad":cantidad_base if i["automatico"] else (i["cantidad"].get().strip() or "1"),
+                 "observaciones":i["observaciones"].get().strip(),
+                 "automatico":i["automatico"]}
+                for i in epp_items if i["epp"].get().strip()]
+
+    def sincronizar_epp_basico_obra(*_):
+        cantidad = str(personas_para_epp(var_personas_considerar.get()))
+        for item_epp in epp_items:
+            if item_epp.get("automatico") and item_epp["cantidad"].get() != cantidad:
+                item_epp["cantidad"].set(cantidad)
+
+    def asegurar_epp_basico_obra():
+        for nombre in EPP_BASE:
+            if not any(i.get("automatico") and i["epp"].get() == nombre for i in epp_items):
+                agregar_epp_obra({"epp": nombre, "automatico": True})
+        sincronizar_epp_basico_obra()
+
     def vis_epp_obra(*_):
         if var_requiere_epp.get()=="Sí":
             epp_rows.grid()
-            if not epp_items:
-                agregar_epp_obra({"epp":"Casco de seguridad","cantidad":"1"})
-                agregar_epp_obra({"epp":"Botas de seguridad","cantidad":"1"})
-                agregar_epp_obra({"epp":"Chaleco reflejante / alta visibilidad","cantidad":"1"})
+            asegurar_epp_basico_obra()
         else: epp_rows.grid_remove()
         try:
             validar_preview()
         except (NameError, UnboundLocalError):
             pass
     var_requiere_epp.trace_add("write",vis_epp_obra); vis_epp_obra()
+    var_personas_considerar.trace_add("write",sincronizar_epp_basico_obra)
 
     entry("Fecha", var_fecha, 7, 0, "YYYY-MM-DD", date=True)
     option("¿Deseas agregar notas sobre el cliente?", var_desea_notas_cliente, SI_NO, 7, 1, required=False)
@@ -1268,8 +1295,8 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
     btn_eliminar_archivo.pack(side="left", padx=5, pady=7)
     var_desea_archivos_adjuntos.trace_add("write", actualizar_archivos)
 
-    seccion("Observaciones finales", 36)
-    txt_finales = textbox("Observaciones finales", 37, 0, 5, height=90)
+    seccion("Detalle del servicio", 36)
+    txt_finales = textbox("Descripción detallada del servicio", 37, 0, 5, height=90)
 
     def _restaurar_borrador_obra():
         if not isinstance(borrador, dict):
@@ -1369,9 +1396,22 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                 for widget in item.get("widgets", []):
                     widget.destroy()
             epp_items.clear()
+            basicos_restaurados = set()
             for fila in epp_guardados:
                 if isinstance(fila, dict):
-                    agregar_epp_obra(fila)
+                    datos_epp = dict(fila)
+                    nombre_epp = str(datos_epp.get("epp") or "").strip()
+                    # Borradores de versiones anteriores no incluían la marca
+                    # 'automatico': reconocer solo las partidas base sin notas.
+                    if ("automatico" not in datos_epp and nombre_epp in EPP_BASE
+                            and not str(datos_epp.get("observaciones") or "").strip()
+                            and nombre_epp not in basicos_restaurados):
+                        datos_epp["automatico"] = True
+                    if datos_epp.get("automatico"):
+                        basicos_restaurados.add(nombre_epp)
+                    agregar_epp_obra(datos_epp)
+            if var_requiere_epp.get() == "Sí":
+                asegurar_epp_basico_obra()
         misc_guardados = estado.get("materiales_miscelaneos")
         if isinstance(misc_guardados, list) and misc_guardados:
             while len(materiales_miscelaneos_items) < len(misc_guardados):
@@ -1532,7 +1572,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
             "Superficie adecuada": var_superficie_ok.get(), "Planos arquitectónicos": var_planos_arq.get(), "Requiere maquinaria": var_maquinaria.get(),
             "Permisos disponibles": var_permisos.get(), "Planos de acabados": var_planos_acabados.get(),
             "Generación de planos": var_generacion_planos.get(), "Etapa de acabados": var_etapa_acabados.get(), "Obra blanca": var_obra_blanca.get(),
-            "Observaciones iniciales": obtener_textbox(txt_observaciones_iniciales), "Observaciones finales": obtener_textbox(txt_finales),
+            "Observaciones iniciales": obtener_textbox(txt_observaciones_iniciales), "Descripción detallada del servicio": obtener_textbox(txt_finales),
             "Evidencia fotográfica": "Sí" if var_desea_evidencias.get() == "Sí" else "No",
             "¿Requiere EPP?": var_requiere_epp.get(),
             "Equipo de Protección Personal": "; ".join(f"{x['cantidad']} x {x['epp']}" + (f" ({x['observaciones']})" if x.get('observaciones') else "") for x in obtener_epp_obra()) if var_requiere_epp.get() == "Sí" else "No requerido",

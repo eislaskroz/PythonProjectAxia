@@ -1128,7 +1128,7 @@ def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, fi
             if isinstance(v, (list, dict)):
                 continue
             valor = str(v or "").strip()
-            if k in ("Descripción", "Observaciones") or len(valor) > 95:
+            if k in ("Descripción", "Observaciones", "Descripción detallada del servicio") or len(valor) > 95:
                 bloques_largos.append((k, valor))
             else:
                 pares_cortos.append((k, valor))

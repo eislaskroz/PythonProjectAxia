@@ -28,6 +28,7 @@ from ui.native_combobox import NativeComboBox
 from core.background_tasks import run_async
 from services.levantamiento_catalogo_axia import CatalogoAxiaLevantamientos
 from services.correlacion_levantamientos_almacen import CorrelacionadorAxia
+from services.recursos_epp import EPP_BASICO, partidas_epp_basico
 
 from ui.colors import (
     PRIMARY,
@@ -3734,16 +3735,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     )
     btn_agregar_epp.grid(row=1000, column=0, columnspan=2, sticky="w", padx=5, pady=(4, 5))
 
-    EPP_BASE = (
-        "Casco de seguridad", "Botas de seguridad",
-        "Chaleco reflejante / alta visibilidad", "Lentes de seguridad",
-    )
+    EPP_BASE = EPP_BASICO
 
     def obtener_epp_json():
         # El equipo básico se registra siempre, aunque no se requieran extras.
         if tipo_levantamiento == "Tecnología, Equipos y Periféricos":
             return []
-        resultado = [{"epp": nombre, "cantidad": "1", "observaciones": ""} for nombre in EPP_BASE]
+        resultado = partidas_epp_basico(var_personas_considerar_general.get())
         if var_requiere_epp.get() != "Sí":
             return resultado
         for item in epp_items:
@@ -3934,16 +3932,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         # En formularios especializados el resumen técnico se construye desde campos estructurados.
         # Se conserva un textbox oculto como respaldo para no romper funciones existentes.
         txt_descripcion = AxiaTextbox(form_body, height=1)
-        titulo_observaciones = (
-            "Descripción detallada del servicio"
-            if tipo_levantamiento == "Seguridad y Monitoreo" else "Observaciones"
-        )
+        titulo_observaciones = "Descripción detallada del servicio"
         txt_observaciones = campo_texto(titulo_observaciones, altura=100, fila=fila_textos)
         if tipo_levantamiento == "General":
             txt_observaciones.master.grid_remove()
     else:
         txt_descripcion = campo_texto("Descripción del levantamiento", altura=90, fila=fila_textos)
-        txt_observaciones = campo_texto("Observaciones", altura=100, fila=fila_textos + 1)
+        txt_observaciones = campo_texto("Descripción detallada del servicio", altura=100, fila=fila_textos + 1)
 
     # =================================================
     # ANOTACIONES TIPO PLANO - SECCIÓN COMÚN
@@ -5111,7 +5106,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "Herramientas": construir_resumen_herramientas(),
             "Archivos PDF / planos": "; ".join([Path(x).name for x in archivos_adjuntos_levantamiento] + [str(x.get("nombre") or x.get("storage_path") or "Archivo") for x in archivos_adjuntos_existentes]) or "No",
             "Descripción": "" if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else txt_descripcion.get("1.0", "end").strip(),
-            "Observaciones": txt_observaciones.get("1.0", "end").strip(),
+            "Descripción detallada del servicio": txt_observaciones.get("1.0", "end").strip(),
             "Detalle técnico": resumen,
             "__anotacion_plano_base64": var_anotacion_plano_base64.get().strip() if var_desea_anotacion_plano.get() == "Sí" else "",
         }
@@ -5267,7 +5262,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "Equipo de Protección Personal": construir_resumen_epp(),
             "Herramientas": construir_resumen_herramientas(),
             "Descripción": "" if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else txt_descripcion.get("1.0", "end").strip(),
-            "Observaciones": txt_observaciones.get("1.0", "end").strip(),
+            "Descripción detallada del servicio": txt_observaciones.get("1.0", "end").strip(),
             "Detalle técnico": resumen,
         }
 
