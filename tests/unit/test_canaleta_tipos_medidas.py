@@ -74,7 +74,7 @@ def test_unidad_y_conversion_original_siguen_iguales():
 @pytest.mark.parametrize("archivo", ["views/levantamiento_view.py", "views/obra_civil_view.py"])
 def test_ambas_vistas_actualizan_tipo_antes_que_medidas(archivo):
     codigo = Path(archivo).read_text(encoding="utf-8")
-    assert 'if categoria == "Canaleta": return list(TIPOS_CANALETA)' in codigo
-    assert "normalizar_opciones_canalizacion(" in codigo
+    assert 'normalizar_seleccion_material(' in codigo
+    assert 'materiales_de_familia(' in codigo
     assert "actualizando_catalogos = False" in codigo
     assert "trace_add(\"write\", actualizar_catalogos)" in codigo

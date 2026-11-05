@@ -17,6 +17,13 @@ from views.levantamientos.catalogos_canalizacion import (
     TIPOS_CONECTORES, TIPOS_COPLES, TIPOS_REGISTROS, TIPOS_TUBOS, TAMANOS_TUBOS,
     especificaciones_por_categoria, TIPOS_CANALETA, normalizar_opciones_canalizacion,
 )
+from views.levantamientos.catalogos_materiales_jerarquicos import (
+    familias_materiales, materiales_de_familia, familia_de_material,
+    familia_de_partida, normalizar_material, tipos_de_material,
+    especificaciones_de_material, unidades_de_material, unidad_inicial_material,
+    normalizar_seleccion_material, uso_de_material,
+)
+
 from views.levantamientos.canalizacion_aproximado import (
     texto_aproximado_canalizacion,
     unidad_fija_canalizacion,
@@ -979,54 +986,41 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
     # para conservar compatibilidad con el esquema actual de Supabase.
     seccion("Canalización, cableado y materiales", 26)
     panel_canalizacion = celda(27, 0, 5)
-    for col, peso in enumerate((2, 4, 3, 2, 2, 2, 1)):
+    for col, peso in enumerate((3, 2, 3, 3, 1, 2, 1, 1)):
         panel_canalizacion.grid_columnconfigure(col, weight=peso)
     ctk.CTkLabel(
         panel_canalizacion,
-        text="Agrega todas las partidas necesarias. Puedes registrar varios tipos, medidas y cantidades.",
+        text="Selecciona categoría y material, después el tipo, medida y cantidad.",
         font=SMALL_FONT, text_color=TEXT_SECONDARY,
-    ).grid(row=0, column=0, columnspan=7, sticky="w", padx=3, pady=(0, 6))
+    ).grid(row=0, column=0, columnspan=8, sticky="w", padx=3, pady=(0, 6))
     ctk.CTkLabel(panel_canalizacion, text="¿Se requiere?", font=("Montserrat", 11)).grid(row=1, column=0, sticky="w", padx=3)
-    combo_requiere_canalizacion = NativeComboBox(panel_canalizacion, variable=var_requiere_canalizacion, values=["Sí", "No"], width=120, height=31)
+    combo_requiere_canalizacion = NativeComboBox(panel_canalizacion, variable=var_requiere_canalizacion,
+                                                values=["Sí", "No"], width=120, height=31)
     combo_requiere_canalizacion.grid(row=2, column=0, sticky="w", padx=3, pady=(0, 5))
-    for col, encabezado in enumerate(("Categoría", "Tipo", "Tamaño / calibre / especificación", "Cantidad", "Unidad", "Aproximado", "Acción")):
-        ctk.CTkLabel(panel_canalizacion, text=encabezado, font=("Montserrat", 11), text_color=TEXT_PRIMARY).grid(row=3, column=col, sticky="w", padx=3, pady=(0, 2))
-
-    categorias_canalizacion = ["Tubo", "Cople", "Registro", "Conectores", "Abrazadera", "Tapas", "Codos", "Canaleta", "Cable"]
-
-    def catalogo_tipos_canalizacion(categoria):
-        if categoria == "Tubo": return list(TIPOS_TUBOS)
-        if categoria == "Cople": return list(TIPOS_COPLES)
-        if categoria == "Registro": return list(TIPOS_REGISTROS)
-        if categoria == "Conector": return list(TIPOS_CONECTORES)
-        if categoria == "Abrazadera": return list(TIPOS_ABRAZADERAS)
-        if categoria in ("Conector", "Conectores"): return list(TIPOS_CONECTORES)
-        if categoria == "Codos": return ["45°", "90°", "Interior", "Exterior", "Plano"]
-        if categoria == "Tapas": return ["Ciega", "Final", "Unión", "Para contacto", "Para datos"]
-        if categoria == "Canaleta": return list(TIPOS_CANALETA)
-        if categoria == "Canalización": return list(TIPOS_CANALIZACION)
-        if categoria == "Cable": return list(TIPOS_CABLE_DATOS_CONTROL)
-        return ["Otro"]
-
-    def catalogo_especificacion_canalizacion(categoria, tipo=""):
-        return especificaciones_por_categoria(categoria, tipo)
+    for col, encabezado in enumerate(("Categoría", "Material", "Tipo", "Tamaño / calibre / especificación",
+                                     "Cantidad", "Unidad", "Aproximado", "Acción")):
+        ctk.CTkLabel(panel_canalizacion, text=encabezado, font=("Montserrat", 11),
+                     text_color=TEXT_PRIMARY).grid(row=3, column=col, sticky="w", padx=3, pady=(0, 2))
 
     def obtener_canalizacion_materiales_obra():
         if var_requiere_canalizacion.get() == "No":
             return []
         filas = []
         for item in canalizacion_materiales_items:
-            categoria = item["categoria"].get().strip()
+            material = item["categoria"].get().strip()
             tipo = item["tipo"].get().strip()
             cantidad = item["cantidad"].get().strip()
-            if not (categoria or tipo or cantidad):
+            if not cantidad:
                 continue
             filas.append({
-                "categoria": categoria,
+                "categoria": material,  # Compatibilidad con datos históricos.
+                "familia": item["familia"].get().strip(),
+                "material": material,
+                "especialidad_uso": uso_de_material(material),
                 "tipo": tipo,
                 "tamano_calibre_especificacion": item["especificacion"].get().strip(),
                 "cantidad": cantidad,
-                "unidad": unidad_forzada_canalizacion(categoria, item["unidad"].get()),
+                "unidad": unidad_forzada_canalizacion(material, item["unidad"].get()),
             })
         return filas
 
@@ -1051,63 +1045,91 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
 
     def agregar_partida_canalizacion_obra(categoria_inicial="Tubo"):
         fila = 4 + len(canalizacion_materiales_items)
-        vcategoria = ctk.StringVar(value=categoria_inicial)
+        material_inicial = normalizar_material(categoria_inicial)
+        vfamilia = ctk.StringVar(value=familia_de_material(material_inicial))
+        vcategoria = ctk.StringVar(value=material_inicial)
         vtipo = ctk.StringVar()
         vespecificacion = ctk.StringVar()
         vcantidad = ctk.StringVar()
-        vunidad = ctk.StringVar(value="Pieza(s)" if unidad_fija_canalizacion(categoria_inicial) else ("Metro(s)" if categoria_inicial in ("Canalización", "Cable") else "Pieza(s)"))
-        ocategoria = NativeComboBox(panel_canalizacion, variable=vcategoria, values=categorias_canalizacion, width=155, height=31)
-        otipo = NativeComboBox(panel_canalizacion, variable=vtipo, values=[], width=300, height=31)
-        oespecificacion = NativeComboBox(panel_canalizacion, variable=vespecificacion, values=[], width=225, height=31)
-        ecantidad = AxiaEntry(panel_canalizacion, textvariable=vcantidad, width=120, height=31, placeholder_text="Ej. 20")
+        vunidad = ctk.StringVar(value=unidad_inicial_material(material_inicial))
+        ofamilia = NativeComboBox(panel_canalizacion, variable=vfamilia, values=familias_materiales(), width=250, height=31)
+        ocategoria = NativeComboBox(panel_canalizacion, variable=vcategoria,
+                                    values=materiales_de_familia(vfamilia.get()), width=175, height=31)
+        otipo = NativeComboBox(panel_canalizacion, variable=vtipo, values=[], width=255, height=31)
+        oespecificacion = NativeComboBox(panel_canalizacion, variable=vespecificacion, values=[], width=215, height=31)
+        ecantidad = AxiaEntry(panel_canalizacion, textvariable=vcantidad, width=85, height=31, placeholder_text="Ej. 2")
         aplicar_mascara_numerica(ecantidad, vcantidad, NUMBER)
-        ounidad = NativeComboBox(panel_canalizacion, variable=vunidad, values=["Metro(s)", "Pieza(s)", "Caja(s)", "Rollo(s)", "Juego(s)"], width=125, height=31)
-        laproximado = ctk.CTkLabel(panel_canalizacion, text="—", font=SMALL_FONT, text_color="#15803D", anchor="w")
-        widgets = [ocategoria, otipo, oespecificacion, ecantidad, ounidad]
+        ounidad = NativeComboBox(panel_canalizacion, variable=vunidad,
+                                 values=unidades_de_material(material_inicial), width=120, height=31)
+        laproximado = ctk.CTkLabel(panel_canalizacion, text="—", font=SMALL_FONT,
+                                   text_color="#15803D", anchor="w")
+        widgets = [ofamilia, ocategoria, otipo, oespecificacion, ecantidad, ounidad]
         for col, widget in enumerate(widgets):
             widget.grid(row=fila, column=col, sticky="ew", padx=3, pady=2)
-        laproximado.grid(row=fila, column=5, sticky="ew", padx=3, pady=2)
-        item = {"categoria": vcategoria, "tipo": vtipo, "especificacion": vespecificacion, "cantidad": vcantidad, "unidad": vunidad, "widgets": widgets,
-                "unidad_widget": ounidad, "aproximado_widget": laproximado}
+        laproximado.grid(row=fila, column=6, sticky="ew", padx=3, pady=2)
+        item = {"familia": vfamilia, "categoria": vcategoria, "tipo": vtipo,
+                "especificacion": vespecificacion, "cantidad": vcantidad, "unidad": vunidad,
+                "widgets": widgets, "unidad_widget": ounidad, "aproximado_widget": laproximado}
 
         def actualizar_aproximado(*_):
-            if unidad_fija_canalizacion(vcategoria.get()) and vunidad.get() != "Pieza(s)":
+            material = vcategoria.get()
+            if unidad_fija_canalizacion(material) and vunidad.get() != "Pieza(s)":
                 vunidad.set("Pieza(s)")
                 return
             laproximado.configure(text=texto_aproximado_canalizacion(
-                vcategoria.get(), vcantidad.get(), vunidad.get()
+                material, vcantidad.get(), vunidad.get()
             ))
 
         actualizando_catalogos = False
+        ultimo_material = None
 
         def actualizar_catalogos(*_):
-            nonlocal actualizando_catalogos
+            nonlocal actualizando_catalogos, ultimo_material
             if actualizando_catalogos:
                 return
             actualizando_catalogos = True
             try:
-                categoria = vcategoria.get().strip()
-                tipos = catalogo_tipos_canalizacion(categoria)
-                tipo, especificacion, especificaciones = normalizar_opciones_canalizacion(
-                    categoria, vtipo.get(), vespecificacion.get(), tipos
+                familia = vfamilia.get().strip()
+                materiales = materiales_de_familia(familia)
+                material = normalizar_material(vcategoria.get())
+                if material not in materiales:
+                    material = materiales[0] if materiales else ""
+                ocategoria.configure(values=materiales)
+                if vcategoria.get() != material:
+                    vcategoria.set(material)
+                cambio_material = material != ultimo_material
+                if cambio_material:
+                    vtipo.set("")
+                    vespecificacion.set("")
+                    vunidad.set(unidad_inicial_material(material))
+                    ultimo_material = material
+                tipos = tipos_de_material(material, "Obra Civil")
+                if not cambio_material and vtipo.get() and vtipo.get() not in tipos:
+                    tipos.append(vtipo.get())
+                tipo, especificacion, especificaciones = normalizar_seleccion_material(
+                    material, vtipo.get(), vespecificacion.get(), tipos
                 )
+                if not cambio_material and vespecificacion.get() and vespecificacion.get() not in especificaciones:
+                    especificaciones.append(vespecificacion.get())
+                    especificacion = vespecificacion.get()
                 otipo.configure(values=tipos)
                 if vtipo.get() != tipo:
                     vtipo.set(tipo)
                 oespecificacion.configure(values=especificaciones)
                 if vespecificacion.get() != especificacion:
                     vespecificacion.set(especificacion)
-                vunidad.set(unidad_forzada_canalizacion(categoria, vunidad.get()))
-                if categoria in ("Canalización", "Cable") and not vunidad.get():
-                    vunidad.set("Metro(s)")
-                elif categoria not in ("Tubo", "Canalización", "Canaleta", "Cable") and vunidad.get() == "Metro(s)":
-                    vunidad.set("Pieza(s)")
-                ounidad.configure(state="disabled" if unidad_fija_canalizacion(categoria) else "normal")
+                unidades = unidades_de_material(material)
+                if vunidad.get() and vunidad.get() not in unidades:
+                    unidades.append(vunidad.get())
+                ounidad.configure(values=unidades)
+                vunidad.set(unidad_forzada_canalizacion(material, vunidad.get()))
+                ounidad.configure(state="disabled" if unidad_fija_canalizacion(material) else "normal")
                 actualizar_aproximado()
                 validar_preview()
             finally:
                 actualizando_catalogos = False
 
+        vfamilia.trace_add("write", actualizar_catalogos)
         vcategoria.trace_add("write", actualizar_catalogos)
         vtipo.trace_add("write", actualizar_catalogos)
         vcantidad.trace_add("write", actualizar_aproximado)
@@ -1118,16 +1140,15 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
         def eliminar_partida():
             for widget in item.get("widgets", []):
                 try: widget.destroy()
-                except Exception: logger.debug("Excepción recuperable controlada.", exc_info=True)
-            try: btn_eliminar.destroy()
-            except Exception: logger.debug("Excepción recuperable controlada.", exc_info=True)
+                except Exception: logger.debug("No fue posible destruir un control.", exc_info=True)
             try: laproximado.destroy()
-            except Exception: logger.debug("Excepción recuperable controlada.", exc_info=True)
+            except Exception: logger.debug("No fue posible destruir la etiqueta.", exc_info=True)
             canalizacion_materiales_items[:] = [x for x in canalizacion_materiales_items if x is not item]
             validar_preview()
 
-        btn_eliminar = ctk.CTkButton(panel_canalizacion, text="Eliminar", width=78, height=31, fg_color="#DC2626", hover_color="#B91C1C", command=eliminar_partida)
-        btn_eliminar.grid(row=fila, column=6, sticky="ew", padx=3, pady=2)
+        btn_eliminar = ctk.CTkButton(panel_canalizacion, text="Eliminar", width=78, height=31,
+                                     fg_color="#DC2626", hover_color="#B91C1C", command=eliminar_partida)
+        btn_eliminar.grid(row=fila, column=7, sticky="ew", padx=3, pady=2)
         item["widgets"].append(btn_eliminar)
         canalizacion_materiales_items.append(item)
         validar_preview()
@@ -1432,12 +1453,13 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
         canal_guardados = estado.get("canalizacion_partidas")
         if isinstance(canal_guardados, list) and canal_guardados:
             while len(canalizacion_materiales_items) < len(canal_guardados):
-                categoria = canal_guardados[len(canalizacion_materiales_items)].get("categoria") or "Tubo"
-                agregar_partida_canalizacion_obra(categoria)
+                material = canal_guardados[len(canalizacion_materiales_items)].get("material") or canal_guardados[len(canalizacion_materiales_items)].get("categoria") or "Tubo"
+                agregar_partida_canalizacion_obra(material)
             for item, fila in zip(canalizacion_materiales_items, canal_guardados):
                 if not isinstance(fila, dict):
                     continue
-                item["categoria"].set(str(fila.get("categoria") or "Tubo"))
+                item["familia"].set(familia_de_partida(fila))
+                item["categoria"].set(normalizar_material(fila.get("material") or fila.get("categoria") or "Tubo"))
                 item["tipo"].set(str(fila.get("tipo") or ""))
                 item["especificacion"].set(str(fila.get("tamano_calibre_especificacion") or fila.get("especificacion") or ""))
                 item["cantidad"].set(str(fila.get("cantidad") or ""))
@@ -1612,7 +1634,8 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
 
     def seccion_canalizacion_pdf():
         return [{
-            "Categoría": m.get("categoria", ""), "Tipo": m.get("tipo", ""),
+            "Categoría": m.get("familia", ""), "Material": m.get("material") or m.get("categoria", ""),
+            "Tipo": m.get("tipo", ""),
             "Especificación": m.get("tamano_calibre_especificacion", ""),
             "Cantidad": m.get("cantidad", ""), "Unidad": m.get("unidad", ""),
         } for m in obtener_canalizacion_materiales_obra()]
@@ -1625,7 +1648,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
             ("Ejecución", ["Actividad", "Estado"], seccion_ejecucion_pdf()),
             ("Conceptos de obra", ["Tipo", "Partida", "Unidad", "Cantidad", "Concepto"], seccion_conceptos_obra_pdf()),
             ("Materiales misceláneos", ["Material", "Cantidad", "Unidad", "Especificación"], seccion_materiales_pdf()),
-            ("Canalización, cableado y materiales", ["Categoría", "Tipo", "Especificación", "Cantidad", "Unidad"], seccion_canalizacion_pdf()),
+            ("Canalización, cableado y materiales", ["Categoría", "Material", "Tipo", "Especificación", "Cantidad", "Unidad"], seccion_canalizacion_pdf()),
         ])
 
     def _capturar_datos_obra():
@@ -1856,7 +1879,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                 ("Ejecución", ["Actividad", "Estado"], seccion_ejecucion_pdf()),
                 ("Conceptos de obra", ["Tipo", "Partida", "Unidad", "Cantidad", "Concepto"], seccion_conceptos_obra_pdf()),
                 ("Materiales misceláneos", ["Material", "Cantidad", "Unidad", "Especificación"], seccion_materiales_pdf()),
-                ("Canalización, cableado y materiales", ["Categoría", "Tipo", "Especificación", "Cantidad", "Unidad"], seccion_canalizacion_pdf()),
+                ("Canalización, cableado y materiales", ["Categoría", "Material", "Tipo", "Especificación", "Cantidad", "Unidad"], seccion_canalizacion_pdf()),
             ])
             mensaje_pdf = f"\n\nPDF guardado en:\n{ruta_pdf}" if ruta_pdf else "\n\nNo se pudo guardar el PDF local."
         except Exception as error:
@@ -1919,7 +1942,8 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                 for fila in materiales_miscelaneos_items
             ],
             "canalizacion_partidas": [
-                {"categoria": fila["categoria"].get(),
+                {"familia": fila["familia"].get(), "material": fila["categoria"].get(),
+                 "categoria": fila["categoria"].get(),
                  "tipo": fila["tipo"].get(),
                  "especificacion": fila["especificacion"].get(),
                  "cantidad": fila["cantidad"].get(),

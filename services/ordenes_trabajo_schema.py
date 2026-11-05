@@ -128,7 +128,9 @@ def partidas_desde_detalle_levantamiento(detalle) -> list[dict]:
                 if key_norm in {"canalizacion_materiales", "canalizacion_cableado_materiales", "partidas_canalizacion"} or "canalizacion" in key_norm:
                     for item in value:
                         spec = text(item.get("tamano_calibre_especificacion") or item.get("tamano") or item.get("calibre") or item.get("especificacion"))
-                        concepto = " - ".join(filter(None, [text(item.get("categoria")), text(item.get("tipo")), spec]))
+                        concepto = " - ".join(filter(None, [text(item.get("familia")),
+                                                            text(item.get("material") or item.get("categoria")),
+                                                            text(item.get("tipo")), spec]))
                         add(unidad=item.get("unidad"), cantidad=item.get("cantidad"), concepto=concepto, grupo="Materiales")
                     continue
                 if key_norm in {"equipos_principales", "equipos", "equipos_requeridos"} or "equipos_principales" in key_norm:

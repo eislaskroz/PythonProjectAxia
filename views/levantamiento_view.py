@@ -196,6 +196,13 @@ from views.levantamientos.catalogos_canalizacion import (
     normalizar_tipo_canalizacion,
 )
 
+from views.levantamientos.catalogos_materiales_jerarquicos import (
+    familias_materiales, materiales_de_familia, familia_de_material,
+    familia_de_partida, normalizar_material, tipos_de_material,
+    especificaciones_de_material, unidades_de_material, unidad_inicial_material,
+    normalizar_seleccion_material, uso_de_material,
+)
+
 from views.levantamientos.form_definitions import (
     FORMULARIOS_DETALLADOS_EXTRA,
     TIPOS_LEVANTAMIENTO_ESPECIALIZADOS,
@@ -2929,32 +2936,11 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     seccion_canalizacion_dinamica = None
     var_requiere_canalizacion = ctk.StringVar(value="No" if tipo_levantamiento == "General" else "Sí")
 
-    def catalogo_tipos_por_categoria(categoria):
-        if categoria == "Tubo": return list(TIPOS_TUBOS)
-        if categoria == "Cople": return list(TIPOS_COPLES)
-        if categoria == "Registro": return list(TIPOS_REGISTROS)
-        if categoria == "Cajas": return list(TIPOS_CAJAS)
-        if categoria == "Conector": return list(TIPOS_CONECTORES)
-        if categoria == "Abrazadera": return list(TIPOS_ABRAZADERAS)
-        if categoria in ("Conector", "Conectores"): return list(TIPOS_CONECTORES)
-        if categoria == "Codos": return ["45°", "90°", "Interior", "Exterior", "Plano"]
-        if categoria == "Tapas": return ["Ciega", "Final", "Unión", "Para contacto", "Para datos"]
-        if categoria == "Canaleta": return list(TIPOS_CANALETA)
-        if categoria == "Canalización": return list(TIPOS_CANALIZACION)
-        if categoria == "Cable":
-            if tipo_levantamiento == "General": return list(dict.fromkeys(TIPOS_CABLE_DATOS_CONTROL + TIPOS_CABLE_EXTERIOR + TIPOS_CABLE_ELECTRICO))
-            if tipo_levantamiento == "Electricidad": return list(TIPOS_CABLE_ELECTRICO)
-            if tipo_levantamiento == "Enlaces Inalámbricos": return list(dict.fromkeys(TIPOS_CABLE_EXTERIOR + TIPOS_CABLE_ELECTRICO))
-            return list(dict.fromkeys(TIPOS_CABLE_DATOS_CONTROL + TIPOS_CABLE_ELECTRICO))
-        if categoria == "Jack RJ45": return ["Cat5e", "Cat6", "Cat6A", "Blindado"]
-        if categoria == "Plug RJ45": return ["Cat5e", "Cat6", "Cat6A", "Blindado"]
-        if categoria == "Faceplate": return ["1 puerto", "2 puertos", "4 puertos", "Caja de superficie"]
-        if categoria == "Patch cord": return ["Cat5e - 1 m", "Cat5e - 2 m", "Cat6 - 1 m", "Cat6 - 2 m", "Cat6A", "Fibra óptica"]
-        if categoria == "Patch panel": return ["12 puertos Cat6", "24 puertos Cat6", "48 puertos Cat6", "Cat6A", "Fibra óptica"]
-        return ["Otro"]
+    def catalogo_tipos_por_categoria(material):
+        return tipos_de_material(material, tipo_levantamiento)
 
-    def catalogo_especificacion_por_categoria(categoria, tipo=""):
-        return especificaciones_por_categoria(categoria, tipo)
+    def catalogo_especificacion_por_categoria(material, tipo=""):
+        return especificaciones_de_material(material, tipo)
 
     def obtener_canalizacion_materiales_json():
         # En Seguridad y Monitoreo la canalización es parte exclusiva de
@@ -2977,7 +2963,11 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             if not cantidad:
                 continue
             fila_guardada = {
+                # Campo histórico: categoria = material. Nuevos: familia y material.
                 "categoria": categoria,
+                "familia": item["familia"].get().strip(),
+                "material": categoria,
+                "especialidad_uso": uso_de_material(categoria),
                 "tipo": tipo,
                 "tamano_calibre_especificacion": item["especificacion"].get().strip(),
                 "cantidad": cantidad,
@@ -3054,7 +3044,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         lineas = ["CANALIZACIÓN, CABLEADO Y MATERIALES:"]
         for fila in filas:
             extra = fila.get("tamano_calibre_especificacion")
-            linea = f"- {fila['categoria']}: {fila['tipo']}"
+            linea = f"- {fila.get('familia', '')} / {fila['categoria']}: {fila['tipo']}"
             if extra and extra not in ("No aplica", "Por definir"):
                 linea += f" | {extra}"
             linea += f" | {fila['cantidad']} {fila['unidad']}"
@@ -3065,116 +3055,140 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         seccion_canalizacion_dinamica = ctk.CTkFrame(form_body, fg_color="#F7F9FC", corner_radius=14, border_width=1, border_color="#DCE5EF")
         _fondo_seccion(seccion_canalizacion_dinamica)
         seccion_canalizacion_dinamica.grid(row=fila_textos, column=0, columnspan=5, sticky="ew", pady=(2, 5))
-        for col, peso in enumerate((2, 4, 3, 2, 2, 2, 1)):
+        for col, peso in enumerate((3, 2, 3, 3, 1, 2, 1, 1)):
             seccion_canalizacion_dinamica.grid_columnconfigure(col, weight=peso)
         ctk.CTkLabel(seccion_canalizacion_dinamica, text="🧱 Canalización, cableado y materiales",
                      font=FORM_SECTION_FONT, text_color=TEXT_PRIMARY).grid(
-            row=0, column=0, columnspan=7, sticky="w", padx=7, pady=(5, 1))
+            row=0, column=0, columnspan=8, sticky="w", padx=7, pady=(5, 1))
         ctk.CTkLabel(seccion_canalizacion_dinamica,
-                     text="Agrega todas las partidas necesarias. Puedes registrar varios tipos, medidas y cantidades.",
+                     text="Selecciona la categoría y el material; después su tipo, medida, cantidad y unidad.",
                      font=FORM_FIELD_FONT, text_color=TEXT_SECONDARY).grid(
-            row=1, column=0, columnspan=7, sticky="w", padx=7, pady=(0, 4))
+            row=1, column=0, columnspan=8, sticky="w", padx=7, pady=(0, 4))
         ctk.CTkLabel(seccion_canalizacion_dinamica, text="¿Se requiere?", font=FORM_TABLE_HEADER_FONT).grid(row=2, column=0, sticky="w", padx=5)
         combo_requiere = NativeComboBox(seccion_canalizacion_dinamica, variable=var_requiere_canalizacion, values=["Sí", "No"], width=120, height=31)
         combo_requiere.grid(row=3, column=0, sticky="w", padx=5, pady=(0,4))
-        for col, encabezado in enumerate(("Categoría", "Tipo", "Tamaño / calibre / especificación", "Cantidad", "Unidad", "Aproximado", "Acción")):
+        for col, encabezado in enumerate(("Categoría", "Material", "Tipo", "Tamaño / calibre / especificación", "Cantidad", "Unidad", "Aproximado", "Acción")):
             ctk.CTkLabel(seccion_canalizacion_dinamica, text=encabezado, font=FORM_TABLE_HEADER_FONT, text_color=TEXT_PRIMARY).grid(row=4, column=col, sticky="w", padx=5, pady=(0,2))
-
-        categorias = ["Tubo", "Cople", "Registro", "Cajas", "Conectores", "Abrazadera", "Tapas", "Codos", "Canaleta", "Cable"]
-        if tipo_levantamiento in ("Redes Voz y Datos", "General"):
-            categorias += ["Jack RJ45", "Plug RJ45", "Faceplate", "Patch cord", "Patch panel"]
 
         def agregar_partida_canalizacion(categoria_inicial="Tubo"):
             fila = 5 + len(canalizacion_materiales_items)
-            var_categoria = ctk.StringVar(value=categoria_inicial)
+            material_inicial = normalizar_material(categoria_inicial)
+            var_familia = ctk.StringVar(value=familia_de_material(material_inicial))
+            var_categoria = ctk.StringVar(value=material_inicial)  # Identificador histórico del material
             var_tipo_item = ctk.StringVar()
             var_especificacion = ctk.StringVar()
             var_cantidad_item = ctk.StringVar()
-            var_unidad_item = ctk.StringVar(value="Pieza(s)" if unidad_fija_canalizacion(categoria_inicial) else ("Metro(s)" if categoria_inicial in ("Canalización", "Cable") else "Pieza(s)"))
-            combo_categoria = NativeComboBox(seccion_canalizacion_dinamica, variable=var_categoria, values=categorias, width=155, height=31)
-            combo_tipo = NativeComboBox(seccion_canalizacion_dinamica, variable=var_tipo_item, values=[], width=300, height=31)
-            combo_especificacion = NativeComboBox(seccion_canalizacion_dinamica, variable=var_especificacion, values=[], width=225, height=31)
-            entrada_cantidad = AxiaEntry(seccion_canalizacion_dinamica, textvariable=var_cantidad_item, width=120, height=31, placeholder_text="Ej. 20")
+            var_unidad_item = ctk.StringVar(value=unidad_inicial_material(material_inicial))
+            combo_familia = NativeComboBox(seccion_canalizacion_dinamica, variable=var_familia,
+                                          values=familias_materiales(), width=250, height=31)
+            combo_categoria = NativeComboBox(seccion_canalizacion_dinamica, variable=var_categoria,
+                                            values=materiales_de_familia(var_familia.get()), width=175, height=31)
+            combo_tipo = NativeComboBox(seccion_canalizacion_dinamica, variable=var_tipo_item, values=[], width=255, height=31)
+            combo_especificacion = NativeComboBox(seccion_canalizacion_dinamica, variable=var_especificacion,
+                                                  values=[], width=215, height=31)
+            entrada_cantidad = AxiaEntry(seccion_canalizacion_dinamica, textvariable=var_cantidad_item,
+                                         width=85, height=31, placeholder_text="Ej. 2")
             aplicar_mascara_numerica(entrada_cantidad, var_cantidad_item, NUMBER)
             combo_unidad = NativeComboBox(seccion_canalizacion_dinamica, variable=var_unidad_item,
-                                          values=["Metro(s)", "Pieza(s)", "Caja(s)", "Rollo(s)", "Juego(s)"], width=125, height=31)
-            lbl_aproximado = ctk.CTkLabel(
-                seccion_canalizacion_dinamica, text="—", font=FORM_FIELD_FONT,
-                text_color="#15803D", anchor="w"
-            )
-            widgets = [combo_categoria, combo_tipo, combo_especificacion, entrada_cantidad, combo_unidad]
+                                          values=unidades_de_material(material_inicial), width=120, height=31)
+            lbl_aproximado = ctk.CTkLabel(seccion_canalizacion_dinamica, text="—", font=FORM_FIELD_FONT,
+                                         text_color="#15803D", anchor="w")
+            widgets = [combo_familia, combo_categoria, combo_tipo, combo_especificacion,
+                       entrada_cantidad, combo_unidad]
             for col, widget in enumerate(widgets):
                 widget.grid(row=fila, column=col, sticky="ew", padx=5, pady=2)
-            lbl_aproximado.grid(row=fila, column=5, sticky="ew", padx=5, pady=2)
-            item = {"categoria": var_categoria, "tipo": var_tipo_item, "especificacion": var_especificacion,
-                    "cantidad": var_cantidad_item, "unidad": var_unidad_item, "widgets": widgets,
-                    "unidad_widget": combo_unidad, "aproximado_widget": lbl_aproximado}
+            lbl_aproximado.grid(row=fila, column=6, sticky="ew", padx=5, pady=2)
+            item = {"familia": var_familia, "categoria": var_categoria, "tipo": var_tipo_item,
+                    "especificacion": var_especificacion, "cantidad": var_cantidad_item,
+                    "unidad": var_unidad_item, "widgets": widgets, "unidad_widget": combo_unidad,
+                    "aproximado_widget": lbl_aproximado}
 
             def actualizar_aproximado(*_):
-                if unidad_fija_canalizacion(var_categoria.get()) and var_unidad_item.get() != "Pieza(s)":
+                material = var_categoria.get()
+                if unidad_fija_canalizacion(material) and var_unidad_item.get() != "Pieza(s)":
                     var_unidad_item.set("Pieza(s)")
                     return
                 lbl_aproximado.configure(text=texto_aproximado_canalizacion(
-                    var_categoria.get(), var_cantidad_item.get(), var_unidad_item.get()
+                    material, var_cantidad_item.get(), var_unidad_item.get()
                 ))
 
             actualizando_catalogos = False
+            ultimo_material = None
 
             def actualizar_catalogos(*_):
-                nonlocal actualizando_catalogos
+                nonlocal actualizando_catalogos, ultimo_material
                 if actualizando_catalogos:
                     return
                 actualizando_catalogos = True
                 try:
-                    categoria = var_categoria.get().strip()
-                    tipos = catalogo_tipos_por_categoria(categoria)
-                    tipo, especificacion, especificaciones = normalizar_opciones_canalizacion(
-                        categoria, var_tipo_item.get(), var_especificacion.get(), tipos
+                    familia = var_familia.get().strip()
+                    materiales = materiales_de_familia(familia)
+                    material = normalizar_material(var_categoria.get())
+                    if material not in materiales:
+                        material = materiales[0] if materiales else ""
+                    combo_categoria.configure(values=materiales)
+                    if var_categoria.get() != material:
+                        var_categoria.set(material)
+                    cambiado_material = material != ultimo_material
+                    if cambiado_material:
+                        # Limpiar el tipo y tamaño del material anterior; no mezclar
+                        # especificaciones de un conector con las de una tubería.
+                        var_tipo_item.set("")
+                        var_especificacion.set("")
+                        var_unidad_item.set(unidad_inicial_material(material))
+                        ultimo_material = material
+                    tipos = catalogo_tipos_por_categoria(material)
+                    # Preservar tipos históricos al cargar un registro anterior.
+                    if not cambiado_material and var_tipo_item.get() and var_tipo_item.get() not in tipos:
+                        tipos = tipos + [var_tipo_item.get()]
+                    tipo, especificacion, especificaciones = normalizar_seleccion_material(
+                        material, var_tipo_item.get(), var_especificacion.get(), tipos
                     )
+                    if not cambiado_material and var_especificacion.get() and var_especificacion.get() not in especificaciones:
+                        especificaciones = especificaciones + [var_especificacion.get()]
+                        especificacion = var_especificacion.get()
                     combo_tipo.configure(values=tipos)
                     if var_tipo_item.get() != tipo:
                         var_tipo_item.set(tipo)
                     combo_especificacion.configure(values=especificaciones)
                     if var_especificacion.get() != especificacion:
                         var_especificacion.set(especificacion)
-                    var_unidad_item.set(unidad_forzada_canalizacion(categoria, var_unidad_item.get()))
-                    if categoria in ("Canalización", "Cable") and not var_unidad_item.get():
-                        var_unidad_item.set("Metro(s)")
-                    elif categoria not in ("Tubo", "Canalización", "Canaleta", "Cable") and var_unidad_item.get() == "Metro(s)":
-                        var_unidad_item.set("Pieza(s)")
-                    combo_unidad.configure(state="disabled" if unidad_fija_canalizacion(categoria) else "normal")
+                    unidades = unidades_de_material(material)
+                    if var_unidad_item.get() and var_unidad_item.get() not in unidades:
+                        unidades.append(var_unidad_item.get())  # Compatibilidad con registros viejos
+                    combo_unidad.configure(values=unidades)
+                    var_unidad_item.set(unidad_forzada_canalizacion(material, var_unidad_item.get()))
+                    combo_unidad.configure(state="disabled" if unidad_fija_canalizacion(material) else "normal")
                     actualizar_aproximado()
                 finally:
                     actualizando_catalogos = False
+
+            var_familia.trace_add("write", actualizar_catalogos)
             var_categoria.trace_add("write", actualizar_catalogos)
             var_tipo_item.trace_add("write", actualizar_catalogos)
             var_cantidad_item.trace_add("write", actualizar_aproximado)
             var_unidad_item.trace_add("write", actualizar_aproximado)
             actualizar_catalogos()
-            for _variable_partida in (var_categoria, var_tipo_item, var_especificacion, var_cantidad_item, var_unidad_item):
-                _variable_partida.trace_add("write", lambda *_: programar_actualizacion_estado_preview())
+            for variable in (var_familia, var_categoria, var_tipo_item, var_especificacion,
+                             var_cantidad_item, var_unidad_item):
+                variable.trace_add("write", lambda *_: programar_actualizacion_estado_preview())
 
             def eliminar():
-                for w in item["widgets"]:
-                    try: w.destroy()
+                for widget in item["widgets"]:
+                    try: widget.destroy()
                     except Exception: pass
-                try: btn_eliminar.destroy()
-                except Exception: pass
                 try: lbl_aproximado.destroy()
                 except Exception: pass
                 canalizacion_materiales_items[:] = [x for x in canalizacion_materiales_items if x is not item]
                 programar_actualizacion_estado_preview()
-            btn_eliminar = ctk.CTkButton(seccion_canalizacion_dinamica, text="Eliminar", width=78, height=31,
-                                         fg_color="#DC2626", hover_color="#B91C1C", command=eliminar)
-            btn_eliminar.grid(row=fila, column=6, sticky="ew", padx=5, pady=2)
+
+            btn_eliminar = ctk.CTkButton(seccion_canalizacion_dinamica, text="Eliminar", width=78,
+                                         height=31, fg_color="#DC2626", hover_color="#B91C1C", command=eliminar)
+            btn_eliminar.grid(row=fila, column=7, sticky="ew", padx=5, pady=2)
             item["widgets"].append(btn_eliminar)
             canalizacion_materiales_items.append(item)
-            # Esta función también se ejecuta durante la construcción inicial,
-            # antes de declarar el programador de validación al pie de la vista.
-            try:
-                programar_actualizacion_estado_preview()
-            except NameError:
-                pass
+            try: programar_actualizacion_estado_preview()
+            except NameError: pass
 
         def actualizar_requiere_canalizacion(*_):
             habilitado = var_requiere_canalizacion.get() == "Sí"
@@ -5557,15 +5571,14 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             _filas_canal_guardadas = []
         for fila in _filas_canal_guardadas:
             try:
-                categoria_guardada = str(fila.get("categoria") or "Tubo")
-                categoria_guardada = {"Canalización": "Canaleta", "Conector": "Conectores"}.get(categoria_guardada, categoria_guardada)
+                categoria_guardada = normalizar_material(fila.get("material") or fila.get("categoria") or "Tubo")
                 agregar_partida_canalizacion(categoria_guardada)
                 item = canalizacion_materiales_items[-1]
-                for k, destino in (("categoria","categoria"),("tipo","tipo"),("tamano_calibre_especificacion","especificacion"),("cantidad","cantidad"),("unidad","unidad")):
+                item["familia"].set(familia_de_partida(fila))
+                item["categoria"].set(categoria_guardada)
+                for k, destino in (("tipo","tipo"),("tamano_calibre_especificacion","especificacion"),("cantidad","cantidad"),("unidad","unidad")):
                     if k in fila and destino in item:
                         valor = fila.get(k) or ""
-                        if k == "categoria":
-                            valor = {"Canalización": "Canaleta", "Conector": "Conectores"}.get(str(valor), valor)
                         if k == "tipo":
                             valor = normalizar_tipo_canalizacion(valor)
                         item[destino].set(str(valor))

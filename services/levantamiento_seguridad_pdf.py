@@ -774,7 +774,9 @@ def generar_pdf_seguridad_instalacion(
             if not isinstance(item, Mapping):
                 continue
             rows.append([
-                item.get("categoria"), item.get("tipo"), item.get("tamano_calibre_especificacion") or "",
+                ((f"{item.get('familia')} / {item.get('material') or item.get('categoria')}")
+                 if item.get("familia") else item.get("categoria")),
+                item.get("tipo"), item.get("tamano_calibre_especificacion") or "",
                 item.get("cantidad"), item.get("unidad")
             ])
         if rows:
@@ -1410,7 +1412,8 @@ def _canal_rows(detail: Mapping[str, Any]) -> list[list[Any]]:
                 if entries:
                     break
     return [[
-        x.get("categoria"), x.get("tipo"),
+        (f"{x.get('familia')} / {x.get('material') or x.get('categoria')}"
+         if x.get('familia') else x.get('categoria')), x.get("tipo"),
         x.get("tamano_calibre_especificacion") or x.get("tamano") or x.get("calibre") or "",
         x.get("cantidad"), x.get("unidad")
     ] for x in entries]
