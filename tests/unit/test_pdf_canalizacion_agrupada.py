@@ -20,7 +20,7 @@ def test_categorias_unicas_y_partidas_conservadas():
     assert [category for category, _ in groups] == ["Conductores y Canalización", "Fijación y Soporte"]
     assert [row["Material"] for row in groups[0][1]] == ["Tubo", "Cable"]
     assert groups[0][1][0]["Cantidad"] == "2"
-    assert groups[0][1][0]["Color/Modelo"] == "Gris / ZP-10"
+    assert groups[0][1][0]["Color/Modelo/Otros"] == "Gris / ZP-10"
     assert list(groups[0][1][0]) == list(ENCABEZADOS_CANALIZACION)
     assert "Aproximado" not in groups[0][1][0]
     assert groups[1][1][0]["Tipo"] == "Para Viga"
@@ -79,7 +79,7 @@ def test_pdf_obra_civil_grupos(tmp_path: Path):
     archivo = tmp_path / "demo-obc.pdf"
     filas = [{"Categoría": p["familia"], "Material": p["material"], "Tipo": p["tipo"],
               "Especificación": p["tamano_calibre_especificacion"],
-              "Color/Modelo": p.get("color_modelo", ""),
+              "Color/Modelo/Otros": p.get("color_modelo", ""),
               "Cantidad": p["cantidad"], "Unidad": p["unidad"]} for p in _ejemplo()]
     generado = generar_pdf_preview(
         "Obra Civil", {"Folio OBC": "OBC-DEMO", "Cliente": "Prueba"},
@@ -103,7 +103,7 @@ def test_pdf_no_imprime_aproximado_historico():
     ]
     grupos = agrupar_partidas_canalizacion(filas)
     assert len(grupos) == 2
-    assert list(ENCABEZADOS_CANALIZACION) == ["Material", "Tipo", "Tamaño / calibre", "Color/Modelo", "Cantidad", "Unidad"]
+    assert list(ENCABEZADOS_CANALIZACION) == ["Material", "Tipo", "Tamaño / calibre", "Color/Modelo/Otros", "Cantidad", "Unidad"]
     for _, partidas in grupos:
         for partida in partidas:
             assert "Aproximado" not in partida

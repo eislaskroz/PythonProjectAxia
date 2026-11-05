@@ -998,7 +998,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                                                 values=["Sí", "No"], width=120, height=31)
     combo_requiere_canalizacion.grid(row=2, column=0, sticky="w", padx=3, pady=(0, 5))
     for col, encabezado in enumerate(("Categoría", "Material", "Tipo", "Tamaño/calibre",
-                                     "Color/Modelo", "Cantidad", "Unidad", "Aprox.", "Acción")):
+                                     "Color/Modelo/Otros", "Cantidad", "Unidad", "Aprox.", "Acción")):
         ctk.CTkLabel(panel_canalizacion, text=encabezado, font=("Montserrat", 11),
                      text_color=TEXT_PRIMARY).grid(row=3, column=col, sticky="w", padx=3, pady=(0, 2))
 
@@ -1469,7 +1469,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                 item["categoria"].set(normalizar_material(fila.get("material") or fila.get("categoria") or "Tubo"))
                 item["tipo"].set(str(fila.get("tipo") or ""))
                 item["especificacion"].set(str(fila.get("tamano_calibre_especificacion") or fila.get("especificacion") or ""))
-                item["color_modelo"].set(str(fila.get("color_modelo") or fila.get("Color/Modelo") or ""))
+                item["color_modelo"].set(str(fila.get("color_modelo") or fila.get("Color/Modelo/Otros") or ""))
                 item["cantidad"].set(str(fila.get("cantidad") or ""))
                 item["unidad"].set(unidad_forzada_canalizacion(item["categoria"].get(), fila.get("unidad")))
         for ruta in estado.get("evidencias_locales", []) if isinstance(estado.get("evidencias_locales"), list) else []:
@@ -1645,7 +1645,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
             "Categoría": m.get("familia", ""), "Material": m.get("material") or m.get("categoria", ""),
             "Tipo": m.get("tipo", ""),
             "Especificación": m.get("tamano_calibre_especificacion", ""),
-            "Color/Modelo": m.get("color_modelo", ""),
+            "Color/Modelo/Otros": m.get("color_modelo", ""),
             "Cantidad": m.get("cantidad", ""), "Unidad": m.get("unidad", ""),
         } for m in obtener_canalizacion_materiales_obra()]
 

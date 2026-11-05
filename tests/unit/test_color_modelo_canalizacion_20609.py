@@ -1,4 +1,4 @@
-"""Regresión: Color/Modelo en LEV y OBC, controles y PDF de canalización."""
+"""Regresión: Color/Modelo/Otros en LEV y OBC, controles y PDF de canalización."""
 from pathlib import Path
 from services.pdf_canalizacion_agrupada import agrupar_partidas_canalizacion, ENCABEZADOS_CANALIZACION
 
@@ -16,15 +16,15 @@ def test_pdf_rescata_color_modelo_y_no_imprime_aproximado():
     grupos = agrupar_partidas_canalizacion(filas)
     assert len(grupos) == 1
     assert ENCABEZADOS_CANALIZACION == (
-        "Material", "Tipo", "Tamaño / calibre", "Color/Modelo", "Cantidad", "Unidad")
-    assert grupos[0][1][0]["Color/Modelo"] == "Gris / ZX45"
-    assert grupos[0][1][1]["Color/Modelo"] == ""
+        "Material", "Tipo", "Tamaño / calibre", "Color/Modelo/Otros", "Cantidad", "Unidad")
+    assert grupos[0][1][0]["Color/Modelo/Otros"] == "Gris / ZX45"
+    assert grupos[0][1][1]["Color/Modelo/Otros"] == ""
     assert all("Aproximado" not in row for _, rows in grupos for row in rows)
 
 
 def test_lev_tiene_nueva_columna_guardado_y_restauracion():
     view = (ROOT / "views/levantamiento_view.py").read_text(encoding="utf-8")
-    assert '"Tamaño/calibre", "Color/Modelo", "Cantidad"' in view
+    assert '"Tamaño/calibre", "Color/Modelo/Otros", "Cantidad"' in view
     assert '"color_modelo": item["color_modelo"].get().strip()' in view
     assert '("color_modelo","color_modelo")' in view
     assert 'text="✕", width=34' in view
@@ -33,11 +33,11 @@ def test_lev_tiene_nueva_columna_guardado_y_restauracion():
 
 def test_obra_civil_tiene_nueva_columna_guardado_y_restauracion():
     view = (ROOT / "views/obra_civil_view.py").read_text(encoding="utf-8")
-    assert '"Color/Modelo", "Cantidad"' in view
+    assert '"Color/Modelo/Otros", "Cantidad"' in view
     assert '"color_modelo": item["color_modelo"].get().strip()' in view
     assert 'item["color_modelo"].set(str(fila.get("color_modelo")' in view
     assert '"color_modelo": fila["color_modelo"].get()' in view
-    assert '"Color/Modelo": m.get("color_modelo", "")' in view
+    assert '"Color/Modelo/Otros": m.get("color_modelo", "")' in view
     assert 'text="✕", width=34' in view
 
 

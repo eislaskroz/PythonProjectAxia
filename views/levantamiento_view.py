@@ -3049,7 +3049,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             if extra and extra not in ("No aplica", "Por definir"):
                 linea += f" | {extra}"
             if fila.get("color_modelo"):
-                linea += f" | Color/Modelo: {fila['color_modelo']}"
+                linea += f" | Color/Modelo/Otros: {fila['color_modelo']}"
             linea += f" | {fila['cantidad']} {fila['unidad']}"
             lineas.append(linea)
         return "\n".join(lineas)
@@ -3070,7 +3070,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         ctk.CTkLabel(seccion_canalizacion_dinamica, text="¿Se requiere?", font=FORM_TABLE_HEADER_FONT).grid(row=2, column=0, sticky="w", padx=5)
         combo_requiere = NativeComboBox(seccion_canalizacion_dinamica, variable=var_requiere_canalizacion, values=["Sí", "No"], width=120, height=31)
         combo_requiere.grid(row=3, column=0, sticky="w", padx=5, pady=(0,4))
-        for col, encabezado in enumerate(("Categoría", "Material", "Tipo", "Tamaño/calibre", "Color/Modelo", "Cantidad", "Unidad", "Aprox.", "Acción")):
+        for col, encabezado in enumerate(("Categoría", "Material", "Tipo", "Tamaño/calibre", "Color/Modelo/Otros", "Cantidad", "Unidad", "Aprox.", "Acción")):
             ctk.CTkLabel(seccion_canalizacion_dinamica, text=encabezado, font=FORM_TABLE_HEADER_FONT, text_color=TEXT_PRIMARY).grid(row=4, column=col, sticky="w", padx=5, pady=(0,2))
 
         def agregar_partida_canalizacion(categoria_inicial="Tubo"):
