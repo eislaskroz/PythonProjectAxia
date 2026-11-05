@@ -16,6 +16,9 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 from services.levantamiento_compat import normalizar_registro_levantamiento
 from services.levantamiento_autoria import nombre_elaborador
+from services.pdf_canalizacion_agrupada import (
+    agrupar_partidas_canalizacion, ENCABEZADOS_CANALIZACION, TITULO_CANALIZACION,
+)
 
 from reportlab.lib import colors
 from reportlab.lib.units import inch
@@ -766,27 +769,21 @@ def generar_pdf_seguridad_instalacion(
     # Evaluación técnica: resumen breve, no transcripción del formulario.
     _append_resumen_tecnico(story, registro, detail, width, normal, label, header)
 
-    # 5) Canalización dinámica.
-    if canalizacion:
+    # 5) Canalización dinámica agrupada por familia / categoría.
+    # La cabecera de categoría no se repite por cada partida; cada grupo lleva
+    # su propio encabezado de tabla, incluso si continúa en otra página.
+    grupos_canal = agrupar_partidas_canalizacion(canalizacion)
+    if grupos_canal:
         story.append(Spacer(1, 5))
-        rows = []
-        for item in canalizacion:
-            if not isinstance(item, Mapping):
-                continue
-            rows.append([
-                ((f"{item.get('familia')} / {item.get('material') or item.get('categoria')}")
-                 if item.get("familia") else item.get("categoria")),
-                item.get("tipo"), item.get("tamano_calibre_especificacion") or "",
-                item.get("cantidad"), item.get("unidad")
-            ])
-        if rows:
+        story.append(_section_title(TITULO_CANALIZACION, width, header))
+        for familia, partidas in grupos_canal:
+            filas = [[p[columna] for columna in ENCABEZADOS_CANALIZACION] for p in partidas]
             story.append(_section_matrix_table(
-                "Canalización, cableado y materiales",
-                ["Categoría", "Tipo", "Tamaño/Calibre", "Cantidad", "Unidad"], rows,
-                [1.05*inch, 2.35*inch, 1.55*inch, .88*inch, 1.07*inch], normal, header
+                familia, ENCABEZADOS_CANALIZACION, filas,
+                [1.40*inch, 2.05*inch, 1.65*inch, .75*inch, 1.05*inch],
+                normal, header,
             ))
-    story.append(Spacer(1, 4))
-
+            story.append(Spacer(1, 4))
     # 6) Equipos principales: aparece únicamente cuando hay registros.
     equipment_rows = []
     for item in equipos:
@@ -1392,7 +1389,7 @@ def _append_resumen_tecnico(story: list, registro: Mapping[str, Any], detail: Ma
     story.append(Spacer(1, 5))
 
 
-def _canal_rows(detail: Mapping[str, Any]) -> list[list[Any]]:
+def _canal_partidas(detail: Mapping[str, Any]) -> list[dict[str, Any]]:
     # La decisión explícita NO tiene prioridad absoluta: nunca reconstruimos
     # canalización desde datos históricos o desde otro bloque con `partidas`.
     for key in ("canalizacion_cableado_materiales", "cableado_canalizacion_consumibles"):
@@ -1411,6 +1408,12 @@ def _canal_rows(detail: Mapping[str, Any]) -> list[list[Any]]:
                 entries = [dict(x) for x in value.get("partidas", []) if isinstance(x, Mapping)]
                 if entries:
                     break
+    return entries
+
+
+def _canal_rows(detail: Mapping[str, Any]) -> list[list[Any]]:
+    """Proyección de cinco columnas conservada para llamadas anteriores."""
+    entries = _canal_partidas(detail)
     return [[
         (f"{x.get('familia')} / {x.get('material') or x.get('categoria')}"
          if x.get('familia') else x.get('categoria')), x.get("tipo"),
@@ -1519,14 +1522,16 @@ def generar_pdf_levantamiento_maestro(
     # Partidas dinámicas comunes. En Seguridad y Monitoreo solo aplican
     # a Instalación; Reparación/Mantenimiento deben ignorar incluso datos
     # históricos que pudieran existir en registros anteriores.
-    canal = _canal_rows(detail)
-    if canal:
-        story.append(_section_matrix_table(
-            "Canalización, cableado y materiales",
-            ["Categoría", "Tipo", "Tamaño/Calibre", "Cantidad", "Unidad"], canal,
-            [1.05*inch,2.35*inch,1.55*inch,.88*inch,1.07*inch], normal, header
-        ))
-        story.append(Spacer(1, 4))
+    grupos_canal = agrupar_partidas_canalizacion(_canal_partidas(detail))
+    if grupos_canal:
+        story.append(_section_title(TITULO_CANALIZACION, width, header))
+        for familia, partidas in grupos_canal:
+            filas = [[p[columna] for columna in ENCABEZADOS_CANALIZACION] for p in partidas]
+            story.append(_section_matrix_table(
+                familia, ENCABEZADOS_CANALIZACION, filas,
+                [1.40*inch, 2.05*inch, 1.65*inch, .75*inch, 1.05*inch], normal, header,
+            ))
+            story.append(Spacer(1, 4))
 
     equipment = _equipment_rows(detail)
     if equipment:

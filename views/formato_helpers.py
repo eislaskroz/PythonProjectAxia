@@ -1348,8 +1348,11 @@ def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, fi
             contenido.append(Spacer(1, 3))
             contenido.append(tabla_fotos)
 
-        for nombre, columnas, registros in (secciones_tabla or []):
-            if not registros:
+        # Sólo las partidas de canalización se desglosan por categoría:
+        # funciona igual en preview, PDF final y regeneración de Obra Civil.
+        from services.pdf_canalizacion_agrupada import desglosar_secciones_pdf
+        for nombre, columnas, registros in desglosar_secciones_pdf(secciones_tabla):
+            if not registros and columnas is not None:
                 continue
             contenido.append(Spacer(1, 3))
             encabezado_tabla = Table([[Paragraph(str(nombre).upper(), ParagraphStyle("AxiaTableSection", parent=estilos["Heading3"], fontSize=8.5, leading=10, textColor=colors.HexColor("#1F4E79")))]], colWidths=[6.90 * inch])
@@ -1361,6 +1364,9 @@ def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, fi
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
             ]))
             contenido.append(encabezado_tabla)
+            # Cabecera general sin filas, seguida de categorías con su tabla.
+            if columnas is None:
+                continue
             contenido.append(Spacer(1, 3))
             # ReportLab no puede dividir una sola fila alta entre páginas.
             # Normalizamos cada registro en filas de continuación para que textos
