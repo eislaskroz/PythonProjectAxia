@@ -3058,7 +3058,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         seccion_canalizacion_dinamica = ctk.CTkFrame(form_body, fg_color="#F7F9FC", corner_radius=14, border_width=1, border_color="#DCE5EF")
         _fondo_seccion(seccion_canalizacion_dinamica)
         seccion_canalizacion_dinamica.grid(row=fila_textos, column=0, columnspan=5, sticky="ew", pady=(2, 5))
-        for col, peso in enumerate((3, 2, 3, 1.65, 1.6, 0.9, 1.25, 1.0, 0)):
+        for col, peso in enumerate((60, 40, 60, 33, 32, 18, 25, 20, 0)):
             seccion_canalizacion_dinamica.grid_columnconfigure(col, weight=peso)
         ctk.CTkLabel(seccion_canalizacion_dinamica, text="🧱 Canalización, cableado y materiales",
                      font=FORM_SECTION_FONT, text_color=TEXT_PRIMARY).grid(

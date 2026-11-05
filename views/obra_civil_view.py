@@ -986,7 +986,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
     # para conservar compatibilidad con el esquema actual de Supabase.
     seccion("Canalización, cableado y materiales", 26)
     panel_canalizacion = celda(27, 0, 5)
-    for col, peso in enumerate((3, 2, 3, 1.65, 1.6, 0.9, 1.25, 1.0, 0)):
+    for col, peso in enumerate((60, 40, 60, 33, 32, 18, 25, 20, 0)):
         panel_canalizacion.grid_columnconfigure(col, weight=peso)
     ctk.CTkLabel(
         panel_canalizacion,
