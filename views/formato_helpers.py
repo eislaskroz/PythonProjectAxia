@@ -1542,11 +1542,10 @@ def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, 
 
 
 def enfocar_inicio_formulario(scroll_widget=None, primer_widget=None, delay=180):
-    """Coloca el scroll al inicio y el foco en el primer campo editable.
+    """Mantiene el formulario inicialmente arriba, sin enfocar ningún campo.
 
-    Si no se envía primer_widget, recorre los hijos del formulario y busca
-    el primer Entry / Textbox / OptionMenu disponible. Esto ayuda a que TAB
-    siempre arranque desde arriba.
+    Conserva la firma para todas las vistas; el usuario elige el campo con un
+    clic o mediante TAB. No realiza ningún desplazamiento al usar el mouse.
     """
     root = None
     if primer_widget is not None:
@@ -1556,31 +1555,10 @@ def enfocar_inicio_formulario(scroll_widget=None, primer_widget=None, delay=180)
     if root is None:
         return
 
-    def _estado_normal(widget):
-        try:
-            return str(widget.cget("state")) != "disabled"
-        except Exception:
-            return True
-
-    def _buscar_primer(widget):
-        for child in widget.winfo_children():
-            if isinstance(child, (ctk.CTkEntry, ctk.CTkTextbox, NativeComboBox)) and _estado_normal(child):
-                return child
-            encontrado = _buscar_primer(child)
-            if encontrado is not None:
-                return encontrado
-        return None
-
     def _run():
         try:
             if scroll_widget is not None and hasattr(scroll_widget, "_parent_canvas"):
                 scroll_widget._parent_canvas.yview_moveto(0)
-        except Exception:
-            logger.debug("Excepción recuperable controlada.", exc_info=True)
-        try:
-            objetivo = primer_widget or (_buscar_primer(scroll_widget) if scroll_widget is not None else None)
-            if objetivo is not None:
-                objetivo.focus_set()
         except Exception:
             logger.debug("Excepción recuperable controlada.", exc_info=True)
 

@@ -489,15 +489,13 @@ def _crear_menu_acordeon(sidebar, menu_host, opciones, direccion):
         canvas.configure(scrollregion=(0, 0, ancho, alto))
         canvas.yview_moveto(fraccion)
 
+    # El menú se desplaza exclusivamente con la barra lateral visible.
     def _wheel(event):
-        paso = int(-event.delta / 120) if event.delta else 0
-        if paso:
-            canvas.yview_scroll(paso, "units")
         return "break"
 
     canvas.bind("<MouseWheel>", _wheel, add="+")
-    canvas.bind("<Button-4>", lambda _e: (canvas.yview_scroll(-1, "units"), "break")[-1], add="+")
-    canvas.bind("<Button-5>", lambda _e: (canvas.yview_scroll(1, "units"), "break")[-1], add="+")
+    canvas.bind("<Button-4>", _wheel, add="+")
+    canvas.bind("<Button-5>", _wheel, add="+")
     canvas.bind("<Configure>", lambda _event: _redibujar(), add="+")
     estado["seccion"] = next((k for k, _, _ in secciones if opciones[k]), None)
     sidebar._axia_menu_activar = _navegar

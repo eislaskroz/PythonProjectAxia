@@ -53,6 +53,7 @@ from ui.app_sidebar import crear_app_sidebar
 
 from ui.assets import configurar_icono_ventana
 from ui.keyboard_navigation import install_keyboard_navigation
+from ui.manual_scroll_policy import install_manual_scroll_only
 from ui.responsive import install_responsive_shell
 
 from ui.colors import (
@@ -132,6 +133,7 @@ class AxiaApp(ctk.CTk):
         self.resizable(True, True)
         self.minsize(1024, 640)
         self.configure(fg_color=CONTENT_BG)
+        install_manual_scroll_only(self)
         install_keyboard_navigation(self)
 
         # =================================================

@@ -370,8 +370,9 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     # =================================================
 
     def mostrar_busqueda_aco():
-        """Lleva el foco al buscador ACO de la franja superior."""
-        entry_aco_top.focus_set()
+        """Conserva el flujo de ACO sin enfocar automáticamente el buscador."""
+        # El usuario puede seleccionar el campo directamente si lo necesita.
+        return None
 
     # =================================================
     # OPCIONES CON ACO VALIDADO

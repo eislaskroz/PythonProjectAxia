@@ -114,8 +114,8 @@ class TableColumnManager:
         tree.bind("<ButtonRelease-1>", self._on_release, add="+")
         tree.bind("<Configure>", self._on_resize, add="+")
         tree.bind("<Shift-MouseWheel>", self._wheel_horizontal, add="+")
-        tree.bind("<Shift-Button-4>", lambda _: tree.xview_scroll(-3, "units"), add="+")
-        tree.bind("<Shift-Button-5>", lambda _: tree.xview_scroll(3, "units"), add="+")
+        tree.bind("<Shift-Button-4>", self._wheel_horizontal, add="+")
+        tree.bind("<Shift-Button-5>", self._wheel_horizontal, add="+")
 
     def configure_columns(self, columns: Sequence[tuple[str, str, int]]) -> None:
         old_ids = tuple(self.tree["columns"])
@@ -231,7 +231,5 @@ class TableColumnManager:
         self._schedule_layout()
 
     def _wheel_horizontal(self, event) -> str:
-        delta = int(getattr(event, "delta", 0))
-        if delta:
-            self.tree.xview_scroll(-3 * (1 if delta > 0 else -1), "units")
+        # No desplazar con Shift+rueda: permanece la barra horizontal.
         return "break"

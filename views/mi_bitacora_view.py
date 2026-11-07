@@ -418,7 +418,7 @@ def mostrar_mi_usuario(parent, app):
     ctk.CTkButton(barra, text="⬇ Exportar", width=120, height=34, fg_color=SECONDARY, hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=lambda: exportar_registros_dialogo(estado.get("movimientos", []), "AXIA_mis_movimientos")).grid(row=0, column=3)
 
     entry_busqueda.bind("<Return>", lambda _event: buscar())
-    entry_busqueda.focus_set()
+    # Sin autofocus: el usuario decide cuándo entrar al buscador.
     limpiar_panel()
 
 

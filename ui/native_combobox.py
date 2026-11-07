@@ -161,20 +161,7 @@ class NativeComboBox(ttk.Combobox):
         return None
 
     def _on_mousewheel(self, event=None):
-        """Impide que la rueda cambie un selector que conserva el foco a distancia."""
-        try:
-            x, y = self.winfo_pointerxy()
-            under_pointer = self.winfo_containing(x, y)
-            if under_pointer is self:
-                return None
-            # Si el puntero esta sobre un hijo real del combobox, tambien se permite.
-            current = under_pointer
-            while current is not None and hasattr(current, "master"):
-                if current is self:
-                    return None
-                current = current.master
-        except Exception:
-            pass
+        """La rueda no debe mover listas ni cambiar opciones accidentalmente."""
         return "break"
 
     def configure(self, cnf=None, **kwargs):
