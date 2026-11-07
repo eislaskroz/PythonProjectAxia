@@ -71,6 +71,15 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
     commands_right = ctk.CTkFrame(commands, fg_color="transparent")
     commands_right.pack(side="right", padx=6, pady=5)
 
+    # Reservar primero el pie de acciones: Tk asigna espacio según el orden
+    # de pack(). Si el lienzo expansible se empaqueta antes, puede ocupar
+    # toda la altura disponible y dejar «Guardar croquis» fuera de la vista.
+    bottom = ctk.CTkFrame(root, fg_color=WHITE, corner_radius=0)
+    bottom.pack(side="bottom", fill="x", padx=12, pady=(0, 11))
+    status = ctk.CTkLabel(root, text="", height=20, font=("Montserrat", 10),
+                          text_color=TEXT_SECONDARY, anchor="w")
+    status.pack(side="bottom", fill="x", padx=18)
+
     body = ctk.CTkFrame(root, fg_color=WHITE, corner_radius=0)
     body.pack(fill="both", expand=True, padx=12)
     rail = ctk.CTkScrollableFrame(body, width=158, fg_color="#F3F6FA", corner_radius=9)
@@ -116,10 +125,6 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
     hint = ctk.CTkLabel(center, text="Selecciona un elemento para moverlo o arrastra la esquina para cambiar su tamaño.",
                         font=("Montserrat", 10), text_color=TEXT_SECONDARY)
     hint.pack(fill="x", pady=(0, 7))
-    status = ctk.CTkLabel(root, text="", height=20, font=("Montserrat", 10),
-                          text_color=TEXT_SECONDARY, anchor="w")
-    status.pack(fill="x", padx=18)
-
     def coords(ev):
         z = state["zoom"]
         return (max(0., min(WIDTH, drawing.canvasx(ev.x) / z)),
@@ -639,8 +644,6 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
     win.bind("<Control-y>", lambda ev: redo())
     win.bind("<Control-d>", lambda ev: duplicate() if state["selected"] is not None else None)
 
-    bottom = ctk.CTkFrame(root, fg_color=WHITE, corner_radius=0)
-    bottom.pack(fill="x", padx=12, pady=(0, 11))
     ctk.CTkButton(bottom, text="Cancelar", width=140, height=35, fg_color="#64748B",
                   command=win.destroy).pack(side="left")
 
