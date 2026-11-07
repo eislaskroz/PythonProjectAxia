@@ -1,0 +1,1508 @@
+[
+  {
+    "row": 2,
+    "familia": "Conexiones y Uniones",
+    "material": "Faceplate",
+    "tipo": "1 puerto"
+  },
+  {
+    "row": 3,
+    "familia": "Conexiones y Uniones",
+    "material": "Patch panel",
+    "tipo": "12 puertos Cat6"
+  },
+  {
+    "row": 4,
+    "familia": "Conexiones y Uniones",
+    "material": "Faceplate",
+    "tipo": "2 puertos"
+  },
+  {
+    "row": 5,
+    "familia": "Conexiones y Uniones",
+    "material": "Patch panel",
+    "tipo": "24 puertos Cat6"
+  },
+  {
+    "row": 6,
+    "familia": "Conexiones y Uniones",
+    "material": "Faceplate",
+    "tipo": "4 puertos"
+  },
+  {
+    "row": 7,
+    "familia": "Conexiones y Uniones",
+    "material": "Codos",
+    "tipo": "45\""
+  },
+  {
+    "row": 8,
+    "familia": "Conexiones y Uniones",
+    "material": "Patch panel",
+    "tipo": "48 puertos Cat6"
+  },
+  {
+    "row": 9,
+    "familia": "Conexiones y Uniones",
+    "material": "Codos",
+    "tipo": "90\""
+  },
+  {
+    "row": 10,
+    "familia": "Consumibles y Empalmes",
+    "material": "Capuchones / Conectores",
+    "tipo": "Amarillo"
+  },
+  {
+    "row": 11,
+    "familia": "Conexiones y Uniones",
+    "material": "Conectores",
+    "tipo": "Anillo y Horquilla"
+  },
+  {
+    "row": 12,
+    "familia": "Consumibles y Empalmes",
+    "material": "Capuchones / Conectores",
+    "tipo": "Azul / P2"
+  },
+  {
+    "row": 13,
+    "familia": "Conexiones y Uniones",
+    "material": "Organizadores de Cable",
+    "tipo": "Bandejas y redes de gestión (bajo escritorio)"
+  },
+  {
+    "row": 14,
+    "familia": "Conexiones y Uniones",
+    "material": "Jack RJ45",
+    "tipo": "Blindado"
+  },
+  {
+    "row": 15,
+    "familia": "Conexiones y Uniones",
+    "material": "Plug RJ45",
+    "tipo": "Blindado"
+  },
+  {
+    "row": 16,
+    "familia": "Conductores y Canalización",
+    "material": "Cable",
+    "tipo": "Cable de control exterior"
+  },
+  {
+    "row": 17,
+    "familia": "Conexiones y Uniones",
+    "material": "Faceplate",
+    "tipo": "Caja de superficie"
+  },
+  {
+    "row": 18,
+    "familia": "Cajas y Registros",
+    "material": "Registro",
+    "tipo": "Cajas Condulets (LB, LL, LR, C, T)"
+  },
+  {
+    "row": 19,
+    "familia": "Cajas y Registros",
+    "material": "Registro",
+    "tipo": "Cajas Cuadradas o Rectangulares"
+  },
+  {
+    "row": 20,
+    "familia": "Cajas y Registros",
+    "material": "Registro",
+    "tipo": "Cajas Estancas"
+  },
+  {
+    "row": 21,
+    "familia": "Cajas y Registros",
+    "material": "Registro",
+    "tipo": "Cajas Octagonales (Chalupas u Octagonales)"
+  },
+  {
+    "row": 22,
+    "familia": "Conexiones y Uniones",
+    "material": "Organizadores de Cable",
+    "tipo": "Cajas organizadoras de cables"
+  },
+  {
+    "row": 23,
+    "familia": "Conductores y Canalización",
+    "material": "Canaleta",
+    "tipo": "Canaleta de piso"
+  },
+  {
+    "row": 24,
+    "familia": "Conductores y Canalización",
+    "material": "Canaleta",
+    "tipo": "Canaleta metálica"
+  },
+  {
+    "row": 25,
+    "familia": "Conductores y Canalización",
+    "material": "Canaleta",
+    "tipo": "Canaleta PVC"
+  },
+  {
+    "row": 26,
+    "familia": "Conductores y Canalización",
+    "material": "Canaleta",
+    "tipo": "Canaleta PVC autoadherible"
+  },
+  {
+    "row": 27,
+    "familia": "Conductores y Canalización",
+    "material": "Canaleta",
+    "tipo": "Canaleta ranurada"
+  },
+  {
+    "row": 28,
+    "familia": "Conexiones y Uniones",
+    "material": "Organizadores de Cable",
+    "tipo": "Canaletas o cubre-cables"
+  },
+  {
+    "row": 29,
+    "familia": "Conexiones y Uniones",
+    "material": "Jack RJ45",
+    "tipo": "Cat5e"
+  },
+  {
+    "row": 30,
+    "familia": "Conexiones y Uniones",
+    "material": "Plug RJ45",
+    "tipo": "Cat5e"
+  },
+  {
+    "row": 31,
+    "familia": "Conexiones y Uniones",
+    "material": "Patch cord",
+    "tipo": "Cat5e - 1 m"
+  },
+  {
+    "row": 32,
+    "familia": "Conexiones y Uniones",
+    "material": "Patch cord",
+    "tipo": "Cat5e - 2 m"
+  },
+  {
+    "row": 33,
+    "familia": "Conexiones y Uniones",
+    "material": "Jack RJ45",
+    "tipo": "Cat6"
+  },
+  {
+    "row": 34,
+    "familia": "Conexiones y Uniones",
+    "material": "Plug RJ45",
+    "tipo": "Cat6"
+  },
+  {
+    "row": 35,
+    "familia": "Conexiones y Uniones",
+    "material": "Patch cord",
+    "tipo": "Cat6 - 1 m"
+  },
+  {
+    "row": 36,
+    "familia": "Conexiones y Uniones",
+    "material": "Patch cord",
+    "tipo": "Cat6 - 2 m"
+  },
+  {
+    "row": 37,
+    "familia": "Conexiones y Uniones",
+    "material": "Jack RJ45",
+    "tipo": "Cat6A"
+  },
+  {
+    "row": 38,
+    "familia": "Conexiones y Uniones",
+    "material": "Patch cord",
+    "tipo": "Cat6A"
+  },
+  {
+    "row": 39,
+    "familia": "Conexiones y Uniones",
+    "material": "Patch panel",
+    "tipo": "Cat6A"
+  },
+  {
+    "row": 40,
+    "familia": "Conexiones y Uniones",
+    "material": "Plug RJ45",
+    "tipo": "Cat6A"
+  },
+  {
+    "row": 41,
+    "familia": "Conductores y Canalización",
+    "material": "Charofil (Malla) / Escalerilla",
+    "tipo": "Charofil"
+  },
+  {
+    "row": 42,
+    "familia": "Cajas y Registros",
+    "material": "Tapas",
+    "tipo": "Ciega"
+  },
+  {
+    "row": 43,
+    "familia": "Conexiones y Uniones",
+    "material": "Conectores",
+    "tipo": "Cilíndricos e impermeables"
+  },
+  {
+    "row": 44,
+    "familia": "Conexiones y Uniones",
+    "material": "Organizadores de Cable",
+    "tipo": "Cinchos y bridas (de plástico o velcro)"
+  },
+  {
+    "row": 45,
+    "familia": "Conexiones y Uniones",
+    "material": "Organizadores de Cable",
+    "tipo": "Clips y soportes adhesivos"
+  },
+  {
+    "row": 46,
+    "familia": "Conductores y Canalización",
+    "material": "Cable Coaxial",
+    "tipo": "Coaxial"
+  },
+  {
+    "row": 47,
+    "familia": "Conductores y Canalización",
+    "material": "Cable",
+    "tipo": "Coaxial"
+  },
+  {
+    "row": 48,
+    "familia": "Conexiones y Uniones",
+    "material": "Cople",
+    "tipo": "Combinación"
+  },
+  {
+    "row": 49,
+    "familia": "Conexiones y Uniones",
+    "material": "Cople",
+    "tipo": "Compresión"
+  },
+  {
+    "row": 50,
+    "familia": "Cajas y Registros",
+    "material": "Registro",
+    "tipo": "Concreto"
+  },
+  {
+    "row": 51,
+    "familia": "Conexiones y Uniones",
+    "material": "Cople",
+    "tipo": "Conduit"
+  },
+  {
+    "row": 52,
+    "familia": "Conexiones y Uniones",
+    "material": "Conectores",
+    "tipo": "Conduit galvanizado"
+  },
+  {
+    "row": 53,
+    "familia": "Conductores y Canalización",
+    "material": "Tubo",
+    "tipo": "Conduit metálico de pared intermedia"
+  },
+  {
+    "row": 54,
+    "familia": "Conexiones y Uniones",
+    "material": "Conectores",
+    "tipo": "Conduit PVC"
+  },
+  {
+    "row": 55,
+    "familia": "Conexiones y Uniones",
+    "material": "Conectores",
+    "tipo": "Conector ZAPA"
+  },
+  {
+    "row": 56,
+    "familia": "Conexiones y Uniones",
+    "material": "Cople",
+    "tipo": "Confuit Galvanizado"
+  },
+  {
+    "row": 57,
+    "familia": "Conductores y Canalización",
+    "material": "Cable",
+    "tipo": "Control 4 hilos"
+  },
+  {
+    "row": 58,
+    "familia": "Conductores y Canalización",
+    "material": "Cable",
+    "tipo": "Control 6 hilos"
+  },
+  {
+    "row": 59,
+    "familia": "Conductores y Canalización",
+    "material": "Tubo",
+    "tipo": "Corrugado no metálico (ENT)"
+  },
+  {
+    "row": 60,
+    "familia": "Conexiones y Uniones",
+    "material": "Cople",
+    "tipo": "Counduit PD"
+  },
+  {
+    "row": 61,
+    "familia": "Conexiones y Uniones",
+    "material": "Cople",
+    "tipo": "Counduit PG"
+  },
+  {
+    "row": 62,
+    "familia": "Cajas y Registros",
+    "material": "Cajas",
+    "tipo": "Cuadradas"
+  },
+  {
+    "row": 63,
+    "familia": "Fijación y Soporte",
+    "material": "Abrazadera",
+    "tipo": "De Clip"
+  },
+  {
+    "row": 64,
+    "familia": "Conexiones y Uniones",
+    "material": "Cople",
+    "tipo": "Ducto Polietileno Alta Densidad"
+  },
+  {
+    "row": 65,
+    "familia": "Cajas y Registros",
+    "material": "Registro",
+    "tipo": "Empotrados o de pared"
+  },
+  {
+    "row": 66,
+    "familia": "Conductores y Canalización",
+    "material": "Charofil (Malla) / Escalerilla",
+    "tipo": "Escalerilla"
+  },
+  {
+    "row": 67,
+    "familia": "Conexiones y Uniones",
+    "material": "Codos",
+    "tipo": "Exterior"
+  },
+  {
+    "row": 68,
+    "familia": "Cajas y Registros",
+    "material": "Cajas",
+    "tipo": "FD"
+  },
+  {
+    "row": 69,
+    "familia": "Conductores y Canalización",
+    "material": "Fibra Óptica",
+    "tipo": "Fibra óptica"
+  },
+  {
+    "row": 70,
+    "familia": "Conductores y Canalización",
+    "material": "Cable",
+    "tipo": "Fibra óptica"
+  },
+  {
+    "row": 71,
+    "familia": "Conexiones y Uniones",
+    "material": "Patch cord",
+    "tipo": "Fibra óptica"
+  },
+  {
+    "row": 72,
+    "familia": "Conexiones y Uniones",
+    "material": "Patch panel",
+    "tipo": "Fibra óptica"
+  },
+  {
+    "row": 73,
+    "familia": "Conductores y Canalización",
+    "material": "Fibra Óptica",
+    "tipo": "Fibra óptica exterior"
+  },
+  {
+    "row": 74,
+    "familia": "Conductores y Canalización",
+    "material": "Cable",
+    "tipo": "Fibra óptica exterior"
+  },
+  {
+    "row": 75,
+    "familia": "Cajas y Registros",
+    "material": "Tapas",
+    "tipo": "Final"
+  },
+  {
+    "row": 76,
+    "familia": "Cajas y Registros",
+    "material": "Cajas",
+    "tipo": "FS"
+  },
+  {
+    "row": 77,
+    "familia": "Cajas y Registros",
+    "material": "Cajas",
+    "tipo": "FSC"
+  },
+  {
+    "row": 78,
+    "familia": "Cajas y Registros",
+    "material": "Cajas",
+    "tipo": "FSCC"
+  },
+  {
+    "row": 79,
+    "familia": "Cajas y Registros",
+    "material": "Cajas",
+    "tipo": "FSCD"
+  },
+  {
+    "row": 80,
+    "familia": "Cajas y Registros",
+    "material": "Cajas",
+    "tipo": "FSL"
+  },
+  {
+    "row": 81,
+    "familia": "Cajas y Registros",
+    "material": "Cajas",
+    "tipo": "FSR"
+  },
+  {
+    "row": 82,
+    "familia": "Cajas y Registros",
+    "material": "Cajas",
+    "tipo": "FSS"
+  },
+  {
+    "row": 83,
+    "familia": "Cajas y Registros",
+    "material": "Cajas",
+    "tipo": "FST"
+  },
+  {
+    "row": 84,
+    "familia": "Consumibles y Empalmes",
+    "material": "Capuchones / Conectores",
+    "tipo": "Gris / P1"
+  },
+  {
+    "row": 85,
+    "familia": "Conductores y Canalización",
+    "material": "Tubo",
+    "tipo": "Helicoidal metálico / Flexible ZAPA"
+  },
+  {
+    "row": 86,
+    "familia": "Conexiones y Uniones",
+    "material": "Codos",
+    "tipo": "Interior"
+  },
+  {
+    "row": 87,
+    "familia": "Conductores y Canalización",
+    "material": "Tubo",
+    "tipo": "Liquidtight / Licuatite"
+  },
+  {
+    "row": 88,
+    "familia": "Conexiones y Uniones",
+    "material": "Conectores",
+    "tipo": "Liquidtight / Licuatite"
+  },
+  {
+    "row": 89,
+    "familia": "Conexiones y Uniones",
+    "material": "Conectores",
+    "tipo": "Mecánicos y de compresión (C y H)"
+  },
+  {
+    "row": 90,
+    "familia": "Conductores y Canalización",
+    "material": "Tubo",
+    "tipo": "Metálico de pared gruesa (RMC)"
+  },
+  {
+    "row": 91,
+    "familia": "Cajas y Registros",
+    "material": "Registro",
+    "tipo": "Metálicos"
+  },
+  {
+    "row": 92,
+    "familia": "Consumibles y Empalmes",
+    "material": "Capuchones / Conectores",
+    "tipo": "Naranja / P3"
+  },
+  {
+    "row": 93,
+    "familia": "Cajas y Registros",
+    "material": "Cajas",
+    "tipo": "Octagonales"
+  },
+  {
+    "row": 94,
+    "familia": "Conexiones y Uniones",
+    "material": "Cople",
+    "tipo": "Opresor"
+  },
+  {
+    "row": 95,
+    "familia": "Conexiones y Uniones",
+    "material": "Conectores",
+    "tipo": "Pala y Bala"
+  },
+  {
+    "row": 96,
+    "familia": "Cajas y Registros",
+    "material": "Tapas",
+    "tipo": "Para contacto"
+  },
+  {
+    "row": 97,
+    "familia": "Cajas y Registros",
+    "material": "Tapas",
+    "tipo": "Para datos"
+  },
+  {
+    "row": 98,
+    "familia": "Fijación y Soporte",
+    "material": "Abrazadera",
+    "tipo": "Para Viga"
+  },
+  {
+    "row": 99,
+    "familia": "Conductores y Canalización",
+    "material": "Tubo",
+    "tipo": "Pared delgada (EMT)"
+  },
+  {
+    "row": 100,
+    "familia": "Cajas y Registros",
+    "material": "Registro",
+    "tipo": "Piso"
+  },
+  {
+    "row": 101,
+    "familia": "Conexiones y Uniones",
+    "material": "Codos",
+    "tipo": "Plano"
+  },
+  {
+    "row": 102,
+    "familia": "Cajas y Registros",
+    "material": "Registro",
+    "tipo": "Plástico"
+  },
+  {
+    "row": 103,
+    "familia": "Fijación y Soporte",
+    "material": "Abrazadera",
+    "tipo": "Plástico o PVC"
+  },
+  {
+    "row": 104,
+    "familia": "Conductores y Canalización",
+    "material": "Tubo",
+    "tipo": "Poliducto corrugado (Ligero)"
+  },
+  {
+    "row": 105,
+    "familia": "Conexiones y Uniones",
+    "material": "Cople",
+    "tipo": "Polietileno"
+  },
+  {
+    "row": 106,
+    "familia": "Consumibles y Empalmes",
+    "material": "Cinta Aislante / Vulcanizada",
+    "tipo": "Cinta de vinilo (PVC)"
+  },
+  {
+    "row": 107,
+    "familia": "Consumibles y Empalmes",
+    "material": "Cinta Aislante / Vulcanizada",
+    "tipo": "Cinta de goma / caucho"
+  },
+  {
+    "row": 108,
+    "familia": "Consumibles y Empalmes",
+    "material": "Cinta Aislante / Vulcanizada",
+    "tipo": "Cinta de tela (o algodón / acetato"
+  },
+  {
+    "row": 109,
+    "familia": "Consumibles y Empalmes",
+    "material": "Cinta Aislante / Vulcanizada",
+    "tipo": "Cinta de mástique (masilla)"
+  },
+  {
+    "row": 110,
+    "familia": "Consumibles y Empalmes",
+    "material": "Cinta Aislante / Vulcanizada",
+    "tipo": "Cinta de tela de vidrio / barnizada (batista)"
+  },
+  {
+    "row": 111,
+    "familia": "Consumibles y Empalmes",
+    "material": "Cinta Aislante / Vulcanizada",
+    "tipo": "Cinta líquida"
+  },
+  {
+    "row": 112,
+    "familia": "Consumibles y Empalmes",
+    "material": "Zapatas Eléctricas",
+    "tipo": "Zapatas de compresión (mecánicas o hidráulicas)"
+  },
+  {
+    "row": 113,
+    "familia": "Consumibles y Empalmes",
+    "material": "Zapatas Eléctricas",
+    "tipo": "Zapatas mecánicas (o de tornillo)"
+  },
+  {
+    "row": 114,
+    "familia": "Consumibles y Empalmes",
+    "material": "Zapatas Eléctricas",
+    "tipo": "Tipo Anillo (Ojo)"
+  },
+  {
+    "row": 115,
+    "familia": "Consumibles y Empalmes",
+    "material": "Zapatas Eléctricas",
+    "tipo": "Tipo Horquilla (Herradura o Espada)"
+  },
+  {
+    "row": 116,
+    "familia": "Consumibles y Empalmes",
+    "material": "Zapatas Eléctricas",
+    "tipo": "Tipo Recta / Punta (Pin)"
+  },
+  {
+    "row": 117,
+    "familia": "Consumibles y Empalmes",
+    "material": "Zapatas Eléctricas",
+    "tipo": "De Cobre (Electrolítico / Estañado)"
+  },
+  {
+    "row": 118,
+    "familia": "Consumibles y Empalmes",
+    "material": "Zapatas Eléctricas",
+    "tipo": "De Aluminio (o Bimetálicas)"
+  },
+  {
+    "row": 119,
+    "familia": "Consumibles y Empalmes",
+    "material": "Zapatas Eléctricas",
+    "tipo": "De Bronce o Aleaciones especiales"
+  },
+  {
+    "row": 120,
+    "familia": "Específicos Aire Acondirionado",
+    "material": "Aislamiento Térmico",
+    "tipo": "Poliestireno expandido (EPS / Porexpan)"
+  },
+  {
+    "row": 121,
+    "familia": "Específicos Aire Acondirionado",
+    "material": "Aislamiento Térmico",
+    "tipo": "Poliestireno extruido (XPS)"
+  },
+  {
+    "row": 122,
+    "familia": "Específicos Aire Acondirionado",
+    "material": "Aislamiento Térmico",
+    "tipo": "Espuma de poliuretano"
+  },
+  {
+    "row": 123,
+    "familia": "Específicos Aire Acondirionado",
+    "material": "Aislamiento Térmico",
+    "tipo": "Lana de roca"
+  },
+  {
+    "row": 124,
+    "familia": "Específicos Aire Acondirionado",
+    "material": "Aislamiento Térmico",
+    "tipo": "Lana de vidrio (o fibra de vidrio)"
+  },
+  {
+    "row": 125,
+    "familia": "Específicos Aire Acondirionado",
+    "material": "Aislamiento Térmico",
+    "tipo": "Corcho"
+  },
+  {
+    "row": 126,
+    "familia": "Específicos Aire Acondirionado",
+    "material": "Aislamiento Térmico",
+    "tipo": "Celulosa"
+  },
+  {
+    "row": 127,
+    "familia": "Específicos Aire Acondirionado",
+    "material": "Aislamiento Térmico",
+    "tipo": "Lana de oveja, cármano, lino o paja"
+  },
+  {
+    "row": 128,
+    "familia": "Específicos Aire Acondirionado",
+    "material": "Manguera de Desagüe",
+    "tipo": "Mangueras corrugadas"
+  },
+  {
+    "row": 129,
+    "familia": "Específicos Aire Acondirionado",
+    "material": "Manguera de Desagüe",
+    "tipo": "Mangueras lisas"
+  },
+  {
+    "row": 130,
+    "familia": "Específicos Aire Acondirionado",
+    "material": "Manguera de Desagüe",
+    "tipo": "Mangueras reforzadas"
+  },
+  {
+    "row": 131,
+    "familia": "Específicos Aire Acondirionado",
+    "material": "Manguera de Desagüe",
+    "tipo": "PVC (Policloruro de vinilo)"
+  },
+  {
+    "row": 132,
+    "familia": "Específicos Aire Acondirionado",
+    "material": "Manguera de Desagüe",
+    "tipo": "Polipropileno (PP)"
+  },
+  {
+    "row": 133,
+    "familia": "Específicos Aire Acondirionado",
+    "material": "Manguera de Desagüe",
+    "tipo": "Caucho o hule termoplástico"
+  },
+  {
+    "row": 134,
+    "familia": "Específicos Aire Acondirionado",
+    "material": "Manguera de Desagüe",
+    "tipo": "Para lavadora automática"
+  },
+  {
+    "row": 135,
+    "familia": "Específicos Aire Acondirionado",
+    "material": "Manguera de Desagüe",
+    "tipo": "Extensiones de desagüe"
+  },
+  {
+    "row": 136,
+    "familia": "Específicos Aire Acondirionado",
+    "material": "Manguera de Desagüe",
+    "tipo": "Para fregaderos, lavabos o lavavajillas"
+  },
+  {
+    "row": 137,
+    "familia": "Específicos Aire Acondirionado",
+    "material": "Tubería de Cobre Flexible",
+    "tipo": "Tubo de Cobre Tipo K"
+  },
+  {
+    "row": 138,
+    "familia": "Específicos Aire Acondirionado",
+    "material": "Tubería de Cobre Flexible",
+    "tipo": "Tubo de Cobre Tipo L"
+  },
+  {
+    "row": 139,
+    "familia": "Específicos Aire Acondirionado",
+    "material": "Tubería de Cobre Flexible",
+    "tipo": "Tubo de Cobre Tipo M"
+  },
+  {
+    "row": 140,
+    "familia": "Específicos Aire Acondirionado",
+    "material": "Tubería de Cobre Flexible",
+    "tipo": "Tubo de Cobre ACR"
+  },
+  {
+    "row": 141,
+    "familia": "Específicos Aire Acondirionado",
+    "material": "Tubería de Cobre Flexible",
+    "tipo": "Tubo de Cobre para Gas"
+  },
+  {
+    "row": 142,
+    "familia": "Fijación y Soporte",
+    "material": "Estructuras de Aluminio",
+    "tipo": "Perfiles cuadrados"
+  },
+  {
+    "row": 143,
+    "familia": "Fijación y Soporte",
+    "material": "Estructuras de Aluminio",
+    "tipo": "Perfiles rectangulares"
+  },
+  {
+    "row": 144,
+    "familia": "Fijación y Soporte",
+    "material": "Estructuras de Aluminio",
+    "tipo": "Perfiles con formas especiales (U, L, T, planos y tubulares)"
+  },
+  {
+    "row": 145,
+    "familia": "Fijación y Soporte",
+    "material": "Taquetes y Tornillería Variada",
+    "tipo": "De expansión (plástico o nylon)"
+  },
+  {
+    "row": 146,
+    "familia": "Fijación y Soporte",
+    "material": "Taquetes y Tornillería Variada",
+    "tipo": "Anti-giro / Con aletas"
+  },
+  {
+    "row": 147,
+    "familia": "Fijación y Soporte",
+    "material": "Taquetes y Tornillería Variada",
+    "tipo": "Para Tablaroca o superficies hueca"
+  },
+  {
+    "row": 148,
+    "familia": "Fijación y Soporte",
+    "material": "Taquetes y Tornillería Variada",
+    "tipo": "Metálicos o de expansión pesada"
+  },
+  {
+    "row": 149,
+    "familia": "Fijación y Soporte",
+    "material": "Taquetes y Tornillería Variada",
+    "tipo": "De impacto o golpe"
+  },
+  {
+    "row": 150,
+    "familia": "Fijación y Soporte",
+    "material": "Taquetes y Tornillería Variada",
+    "tipo": "Químicos"
+  },
+  {
+    "row": 151,
+    "familia": "Fijación y Soporte",
+    "material": "Taquetes y Tornillería Variada",
+    "tipo": "Pijas para madera / aglomerado"
+  },
+  {
+    "row": 152,
+    "familia": "Fijación y Soporte",
+    "material": "Taquetes y Tornillería Variada",
+    "tipo": "Pijas autorroscantes / autoperforantes"
+  },
+  {
+    "row": 153,
+    "familia": "Fijación y Soporte",
+    "material": "Taquetes y Tornillería Variada",
+    "tipo": "Tornillos métricos"
+  },
+  {
+    "row": 154,
+    "familia": "Fijación y Soporte",
+    "material": "Taquetes y Tornillería Variada",
+    "tipo": "Tornillos para Tablaroca"
+  },
+  {
+    "row": 155,
+    "familia": "Fijación y Soporte",
+    "material": "Unicanal (Riel)",
+    "tipo": "Sólido (Liso)"
+  },
+  {
+    "row": 156,
+    "familia": "Fijación y Soporte",
+    "material": "Unicanal (Riel)",
+    "tipo": "Perforado"
+  },
+  {
+    "row": 157,
+    "familia": "Fijación y Soporte",
+    "material": "Unicanal (Riel)",
+    "tipo": "Doble ranura (Unión de dos rieles)"
+  },
+  {
+    "row": 158,
+    "familia": "Fijación y Soporte",
+    "material": "Varilla Roscada",
+    "tipo": "Varilla roscada galvanizada"
+  },
+  {
+    "row": 159,
+    "familia": "Fijación y Soporte",
+    "material": "Varilla Roscada",
+    "tipo": "Varilla roscada de acero inoxidable"
+  },
+  {
+    "row": 160,
+    "familia": "Fijación y Soporte",
+    "material": "Varilla Roscada",
+    "tipo": "Varilla roscada de cobre o bronce"
+  },
+  {
+    "row": 161,
+    "familia": "Fijación y Soporte",
+    "material": "Varilla Roscada",
+    "tipo": "Varilla roscada de nailon"
+  },
+  {
+    "row": 162,
+    "familia": "Protección y Potencia",
+    "material": "Centros de Carga / Tableros",
+    "tipo": "Tablero de alumbrado"
+  },
+  {
+    "row": 163,
+    "familia": "Protección y Potencia",
+    "material": "Centros de Carga / Tableros",
+    "tipo": "Tablero de fuerza"
+  },
+  {
+    "row": 164,
+    "familia": "Protección y Potencia",
+    "material": "Centros de Carga / Tableros",
+    "tipo": "Tablero mixto"
+  },
+  {
+    "row": 165,
+    "familia": "Protección y Potencia",
+    "material": "Centros de Carga / Tableros",
+    "tipo": "Monofásico"
+  },
+  {
+    "row": 166,
+    "familia": "Protección y Potencia",
+    "material": "Centros de Carga / Tableros",
+    "tipo": "Bifásicos"
+  },
+  {
+    "row": 167,
+    "familia": "Protección y Potencia",
+    "material": "Centros de Carga / Tableros",
+    "tipo": "Trifásicos"
+  },
+  {
+    "row": 168,
+    "familia": "Protección y Potencia",
+    "material": "Centros de Carga / Tableros",
+    "tipo": "De empotrar"
+  },
+  {
+    "row": 169,
+    "familia": "Protección y Potencia",
+    "material": "Centros de Carga / Tableros",
+    "tipo": "De sobreponer"
+  },
+  {
+    "row": 170,
+    "familia": "Protección y Potencia",
+    "material": "Centros de Carga / Tableros",
+    "tipo": "Con zapata principal"
+  },
+  {
+    "row": 171,
+    "familia": "Protección y Potencia",
+    "material": "Centros de Carga / Tableros",
+    "tipo": "Con interruptor principal"
+  },
+  {
+    "row": 172,
+    "familia": "Protección y Potencia",
+    "material": "Centros de Carga / Tableros",
+    "tipo": "NEMA 1"
+  },
+  {
+    "row": 173,
+    "familia": "Protección y Potencia",
+    "material": "Centros de Carga / Tableros",
+    "tipo": "NEMA 3R / IP65 o superior"
+  },
+  {
+    "row": 174,
+    "familia": "Protección y Potencia",
+    "material": "Interruptores de Transferencia",
+    "tipo": "Manuales"
+  },
+  {
+    "row": 175,
+    "familia": "Protección y Potencia",
+    "material": "Interruptores de Transferencia",
+    "tipo": "Automáticos (ATS)"
+  },
+  {
+    "row": 176,
+    "familia": "Protección y Potencia",
+    "material": "Interruptores de Transferencia",
+    "tipo": "Transición abierta"
+  },
+  {
+    "row": 177,
+    "familia": "Protección y Potencia",
+    "material": "Interruptores de Transferencia",
+    "tipo": "Transición cerrada"
+  },
+  {
+    "row": 178,
+    "familia": "Protección y Potencia",
+    "material": "Interruptores de Transferencia",
+    "tipo": "Transición de carga suave"
+  },
+  {
+    "row": 179,
+    "familia": "Protección y Potencia",
+    "material": "Interruptores de Transferencia",
+    "tipo": "Clase PC"
+  },
+  {
+    "row": 180,
+    "familia": "Protección y Potencia",
+    "material": "Interruptores de Transferencia",
+    "tipo": "Bipolares"
+  },
+  {
+    "row": 181,
+    "familia": "Protección y Potencia",
+    "material": "Interruptores de Transferencia",
+    "tipo": "Tripolares / Tetrapolares"
+  },
+  {
+    "row": 182,
+    "familia": "Protección y Potencia",
+    "material": "Interruptores de Transferencia",
+    "tipo": "Baja tensión"
+  },
+  {
+    "row": 183,
+    "familia": "Protección y Potencia",
+    "material": "Interruptores de Transferencia",
+    "tipo": "Media tensión"
+  },
+  {
+    "row": 184,
+    "familia": "Protección y Potencia",
+    "material": "Inversores",
+    "tipo": "Onda sinusoidal pura"
+  },
+  {
+    "row": 185,
+    "familia": "Protección y Potencia",
+    "material": "Inversores",
+    "tipo": "Onda sinusoidal modificada"
+  },
+  {
+    "row": 186,
+    "familia": "Protección y Potencia",
+    "material": "Inversores",
+    "tipo": "Onda cuadrada"
+  },
+  {
+    "row": 187,
+    "familia": "Protección y Potencia",
+    "material": "Inversores",
+    "tipo": "Inversores interconectados"
+  },
+  {
+    "row": 188,
+    "familia": "Protección y Potencia",
+    "material": "Inversores",
+    "tipo": "Inversores aislados"
+  },
+  {
+    "row": 189,
+    "familia": "Protección y Potencia",
+    "material": "Inversores",
+    "tipo": "Inversores híbridos"
+  },
+  {
+    "row": 190,
+    "familia": "Protección y Potencia",
+    "material": "Inversores",
+    "tipo": "Inversores de cadena"
+  },
+  {
+    "row": 191,
+    "familia": "Protección y Potencia",
+    "material": "Inversores",
+    "tipo": "Microinversores"
+  },
+  {
+    "row": 192,
+    "familia": "Protección y Potencia",
+    "material": "Pastillas Termomagnéticas",
+    "tipo": "Monopolares (1 Polo / 1P)"
+  },
+  {
+    "row": 193,
+    "familia": "Protección y Potencia",
+    "material": "Pastillas Termomagnéticas",
+    "tipo": "Bipolares (2 Polos / 2P)"
+  },
+  {
+    "row": 194,
+    "familia": "Protección y Potencia",
+    "material": "Pastillas Termomagnéticas",
+    "tipo": "Tripolares (3 Polos / 3P)"
+  },
+  {
+    "row": 195,
+    "familia": "Protección y Potencia",
+    "material": "Pastillas Termomagnéticas",
+    "tipo": "Tetrapolares (4 Polos / 4P)"
+  },
+  {
+    "row": 196,
+    "familia": "Protección y Potencia",
+    "material": "Pastillas Termomagnéticas",
+    "tipo": "Riel DIN"
+  },
+  {
+    "row": 197,
+    "familia": "Protección y Potencia",
+    "material": "Pastillas Termomagnéticas",
+    "tipo": "Tipo QO"
+  },
+  {
+    "row": 198,
+    "familia": "Protección y Potencia",
+    "material": "Pastillas Termomagnéticas",
+    "tipo": "Caja moldeada"
+  },
+  {
+    "row": 199,
+    "familia": "Protección y Potencia",
+    "material": "Pastillas Termomagnéticas",
+    "tipo": "Curva B"
+  },
+  {
+    "row": 200,
+    "familia": "Protección y Potencia",
+    "material": "Pastillas Termomagnéticas",
+    "tipo": "Curva C"
+  },
+  {
+    "row": 201,
+    "familia": "Protección y Potencia",
+    "material": "Pastillas Termomagnéticas",
+    "tipo": "Curva D"
+  },
+  {
+    "row": 202,
+    "familia": "Protección y Potencia",
+    "material": "Pastillas Termomagnéticas",
+    "tipo": "Tipo GF"
+  },
+  {
+    "row": 203,
+    "familia": "Protección y Potencia",
+    "material": "Pastillas Termomagnéticas",
+    "tipo": "Tipo AFCI"
+  },
+  {
+    "row": 204,
+    "familia": "Protección y Potencia",
+    "material": "Varillas de Tierra",
+    "tipo": "Varilla cobrizada (Copperweld)"
+  },
+  {
+    "row": 205,
+    "familia": "Protección y Potencia",
+    "material": "Varillas de Tierra",
+    "tipo": "Varilla de cobre puro"
+  },
+  {
+    "row": 206,
+    "familia": "Protección y Potencia",
+    "material": "Varillas de Tierra",
+    "tipo": "Varilla de acero inoxidable"
+  },
+  {
+    "row": 207,
+    "familia": "Protección y Potencia",
+    "material": "Varillas de Tierra",
+    "tipo": "Varillas roscadas y modulares"
+  },
+  {
+    "row": 208,
+    "familia": "Protección y Potencia",
+    "material": "Varillas de Tierra",
+    "tipo": "Varillas químicas"
+  },
+  {
+    "row": 209,
+    "familia": "Conexiones y Uniones",
+    "material": "Conectores",
+    "tipo": "Presión o empalme rápido (Wago)"
+  },
+  {
+    "row": 210,
+    "familia": "Conductores y Canalización",
+    "material": "Tubo",
+    "tipo": "PVC Pesado"
+  },
+  {
+    "row": 211,
+    "familia": "Conexiones y Uniones",
+    "material": "Cople",
+    "tipo": "PVC Rígido"
+  },
+  {
+    "row": 212,
+    "familia": "Cajas y Registros",
+    "material": "Cajas",
+    "tipo": "Rectangulares"
+  },
+  {
+    "row": 213,
+    "familia": "Conexiones y Uniones",
+    "material": "Conectores",
+    "tipo": "Regletas o clemas de conexión"
+  },
+  {
+    "row": 214,
+    "familia": "Conductores y Canalización",
+    "material": "Tubo",
+    "tipo": "Resina termoendurecible reforzada"
+  },
+  {
+    "row": 215,
+    "familia": "Conexiones y Uniones",
+    "material": "Plugs RJ",
+    "tipo": "RJ10 / RJ22 (4P2C / 4P4C)"
+  },
+  {
+    "row": 216,
+    "familia": "Conexiones y Uniones",
+    "material": "Plugs RJ",
+    "tipo": "RJ11 (6P2C / 6P4C)"
+  },
+  {
+    "row": 217,
+    "familia": "Conexiones y Uniones",
+    "material": "Plugs RJ",
+    "tipo": "RJ12 (6P6C)"
+  },
+  {
+    "row": 218,
+    "familia": "Conexiones y Uniones",
+    "material": "Plugs RJ",
+    "tipo": "RJ14 (6P4C con dos líneas)"
+  },
+  {
+    "row": 219,
+    "familia": "Conexiones y Uniones",
+    "material": "Plugs RJ",
+    "tipo": "RJ25 (6P6C con tres líneas)"
+  },
+  {
+    "row": 220,
+    "familia": "Conexiones y Uniones",
+    "material": "Plugs RJ",
+    "tipo": "RJ61 (8P4C)"
+  },
+  {
+    "row": 221,
+    "familia": "Consumibles y Empalmes",
+    "material": "Capuchones / Conectores",
+    "tipo": "Rojo / P5"
+  },
+  {
+    "row": 222,
+    "familia": "Conexiones y Uniones",
+    "material": "Cople",
+    "tipo": "Roscado"
+  },
+  {
+    "row": 223,
+    "familia": "Conductores y Canalización",
+    "material": "Cable Eléctrico",
+    "tipo": "SJT (Uso rudo)"
+  },
+  {
+    "row": 224,
+    "familia": "Conductores y Canalización",
+    "material": "Cable",
+    "tipo": "SJT (Uso rudo)"
+  },
+  {
+    "row": 225,
+    "familia": "Conductores y Canalización",
+    "material": "Cable Eléctrico",
+    "tipo": "SPT (Cable dúplex)"
+  },
+  {
+    "row": 226,
+    "familia": "Conductores y Canalización",
+    "material": "Cable",
+    "tipo": "SPT (Cable dúplex)"
+  },
+  {
+    "row": 227,
+    "familia": "Cajas y Registros",
+    "material": "Registro",
+    "tipo": "Superficiales"
+  },
+  {
+    "row": 228,
+    "familia": "Conductores y Canalización",
+    "material": "Cable Eléctrico",
+    "tipo": "THHN / THHW"
+  },
+  {
+    "row": 229,
+    "familia": "Conductores y Canalización",
+    "material": "Cable",
+    "tipo": "THHN / THWN"
+  },
+  {
+    "row": 230,
+    "familia": "Conductores y Canalización",
+    "material": "Cable Eléctrico",
+    "tipo": "THW / THHW"
+  },
+  {
+    "row": 231,
+    "familia": "Conductores y Canalización",
+    "material": "Cable",
+    "tipo": "THW / THHW"
+  },
+  {
+    "row": 232,
+    "familia": "Cajas y Registros",
+    "material": "Cajas",
+    "tipo": "Tipo C"
+  },
+  {
+    "row": 233,
+    "familia": "Cajas y Registros",
+    "material": "Cajas",
+    "tipo": "Tipo L"
+  },
+  {
+    "row": 234,
+    "familia": "Fijación y Soporte",
+    "material": "Abrazadera",
+    "tipo": "Tipo Omega"
+  },
+  {
+    "row": 235,
+    "familia": "Fijación y Soporte",
+    "material": "Abrazadera",
+    "tipo": "Tipo P"
+  },
+  {
+    "row": 236,
+    "familia": "Fijación y Soporte",
+    "material": "Abrazadera",
+    "tipo": "Tipo U"
+  },
+  {
+    "row": 237,
+    "familia": "Cajas y Registros",
+    "material": "Cajas",
+    "tipo": "Tipo X"
+  },
+  {
+    "row": 238,
+    "familia": "Conexiones y Uniones",
+    "material": "Conectores",
+    "tipo": "Torsión (Capuchones)"
+  },
+  {
+    "row": 239,
+    "familia": "Conexiones y Uniones",
+    "material": "Organizadores de Cable",
+    "tipo": "Tubos o mangas flexibles (espirales y de neopreno)"
+  },
+  {
+    "row": 240,
+    "familia": "Fijación y Soporte",
+    "material": "Abrazadera",
+    "tipo": "Unicanal"
+  },
+  {
+    "row": 241,
+    "familia": "Cajas y Registros",
+    "material": "Tapas",
+    "tipo": "Unión"
+  },
+  {
+    "row": 242,
+    "familia": "Fijación y Soporte",
+    "material": "Abrazadera",
+    "tipo": "Uña"
+  },
+  {
+    "row": 243,
+    "familia": "Conductores y Canalización",
+    "material": "Cable",
+    "tipo": "UTP Cat5e"
+  },
+  {
+    "row": 244,
+    "familia": "Conductores y Canalización",
+    "material": "Cable",
+    "tipo": "UTP Cat5e exterior"
+  },
+  {
+    "row": 245,
+    "familia": "Conductores y Canalización",
+    "material": "Cable UTP (Cat 6 / 6A )",
+    "tipo": "UTP Cat6"
+  },
+  {
+    "row": 246,
+    "familia": "Conductores y Canalización",
+    "material": "Cable",
+    "tipo": "UTP Cat6"
+  },
+  {
+    "row": 247,
+    "familia": "Conductores y Canalización",
+    "material": "Cable UTP (Cat 6 / 6A )",
+    "tipo": "UTP Cat6 exterior"
+  },
+  {
+    "row": 248,
+    "familia": "Conductores y Canalización",
+    "material": "Cable",
+    "tipo": "UTP Cat6 exterior"
+  },
+  {
+    "row": 249,
+    "familia": "Conductores y Canalización",
+    "material": "Cable UTP (Cat 6 / 6A )",
+    "tipo": "UTP Cat6A"
+  },
+  {
+    "row": 250,
+    "familia": "Conductores y Canalización",
+    "material": "Cable",
+    "tipo": "UTP Cat6A"
+  },
+  {
+    "row": 251,
+    "familia": "Conductores y Canalización",
+    "material": "Cable UTP (Cat 6 / 6A )",
+    "tipo": "UTP Cat6A exterior"
+  },
+  {
+    "row": 252,
+    "familia": "Conductores y Canalización",
+    "material": "Cable",
+    "tipo": "UTP Cat6A exterior"
+  }
+]

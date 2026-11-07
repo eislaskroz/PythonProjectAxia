@@ -1,0 +1,54 @@
+AXIA DESKTOP 2.06.10 — CATÁLOGO DE MATERIALES NOVIEMBRE 2026
+===========================================================
+FUENTE
+  Catálogo de Materiales Noviembre 2026.xlsx, hoja NOV2026, A1:C252.
+  251 combinaciones sin duplicados, 37 materiales, 7 categorías.
+
+CAMBIOS
+  - Capturas NUEVAS: la sección «Canalización, cableado y materiales»
+    ofrece únicamente los materiales y tipos que aparecen en ese Excel.
+    Las opciones retiradas dejan de ofrecerse para nuevas capturas.
+  - LEV y Obra Civil usan el mismo catálogo desde
+    views/levantamientos/catalogos_materiales_jerarquicos.py.
+  - Los selectores siguen siendo Categoría > Material > Tipo > Tamaño,
+    seguidos de Color/Modelo/Otros, Cantidad, Unidad y Aproximado.
+  - Tipos nuevos o editados, entre ellos Conector ZAPA, Corrugado no
+    metálico (ENT), Plugs RJ y las nuevas variedades de aislantes,
+    soportes y protección, se toman literalmente del Excel.
+  - Para cuatro tipos flexibles de Tubo se conserva Metro(s), incluido
+    el nuevo nombre Corrugado no metálico (ENT); los otros Tubos siguen
+    Pieza(s) con cálculo visual x3.
+  - Registros anteriores: materiales y tipos históricos siguen
+    mostrándose en sus propias partidas al recuperarlas; no se borran
+    de la base de datos ni vuelven al catálogo de capturas nuevas.
+  - Aproximado se mantiene como indicador visual, fuera del PDF.
+  - Color/Modelo/Otros, medidas conocidas y unidades existentes se
+    conservan. El Excel NO trae tamaños, unidades ni atributos de uso.
+    Los materiales sin especificación previa muestran «Por definir».
+
+ADVERTENCIAS SOBRE EL CONTENIDO DE LA FUENTE
+  Se han respetado literalmente estos valores del Excel, para no
+  alterar decisiones del catálogo sin autorización:
+    - «Específicos Aire Acondirionado» (categoría, parece errata).
+    - «Cable UTP (Cat 6 / 6A )» (espacio antes del paréntesis final).
+    - «45"» y «90"» como tipos de Codos.
+    - «Confuit Galvanizado», «Counduit PD» y «Counduit PG» en Cople.
+  Corrige primero el archivo fuente si deseas normalizar esos nombres.
+  Las denominaciones antiguas se preservan en los históricos.
+
+ARCHIVOS MODIFICADOS
+  views/levantamientos/catalogos_materiales_jerarquicos.py
+  views/levantamientos/canalizacion_aproximado.py
+  views/levantamiento_view.py
+  views/obra_civil_view.py
+  tests/unit/test_catalogo_jerarquico_20261105.py
+
+ARCHIVOS AGREGADOS
+  docs/catalogo_materiales_noviembre_2026_fuente.json
+  docs/LEEME_CATALOGO_NOVIEMBRE_2026.txt
+
+VALIDACIÓN
+  Pruebas de catálogo, tubo por metro, canaleta, PDF y Color/Modelo.
+  Se debe verificar gráficamente en Windows y guardar LEV/OBC de prueba.
+  No se requiere migración SQL ni modificación de Edge Functions.
+  Se conserva APP_VERSION = 2.06.10.

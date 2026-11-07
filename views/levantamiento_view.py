@@ -2972,7 +2972,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 "tamano_calibre_especificacion": item["especificacion"].get().strip(),
                 "color_modelo": item["color_modelo"].get().strip(),
                 "cantidad": cantidad,
-                "unidad": unidad_forzada_canalizacion(categoria, item["unidad"].get()),
+                "unidad": unidad_forzada_canalizacion(categoria, item["unidad"].get(), tipo),
             }
             fila_guardada.update(referencia_de_partida(
                 item, ("categoria", "tipo", "especificacion", "unidad"),
@@ -3073,20 +3073,27 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         for col, encabezado in enumerate(("Categoría", "Material", "Tipo", "Tamaño/calibre", "Color/Modelo/Otros", "Cantidad", "Unidad", "Aprox.", "Acción")):
             ctk.CTkLabel(seccion_canalizacion_dinamica, text=encabezado, font=FORM_TABLE_HEADER_FONT, text_color=TEXT_PRIMARY).grid(row=4, column=col, sticky="w", padx=5, pady=(0,2))
 
-        def agregar_partida_canalizacion(categoria_inicial="Tubo"):
+        def agregar_partida_canalizacion(categoria_inicial="Tubo", *, historico=False):
             fila = 5 + len(canalizacion_materiales_items)
             material_inicial = normalizar_material(categoria_inicial)
-            var_familia = ctk.StringVar(value=familia_de_material(material_inicial))
+            familia_inicial = familia_de_material(material_inicial)
+            var_familia = ctk.StringVar(value=familia_inicial)
             var_categoria = ctk.StringVar(value=material_inicial)  # Identificador histórico del material
             var_tipo_item = ctk.StringVar()
             var_especificacion = ctk.StringVar()
             var_color_modelo = ctk.StringVar()
             var_cantidad_item = ctk.StringVar()
             var_unidad_item = ctk.StringVar(value=unidad_inicial_material(material_inicial))
+            familias_fila = familias_materiales()
+            if historico and familia_inicial not in familias_fila:
+                familias_fila.append(familia_inicial)
+            materiales_fila = materiales_de_familia(familia_inicial)
+            if historico and material_inicial not in materiales_fila:
+                materiales_fila.append(material_inicial)
             combo_familia = NativeComboBox(seccion_canalizacion_dinamica, variable=var_familia,
-                                          values=familias_materiales(), width=250, height=31)
+                                          values=familias_fila, width=250, height=31)
             combo_categoria = NativeComboBox(seccion_canalizacion_dinamica, variable=var_categoria,
-                                            values=materiales_de_familia(var_familia.get()), width=175, height=31)
+                                            values=materiales_fila, width=175, height=31)
             combo_tipo = NativeComboBox(seccion_canalizacion_dinamica, variable=var_tipo_item, values=[], width=255, height=31)
             combo_especificacion = NativeComboBox(seccion_canalizacion_dinamica, variable=var_especificacion,
                                                   values=[], width=143, height=31)
@@ -3111,11 +3118,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
             def actualizar_aproximado(*_):
                 material = var_categoria.get()
-                if unidad_fija_canalizacion(material) and var_unidad_item.get() != "Pieza(s)":
-                    var_unidad_item.set("Pieza(s)")
+                tipo = var_tipo_item.get()
+                unidad_correcta = unidad_forzada_canalizacion(material, var_unidad_item.get(), tipo)
+                if var_unidad_item.get() != unidad_correcta:
+                    var_unidad_item.set(unidad_correcta)
                     return
                 lbl_aproximado.configure(text=texto_aproximado_canalizacion(
-                    material, var_cantidad_item.get(), var_unidad_item.get()
+                    material, var_cantidad_item.get(), var_unidad_item.get(), tipo
                 ))
 
             actualizando_catalogos = False
@@ -3130,6 +3139,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     familia = var_familia.get().strip()
                     materiales = materiales_de_familia(familia)
                     material = normalizar_material(var_categoria.get())
+                    if historico and material == material_inicial and material not in materiales and familia == familia_inicial:
+                        materiales.append(material)  # Solo esta partida antigua, no el catálogo global
                     if material not in materiales:
                         material = materiales[0] if materiales else ""
                     combo_categoria.configure(values=materiales)
@@ -3160,12 +3171,12 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     combo_especificacion.configure(values=especificaciones)
                     if var_especificacion.get() != especificacion:
                         var_especificacion.set(especificacion)
-                    unidades = unidades_de_material(material)
-                    if var_unidad_item.get() and var_unidad_item.get() not in unidades:
+                    unidades = unidades_de_material(material, tipo)
+                    if not unidad_fija_canalizacion(material, tipo) and var_unidad_item.get() and var_unidad_item.get() not in unidades:
                         unidades.append(var_unidad_item.get())  # Compatibilidad con registros viejos
                     combo_unidad.configure(values=unidades)
-                    var_unidad_item.set(unidad_forzada_canalizacion(material, var_unidad_item.get()))
-                    combo_unidad.configure(state="disabled" if unidad_fija_canalizacion(material) else "normal")
+                    var_unidad_item.set(unidad_forzada_canalizacion(material, var_unidad_item.get(), tipo))
+                    combo_unidad.configure(state="disabled" if unidad_fija_canalizacion(material, tipo) else "normal")
                     actualizar_aproximado()
                 finally:
                     actualizando_catalogos = False
@@ -5580,7 +5591,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         for fila in _filas_canal_guardadas:
             try:
                 categoria_guardada = normalizar_material(fila.get("material") or fila.get("categoria") or "Tubo")
-                agregar_partida_canalizacion(categoria_guardada)
+                agregar_partida_canalizacion(categoria_guardada, historico=True)
                 item = canalizacion_materiales_items[-1]
                 item["familia"].set(familia_de_partida(fila))
                 item["categoria"].set(categoria_guardada)
@@ -5591,6 +5602,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                         if k == "tipo":
                             valor = normalizar_tipo_canalizacion(valor)
                         item[destino].set(str(valor))
+                # La unidad capturada se valida contra el tipo actual; las cuatro
+                # tuberías flexibles se cuantifican por metro y las demás por pieza.
+                item["unidad"].set(unidad_forzada_canalizacion(
+                    item["categoria"].get(), item["unidad"].get(), item["tipo"].get()))
                 conservar_referencia_guardada(item, fila, ("categoria", "tipo", "especificacion", "unidad"))
             except Exception:
                 logger.debug("No fue posible restaurar una partida de canalización.", exc_info=True)

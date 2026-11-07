@@ -1021,7 +1021,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                 "tamano_calibre_especificacion": item["especificacion"].get().strip(),
                 "color_modelo": item["color_modelo"].get().strip(),
                 "cantidad": cantidad,
-                "unidad": unidad_forzada_canalizacion(material, item["unidad"].get()),
+                "unidad": unidad_forzada_canalizacion(material, item["unidad"].get(), tipo),
             })
         return filas
 
@@ -1044,19 +1044,26 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                 return False
         return True
 
-    def agregar_partida_canalizacion_obra(categoria_inicial="Tubo"):
+    def agregar_partida_canalizacion_obra(categoria_inicial="Tubo", *, historico=False):
         fila = 4 + len(canalizacion_materiales_items)
         material_inicial = normalizar_material(categoria_inicial)
-        vfamilia = ctk.StringVar(value=familia_de_material(material_inicial))
+        familia_inicial = familia_de_material(material_inicial)
+        vfamilia = ctk.StringVar(value=familia_inicial)
         vcategoria = ctk.StringVar(value=material_inicial)
         vtipo = ctk.StringVar()
         vespecificacion = ctk.StringVar()
         vcolor_modelo = ctk.StringVar()
         vcantidad = ctk.StringVar()
         vunidad = ctk.StringVar(value=unidad_inicial_material(material_inicial))
-        ofamilia = NativeComboBox(panel_canalizacion, variable=vfamilia, values=familias_materiales(), width=250, height=31)
+        familias_fila = familias_materiales()
+        if historico and familia_inicial not in familias_fila:
+            familias_fila.append(familia_inicial)
+        materiales_fila = materiales_de_familia(familia_inicial)
+        if historico and material_inicial not in materiales_fila:
+            materiales_fila.append(material_inicial)
+        ofamilia = NativeComboBox(panel_canalizacion, variable=vfamilia, values=familias_fila, width=250, height=31)
         ocategoria = NativeComboBox(panel_canalizacion, variable=vcategoria,
-                                    values=materiales_de_familia(vfamilia.get()), width=175, height=31)
+                                    values=materiales_fila, width=175, height=31)
         otipo = NativeComboBox(panel_canalizacion, variable=vtipo, values=[], width=255, height=31)
         oespecificacion = NativeComboBox(panel_canalizacion, variable=vespecificacion, values=[], width=143, height=31)
         ecolor_modelo = AxiaEntry(panel_canalizacion, textvariable=vcolor_modelo, width=130, height=31, placeholder_text="Color o modelo")
@@ -1077,11 +1084,13 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
 
         def actualizar_aproximado(*_):
             material = vcategoria.get()
-            if unidad_fija_canalizacion(material) and vunidad.get() != "Pieza(s)":
-                vunidad.set("Pieza(s)")
+            tipo = vtipo.get()
+            unidad_correcta = unidad_forzada_canalizacion(material, vunidad.get(), tipo)
+            if vunidad.get() != unidad_correcta:
+                vunidad.set(unidad_correcta)
                 return
             laproximado.configure(text=texto_aproximado_canalizacion(
-                material, vcantidad.get(), vunidad.get()
+                material, vcantidad.get(), vunidad.get(), tipo
             ))
 
         actualizando_catalogos = False
@@ -1096,6 +1105,8 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                 familia = vfamilia.get().strip()
                 materiales = materiales_de_familia(familia)
                 material = normalizar_material(vcategoria.get())
+                if historico and material == material_inicial and material not in materiales and familia == familia_inicial:
+                    materiales.append(material)  # Solo esta partida antigua
                 if material not in materiales:
                     material = materiales[0] if materiales else ""
                 ocategoria.configure(values=materiales)
@@ -1123,12 +1134,12 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                 oespecificacion.configure(values=especificaciones)
                 if vespecificacion.get() != especificacion:
                     vespecificacion.set(especificacion)
-                unidades = unidades_de_material(material)
-                if vunidad.get() and vunidad.get() not in unidades:
+                unidades = unidades_de_material(material, tipo)
+                if not unidad_fija_canalizacion(material, tipo) and vunidad.get() and vunidad.get() not in unidades:
                     unidades.append(vunidad.get())
                 ounidad.configure(values=unidades)
-                vunidad.set(unidad_forzada_canalizacion(material, vunidad.get()))
-                ounidad.configure(state="disabled" if unidad_fija_canalizacion(material) else "normal")
+                vunidad.set(unidad_forzada_canalizacion(material, vunidad.get(), tipo))
+                ounidad.configure(state="disabled" if unidad_fija_canalizacion(material, tipo) else "normal")
                 actualizar_aproximado()
                 validar_preview()
             finally:
@@ -1461,7 +1472,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
         if isinstance(canal_guardados, list) and canal_guardados:
             while len(canalizacion_materiales_items) < len(canal_guardados):
                 material = canal_guardados[len(canalizacion_materiales_items)].get("material") or canal_guardados[len(canalizacion_materiales_items)].get("categoria") or "Tubo"
-                agregar_partida_canalizacion_obra(material)
+                agregar_partida_canalizacion_obra(material, historico=True)
             for item, fila in zip(canalizacion_materiales_items, canal_guardados):
                 if not isinstance(fila, dict):
                     continue
@@ -1471,7 +1482,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                 item["especificacion"].set(str(fila.get("tamano_calibre_especificacion") or fila.get("especificacion") or ""))
                 item["color_modelo"].set(str(fila.get("color_modelo") or fila.get("Color/Modelo/Otros") or ""))
                 item["cantidad"].set(str(fila.get("cantidad") or ""))
-                item["unidad"].set(unidad_forzada_canalizacion(item["categoria"].get(), fila.get("unidad")))
+                item["unidad"].set(unidad_forzada_canalizacion(item["categoria"].get(), fila.get("unidad"), item["tipo"].get()))
         for ruta in estado.get("evidencias_locales", []) if isinstance(estado.get("evidencias_locales"), list) else []:
             if ruta and ruta not in evidencias: evidencias.append(ruta)
         for ruta in estado.get("archivos_locales", []) if isinstance(estado.get("archivos_locales"), list) else []:
