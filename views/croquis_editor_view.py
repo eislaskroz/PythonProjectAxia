@@ -27,6 +27,19 @@ DARK = "#0F2337"
 SURFACE = "#F5F8FC"
 
 
+def calcular_zoom_para_lienzo(ancho_visible, alto_visible):
+    """Ajuste proporcional al espacio visible, incluso cuando requiere zoom > 100%.
+
+    El tamaño lógico de 980 x 460 del documento NO cambia; únicamente cambia
+    cómo se presenta en pantalla. Se reserva una holgura para no recortar bordes.
+    """
+    if ancho_visible < 2 or alto_visible < 2:
+        return .80
+    espacio_h = max(1, ancho_visible - 12)
+    espacio_v = max(1, alto_visible - 12)
+    return max(.40, min(4.0, espacio_h / WIDTH, espacio_v / HEIGHT))
+
+
 def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anotaciones tipo plano"):
     """Abre un editor modal sin cambiar el contrato PNG Base64 existente."""
     try:
@@ -49,6 +62,7 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
     win.grab_set()
 
     state = {"tool": "select", "color": COLORS[0], "width": 3, "zoom": .80,
+             "fit_to_window": True,
              "selected": None, "start": None, "last": None, "preview": None,
              "drag": None, "before": None, "initial": None,
              "bg_key": None, "bg_image": None, "grid": False, "text_images": [],
@@ -92,7 +106,8 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
     center.pack(side="left", fill="both", expand=True)
     canvas_box = ctk.CTkFrame(center, fg_color="transparent")
     canvas_box.pack(fill="both", expand=True, padx=8, pady=8)
-    drawing = Canvas(canvas_box, bg="white", highlightthickness=1, highlightbackground="#CBD5E1",
+    # El área fuera del papel se distingue visualmente del espacio editable.
+    drawing = Canvas(canvas_box, bg="#E8EEF5", highlightthickness=1, highlightbackground="#CBD5E1",
                      xscrollincrement=1, yscrollincrement=1, cursor="crosshair")
     xbar = Scrollbar(canvas_box, orient="horizontal", command=drawing.xview)
     ybar = Scrollbar(canvas_box, orient="vertical", command=drawing.yview)
@@ -130,8 +145,15 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
         return (max(0., min(WIDTH, drawing.canvasx(ev.x) / z)),
                 max(0., min(HEIGHT, drawing.canvasy(ev.y) / z)))
 
-    def set_zoom(value):
-        state["zoom"] = max(.40, min(2.0, round(value, 2)))
+    def set_zoom(value, *, por_ajuste=False):
+        # Un zoom explícito (+/−/Ctrl+rueda) se conserva al redimensionar.
+        # «Ajustar» reactiva el ajuste automático al tamaño de la ventana.
+        if not por_ajuste:
+            state["fit_to_window"] = False
+        nuevo_zoom = max(.40, min(4.0, round(value, 2)))
+        if state["zoom"] == nuevo_zoom and state["bg_key"] is not None:
+            return
+        state["zoom"] = nuevo_zoom
         state["bg_key"] = None
         zoom_label.configure(text=f"{round(state['zoom'] * 100)}%")
         repaint()
@@ -527,9 +549,30 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
     top_button(commands_right, "Ajustar", lambda: fit_zoom(), width=65).pack(side="left", padx=2)
 
     def fit_zoom():
-        usable = max(400, drawing.winfo_width()-25)
-        available_h = max(300, drawing.winfo_height()-25)
-        set_zoom(min(1, usable / WIDTH, available_h / HEIGHT))
+        state["fit_to_window"] = True
+        ancho, alto = drawing.winfo_width(), drawing.winfo_height()
+        if ancho <= 2 or alto <= 2:
+            return  # Tk aún no ha calculado el tamaño visible del widget.
+        set_zoom(calcular_zoom_para_lienzo(ancho, alto), por_ajuste=True)
+
+    # En ventanas redimensionables, el dibujo se adapta automáticamente.
+    # Se evita una ráfaga de repintados mientras Windows cambia el tamaño.
+    ajuste_pendiente = {"id": None}
+
+    def ajustar_despues_de_redimensionar(_event=None):
+        if not state["fit_to_window"]:
+            return
+        if ajuste_pendiente["id"] is not None:
+            win.after_cancel(ajuste_pendiente["id"])
+
+        def aplicar_ajuste():
+            ajuste_pendiente["id"] = None
+            if state["fit_to_window"] and win.winfo_exists():
+                fit_zoom()
+
+        ajuste_pendiente["id"] = win.after(100, aplicar_ajuste)
+
+    drawing.bind("<Configure>", ajustar_despues_de_redimensionar)
 
     def initial_object(kind, x, y):
         if kind in ("stroke", "erase"):
