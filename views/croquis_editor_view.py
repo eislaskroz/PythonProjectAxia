@@ -533,6 +533,19 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
         grid_btn.configure(fg_color=DARK if state["grid"] else SECONDARY)
         repaint()
 
+    # Un acceso fijo al guardado que NO depende del espacio disponible al pie.
+    # El pie inferior puede quedar fuera de pantalla en algunos equipos Windows
+    # al maximizar por resolución/escalado; esta barra superior siempre se ve.
+    def save():
+        try:
+            variable_base64.set(doc.export_base64())
+            if on_change:
+                on_change()
+        except Exception as exc:
+            messagebox.showerror("Editor de croquis", f"No fue posible guardar la anotación:\n{exc}", parent=win)
+            return
+        win.destroy()
+
     def top_button(host, label, cmd, color=SECONDARY, width=89):
         return ctk.CTkButton(host, text=label, height=30, width=width,
                              fg_color=color, hover_color=BUTTON_HOVER,
@@ -547,6 +560,11 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
     zoom_label.pack(side="left", padx=3)
     top_button(commands_right, "+", lambda: set_zoom(state["zoom"] + .15), width=35).pack(side="left", padx=2)
     top_button(commands_right, "Ajustar", lambda: fit_zoom(), width=65).pack(side="left", padx=2)
+    # Botón primario persistente: visible incluso si Windows recorta el pie.
+    ctk.CTkButton(commands_right, text="Guardar croquis", width=157, height=32,
+                  fg_color="#15803D", hover_color="#166534",
+                  font=("Montserrat", 11, "bold"),
+                  command=save).pack(side="left", padx=(12, 2))
 
     def fit_zoom():
         state["fit_to_window"] = True
@@ -686,19 +704,11 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
     win.bind("<Control-z>", lambda ev: undo())
     win.bind("<Control-y>", lambda ev: redo())
     win.bind("<Control-d>", lambda ev: duplicate() if state["selected"] is not None else None)
+    # Guardar desde teclado sin depender de la posición del botón inferior.
+    win.bind("<Control-s>", lambda ev: save())
 
     ctk.CTkButton(bottom, text="Cancelar", width=140, height=35, fg_color="#64748B",
                   command=win.destroy).pack(side="left")
-
-    def save():
-        try:
-            variable_base64.set(doc.export_base64())
-            if on_change:
-                on_change()
-        except Exception as exc:
-            messagebox.showerror("Editor de croquis", f"No fue posible guardar la anotación:\n{exc}", parent=win)
-            return
-        win.destroy()
 
     ctk.CTkButton(bottom, text="Guardar croquis", width=175, height=35,
                   fg_color=SECONDARY, hover_color=BUTTON_HOVER,

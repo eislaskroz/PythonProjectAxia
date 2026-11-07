@@ -4,7 +4,16 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="04557334-8dd2-4c5c-9e71-68cbc1b3eae6" name="Changes" comment="Merge remote-tracking branch 'orign/main'" />
+    <list default="true" id="04557334-8dd2-4c5c-9e71-68cbc1b3eae6" name="Changes" comment="Merge remote-tracking branch 'orign/main'">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/version.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/version.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/LEEME_CATALOGO_NOVIEMBRE_2026.txt" beforeDir="false" afterPath="$PROJECT_DIR$/docs/LEEME_CATALOGO_NOVIEMBRE_2026.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/installer/AXIA.iss" beforeDir="false" afterPath="$PROJECT_DIR$/installer/AXIA.iss" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_catalogo_axia_visible_completo_20506.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_catalogo_axia_visible_completo_20506.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_levantamiento_form_body_inicializado_20505.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_levantamiento_form_body_inicializado_20505.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_rrhh_integracion_20604.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_rrhh_integracion_20604.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/croquis_editor_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/croquis_editor_view.py" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -19,23 +28,23 @@
   </component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
-      <entry key="MS100" value="1.3689318420643466" />
-      <entry key="MS500" value="2.66609583625696" />
-      <entry key="S2" value="7.150739524159653" />
-      <entry key="S5" value="9.686335814274937" />
-      <entry key="S10" value="11.378977209661226" />
-      <entry key="S30" value="17.72588831510909" />
-      <entry key="S60" value="25.349118363582644" />
-      <entry key="M2" value="40.52308186890276" />
-      <entry key="M5" value="73.6823741820786" />
-      <entry key="M10" value="105.95748038672475" />
-      <entry key="M15" value="127.55405240718781" />
-      <entry key="M30" value="168.0274255499352" />
-      <entry key="H1" value="206.24277521795338" />
-      <entry key="H2" value="234.65080283254002" />
-      <entry key="H4" value="252.3400065719279" />
-      <entry key="D1" value="269.3255040899334" />
-      <entry key="W1" value="272.4690531042793" />
+      <entry key="MS100" value="1.0000000000034417" />
+      <entry key="MS500" value="1.0051053478652923" />
+      <entry key="S2" value="1.3284382660547918" />
+      <entry key="S5" value="2.1680443993665808" />
+      <entry key="S10" value="3.6923282863388502" />
+      <entry key="S30" value="11.158505943638655" />
+      <entry key="S60" value="22.2507135634288" />
+      <entry key="M2" value="42.08837960618177" />
+      <entry key="M5" value="84.28950413222978" />
+      <entry key="M10" value="124.58373329346466" />
+      <entry key="M15" value="150.40347379711335" />
+      <entry key="M30" value="196.7957822224237" />
+      <entry key="H1" value="239.3912900779737" />
+      <entry key="H2" value="270.7679364127906" />
+      <entry key="H4" value="290.256433022024" />
+      <entry key="D1" value="308.9555026645025" />
+      <entry key="W1" value="312.4155946059838" />
     </decayedCancelled>
     <decayedSelected>
       <entry key="MS100" value="0.0" />
@@ -57,23 +66,23 @@
       <entry key="W1" value="0.0" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="1.3357782299794103" />
-      <entry key="MS500" value="2.644267130219796" />
-      <entry key="S2" value="7.12993548503088" />
-      <entry key="S5" value="9.674572714371568" />
-      <entry key="S10" value="11.371679759616534" />
-      <entry key="S30" value="17.72103178401231" />
-      <entry key="S60" value="25.344711315460163" />
-      <entry key="M2" value="40.51779479237416" />
-      <entry key="M5" value="73.67697264910773" />
-      <entry key="M10" value="105.95317301762479" />
-      <entry key="M15" value="127.55053711134978" />
-      <entry key="M30" value="168.02515391034447" />
-      <entry key="H1" value="206.24143146849437" />
-      <entry key="H2" value="234.65005975026276" />
-      <entry key="H4" value="252.3396137131486" />
-      <entry key="D1" value="269.32543527936525" />
-      <entry key="W1" value="272.4690431870669" />
+      <entry key="MS100" value="0.901250462613932" />
+      <entry key="MS500" value="0.9844205575773658" />
+      <entry key="S2" value="1.3215132173848587" />
+      <entry key="S5" value="2.163445625656555" />
+      <entry key="S10" value="3.6882038044245253" />
+      <entry key="S30" value="11.154100691795989" />
+      <entry key="S60" value="22.246325615349917" />
+      <entry key="M2" value="42.083661604245655" />
+      <entry key="M5" value="84.28443864763915" />
+      <entry key="M10" value="124.57942740586944" />
+      <entry key="M15" value="150.399868594099" />
+      <entry key="M30" value="196.79339057422237" />
+      <entry key="H1" value="239.3898574750817" />
+      <entry key="H2" value="270.76713945063375" />
+      <entry key="H4" value="290.2560104528105" />
+      <entry key="D1" value="308.95542847369256" />
+      <entry key="W1" value="312.41558390902406" />
     </decayedShown>
   </component>
   <component name="ProjectColorInfo">{
@@ -114,7 +123,7 @@
       <recent name="C:\Users\Luis Mejia\PycharmProjects\PythonProject\scripts" />
     </key>
   </component>
-  <component name="RunManager">
+  <component name="RunManager" selected="Python.limpiar_proyecto">
     <configuration name="limpiar_proyecto" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="PythonProject" />
       <option name="ENV_FILES" value="" />
@@ -507,6 +516,30 @@
       <option name="DEBUG_JUST_MY_CODE" value="false" />
       <option name="RUN_TOOL" value="" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/scripts/limpiar_proyecto.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="version" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="PythonProject" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/core" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="DEBUG_JUST_MY_CODE" value="false" />
+      <option name="RUN_TOOL" value="" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/core/version.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -518,6 +551,7 @@
     <recent_temporary>
       <list>
         <item itemvalue="Python.limpiar_proyecto" />
+        <item itemvalue="Python.version" />
         <item itemvalue="Python.limpiar_proyecto" />
       </list>
     </recent_temporary>
@@ -536,22 +570,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1787595329657</updated>
-    </task>
-    <task id="LOCAL-00109" summary="Merge remote-tracking branch 'orign/main'">
-      <option name="closed" value="true" />
-      <created>1793379510180</created>
-      <option name="number" value="00109" />
-      <option name="presentableId" value="LOCAL-00109" />
-      <option name="project" value="LOCAL" />
-      <updated>1793379510181</updated>
-    </task>
-    <task id="LOCAL-00110" summary="Merge remote-tracking branch 'orign/main'">
-      <option name="closed" value="true" />
-      <created>1793379542033</created>
-      <option name="number" value="00110" />
-      <option name="presentableId" value="LOCAL-00110" />
-      <option name="project" value="LOCAL" />
-      <updated>1793379542033</updated>
     </task>
     <task id="LOCAL-00111" summary="Merge remote-tracking branch 'orign/main'">
       <option name="closed" value="true" />
@@ -929,7 +947,23 @@
       <option name="project" value="LOCAL" />
       <updated>1794076876914</updated>
     </task>
-    <option name="localTasksCounter" value="158" />
+    <task id="LOCAL-00158" summary="Merge remote-tracking branch 'orign/main'">
+      <option name="closed" value="true" />
+      <created>1794077672245</created>
+      <option name="number" value="00158" />
+      <option name="presentableId" value="LOCAL-00158" />
+      <option name="project" value="LOCAL" />
+      <updated>1794077672245</updated>
+    </task>
+    <task id="LOCAL-00159" summary="Merge remote-tracking branch 'orign/main'">
+      <option name="closed" value="true" />
+      <created>1794077787065</created>
+      <option name="number" value="00159" />
+      <option name="presentableId" value="LOCAL-00159" />
+      <option name="project" value="LOCAL" />
+      <updated>1794077787065</updated>
+    </task>
+    <option name="localTasksCounter" value="160" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
