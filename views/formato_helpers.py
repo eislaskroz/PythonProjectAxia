@@ -902,19 +902,28 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
             if not contenido:
                 return None, nombre
 
-            # Normalizamos a PNG para que ReportLab soporte de manera uniforme
-            # JPG, PNG y WEBP, además de respetar orientación EXIF de celulares.
+            # Orientación EXIF y reducción limitada de resolución SOLO para PDF.
+            # Procesamos una imagen cada vez para no reservar memoria de más.
+            # Los originales almacenados en Supabase permanecen intactos.
             with Image.open(io.BytesIO(contenido)) as img_src:
                 img = ImageOps.exif_transpose(img_src)
-                if img.mode not in ("RGB", "RGBA"):
-                    img = img.convert("RGB")
-                png_buffer = io.BytesIO()
-                img.save(png_buffer, format="PNG", optimize=True)
-                png_buffer.seek(0)
+                img.thumbnail((1800, 1800), Image.Resampling.LANCZOS)
                 ancho_px, alto_px = img.size
+                salida = io.BytesIO()
+                # Para fotos de cámara JPEG consume mucho menos memoria/PDF;
+                # capturas PNG conservan texto y diagramas sin pérdida.
+                extension = Path(nombre).suffix.lower()
+                if extension in (".jpg", ".jpeg"):
+                    if img.mode != "RGB":
+                        img = img.convert("RGB")
+                    img.save(salida, format="JPEG", quality=88, optimize=True)
+                else:
+                    if img.mode not in ("RGB", "RGBA"):
+                        img = img.convert("RGB")
+                    img.save(salida, format="PNG", optimize=True)
 
             return FotoPdf(
-                contenido=png_buffer.getvalue(), nombre=nombre,
+                contenido=salida.getvalue(), nombre=nombre,
                 ancho_px=ancho_px, alto_px=alto_px,
             ), nombre
         except Exception:
