@@ -814,12 +814,70 @@ def buscar_orden_servicio_por_ot(folio_ot=None, ot_id=None):
         raise RuntimeError("No fue posible comprobar si la Orden de Trabajo ya tiene una Orden de Servicio.") from error
 
 
+def avance_comprobado_para_cierre_os(orden_servicio):
+    """Consulta el avance real de las bitácoras vinculadas a la OT.
+
+    No se confía en porcentajes procedentes de la interfaz ni se permite
+    cerrar una OT sin un vínculo verificable. Ante errores, el cierre se bloquea.
+    """
+    os = dict(orden_servicio or {})
+    ot_id = os.get("ot_id")
+    folio_ot = str(os.get("os_folio_ot") or "").strip().upper()
+    if ot_id in (None, "") and not folio_ot:
+        raise ValueError("La Orden de Servicio no está vinculada a una Orden de Trabajo verificable.")
+
+    # La identidad de la OT se obtiene de la base, no de un porcentaje del formulario.
+    if ot_id not in (None, ""):
+        respuesta_ot = supabase.table("db_ordenes_trabajo").select("ot_id,ot_folio").eq("ot_id", ot_id).limit(1).execute()
+    else:
+        respuesta_ot = supabase.table("db_ordenes_trabajo").select("ot_id,ot_folio").eq("ot_folio", folio_ot).limit(1).execute()
+    ots = list(getattr(respuesta_ot, "data", None) or [])
+    if not ots:
+        raise ValueError("No se encontró la Orden de Trabajo vinculada a este servicio.")
+    ot = ots[0]
+    folio_real = str(ot.get("ot_folio") or "").strip().upper()
+    if folio_ot and folio_real != folio_ot:
+        raise ValueError("La OT vinculada no coincide con el folio del servicio.")
+
+    # Se usa el mayor avance registrado, conforme al criterio actual del módulo
+    # de Bitácoras. Es necesario que exista evidencia de un registro al 100%.
+    resp = supabase.table("db_bitacoras").select("bit_porcentaje_avance").eq("bit_ot_folio", folio_real).execute()
+    registros = list(getattr(resp, "data", None) or [])
+    avances = []
+    for bit in registros:
+        try:
+            avances.append(float(bit.get("bit_porcentaje_avance") or 0))
+        except (ValueError, TypeError):
+            continue
+    return max(avances, default=0.0)
+
+
+def exigir_avance_cien_para_cierre_os(orden_servicio):
+    """Bloquea la finalización si Supabase no confirma avance >= 100%."""
+    try:
+        avance = avance_comprobado_para_cierre_os(orden_servicio)
+    except Exception as exc:
+        logger.exception("No fue posible verificar el avance de la OT antes de cerrarla.")
+        raise ValueError("No fue posible verificar el avance de la OT en Supabase. No se cerrará el servicio.") from exc
+    if avance < 100:
+        raise ValueError(
+            f"No se puede finalizar: las bitácoras de esta OT registran {avance:g}% de avance. "
+            "Se requiere un avance comprobado del 100%."
+        )
+    return avance
+
+
 def _cerrar_ot_por_os_completa(orden_servicio, usuario_activo=None):
     """Cierra la OT cuando la OS fue completada y guardada con todos sus requisitos."""
     os = dict(orden_servicio or {})
     folio_ot = str(os.get("os_folio_ot") or "").strip().upper()
     ot_id = os.get("ot_id")
     if ot_id in (None, "") and not folio_ot:
+        return False
+    try:
+        exigir_avance_cien_para_cierre_os(os)
+    except ValueError as error:
+        logger.warning("Cierre automático de OT bloqueado: %s", error)
         return False
     usuario = str((usuario_activo or {}).get("usu_nickname") or (usuario_activo or {}).get("usuario") or "Administrativo")
     try:
@@ -934,8 +992,9 @@ def finalizar_servicio_desde_os(orden_servicio, usuario_activo=None):
     folio_os = str(os.get("os_folio") or "").strip().upper()
     folio_ot = str(os.get("os_folio_ot") or "").strip().upper()
     ot_id = os.get("ot_id")
-    # La Bitácora no es obligatoria para cerrar el servicio. La confirmación del
-    # usuario desde la OS representa que el trabajo llegó al 100%.
+    # El cierre exige una bitácora con avance al 100% verificada en Supabase.
+    # La confirmación visual del usuario NO sustituye esa comprobación.
+    exigir_avance_cien_para_cierre_os(os)
     usuario = str((usuario_activo or {}).get("usu_nickname") or (usuario_activo or {}).get("usuario") or "Administrativo")
     resultado_ot = None
     if folio_ot or ot_id not in (None, ""):

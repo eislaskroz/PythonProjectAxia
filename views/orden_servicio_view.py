@@ -56,7 +56,9 @@ def mostrar_orden_servicio(parent, app, aco=None):
     supervisores_disponibles = obtener_supervisores_formulario()
     entradas_bloqueadas = []
     campos_validables = []
+    nombres_campos = {}
     textboxes_validables = []
+    nombres_textboxes = {}
     btn_preview = None
 
     var_folio = ctk.StringVar(value=generar_siguiente_folio("OS"))
@@ -139,6 +141,7 @@ def mostrar_orden_servicio(parent, app, aco=None):
             entradas_bloqueadas.append(e)
         if required and state != "disabled":
             campos_validables.append(var)
+            nombres_campos[id(var)] = texto
             var.trace_add("write", lambda *_: validar_preview())
         return e
 
@@ -149,6 +152,7 @@ def mostrar_orden_servicio(parent, app, aco=None):
         cb.pack(fill="x")
         if required:
             campos_validables.append(var)
+            nombres_campos[id(var)] = texto
             var.trace_add("write", lambda *_: validar_preview())
         return cb
 
@@ -160,6 +164,7 @@ def mostrar_orden_servicio(parent, app, aco=None):
         box.bind("<KeyRelease>", lambda _event: validar_preview())
         if required:
             textboxes_validables.append(box)
+            nombres_textboxes[id(box)] = texto
         return box
 
     def bloquear_autollenados():
@@ -241,7 +246,7 @@ def mostrar_orden_servicio(parent, app, aco=None):
     def validar_preview():
         try:
             if btn_preview is not None:
-                btn_preview.configure(state="normal" if formulario_completo() else "disabled")
+                btn_preview.configure(state="normal")
         except Exception:
             logger.debug("Excepción recuperable controlada.", exc_info=True)
 
@@ -292,6 +297,7 @@ def mostrar_orden_servicio(parent, app, aco=None):
     ctk.CTkButton(fila_tecnicos, text="+ Agregar", width=100, height=30, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=agregar_tecnico).pack(side="left", padx=3)
     ctk.CTkButton(fila_tecnicos, text="Quitar último", width=115, height=30, fg_color="#DC2626", hover_color="#B91C1C", command=quitar_ultimo_tecnico).pack(side="left", padx=3)
     campos_validables.append(var_tecnicos)
+    nombres_campos[id(var_tecnicos)] = "Técnicos en sitio"
     var_tecnicos.trace_add("write", lambda *_: validar_preview())
 
     txt_descripcion = texto_largo("Descripción del servicio y/o instalación", 7, 70)
@@ -368,7 +374,9 @@ def mostrar_orden_servicio(parent, app, aco=None):
         c.configure(height=52)
         label(c, texto)
         NativeComboBox(c, variable=var, values=EVALUACIONES, height=OPTION_H, font=SMALL_FONT, width=145).pack(fill="x")
-        campos_validables.append(var); var.trace_add("write", lambda *_: validar_preview())
+        campos_validables.append(var)
+        nombres_campos[id(var)] = texto
+        var.trace_add("write", lambda *_: validar_preview())
     eval_compacta("Trato y actitud", var_eval_trato, 0)
     eval_compacta("Habilidades", var_eval_habilidades, 1)
     eval_compacta("Velocidad y calidad", var_eval_velocidad, 2)
@@ -397,14 +405,35 @@ def mostrar_orden_servicio(parent, app, aco=None):
                 salida.append(item)
         return salida
 
-    def formulario_completo():
-        if not all(v.get().strip() for v in campos_validables):
-            return False
-        if not all(obtener_textbox(b) for b in textboxes_validables):
-            return False
+    def campos_faltantes():
+        """Lista visible de todos los requisitos no completados de la OS."""
+        faltantes = []
+        for variable in campos_validables:
+            valor = str(variable.get() or "").strip()
+            if not valor or valor.startswith("Sin ACOs disponibles") or valor.startswith("Sin usuarios tipo"):
+                nombre = nombres_campos.get(id(variable), "Campo obligatorio")
+                if nombre not in faltantes:
+                    faltantes.append(nombre)
+        for caja in textboxes_validables:
+            if not str(obtener_textbox(caja) or "").strip():
+                nombre = nombres_textboxes.get(id(caja), "Descripción del servicio")
+                if nombre not in faltantes:
+                    faltantes.append(nombre)
         if not var_firma_cliente.get().strip():
-            return False
-        return True
+            faltantes.append("Firma del cliente")
+        return faltantes
+
+    def formulario_completo():
+        return not campos_faltantes()
+
+    def validar_o_avisar(accion):
+        pendientes = campos_faltantes()
+        if not pendientes:
+            return True
+        mensaje = ("Antes de " + accion + ", completa los siguientes campos:\n\n" +
+                   "\n".join(f"• {campo}" for campo in pendientes))
+        messagebox.showwarning("Orden de Servicio: campos pendientes", mensaje, parent=parent)
+        return False
 
     def secciones_equipos_pdf():
         filas = equipos_limpios()
@@ -422,14 +451,12 @@ def mostrar_orden_servicio(parent, app, aco=None):
         }
 
     def preview_pdf():
-        if not formulario_completo():
-            messagebox.showwarning("Preview", "El preview se activa cuando todos los campos obligatorios estén completos, incluyendo firma y técnicos.")
+        if not validar_o_avisar("previsualizar el PDF"):
             return
         generar_pdf_preview("Orden de Servicio", datos_pdf(), secciones_equipos_pdf(), firma_base64=var_firma_cliente.get())
 
     def guardar_orden():
-        if not formulario_completo():
-            messagebox.showwarning("Campos obligatorios", "Debes llenar todos los campos obligatorios, seleccionar tipo de servicio, asignar técnicos y agregar firma del cliente.")
+        if not validar_o_avisar("guardar la Orden de Servicio"):
             return
         folio = var_folio.get().strip()
         if not os_existente and buscar_orden_por_folio(folio):
@@ -472,9 +499,8 @@ def mostrar_orden_servicio(parent, app, aco=None):
                     aviso_fotos = f"\n\nLa orden se guardó, pero no se pudieron subir todas las fotografías:\n{error}"
             accion = "ACTUALIZAR" if id_os_existente else "CREAR"
             registrar_movimiento(modulo="Órdenes de Servicio", accion=accion, descripcion=f"El usuario guardó la orden {folio}", registro_afectado=folio)
-            # Al guardar una OS completa se considera que el servicio llegó al
-            # 100%. Cerramos automáticamente la OT de origen para evitar que
-            # quede abierta después de la documentación final del servicio.
+            # El guardado NO equivale a avance del 100%.
+            # Sólo se cierra la OT si Supabase confirma una bitácora al 100%.
             id_orden_resultado = id_os_existente or ((resultado[0] if isinstance(resultado, list) and resultado else {}) or {}).get("id_orden")
             cierre_ot = _cerrar_ot_por_os_completa({**datos, "os_folio": folio, "id_orden": id_orden_resultado}, usuario_activo)
             if cierre_ot and id_orden_resultado:
@@ -485,7 +511,9 @@ def mostrar_orden_servicio(parent, app, aco=None):
             datos_pdf_final["Evidencia Fotográfica"] = list(os_existente.get("os_fotos") or []) + (fotos_subidas if fotos_subidas else list(evidencias_locales))
             ruta_pdf = generar_pdf_archivo("Orden de Servicio", datos_pdf_final, nombre_archivo=folio, subcarpeta="ordenes_servicio", secciones_tabla=secciones_equipos_pdf(), firma_base64=var_firma_cliente.get())
             mensaje_pdf = f"\n\nPDF guardado en:\n{ruta_pdf}" if ruta_pdf else "\n\nNo se pudo guardar el PDF local."
-            messagebox.showinfo("Registro correcto", "La orden de servicio fue guardada correctamente." + mensaje_pdf + aviso_fotos)
+            situacion = ("\n\nLa OT asociada fue cerrada tras validar el avance al 100%." if cierre_ot
+                         else "\n\nLa Orden de Servicio se guardó EN PROCESO. La OT no se cerró porque aún no se confirmó el avance al 100% o no existe una OT asociada.")
+            messagebox.showinfo("Registro correcto", "La orden de servicio fue guardada correctamente." + situacion + mensaje_pdf + aviso_fotos)
             app.mostrar_vista_inicio_aco()
         else:
             show_operation_error("Error al guardar", "Registrar orden de servicio")
@@ -504,7 +532,7 @@ def mostrar_orden_servicio(parent, app, aco=None):
     barra_botones = ctk.CTkFrame(botones, fg_color="transparent")
     barra_botones.pack(anchor="center", pady=4)
     btn_guardar = ctk.CTkButton(barra_botones, text="💾 Guardar Orden", width=185, height=38, corner_radius=10, fg_color=SECONDARY, hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=guardar_orden)
-    btn_preview = ctk.CTkButton(barra_botones, text="👁 Preview PDF", width=165, height=38, corner_radius=10, fg_color="#1F4E79", hover_color="#173B5C", font=BUTTON_FONT, command=preview_pdf, state="disabled")
+    btn_preview = ctk.CTkButton(barra_botones, text="👁 Preview PDF", width=165, height=38, corner_radius=10, fg_color="#1F4E79", hover_color="#173B5C", font=BUTTON_FONT, command=preview_pdf, state="normal")
     ctk.CTkButton(barra_botones, text="⬅ Atrás", width=120, height=38, corner_radius=10, fg_color="#64748B", hover_color="#475569", font=BUTTON_FONT, command=volver_a_selector_aco).grid(row=0, column=0, padx=4)
     btn_guardar.grid(row=0, column=1, padx=4)
     btn_preview.grid(row=0, column=2, padx=4)
