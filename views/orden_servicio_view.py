@@ -28,7 +28,8 @@ from services.usuarios_service import obtener_supervisores_formulario, obtener_n
 from services.sucursales_service import obtener_contactos_por_sucursal
 from services.ordenes_servicio_service import (
     crear_orden_servicio, buscar_orden_por_folio, actualizar_orden_servicio,
-    obtener_contextos_aco_disponibles_cierre, _cerrar_ot_por_os_completa,
+    obtener_contextos_aco_disponibles_cierre, guardar_os_definitiva,
+    avance_comprobado_para_cierre_os, _numero_porcentaje,
 )
 from services.bitacora_evidencias_service import subir_evidencias_orden_servicio
 from security.permissions import puede_generar_orden_servicio
@@ -87,6 +88,7 @@ def mostrar_orden_servicio(parent, app, aco=None):
     var_eval_habilidades = ctk.StringVar(value="Bueno")
     var_eval_velocidad = ctk.StringVar(value="Bueno")
     var_eval_otro = ctk.StringVar(value="No aplica")
+    var_porcentaje_os = ctk.StringVar()
     var_firma_cliente = ctk.StringVar()
     var_estado_firma = ctk.StringVar(value="Sin firma")
     # Los datos del cliente firmante se capturan manualmente en sitio.
@@ -210,6 +212,9 @@ def mostrar_orden_servicio(parent, app, aco=None):
         var_correo.set(str(os_existente.get("os_correo") or "").strip())
         var_celular.set(str(os_existente.get("os_celular") or "").strip())
         cargar_datos_firmante()
+        var_porcentaje_os.set(str(os_existente.get("os_porcentaje_avance") or ""))
+        var_firma_cliente.set(str(os_existente.get("os_firma_cliente") or ""))
+        actualizar_firma()
         if os_existente:
             var_folio.set(str(os_existente.get("os_folio") or var_folio.get()))
             var_tipo_servicio.set(str(os_existente.get("os_tipo_servicio") or datos_aco.get("tipo_servicio", "")))
@@ -382,14 +387,19 @@ def mostrar_orden_servicio(parent, app, aco=None):
     eval_compacta("Velocidad y calidad", var_eval_velocidad, 2)
     eval_compacta("Otro", var_eval_otro, 3)
 
-    seccion("Firma del Cliente", 14)
-    entry("Nombre del encargado", var_firmante_nombre, fila=15, col=0, required=True)
-    entry("Puesto", var_firmante_puesto, fila=15, col=1, required=True)
+    seccion("Avance final y cierre de la OT", 14)
+    entry("Avance de esta Orden de Servicio (%)", var_porcentaje_os, "0 a 100", fila=15, col=0, required=True)
+    ctk.CTkLabel(celda(15, 1, 4), text="Suma de bitácoras anteriores + avance de esta OS = 100%. La OS sólo se genera al finalizar el servicio.",
+                   font=SMALL_FONT, text_color=TEXT_SECONDARY, anchor="w", justify="left", wraplength=760).pack(anchor="w")
+
+    seccion("Firma del Cliente", 17)
+    entry("Nombre del encargado", var_firmante_nombre, fila=18, col=0, required=True)
+    entry("Puesto", var_firmante_puesto, fila=18, col=1, required=True)
     # Datos del firmante: editables, sin autollenar desde el ACO.
     # Se conservan las columnas os_correo y os_celular existentes en Supabase.
-    entry("Correo del firmante", var_correo, "Correo electrónico", fila=15, col=2, required=False)
-    entry("Celular del firmante", var_celular, "Número de celular", fila=15, col=3, required=False)
-    c_firma = celda(16, 0, 5)
+    entry("Correo del firmante", var_correo, "Correo electrónico", fila=18, col=2, required=False)
+    entry("Celular del firmante", var_celular, "Número de celular", fila=18, col=3, required=False)
+    c_firma = celda(19, 0, 5)
     ctk.CTkLabel(c_firma, textvariable=var_estado_firma, font=SMALL_FONT, text_color=TEXT_SECONDARY).pack(side="left", padx=(0, 5))
     ctk.CTkButton(c_firma, text="✍ Capturar firma", width=160, height=32, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=lambda: firmar_en_popup(parent, var_firma_cliente, actualizar_firma)).pack(side="left")
 
@@ -426,9 +436,31 @@ def mostrar_orden_servicio(parent, app, aco=None):
     def formulario_completo():
         return not campos_faltantes()
 
+    def datos_validacion_cierre():
+        return {
+            "ot_id": contexto_cierre.get("ot_id"),
+            "os_folio_ot": contexto_cierre.get("ot_folio"),
+            "os_porcentaje_avance": var_porcentaje_os.get().strip(),
+            "os_firmante_nombre": var_firmante_nombre.get().strip(),
+            "os_firmante_puesto": var_firmante_puesto.get().strip(),
+            "os_firma_cliente": var_firma_cliente.get(),
+        }
+
     def validar_o_avisar(accion):
         pendientes = campos_faltantes()
         if not pendientes:
+            try:
+                total = avance_comprobado_para_cierre_os(datos_validacion_cierre())
+                avance_os = _numero_porcentaje(var_porcentaje_os.get(), "Avance de OS")
+                if total + avance_os != 100:
+                    raise ValueError(f"Avance acumulado de bitácoras: {total:g}%. Avance final de OS: {avance_os:g}%. Total: {total + avance_os:g}%. Para generar la OS debe ser exactamente 100%.")
+            except (ValueError, RuntimeError) as error:
+                messagebox.showwarning("Cierre de OT: avance incompleto", str(error), parent=parent)
+                return False
+            except Exception:
+                logger.exception("No se pudo validar el avance final de la OT.")
+                messagebox.showerror("Cierre de OT", "No se pudo consultar el avance en Supabase. No se guardará ni generará la OS.", parent=parent)
+                return False
             return True
         mensaje = ("Antes de " + accion + ", completa los siguientes campos:\n\n" +
                    "\n".join(f"• {campo}" for campo in pendientes))
@@ -447,7 +479,8 @@ def mostrar_orden_servicio(parent, app, aco=None):
             "Tipo de Servicio": var_tipo_servicio.get(), "Supervisor": var_supervisor.get(), "Encargado Servicio": var_encargado_servicio.get(),
             "Técnicos": var_tecnicos.get(), "Descripción": obtener_textbox(txt_descripcion), "Observaciones": "", "Evidencia Fotográfica": list(evidencias_locales),
             "Trato y actitud": var_eval_trato.get(), "Habilidades y conocimientos": var_eval_habilidades.get(), "Velocidad y calidad": var_eval_velocidad.get(), "Otro": var_eval_otro.get(),
-            "Nombre del encargado firmante": var_firmante_nombre.get(), "Puesto del encargado firmante": var_firmante_puesto.get()
+            "Nombre del encargado firmante": var_firmante_nombre.get(), "Puesto del encargado firmante": var_firmante_puesto.get(),
+            "Porcentaje de Avance": f"{var_porcentaje_os.get().strip()}%", "Avance final de la OS": f"{var_porcentaje_os.get().strip()}%"
         }
 
     def preview_pdf():
@@ -475,48 +508,44 @@ def mostrar_orden_servicio(parent, app, aco=None):
             # No eliminar evidencias anteriores al actualizar una OS sin fotos nuevas.
             "os_fotos": list(os_existente.get("os_fotos") or []),
             "os_firmante_nombre": var_firmante_nombre.get().strip(), "os_firmante_puesto": var_firmante_puesto.get().strip(),
+            "os_porcentaje_avance": float(_numero_porcentaje(var_porcentaje_os.get(), "Avance de OS")),
             "os_equipos_json": json.dumps(equipos_db, ensure_ascii=False), "os_eval_trato": var_eval_trato.get(), "os_eval_habilidades": var_eval_habilidades.get(),
-            # La OS se guarda primero como "En proceso". Sólo pasa a 100%/
-            # finalizada después de confirmar el cierre automático de su OT.
-            "os_eval_velocidad": var_eval_velocidad.get(), "os_eval_otro": var_eval_otro.get(), "os_firma_cliente": var_firma_cliente.get(), "os_estatus": 2, "os_prioridad": 2,
+            # La OS nace FINALIZADA: nunca se guarda como documento en proceso.
+            "os_eval_velocidad": var_eval_velocidad.get(), "os_eval_otro": var_eval_otro.get(), "os_firma_cliente": var_firma_cliente.get(), "os_estatus": 3, "os_prioridad": 2,
             "creado_por": usuario_activo.get("usuario")
         }
         id_os_existente = os_existente.get("id_orden") if os_existente else None
-        resultado = actualizar_orden_servicio(id_os_existente, datos) if id_os_existente else crear_orden_servicio(datos)
-        if resultado:
-            fotos_subidas = []
-            aviso_fotos = ""
-            if evidencias_locales:
-                try:
-                    fotos_subidas = subir_evidencias_orden_servicio(folio, evidencias_locales)
-                    registro_resultado = resultado[0] if isinstance(resultado, list) and resultado else {}
-                    id_orden = id_os_existente or registro_resultado.get("id_orden") or (buscar_orden_por_folio(folio) or {}).get("id_orden")
-                    if id_orden and fotos_subidas:
-                        fotos_previas = list(os_existente.get("os_fotos") or [])
-                        actualizar_orden_servicio(id_orden, {"os_fotos": fotos_previas + fotos_subidas})
-                except Exception as error:
-                    logger.exception("La OS se guardó, pero falló la carga de fotografías.")
-                    aviso_fotos = f"\n\nLa orden se guardó, pero no se pudieron subir todas las fotografías:\n{error}"
-            accion = "ACTUALIZAR" if id_os_existente else "CREAR"
-            registrar_movimiento(modulo="Órdenes de Servicio", accion=accion, descripcion=f"El usuario guardó la orden {folio}", registro_afectado=folio)
-            # El guardado NO equivale a avance del 100%.
-            # Sólo se cierra la OT si Supabase confirma una bitácora al 100%.
-            id_orden_resultado = id_os_existente or ((resultado[0] if isinstance(resultado, list) and resultado else {}) or {}).get("id_orden")
-            cierre_ot = _cerrar_ot_por_os_completa({**datos, "os_folio": folio, "id_orden": id_orden_resultado}, usuario_activo)
-            if cierre_ot and id_orden_resultado:
-                actualizar_orden_servicio(id_orden_resultado, {"os_estatus": 3, "actualizado_por": usuario_activo.get("usuario")})
-            elif not cierre_ot:
-                logger.warning("La OS %s se guardó, pero no fue posible confirmar el cierre automático de su OT; la OS permanece En proceso.", folio)
-            datos_pdf_final = datos_pdf()
-            datos_pdf_final["Evidencia Fotográfica"] = list(os_existente.get("os_fotos") or []) + (fotos_subidas if fotos_subidas else list(evidencias_locales))
-            ruta_pdf = generar_pdf_archivo("Orden de Servicio", datos_pdf_final, nombre_archivo=folio, subcarpeta="ordenes_servicio", secciones_tabla=secciones_equipos_pdf(), firma_base64=var_firma_cliente.get())
-            mensaje_pdf = f"\n\nPDF guardado en:\n{ruta_pdf}" if ruta_pdf else "\n\nNo se pudo guardar el PDF local."
-            situacion = ("\n\nLa OT asociada fue cerrada tras validar el avance al 100%." if cierre_ot
-                         else "\n\nLa Orden de Servicio se guardó EN PROCESO. La OT no se cerró porque aún no se confirmó el avance al 100% o no existe una OT asociada.")
-            messagebox.showinfo("Registro correcto", "La orden de servicio fue guardada correctamente." + situacion + mensaje_pdf + aviso_fotos)
-            app.mostrar_vista_inicio_aco()
-        else:
-            show_operation_error("Error al guardar", "Registrar orden de servicio")
+        try:
+            resultado = guardar_os_definitiva(datos, usuario_activo, id_os_existente)
+        except (ValueError, RuntimeError) as error:
+            messagebox.showerror("No se generó la Orden de Servicio", str(error), parent=parent)
+            return
+        except Exception:
+            logger.exception("Error guardando la OS y cerrando su OT.")
+            show_operation_error("Error al finalizar", "Generar OS definitiva")
+            return
+        fotos_subidas = []
+        aviso_fotos = ""
+        if evidencias_locales:
+            try:
+                fotos_subidas = subir_evidencias_orden_servicio(folio, evidencias_locales)
+                registro_resultado = resultado[0] if isinstance(resultado, list) and resultado else {}
+                id_orden = id_os_existente or registro_resultado.get("id_orden") or (buscar_orden_por_folio(folio) or {}).get("id_orden")
+                if id_orden and fotos_subidas:
+                    fotos_previas = list(os_existente.get("os_fotos") or [])
+                    actualizar_orden_servicio(id_orden, {"os_fotos": fotos_previas + fotos_subidas})
+            except Exception as error:
+                logger.exception("La OS finalizó, pero falló la carga de fotografías.")
+                aviso_fotos = f"\n\nLa OS finalizó, pero no se pudieron subir todas las fotografías:\n{error}"
+        accion = "ACTUALIZAR" if id_os_existente else "CREAR"
+        registrar_movimiento(modulo="Órdenes de Servicio", accion=accion,
+                             descripcion=f"El usuario finalizó la OT con la OS firmada {folio}", registro_afectado=folio)
+        datos_pdf_final = datos_pdf()
+        datos_pdf_final["Evidencia Fotográfica"] = list(os_existente.get("os_fotos") or []) + (fotos_subidas if fotos_subidas else list(evidencias_locales))
+        ruta_pdf = generar_pdf_archivo("Orden de Servicio", datos_pdf_final, nombre_archivo=folio, subcarpeta="ordenes_servicio", secciones_tabla=secciones_equipos_pdf(), firma_base64=var_firma_cliente.get())
+        mensaje_pdf = f"\n\nPDF guardado en:\n{ruta_pdf}" if ruta_pdf else "\n\nNo se pudo guardar el PDF local."
+        messagebox.showinfo("Servicio finalizado", "La Orden de Servicio fue generada y la OT fue cerrada al 100%." + mensaje_pdf + aviso_fotos)
+        app.mostrar_vista_inicio_aco()
 
 
     def volver_a_selector_aco():

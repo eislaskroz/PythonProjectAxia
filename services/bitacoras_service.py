@@ -36,37 +36,10 @@ COLUMNAS_BITACORAS = "id_bitacora,id_sucursal,ot_id,bit_ot_folio,bit_aco_numero,
 # FUNCIÓN: crear_bitacora()
 # =====================================================
 def _cerrar_ot_por_avance_cien(datos_bitacora):
-    """Cierra automáticamente la OT cuando una bitácora registra 100% de avance."""
-    try:
-        pct = int(float(datos_bitacora.get("bit_porcentaje_avance") or 0))
-    except (TypeError, ValueError):
-        pct = 0
-    if pct < 100:
-        return False
+    """Compatibilidad: las bitácoras NUNCA cierran una OT.
 
-    ot_id = datos_bitacora.get("ot_id")
-    folio_ot = str(datos_bitacora.get("bit_ot_folio") or "").strip().upper()
-    if ot_id in (None, "") and not folio_ot:
-        logger.warning("Bitácora al 100%% sin OT asociada; no se puede cerrar automáticamente.")
-        return False
-
-    try:
-        from services.ordenes_trabajo_service import actualizar_orden_trabajo
-        resultado = None
-        if ot_id not in (None, ""):
-            resultado = actualizar_orden_trabajo(ot_id, {"ot_estatus": 3})
-        if not resultado and folio_ot:
-            resp = supabase.table("db_ordenes_trabajo").update({"ot_estatus": 3}).eq("ot_folio", folio_ot).execute()
-            resultado = list(getattr(resp, "data", None) or [])
-        if resultado is not None:
-            registrar_movimiento_seguro(
-                modulo="ORDENES_TRABAJO", accion="CIERRE_AUTOMATICO_100",
-                descripcion=f"OT {folio_ot or ot_id} cerrada automáticamente por bitácora al 100%.",
-                registro_afectado=folio_ot or ot_id,
-            )
-            return True
-    except Exception:
-        logger.exception("No fue posible cerrar automáticamente la OT %s al llegar al 100%%.", folio_ot or ot_id)
+    La Orden de Servicio firmada es el único documento de cierre.
+    """
     return False
 
 
@@ -78,6 +51,16 @@ def crear_bitacora(datos_bitacora):
     try:
         datos_bitacora = asegurar_folio(datos_bitacora, "bit_folio", "BIT")
         datos_bitacora = normalizar_campos_fecha(datos_bitacora)
+        # Una jornada no puede sumar más de 100% con las anteriores.
+        pct = int(float(datos_bitacora.get("bit_porcentaje_avance") or 0))
+        if not 0 <= pct <= 100:
+            raise ValueError("El porcentaje de la bitácora debe estar entre 0 y 100.")
+        folio_ot = str(datos_bitacora.get("bit_ot_folio") or "").strip().upper()
+        if not folio_ot:
+            raise ValueError("La bitácora debe asociarse a una Orden de Trabajo.")
+        actual, _ = avance_orden_trabajo(folio_ot)
+        if actual + pct > 100:
+            raise ValueError(f"Las bitácoras acumulan {actual:g}%. El nuevo avance de {pct}% superaría el 100%.")
 
         respuesta = (
             supabase
@@ -92,13 +75,11 @@ def crear_bitacora(datos_bitacora):
             descripcion="Creación de bitácora operativa",
             registro_afectado=datos_bitacora.get("bit_folio") or respuesta.data,
         )
-        # El 100% de avance es el cierre operativo de la OT. Se ejecuta
-        # después de confirmar la bitácora para no cerrar una OT si el registro
-        # de avance no quedó persistido.
-        if _cerrar_ot_por_avance_cien(datos_bitacora):
-            logger.info("OT %s cerrada automáticamente por bitácora al 100%%.", datos_bitacora.get("bit_ot_folio") or datos_bitacora.get("ot_id"))
+        # Sólo se registra avance; la OS firmada finalizará la OT.
         return respuesta.data
 
+    except ValueError:
+        raise
     except Exception as error:
         register_error(error, "Registrar bitácora operativa")
         logger.exception("Error al crear bitácora.")
@@ -332,7 +313,7 @@ def obtener_bitacoras_por_ot(folio_ot):
 
 
 def avance_orden_trabajo(folio_ot):
-    """Devuelve el mayor porcentaje registrado para las bitácoras de una OT."""
+    """Devuelve la SUMA incremental de jornadas para una OT (no el máximo)."""
     bitacoras = obtener_bitacoras_por_ot(folio_ot)
     porcentajes = []
     for bit in bitacoras:
@@ -340,7 +321,7 @@ def avance_orden_trabajo(folio_ot):
             porcentajes.append(int(bit.get("bit_porcentaje_avance") or 0))
         except (TypeError, ValueError):
             porcentajes.append(0)
-    return max(porcentajes, default=0), bitacoras
+    return sum(porcentajes), bitacoras
 
 
 # =====================================================
@@ -364,16 +345,16 @@ def obtener_contextos_aco_disponibles_bitacora(limite=1000):
             "id_bitacora,ot_id,bit_ot_folio,bit_aco_numero,bit_porcentaje_avance,fecha_registro",
             lambda q: q.order("fecha_registro", desc=True).limit(max(limite * 2, 1000)),
         )
-        avance_por_aco = {}
+        avance_por_ot = {}
         for bit in bits_resp.data or []:
-            aco = str(bit.get("bit_aco_numero") or "").strip().upper()
-            if not aco:
+            folio_bit_ot = str(bit.get("bit_ot_folio") or "").strip().upper()
+            if not folio_bit_ot:
                 continue
             try:
                 avance = int(float(bit.get("bit_porcentaje_avance") or 0))
             except (TypeError, ValueError):
                 avance = 0
-            avance_por_aco[aco] = max(avance_por_aco.get(aco, 0), avance)
+            avance_por_ot[folio_bit_ot] = avance_por_ot.get(folio_bit_ot, 0) + avance
 
         resultado = []
         vistos = set()
@@ -385,7 +366,7 @@ def obtener_contextos_aco_disponibles_bitacora(limite=1000):
                 estatus = int(ot.get("ot_estatus") or 0)
             except (TypeError, ValueError):
                 estatus = 0
-            avance = avance_por_aco.get(aco, 0)
+            avance = avance_por_ot.get(str(ot.get("ot_folio") or "").strip().upper(), 0)
             if estatus == 3 or avance >= 100:
                 continue
             vistos.add(aco)

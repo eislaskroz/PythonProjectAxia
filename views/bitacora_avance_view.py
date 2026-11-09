@@ -414,7 +414,11 @@ def mostrar_bitacora_avance(parent, app, aco=None):
             "bit_fotos": [],
             "creado_por": usuario_activo.get("usuario"),
         }
-        resultado = crear_bitacora(datos)
+        try:
+            resultado = crear_bitacora(datos)
+        except ValueError as error:
+            messagebox.showwarning("Avance no permitido", str(error), parent=parent)
+            return
         if not resultado:
             show_operation_error("Error al guardar", "Registrar bitácora operativa")
             return

@@ -629,29 +629,26 @@ class NavigationController:
 
         def convertir_ot_a_os(record, status, refresh):
             if not puede_avanzar_flujo_operativo(obtener_usuario_actual()):
-                messagebox.showerror("Acceso denegado", "Solo Administrador o personal Administrativo puede convertir una OT en Orden de Servicio.")
+                messagebox.showerror("Acceso denegado", "No tienes permisos para iniciar la captura de OS.")
                 return
-            try:
-                resultado = convertir_orden_trabajo_a_servicio(record, obtener_usuario_actual())
-            except Exception as exc:
-                messagebox.showerror("No se pudo convertir", str(exc))
+            aco = str(record.get("ot_aco_numero") or "").strip().upper()
+            if not aco:
+                messagebox.showwarning("ACO faltante", "La OT no tiene ACO vinculado; no se puede crear la OS.")
                 return
-            folio = resultado[0].get("os_folio", "OS") if resultado else "OS"
-            status.configure(text=f"Orden de Servicio creada: {folio}", text_color="#15803D")
-            messagebox.showinfo("Orden de Servicio creada", f"La Orden de Trabajo se convirtió correctamente en {folio}.")
-            refresh()
+            messagebox.showinfo("Orden de Servicio definitiva", "La Orden de Servicio se genera únicamente después de capturar el avance final, completar los datos y obtener la firma del cliente. Se abrirá su formulario.")
+            self.mostrar_orden_servicio(aco={"aco_numero": aco})
 
         mostrar_admin_operational_editor(
             parent=self.content, app=self.app,
             config={
                 "titulo": "Órdenes de Trabajo", "titulo_singular": "Orden de Trabajo", "articulo": "una", "prefijo": "OT",
-                "subtitulo": "Busca una OT, revísala y conviértela en Orden de Servicio cuando su Bitácora asociada haya llegado al 100%.",
+                "subtitulo": "Consulta la OT y abre el formulario de cierre. La OS sólo nace firmada y con avance total del 100%.",
                 "campo_folio": "ot_folio", "campos_aco": ["ot_aco_numero"], "campos_cliente": ["ot_cliente"],
                 "campos_estatus": ["ot_estatus"], "campos_fecha": ["ot_fecha", "fecha_registro", "created_at"],
                 "obtener_todos": obtener_ordenes_trabajo, "buscar": buscar_ordenes_trabajo,
                 "actualizar": actualizar_orden_trabajo, "id_field": "ot_id",
                 "pdf_config": pdf_config_ot, "pdf_text": "PDF Orden de Trabajo",
-                "accion_text": "Convertir a OS", "accion": convertir_ot_a_os,
+                "accion_text": "Capturar OS definitiva", "accion": convertir_ot_a_os,
                 "campos": [
                     {"key":"ot_folio","label":"Folio OT","readonly":True},
                     {"key":"ot_folio_levantamiento","label":"Levantamiento origen","readonly":True},

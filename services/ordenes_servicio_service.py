@@ -56,7 +56,7 @@ COLUMNAS_ORDENES = (
     "os_tipos_servicio_json,os_tipo_servicio,os_encargado_servicio,"
     "os_tecnicos,os_equipos_json,os_eval_trato,os_eval_habilidades,"
     "os_eval_velocidad,os_eval_otro,os_firma_cliente,os_fotos,id_sucursal,id_contacto,"
-    "os_firmante_nombre,os_firmante_puesto"
+    "os_firmante_nombre,os_firmante_puesto,os_porcentaje_avance"
 )
 
 
@@ -814,57 +814,73 @@ def buscar_orden_servicio_por_ot(folio_ot=None, ot_id=None):
         raise RuntimeError("No fue posible comprobar si la Orden de Trabajo ya tiene una Orden de Servicio.") from error
 
 
-def avance_comprobado_para_cierre_os(orden_servicio):
-    """Consulta el avance real de las bitácoras vinculadas a la OT.
+def _numero_porcentaje(valor, nombre="Porcentaje"):
+    """Porcentajes exactos con dos decimales y sin NaN/Infinity."""
+    from decimal import Decimal, InvalidOperation
+    try:
+        num = Decimal(str(valor).strip())
+    except (InvalidOperation, ValueError, TypeError):
+        raise ValueError(f"{nombre}: ingresa un número válido entre 0 y 100.")
+    if not num.is_finite() or num < 0 or num > 100 or num.as_tuple().exponent < -2:
+        raise ValueError(f"{nombre}: debe estar entre 0 y 100 con máximo dos decimales.")
+    return num
 
-    No se confía en porcentajes procedentes de la interfaz ni se permite
-    cerrar una OT sin un vínculo verificable. Ante errores, el cierre se bloquea.
-    """
+
+def avance_comprobado_para_cierre_os(orden_servicio):
+    """SUMA las jornadas de la OT consultadas en Supabase; nunca toma el máximo."""
+    from decimal import Decimal
     os = dict(orden_servicio or {})
     ot_id = os.get("ot_id")
     folio_ot = str(os.get("os_folio_ot") or "").strip().upper()
     if ot_id in (None, "") and not folio_ot:
-        raise ValueError("La Orden de Servicio no está vinculada a una Orden de Trabajo verificable.")
-
-    # La identidad de la OT se obtiene de la base, no de un porcentaje del formulario.
+        raise ValueError("Selecciona la Orden de Trabajo correspondiente.")
     if ot_id not in (None, ""):
-        respuesta_ot = supabase.table("db_ordenes_trabajo").select("ot_id,ot_folio").eq("ot_id", ot_id).limit(1).execute()
+        respuesta_ot = supabase.table("db_ordenes_trabajo").select("ot_id,ot_folio,ot_estatus").eq("ot_id", ot_id).limit(1).execute()
     else:
-        respuesta_ot = supabase.table("db_ordenes_trabajo").select("ot_id,ot_folio").eq("ot_folio", folio_ot).limit(1).execute()
+        respuesta_ot = supabase.table("db_ordenes_trabajo").select("ot_id,ot_folio,ot_estatus").eq("ot_folio", folio_ot).limit(1).execute()
     ots = list(getattr(respuesta_ot, "data", None) or [])
     if not ots:
-        raise ValueError("No se encontró la Orden de Trabajo vinculada a este servicio.")
+        raise ValueError("No se encontró la OT asociada.")
     ot = ots[0]
     folio_real = str(ot.get("ot_folio") or "").strip().upper()
-    if folio_ot and folio_real != folio_ot:
-        raise ValueError("La OT vinculada no coincide con el folio del servicio.")
-
-    # Se usa el mayor avance registrado, conforme al criterio actual del módulo
-    # de Bitácoras. Es necesario que exista evidencia de un registro al 100%.
-    resp = supabase.table("db_bitacoras").select("bit_porcentaje_avance").eq("bit_ot_folio", folio_real).execute()
-    registros = list(getattr(resp, "data", None) or [])
-    avances = []
-    for bit in registros:
-        try:
-            avances.append(float(bit.get("bit_porcentaje_avance") or 0))
-        except (ValueError, TypeError):
-            continue
-    return max(avances, default=0.0)
+    if not folio_real or (folio_ot and folio_real != folio_ot):
+        raise ValueError("El folio de la OT no coincide con el servicio.")
+    if int(ot.get("ot_estatus") or 0) == 3:
+        raise ValueError("Esta OT ya está finalizada; no se puede crear otra OS.")
+    # Se consultan todas las bitácoras vinculadas; no limitar a 100 filas.
+    consulta = supabase.table("db_bitacoras").select("id_bitacora,bit_porcentaje_avance").eq("bit_ot_folio", folio_real).execute()
+    total = Decimal("0")
+    for bit in (getattr(consulta, "data", None) or []):
+        total += _numero_porcentaje(bit.get("bit_porcentaje_avance"), "Avance de bitácora")
+    if total > 100:
+        raise ValueError(f"Las bitácoras de {folio_real} ya superan 100% ({total}%). Corrige el historial antes del cierre.")
+    return total
 
 
 def exigir_avance_cien_para_cierre_os(orden_servicio):
-    """Bloquea la finalización si Supabase no confirma avance >= 100%."""
+    """Sólo admite cierre con bitácoras + avance FINAL de OS = exactamente 100."""
+    from decimal import Decimal
+    os = dict(orden_servicio or {})
+    nombre = str(os.get("os_firmante_nombre") or "").strip()
+    puesto = str(os.get("os_firmante_puesto") or "").strip()
+    firma = str(os.get("os_firma_cliente") or "").strip()
+    if not nombre or not puesto or not firma:
+        raise ValueError("La Orden de Servicio requiere Nombre, Puesto y firma del cliente para finalizar.")
+    os_pct = _numero_porcentaje(os.get("os_porcentaje_avance"), "Avance final de OS")
     try:
-        avance = avance_comprobado_para_cierre_os(orden_servicio)
+        bit_pct = avance_comprobado_para_cierre_os(os)
+    except ValueError:
+        raise
     except Exception as exc:
-        logger.exception("No fue posible verificar el avance de la OT antes de cerrarla.")
-        raise ValueError("No fue posible verificar el avance de la OT en Supabase. No se cerrará el servicio.") from exc
-    if avance < 100:
+        logger.exception("No se pudo comprobar el avance de la OT.")
+        raise ValueError("No se pudo verificar el avance en Supabase. No se generará la Orden de Servicio.") from exc
+    total = bit_pct + os_pct
+    if total != Decimal("100"):
         raise ValueError(
-            f"No se puede finalizar: las bitácoras de esta OT registran {avance:g}% de avance. "
-            "Se requiere un avance comprobado del 100%."
+            f"No se puede generar la OS: bitácoras {bit_pct:g}% + avance final {os_pct:g}% "
+            f"= {total:g}%. Se requiere exactamente 100%."
         )
-    return avance
+    return total
 
 
 def _cerrar_ot_por_os_completa(orden_servicio, usuario_activo=None):
@@ -903,87 +919,62 @@ def _cerrar_ot_por_os_completa(orden_servicio, usuario_activo=None):
 
 
 def convertir_orden_trabajo_a_servicio(orden_trabajo, usuario_activo=None):
-    """Crea la OS final desde una OT. La Bitácora Operativa es opcional."""
-    ot = dict(orden_trabajo or {})
-    folio_ot = str(ot.get("ot_folio") or "").strip().upper()
-    ot_id = ot.get("ot_id")
-    if not folio_ot:
-        raise ValueError("La Orden de Trabajo seleccionada no tiene folio válido.")
-    existente = buscar_orden_servicio_por_ot(folio_ot, ot_id)
-    if existente:
-        raise ValueError(f"La {folio_ot} ya tiene la Orden de Servicio {existente.get('os_folio', '')}.")
+    """No permite crear una OS desde administración sin firma y avance final.
 
-    # La Bitácora Operativa es opcional. Si existe, se usa para enriquecer la OS.
-    bitacoras = []
-    try:
-        from services.bitacoras_service import avance_orden_trabajo
-        _avance, bitacoras = avance_orden_trabajo(folio_ot)
-    except Exception:
-        logger.exception("No fue posible consultar bitácoras de %s; se continuará sin ellas.", folio_ot)
-    bit = max(bitacoras, key=lambda b: int(b.get("bit_porcentaje_avance") or 0)) if bitacoras else {}
-
-    usuario = str((usuario_activo or {}).get("usu_nickname") or (usuario_activo or {}).get("usuario") or "Administrativo")
-    payload = {
-        "id_aco": ot.get("id_aco"),
-        "ot_id": ot_id,
-        "os_folio_ot": folio_ot,
-        "os_folio_bitacora": bit.get("bit_folio"),
-        "os_aco_numero": ot.get("ot_aco_numero"),
-        "os_cliente": ot.get("ot_cliente"),
-        "os_tipo": 1,
-        "os_estatus": 2,
-        "os_prioridad": int(ot.get("ot_prioridad") or 2),
-        "os_contacto": ot.get("ot_contacto"),
-        "os_ubicacion": ot.get("ot_sucursal"),
-        "os_sucursal": ot.get("ot_sucursal"),
-        "os_descripcion": ot.get("ot_descripcion") or ot.get("ot_asunto"),
-        "os_actividades": bit.get("bit_descripcion") or ot.get("ot_descripcion"),
-        "os_observaciones": bit.get("bit_observaciones"),
-        "os_tecnico": ot.get("ot_esi"),
-        "os_supervisor": ot.get("ot_supervisor"),
-        "os_fecha": bit.get("bit_fecha") or ot.get("ot_fecha"),
-        "os_fecha_programada": ot.get("ot_fecha"),
-        # Las horas reales de operación nacen en la Bitácora Operativa.
-        # Al convertir OT -> OS deben viajar a la OS para que queden
-        # disponibles tanto en el formulario como en el PDF.
-        "os_hora_llegada": bit.get("bit_hora_llegada"),
-        "os_hora_salida": bit.get("bit_hora_salida"),
-        "os_tipo_servicio": ot.get("ot_asunto") or "Servicio",
-        "os_encargado_servicio": ot.get("ot_jefe_operacion"),
-        "os_tecnicos": ot.get("ot_esi"),
-        "creado_por": usuario,
-        "actualizado_por": usuario,
-    }
-    payload = {k: v for k, v in payload.items() if v not in (None, "")}
-    resultado = _crear_orden_estricta(payload)
-    if not resultado:
-        raise RuntimeError("Supabase no confirmó la creación de la Orden de Servicio.")
-
-    # La OT permanece en proceso hasta que la OS se cierre explícitamente.
-    try:
-        from services.ordenes_trabajo_service import actualizar_orden_trabajo
-        actualizar_orden_trabajo(ot_id, {"ot_estatus": 2})
-    except Exception:
-        logger.exception("La OS fue creada, pero no se pudo actualizar el estado de %s", folio_ot)
-
-    registrar_movimiento_seguro(
-        modulo="ORDENES_SERVICIO", accion="CONVERTIR_OT",
-        descripcion=f"Conversión {folio_ot} a Orden de Servicio",
-        registro_afectado=resultado[0].get("os_folio") if resultado else folio_ot,
+    Se debe abrir el formulario de OS, llenar todos los campos y completar 100%.
+    """
+    raise ValueError(
+        "La Orden de Servicio es el cierre definitivo, no un documento en proceso. "
+        "Abre el formulario de OS, captura el avance restante y obtén la firma del cliente."
     )
 
-    # Al convertir OT -> OS se conserva automáticamente el PDF en su carpeta dedicada:
-    # Documents/AXIA/ordenes_servicio.
-    try:
-        from services.operational_document_pdf import guardar_pdf_orden_servicio
-        registro_os = dict(payload)
-        if isinstance(resultado, list) and resultado and isinstance(resultado[0], dict):
-            registro_os.update(resultado[0])
-        guardar_pdf_orden_servicio(registro_os)
-    except Exception:
-        logger.exception("La OS fue creada, pero no se pudo guardar automáticamente su PDF local.")
 
-    return resultado
+def guardar_os_definitiva(datos, usuario_activo=None, id_orden=None):
+    """Valida el cierre ANTES de escribir. No crea OS en proceso.
+
+    Nota: el cierre en dos tablas todavía no es transaccional a nivel DB;
+    se compensa una inserción nueva si falla el cierre de la OT.
+    """
+    os = dict(datos or {})
+    exigir_avance_cien_para_cierre_os(os)
+    existente = buscar_orden_servicio_por_ot(os.get("os_folio_ot"), os.get("ot_id"))
+    if existente and str(existente.get("id_orden")) != str(id_orden):
+        raise ValueError(f"La OT ya tiene una Orden de Servicio ({existente.get('os_folio')}).")
+    if id_orden and not existente:
+        raise ValueError("No se encontró la OS existente. No se guardarán cambios.")
+    os["os_estatus"] = 3
+    os["os_porcentaje_avance"] = float(_numero_porcentaje(os.get("os_porcentaje_avance"), "Avance final de OS"))
+    if id_orden:
+        # No permitir que la vista altere una OS cerrada.
+        if int(existente.get("os_estatus") or 0) == 3:
+            raise ValueError("La Orden de Servicio ya está finalizada y no se puede modificar desde captura.")
+        # Registro legado: se permite concluirlo pero las escrituras no son atómicas.
+        respuesta = actualizar_orden_servicio(id_orden, os)
+    else:
+        respuesta = crear_orden_servicio(os)
+    if not respuesta:
+        raise RuntimeError("Supabase no confirmó el guardado de la Orden de Servicio.")
+    registro = respuesta[0] if isinstance(respuesta, list) and respuesta else {}
+    nuevo_id = id_orden or registro.get("id_orden")
+    try:
+        # Evitar cerrar una OT si, entre validación y guardado, cambió el avance.
+        exigir_avance_cien_para_cierre_os(os)
+        cerrado = _cerrar_ot_por_os_completa(os, usuario_activo)
+        if not cerrado:
+            raise RuntimeError("No se pudo confirmar el cierre de la Orden de Trabajo.")
+    except Exception as exc:
+        if not id_orden and nuevo_id:
+            try:
+                supabase.table(TABLA_ORDENES).delete().eq("id_orden", nuevo_id).execute()
+            except Exception:
+                logger.exception("URGENTE: No se pudo compensar la OS %s después del fallo de cierre.", nuevo_id)
+        elif id_orden:
+            try:
+                supabase.table(TABLA_ORDENES).update({"os_estatus": 2}).eq("id_orden", id_orden).execute()
+            except Exception:
+                logger.exception("URGENTE: No se pudo restaurar la OS previa al fallar el cierre.")
+        raise RuntimeError("No se completó el cierre; verifica la OT y la OS antes de reintentar.") from exc
+    return respuesta
 
 
 def finalizar_servicio_desde_os(orden_servicio, usuario_activo=None):
@@ -992,8 +983,7 @@ def finalizar_servicio_desde_os(orden_servicio, usuario_activo=None):
     folio_os = str(os.get("os_folio") or "").strip().upper()
     folio_ot = str(os.get("os_folio_ot") or "").strip().upper()
     ot_id = os.get("ot_id")
-    # El cierre exige una bitácora con avance al 100% verificada en Supabase.
-    # La confirmación visual del usuario NO sustituye esa comprobación.
+    # La OS firmada es el único cierre permitido: suma bitácoras + OS = 100%.
     exigir_avance_cien_para_cierre_os(os)
     usuario = str((usuario_activo or {}).get("usu_nickname") or (usuario_activo or {}).get("usuario") or "Administrativo")
     resultado_ot = None
@@ -1003,13 +993,14 @@ def finalizar_servicio_desde_os(orden_servicio, usuario_activo=None):
         if not resultado_ot and folio_ot:
             try:
                 resp = supabase.table("db_ordenes_trabajo").update({"ot_estatus": 3}).eq("ot_folio", folio_ot).execute()
-                resultado_ot = list(getattr(resp, "data", None) or []) or [True]
+                resultado_ot = list(getattr(resp, "data", None) or [])
             except Exception as error:
                 raise RuntimeError(f"No fue posible finalizar la Orden de Trabajo {folio_ot}.") from error
     else:
-        # Compatibilidad con OS históricas sin vínculo de OT: se cierra la OS sin bloquear.
-        logger.warning("La OS %s no tiene OT de origen; se cerrará únicamente la OS.", folio_os)
+        raise ValueError("No se permite cerrar una OS sin una OT de origen verificada.")
 
+    if not resultado_ot:
+        raise RuntimeError("Supabase no confirmó el cierre de la OT.")
     payload_os = {"os_estatus": 3, "actualizado_por": usuario}
     try:
         respuesta = supabase.table(TABLA_ORDENES).update(payload_os).eq("id_orden", os.get("id_orden")).execute()

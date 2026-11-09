@@ -68,6 +68,7 @@ def contrato_orden_servicio(registro):
         "Supervisor": r.get("os_supervisor", ""),
         "Encargado Servicio": r.get("os_encargado_servicio", ""),
         "Técnicos": r.get("os_tecnicos") or r.get("os_tecnico", ""),
+        "Avance final de la OS": (str(r.get("os_porcentaje_avance")) + "%" if r.get("os_porcentaje_avance") is not None else ""),
         "Descripción": r.get("os_descripcion", ""),
         "Actividades": r.get("os_actividades", ""),
         "Materiales": r.get("os_materiales", ""),
