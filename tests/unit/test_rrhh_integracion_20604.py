@@ -120,5 +120,5 @@ def test_pantalla_rh_omite_campo_password_sin_ocultar_roles():
 def test_version_del_proyecto_no_se_retrocede():
     ver = (ROOT / "core/version.py").read_text(encoding="utf-8")
     installer = (ROOT / "installer/AXIA.iss").read_text(encoding="utf-8")
-    assert 'APP_VERSION = "2.06.13"' in ver
-    assert 'MyAppVersion "2.06.13"' in installer
+    assert 'APP_VERSION = "2.06.14"' in ver
+    assert 'MyAppVersion "2.06.14"' in installer

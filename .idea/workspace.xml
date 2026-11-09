@@ -5,15 +5,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="04557334-8dd2-4c5c-9e71-68cbc1b3eae6" name="Changes" comment="Merge remote-tracking branch 'orign/main'">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/LEEME_AJUSTES_REPORTADOR_50_ACO.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/LEEME_CATALOGO_NOVIEMBRE_2026.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/LEEME_REPORTADOR_FONDO_Y_FUENTES_CORPORATIVAS.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/LEEME_REPORTADOR_NATIVO_20613.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/pdf_fotos_inteligentes.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/pdf_fotos_inteligentes.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/unit/test_bitacora_fotos_adaptables.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_bitacora_fotos_adaptables.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/version.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/version.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/installer/AXIA.iss" beforeDir="false" afterPath="$PROJECT_DIR$/installer/AXIA.iss" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/migrations/20261109_reportador_50_actividades_y_aco.sql" beforeDir="false" afterPath="$PROJECT_DIR$/migrations/20261109_reportador_50_actividades_y_aco.sql" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/migrations/20261109_reportador_fotografico_nativo.sql" beforeDir="false" afterPath="$PROJECT_DIR$/migrations/20261109_reportador_fotografico_nativo.sql" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tests/unit/test_catalogo_axia_visible_completo_20506.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_catalogo_axia_visible_completo_20506.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/views/formato_helpers.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/formato_helpers.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_levantamiento_form_body_inicializado_20505.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_levantamiento_form_body_inicializado_20505.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_rrhh_integracion_20604.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_rrhh_integracion_20604.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -29,23 +27,23 @@
   </component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
-      <entry key="MS100" value="1.3586042919103207" />
-      <entry key="MS500" value="2.3768957911406017" />
-      <entry key="S2" value="6.594816927638467" />
-      <entry key="S5" value="9.680680373039943" />
-      <entry key="S10" value="11.175303644780318" />
-      <entry key="S30" value="12.350520732281632" />
-      <entry key="S60" value="12.699557372852567" />
-      <entry key="M2" value="13.60699650463563" />
-      <entry key="M5" value="27.122634794596127" />
-      <entry key="M10" value="68.34448344066935" />
-      <entry key="M15" value="106.8515280432944" />
-      <entry key="M30" value="185.18891207208543" />
-      <entry key="H1" value="260.0832011569962" />
-      <entry key="H2" value="316.17020943184224" />
-      <entry key="H4" value="351.4219958760314" />
-      <entry key="D1" value="385.5704192754712" />
-      <entry key="W1" value="391.92549842642836" />
+      <entry key="MS100" value="1.0" />
+      <entry key="MS500" value="1.0000036898847344" />
+      <entry key="S2" value="1.0466306663939156" />
+      <entry key="S5" value="1.4879433269502744" />
+      <entry key="S10" value="2.8468118633541026" />
+      <entry key="S30" value="8.873688029035126" />
+      <entry key="S60" value="13.377254751321425" />
+      <entry key="M2" value="17.24956925574567" />
+      <entry key="M5" value="31.785633688925135" />
+      <entry key="M10" value="72.34671766991669" />
+      <entry key="M15" value="110.72583508190087" />
+      <entry key="M30" value="189.63241346222227" />
+      <entry key="H1" value="265.5884697476353" />
+      <entry key="H2" value="322.65412649931164" />
+      <entry key="H4" value="358.57943805968597" />
+      <entry key="D1" value="393.4163406864598" />
+      <entry key="W1" value="399.9031241395452" />
     </decayedCancelled>
     <decayedSelected>
       <entry key="MS100" value="0.0" />
@@ -67,23 +65,23 @@
       <entry key="W1" value="0.0" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="1.31473214286598" />
-      <entry key="MS500" value="2.354984324321248" />
-      <entry key="S2" value="6.56939393973253" />
-      <entry key="S5" value="9.664365920174898" />
-      <entry key="S10" value="11.16562040474221" />
-      <entry key="S30" value="12.346887910731338" />
-      <entry key="S60" value="12.697683411085649" />
-      <entry key="M2" value="13.606007590758283" />
-      <entry key="M5" value="27.12167386733055" />
-      <entry key="M10" value="68.34281553834217" />
-      <entry key="M15" value="106.84958410386795" />
-      <entry key="M30" value="185.187066906602" />
-      <entry key="H1" value="260.08187028853587" />
-      <entry key="H2" value="316.1693961207835" />
-      <entry key="H4" value="351.42154379013255" />
-      <entry key="D1" value="385.5703367080378" />
-      <entry key="W1" value="391.92548644079386" />
+      <entry key="MS100" value="0.9201876506248751" />
+      <entry key="MS500" value="0.9835056879742785" />
+      <entry key="S2" value="1.0422408036141833" />
+      <entry key="S5" value="1.48533180694595" />
+      <entry key="S10" value="2.8439205919387693" />
+      <entry key="S30" value="8.869707924066132" />
+      <entry key="S60" value="13.374058940798383" />
+      <entry key="M2" value="17.24749135436526" />
+      <entry key="M5" value="31.784163853956603" />
+      <entry key="M10" value="72.34482137678039" />
+      <entry key="M15" value="110.72374640063877" />
+      <entry key="M30" value="189.63049270270758" />
+      <entry key="H1" value="265.58709586931434" />
+      <entry key="H2" value="322.65328913687046" />
+      <entry key="H4" value="358.57897306620566" />
+      <entry key="D1" value="393.4162558179046" />
+      <entry key="W1" value="399.9031118210956" />
     </decayedShown>
   </component>
   <component name="ProjectColorInfo">{
@@ -573,14 +571,6 @@
       <option name="presentableId" value="Default" />
       <updated>1787595329657</updated>
     </task>
-    <task id="LOCAL-00114" summary="Merge remote-tracking branch 'orign/main'">
-      <option name="closed" value="true" />
-      <created>1793384655755</created>
-      <option name="number" value="00114" />
-      <option name="presentableId" value="LOCAL-00114" />
-      <option name="project" value="LOCAL" />
-      <updated>1793384655755</updated>
-    </task>
     <task id="LOCAL-00115" summary="Merge remote-tracking branch 'orign/main'">
       <option name="closed" value="true" />
       <created>1793384766456</created>
@@ -965,7 +955,15 @@
       <option name="project" value="LOCAL" />
       <updated>1794247042606</updated>
     </task>
-    <option name="localTasksCounter" value="163" />
+    <task id="LOCAL-00163" summary="Merge remote-tracking branch 'orign/main'">
+      <option name="closed" value="true" />
+      <created>1794252151579</created>
+      <option name="number" value="00163" />
+      <option name="presentableId" value="LOCAL-00163" />
+      <option name="project" value="LOCAL" />
+      <updated>1794252151580</updated>
+    </task>
+    <option name="localTasksCounter" value="164" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
