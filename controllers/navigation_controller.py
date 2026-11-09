@@ -393,6 +393,31 @@ class NavigationController:
     # =================================================
     # VISTAS ADMINISTRATIVAS DE PROCESOS
     # =================================================
+    def mostrar_mis_documentos(self, tipo):
+        """Historial exclusivamente personal y de solo lectura para Operador 4."""
+        from security.permissions import obtener_tipo_usuario, OPERADOR
+        if obtener_tipo_usuario(obtener_usuario_actual()) != OPERADOR:
+            messagebox.showerror("Acceso denegado", "Esta consulta personal está reservada al Operador.")
+            return
+        configuraciones = {
+            "levantamientos": {"titulo": "Mis levantamientos", "prefijo": "LEV", "campo_folio": "lev_folio", "campos_aco": ["lev_aco_numero"], "campos_cliente": ["lev_cliente"], "campos_estatus": ["lev_estatus"], "campos_fecha": ["fecha_registro"], "campos_descripcion": ["lev_descripcion", "lev_motivo"]},
+            "bitacoras": {"titulo": "Mis bitácoras", "prefijo": "BIT", "campo_folio": "bit_folio", "pdf_renderer": "bitacora_avance", "campos_aco": ["bit_aco_numero"], "campos_cliente": ["bit_cliente"], "campos_estatus": ["bit_estatus"], "campos_fecha": ["fecha_registro"], "campos_descripcion": ["bit_descripcion"]},
+            "ordenes_servicio": {"titulo": "Mis órdenes de servicio", "prefijo": "OS", "campo_folio": "os_folio", "campos_aco": ["os_aco_numero"], "campos_cliente": ["os_cliente"], "campos_estatus": ["os_estatus"], "campos_fecha": ["fecha_registro"], "campos_descripcion": ["os_descripcion"]},
+        }
+        if tipo not in configuraciones:
+            raise ValueError("Tipo de historial inválido")
+        from services.mis_documentos_service import consultar_mis_documentos
+        from views.admin_procesos_view import mostrar_admin_procesos
+        config = configuraciones[tipo]
+        # Capturar solo el tipo: el autor siempre se valida dentro del servicio.
+        config["obtener_todos"] = lambda: consultar_mis_documentos(tipo)
+        config["buscar"] = lambda termino: consultar_mis_documentos(tipo, termino)
+        config["buscar_por_folio"] = config["buscar"]
+        self._registrar_vista("mostrar_mis_documentos", tipo=tipo)
+        self.limpiar_contenido()
+        self.cambiar_titulo(config["titulo"], "Consulta tus documentos registrados. Sin permisos de edición o eliminación.")
+        mostrar_admin_procesos(parent=self.content, app=self.app, configuracion=config)
+
     def mostrar_admin_levantamientos(self):
         """
         Carga la administración/consulta de levantamientos.

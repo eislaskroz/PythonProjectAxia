@@ -24,6 +24,13 @@ from core.search_utils import normalizar_termino_busqueda
 from ui.native_table import NativeTreeTable
 
 
+def _previsualizar_documento(registro, configuracion):
+    if configuracion.get("pdf_renderer") == "bitacora_avance":
+        from services.pdf_registro_service import generar_pdf_registro
+        return generar_pdf_registro(registro, configuracion, abrir=True)
+    return previsualizar_pdf_registro(registro, configuracion)
+
+
 def _valor(registro, campos, default="No registrado"):
     """
     Obtiene el primer valor disponible dentro de una lista de posibles campos.
@@ -94,7 +101,7 @@ def _crear_card_resultado(parent, registro, configuracion):
         fg_color="#64748B",
         hover_color="#475569",
         font=TEXT_SM,
-        command=lambda r=registro, c=configuracion: previsualizar_pdf_registro(r, c)
+        command=lambda r=registro, c=configuracion: _previsualizar_documento(r, c)
     ).pack(side="left", padx=(0, 4))
 
     ctk.CTkButton(
@@ -194,7 +201,7 @@ def mostrar_admin_procesos(parent, app, configuracion):
             messagebox.showinfo("Selecciona un registro", "Selecciona una fila para continuar.")
         return registro
 
-    ctk.CTkButton(acciones_resultado, text="👁 Vista previa PDF", width=145, command=lambda: (lambda r: previsualizar_pdf_registro(r, configuracion) if r else None)(registro_seleccionado())).pack(side="left", padx=3)
+    ctk.CTkButton(acciones_resultado, text="👁 Vista previa PDF", width=145, command=lambda: (lambda r: _previsualizar_documento(r, configuracion) if r else None)(registro_seleccionado())).pack(side="left", padx=3)
     ctk.CTkButton(acciones_resultado, text="⬇ Guardar PDF", width=130, command=lambda: (lambda r: guardar_pdf_registro(r, configuracion) if r else None)(registro_seleccionado())).pack(side="left", padx=3)
 
     def limpiar_resultados():

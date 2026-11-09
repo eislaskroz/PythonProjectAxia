@@ -558,6 +558,9 @@ class AxiaApp(ctk.CTk):
             # botones laterales de procesos abren búsqueda y administración,
             # no formularios de generación.
             "admin_levantamientos": self.navigation.mostrar_admin_levantamientos,
+            "mis_levantamientos": lambda: self.navigation.mostrar_mis_documentos("levantamientos"),
+            "mis_bitacoras": lambda: self.navigation.mostrar_mis_documentos("bitacoras"),
+            "mis_ordenes_servicio": lambda: self.navigation.mostrar_mis_documentos("ordenes_servicio"),
             "cotizaciones": self.navigation.mostrar_cotizaciones,
             "compras": self.navigation.mostrar_compras,
             "almacen": self.navigation.mostrar_almacen,

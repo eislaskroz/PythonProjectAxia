@@ -257,6 +257,10 @@ def _opciones_menu_por_rol(usuario_activo, callbacks):
             "levantamientos", "📋", "Levantamientos",
             callbacks["admin_levantamientos"] if puede_consulta else callbacks["levantamiento"],
         ))
+    if tipo_usuario == OPERADOR:
+        opciones["operaciones"].append((
+            "mis_levantamientos", "📂", "Mis levantamientos", callbacks["mis_levantamientos"],
+        ))
     if puede_entrar_inicio_aco(usuario_activo):
         opciones["operaciones"].append((
             "aco", "🏠", "ACO", callbacks["inicio_aco"],
@@ -274,6 +278,10 @@ def _opciones_menu_por_rol(usuario_activo, callbacks):
         opciones["operaciones"].append((
             "bitacoras", "📊", "Bitácoras operativas", callback_bitacoras,
         ))
+    if tipo_usuario == OPERADOR and puede_ver_bitacoras_operativas(usuario_activo):
+        opciones["operaciones"].append((
+            "mis_bitacoras", "📂", "Mis bitácoras", callbacks["mis_bitacoras"],
+        ))
     if puede_generar_orden_servicio(usuario_activo):
         callback_os = (
             callbacks["orden_servicio"] if tipo_usuario == OPERADOR
@@ -284,6 +292,10 @@ def _opciones_menu_por_rol(usuario_activo, callbacks):
             "ordenes_servicio", "🧾", "Órdenes de servicio", callback_os,
         ))
 
+    if tipo_usuario == OPERADOR and puede_generar_orden_servicio(usuario_activo):
+        opciones["operaciones"].append((
+            "mis_ordenes_servicio", "📂", "Mis órdenes de servicio", callbacks["mis_ordenes_servicio"],
+        ))
     if puede_ver_reportador_fotografico(usuario_activo):
         opciones["reportes"].append((
             "reportador_fotografico", "📷", "Reportador fotográfico", callbacks["reportador_fotografico"],
