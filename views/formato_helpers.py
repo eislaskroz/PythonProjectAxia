@@ -302,8 +302,8 @@ def _generar_pdf_orden_servicio_axia(datos, firma_base64=None, ruta_salida=None,
     ]
     right_rows = [
         ("Tipo de Servicio", text("Tipo de Servicio")), ("No. ACO", text("ACO")),
-        ("Supervisor", text("Supervisor")), ("Encargado AXIA", text("Encargado Servicio")),
-        ("Técnicos", text("Técnicos")),
+        ("Supervisor AXIA", text("Supervisor")), ("Encargado AXIA", text("Encargado Servicio")),
+        ("Técnicos AXIA", text("Técnicos")),
     ]
     left = pair_table(left_rows, [0.92*inch, 2.30*inch])
     right = pair_table(right_rows, [0.98*inch, 2.70*inch])
