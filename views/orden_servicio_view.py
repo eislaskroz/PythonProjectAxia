@@ -87,9 +87,9 @@ def mostrar_orden_servicio(parent, app, aco=None):
     var_eval_otro = ctk.StringVar(value="No aplica")
     var_firma_cliente = ctk.StringVar()
     var_estado_firma = ctk.StringVar(value="Sin firma")
-    # Datos de quien firma por parte del cliente. El nombre parte del contacto/encargado
-    # del ACO y el puesto se obtiene del catálogo de contactos de la sucursal.
-    var_firmante_nombre = ctk.StringVar(value=datos_aco.get("contacto", ""))
+    # Los datos del cliente firmante se capturan manualmente en sitio.
+    # Pueden ser distintos del encargado y del solicitante del ACO.
+    var_firmante_nombre = ctk.StringVar()
     var_firmante_puesto = ctk.StringVar()
 
     var_tipo_servicio = ctk.StringVar(value=datos_aco.get("tipo_servicio", ""))
@@ -175,26 +175,9 @@ def mostrar_orden_servicio(parent, app, aco=None):
         var_tecnicos.set(" | ".join(tecnicos_seleccionados))
 
     def cargar_datos_firmante():
-        """Sincroniza nombre y puesto del encargado que autoriza/firma la OS."""
-        nombre = str(var_encargado_general.get() or datos_aco.get("contacto") or "").strip()
-        var_firmante_nombre.set(nombre)
-        var_firmante_puesto.set("")
-        id_sucursal = datos_aco.get("id_sucursal")
-        id_contacto = datos_aco.get("id_contacto")
-        if not id_sucursal:
-            return
-        try:
-            contactos = obtener_contactos_por_sucursal(id_sucursal) or []
-            elegido = None
-            if id_contacto not in (None, ""):
-                elegido = next((c for c in contactos if str(c.get("con_id")) == str(id_contacto)), None)
-            if elegido is None and nombre:
-                elegido = next((c for c in contactos if str(c.get("con_nombre") or "").strip().casefold() == nombre.casefold()), None)
-            if elegido:
-                var_firmante_nombre.set(str(elegido.get("con_nombre") or nombre).strip())
-                var_firmante_puesto.set(str(elegido.get("con_puesto") or "").strip())
-        except Exception:
-            logger.exception("No fue posible recuperar nombre/puesto del firmante de la OS.")
+        """No heredar datos del ACO: recuperar solo lo guardado en la OS."""
+        var_firmante_nombre.set(str(os_existente.get("os_firmante_nombre") or "").strip())
+        var_firmante_puesto.set(str(os_existente.get("os_firmante_puesto") or "").strip())
 
     def cargar_aco(numero=None):
         nonlocal datos_aco, os_existente, contexto_cierre
@@ -461,7 +444,10 @@ def mostrar_orden_servicio(parent, app, aco=None):
             "os_encargado": var_encargado_general.get().strip(), "os_solicitante": var_solicitante.get().strip(), "os_correo": var_correo.get().strip(), "os_celular": var_celular.get().strip(),
             "os_hora_llegada": var_hora_llegada.get().strip(), "os_hora_salida": var_hora_salida.get().strip(), "os_tipos_servicio_json": json.dumps([var_tipo_servicio.get().strip()], ensure_ascii=False),
             "os_tipo_servicio": var_tipo_servicio.get().strip(), "os_supervisor": var_supervisor.get().strip(), "os_encargado_servicio": var_encargado_servicio.get().strip(),
-            "os_tecnicos": var_tecnicos.get().strip(), "os_tecnico": var_tecnicos.get().strip(), "os_descripcion": obtener_textbox(txt_descripcion), "os_observaciones": "", "os_fotos": [],
+            "os_tecnicos": var_tecnicos.get().strip(), "os_tecnico": var_tecnicos.get().strip(), "os_descripcion": obtener_textbox(txt_descripcion), "os_observaciones": "",
+            # No eliminar evidencias anteriores al actualizar una OS sin fotos nuevas.
+            "os_fotos": list(os_existente.get("os_fotos") or []),
+            "os_firmante_nombre": var_firmante_nombre.get().strip(), "os_firmante_puesto": var_firmante_puesto.get().strip(),
             "os_equipos_json": json.dumps(equipos_db, ensure_ascii=False), "os_eval_trato": var_eval_trato.get(), "os_eval_habilidades": var_eval_habilidades.get(),
             # La OS se guarda primero como "En proceso". Sólo pasa a 100%/
             # finalizada después de confirmar el cierre automático de su OT.
@@ -479,7 +465,8 @@ def mostrar_orden_servicio(parent, app, aco=None):
                     registro_resultado = resultado[0] if isinstance(resultado, list) and resultado else {}
                     id_orden = id_os_existente or registro_resultado.get("id_orden") or (buscar_orden_por_folio(folio) or {}).get("id_orden")
                     if id_orden and fotos_subidas:
-                        actualizar_orden_servicio(id_orden, {"os_fotos": fotos_subidas})
+                        fotos_previas = list(os_existente.get("os_fotos") or [])
+                        actualizar_orden_servicio(id_orden, {"os_fotos": fotos_previas + fotos_subidas})
                 except Exception as error:
                     logger.exception("La OS se guardó, pero falló la carga de fotografías.")
                     aviso_fotos = f"\n\nLa orden se guardó, pero no se pudieron subir todas las fotografías:\n{error}"
@@ -495,7 +482,7 @@ def mostrar_orden_servicio(parent, app, aco=None):
             elif not cierre_ot:
                 logger.warning("La OS %s se guardó, pero no fue posible confirmar el cierre automático de su OT; la OS permanece En proceso.", folio)
             datos_pdf_final = datos_pdf()
-            datos_pdf_final["Evidencia Fotográfica"] = fotos_subidas if fotos_subidas else list(evidencias_locales)
+            datos_pdf_final["Evidencia Fotográfica"] = list(os_existente.get("os_fotos") or []) + (fotos_subidas if fotos_subidas else list(evidencias_locales))
             ruta_pdf = generar_pdf_archivo("Orden de Servicio", datos_pdf_final, nombre_archivo=folio, subcarpeta="ordenes_servicio", secciones_tabla=secciones_equipos_pdf(), firma_base64=var_firma_cliente.get())
             mensaje_pdf = f"\n\nPDF guardado en:\n{ruta_pdf}" if ruta_pdf else "\n\nNo se pudo guardar el PDF local."
             messagebox.showinfo("Registro correcto", "La orden de servicio fue guardada correctamente." + mensaje_pdf + aviso_fotos)

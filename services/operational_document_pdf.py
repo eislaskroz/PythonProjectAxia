@@ -72,6 +72,8 @@ def contrato_orden_servicio(registro):
         "Actividades": r.get("os_actividades", ""),
         "Materiales": r.get("os_materiales", ""),
         "Observaciones": r.get("os_observaciones", ""),
+        "Nombre del encargado firmante": r.get("os_firmante_nombre", ""),
+        "Puesto del encargado firmante": r.get("os_firmante_puesto", ""),
         "Hora de llegada": r.get("os_hora_llegada", ""),
         "Hora de salida": r.get("os_hora_salida", ""),
         "Evaluación habilidades": r.get("os_eval_habilidades", ""),

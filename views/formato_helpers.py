@@ -297,7 +297,8 @@ def _generar_pdf_orden_servicio_axia(datos, firma_base64=None, ruta_salida=None,
         ("Fecha", text("Fecha")), ("Cliente", text("Cliente")), ("Sucursal", text("Sucursal")),
         ("Domicilio", text("Domicilio")), ("Encargado", text("Encargado")),
         ("Solicitante", text("Solicitante")),
-        ("Hora de llegada", text("Hora de llegada")), ("Hora de salida", text("Hora de salida")),
+        ("Hora de llegada", text("Hora de Llegada", "Hora de llegada")),
+        ("Hora de salida", text("Hora de Salida", "Hora de salida")),
     ]
     right_rows = [
         ("Tipo de Servicio", text("Tipo de Servicio")), ("No. ACO", text("ACO")),
@@ -361,54 +362,55 @@ def _generar_pdf_orden_servicio_axia(datos, firma_base64=None, ruta_salida=None,
     if isinstance(evidencias_raw, dict):
         evidencias_raw = [evidencias_raw]
 
-    tarjetas_fotos = []
-    foto_caption = ParagraphStyle("AxiaOsFotoCaption", parent=normal, fontSize=6.5, leading=8, alignment=1)
+    # Mismo motor inteligente de fotografías utilizado en Bitácoras.
+    # Se normaliza cada archivo una sola vez y se conserva el orden original.
+    from services.pdf_fotos_inteligentes import FotoPdf, construir_filas_fotos
+    fotos_preparadas = []
     for item in evidencias_raw or []:
         try:
             if isinstance(item, dict):
                 nombre = str(item.get("nombre") or item.get("storage_path") or "Evidencia")
                 origen = str(item.get("url") or item.get("ruta") or item.get("path") or "").strip()
             else:
-                origen = str(item or "").strip(); nombre = Path(origen).name or "Evidencia"
+                origen = str(item or "").strip()
+                nombre = Path(origen).name or "Evidencia"
             contenido = None
             if origen and Path(origen).is_file():
                 contenido = Path(origen).read_bytes()
             elif origen.lower().startswith(("http://", "https://")):
                 import requests
-                resp = requests.get(origen, timeout=12); resp.raise_for_status(); contenido = resp.content
+                resp = requests.get(origen, timeout=12)
+                resp.raise_for_status()
+                contenido = resp.content
             elif isinstance(item, dict) and str(item.get("storage_path") or "").strip():
                 from supabase_config import supabase
-                contenido = supabase.storage.from_("bitacoras-evidencias").download(str(item.get("storage_path")).strip())
+                contenido = supabase.storage.from_("bitacoras-evidencias").download(
+                    str(item.get("storage_path")).strip()
+                )
             if not contenido:
+                logger.warning("Evidencia no disponible para OS: %s", nombre)
                 continue
             with Image.open(io.BytesIO(contenido)) as src:
                 img = ImageOps.exif_transpose(src)
-                if img.mode not in ("RGB", "RGBA"): img = img.convert("RGB")
-                buff = io.BytesIO(); img.save(buff, format="PNG", optimize=True); buff.seek(0)
-                wpx, hpx = img.size
-            max_w, max_h = 3.22*inch, 2.05*inch
-            escala = min(max_w/max(wpx,1), max_h/max(hpx,1))
-            foto = RLImage(buff, width=max(1,wpx*escala), height=max(1,hpx*escala))
-            tarjeta = Table([[foto],[Paragraph(html_escape(nombre), foto_caption)]], colWidths=[3.30*inch])
-            tarjeta.setStyle(TableStyle([
-                ("BOX",(0,0),(-1,-1),0.4,BORDER),("ALIGN",(0,0),(-1,-1),"CENTER"),
-                ("VALIGN",(0,0),(-1,-1),"MIDDLE"),("BACKGROUND",(0,1),(0,1),LIGHT_BLUE),
-                ("LEFTPADDING",(0,0),(-1,-1),4),("RIGHTPADDING",(0,0),(-1,-1),4),
-                ("TOPPADDING",(0,0),(-1,-1),4),("BOTTOMPADDING",(0,0),(-1,-1),4),
-            ]))
-            tarjetas_fotos.append(tarjeta)
+                if img.mode != "RGB":
+                    img = img.convert("RGB")
+                img.thumbnail((1800, 1800), Image.Resampling.LANCZOS)
+                ancho_px, alto_px = img.size
+                buff = io.BytesIO()
+                img.save(buff, format="JPEG", quality=85, optimize=True)
+            fotos_preparadas.append(FotoPdf(buff.getvalue(), nombre, ancho_px, alto_px))
         except Exception:
             logger.warning("No se pudo incorporar evidencia al PDF de Orden de Servicio", exc_info=True)
-    if tarjetas_fotos:
+    if fotos_preparadas:
         fotos_header = Table([[p("EVIDENCIA FOTOGRÁFICA", header)]], colWidths=[6.90*inch])
-        fotos_header.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),BLUE),("BOX",(0,0),(-1,-1),0.45,BORDER)]))
-        story.extend([fotos_header, Spacer(1,5)])
-        for i in range(0, len(tarjetas_fotos), 2):
-            der = tarjetas_fotos[i+1] if i+1 < len(tarjetas_fotos) else ""
-            fila = Table([[tarjetas_fotos[i], der]], colWidths=[3.40*inch,3.40*inch], hAlign="CENTER")
-            fila.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),3),("RIGHTPADDING",(0,0),(-1,-1),3),("BOTTOMPADDING",(0,0),(-1,-1),6)]))
-            story.append(fila)
-        story.append(Spacer(1,8))
+        fotos_header.setStyle(TableStyle([
+            ("BACKGROUND", (0,0), (-1,-1), BLUE),
+            ("BOX", (0,0), (-1,-1), 0.45, BORDER),
+        ]))
+        filas_fotos = construir_filas_fotos(fotos_preparadas, estilo_texto=normal)
+        story.append(KeepTogether([fotos_header, Spacer(1, 5), filas_fotos[0]]))
+        story.extend(filas_fotos[1:])
+        story.append(Spacer(1, 8))
 
     # Firma capturada desde el formulario operativo. Si todavía no existe, se
     # conserva el recuadro para que el formato sea visualmente definitivo.

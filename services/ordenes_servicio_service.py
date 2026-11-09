@@ -55,7 +55,8 @@ COLUMNAS_ORDENES = (
     "os_solicitante,os_celular,os_hora_llegada,os_hora_salida,"
     "os_tipos_servicio_json,os_tipo_servicio,os_encargado_servicio,"
     "os_tecnicos,os_equipos_json,os_eval_trato,os_eval_habilidades,"
-    "os_eval_velocidad,os_eval_otro,os_firma_cliente,os_fotos,id_sucursal,id_contacto"
+    "os_eval_velocidad,os_eval_otro,os_firma_cliente,os_fotos,id_sucursal,id_contacto,"
+    "os_firmante_nombre,os_firmante_puesto"
 )
 
 
