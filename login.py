@@ -503,8 +503,22 @@ def abrir_login():
                     # Al abrir un levantamiento se verá el error de consulta.
                     from core.logger import configurar_logger
                     configurar_logger(__name__).warning("Catálogo AXIA de solo lectura no disponible en login.", exc_info=True)
+                token_reportador = None
+                try:
+                    if int(usuario.get('usu_tipo') or 0) in (1, 2, 3, 4):
+                        from services.reportador_fotografico_service import solicitar_sesion
+                        token_reportador = solicitar_sesion(
+                            nickname, password, usuario.get('id_usuario'), usuario.get('usu_tipo')
+                        )
+                except Exception:
+                    # No bloquea AXIA si no se ha desplegado la nueva función.
+                    from core.logger import configurar_logger
+                    configurar_logger(__name__).warning(
+                        "Reportador fotográfico no habilitado en Supabase; no hay sesión nativa.",
+                        exc_info=True,
+                    )
                 return {"acceso": True, "usuario": usuario, "ubicacion": ubicacion,
-                        "token_catalogo": token_catalogo}
+                        "token_catalogo": token_catalogo, "token_reportador": token_reportador}
 
             servicios["registrar_bitacora_login"](
                 id_usuario=None,
@@ -547,6 +561,8 @@ def abrir_login():
             usuario = resultado["usuario"]
             from services.levantamiento_catalogo_axia import establecer_sesion_catalogo
             establecer_sesion_catalogo(resultado.get("token_catalogo"), usuario.get("id_usuario"))
+            from services.reportador_fotografico_service import establecer_sesion as rf_sesion
+            rf_sesion(resultado.get('token_reportador'), usuario.get('id_usuario'))
             establecer_usuario_actual(
                 id_usuario=usuario.get("id_usuario"),
                 usuario=usuario.get("usu_nickname"),

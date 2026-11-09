@@ -134,6 +134,11 @@ def puede_administrar_usuarios(usuario_activo) -> bool:
     return _es_rol(usuario_activo, ADMINISTRADOR, JEFE_OPERACIONES)
 
 
+def puede_ver_reportador_fotografico(usuario_activo) -> bool:
+    """Permiso exclusivo al Reportador fotográfico, roles AXIA 1 a 4."""
+    return _es_rol(usuario_activo, ADMINISTRADOR, JEFE_OPERACIONES, SUPERVISOR, OPERADOR)
+
+
 def puede_ver_reportes(usuario_activo) -> bool:
     """Reportes operativos: todos salvo Operador."""
     return obtener_tipo_usuario(usuario_activo) in ROLES_GESTION_OPERATIVA

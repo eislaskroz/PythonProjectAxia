@@ -67,6 +67,7 @@ from security.permissions import (
     puede_ver_auditoria,
     puede_administrar_registros,
     puede_ver_reportes,
+    puede_ver_reportador_fotografico,
     puede_ver_direccion_general,
     puede_ver_bitacoras_operativas,
 )
@@ -246,6 +247,7 @@ def _opciones_menu_por_rol(usuario_activo, callbacks):
     tipo_usuario = obtener_tipo_usuario(usuario_activo)
     opciones = {
         "operaciones": [],
+        "reportes": [],
         "administracion": [],
         "sistema": [],
     }
@@ -282,6 +284,11 @@ def _opciones_menu_por_rol(usuario_activo, callbacks):
             "ordenes_servicio", "🧾", "Órdenes de servicio", callback_os,
         ))
 
+    if puede_ver_reportador_fotografico(usuario_activo):
+        opciones["reportes"].append((
+            "reportador_fotografico", "📷", "Reportador fotográfico", callbacks["reportador_fotografico"],
+        ))
+
     if puede_cotizar_levantamientos(usuario_activo):
         opciones["administracion"].append((
             "cotizaciones", "💲", "Cotizaciones", callbacks["cotizaciones"],
@@ -297,7 +304,7 @@ def _opciones_menu_por_rol(usuario_activo, callbacks):
 
     if puede_ver_reportes(usuario_activo):
         opciones["sistema"].append((
-            "reportes", "📈", "Reportes", callbacks["reportes"],
+            "reportes_administrativos", "📈", "Reportes administrativos", callbacks["reportes"],
         ))
     if puede_administrar_registros(usuario_activo):
         opciones["sistema"].append((
@@ -333,6 +340,7 @@ def _crear_menu_acordeon(sidebar, menu_host, opciones, direccion):
     """
     secciones = (
         ("operaciones", "•", "Operaciones"),
+        ("reportes", "•", "Reportes"),
         ("administracion", "•", "Administración"),
         ("sistema", "•", "Sistema y Control"),
     )

@@ -567,6 +567,7 @@ class AxiaApp(ctk.CTk):
             "admin_obras_civiles": self.navigation.mostrar_admin_obras_civiles,
 
             "reportes": self.navigation.mostrar_reportes,
+            "reportador_fotografico": self.navigation.mostrar_reportador_fotografico,
             "direccion_general": self.navigation.mostrar_direccion_general,
             "usuarios": self.navigation.mostrar_usuarios,
             "clientes": self.navigation.mostrar_clientes,
@@ -1040,6 +1041,11 @@ class AxiaApp(ctk.CTk):
         3. Destruir la ventana principal.
         4. login.py detecta la bandera y vuelve a abrir el Login.
         """
+        try:
+            from services.reportador_fotografico_service import cerrar_sesion as rf_cerrar
+            rf_cerrar()
+        except Exception:
+            pass
         from app_context import establecer_usuario_actual
         from services.movimientos_service import registrar_movimiento_seguro
 
@@ -1065,6 +1071,11 @@ class AxiaApp(ctk.CTk):
 
     def salir_aplicacion(self):
         """Cierra por completo el sistema AXIA conservando un borrador si hay captura activa."""
+        try:
+            from services.reportador_fotografico_service import cerrar_sesion as rf_cerrar
+            rf_cerrar()
+        except Exception:
+            pass
         self.logout_requested = False
         self._guardar_borrador_actual()
         try:

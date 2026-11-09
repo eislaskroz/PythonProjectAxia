@@ -1,4 +1,4 @@
-AXIA DESKTOP 2.06.12 — CATÁLOGO DE MATERIALES NOVIEMBRE 2026
+AXIA DESKTOP 2.06.13 — CATÁLOGO DE MATERIALES NOVIEMBRE 2026
 ===========================================================
 FUENTE
   Catálogo de Materiales Noviembre 2026.xlsx, hoja NOV2026, A1:C252.
@@ -51,4 +51,4 @@ VALIDACIÓN
   Pruebas de catálogo, tubo por metro, canaleta, PDF y Color/Modelo.
   Se debe verificar gráficamente en Windows y guardar LEV/OBC de prueba.
   No se requiere migración SQL ni modificación de Edge Functions.
-  Se conserva APP_VERSION = 2.06.12.
+  Se conserva APP_VERSION = 2.06.13.

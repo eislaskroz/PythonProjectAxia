@@ -42,7 +42,7 @@ from security.permissions import (
     puede_generar_bitacora,
     puede_ver_auditoria,
     puede_administrar_registros,
-    puede_ver_reportes, puede_ver_direccion_general,
+    puede_ver_reportes, puede_ver_reportador_fotografico, puede_ver_direccion_general,
     puede_ver_bitacoras_operativas,
 )
 
@@ -787,6 +787,25 @@ class NavigationController:
         self.cambiar_titulo("Dirección General", "Control ejecutivo del ciclo operacional completo.")
         from views.direccion_general_view import mostrar_direccion_general
         mostrar_direccion_general(parent=self.content, app=self.app)
+
+    # =================================================
+    # VISTA: REPORTADOR FOTOGRÁFICO NATIVO (ROLES 1–4)
+    # =================================================
+    def mostrar_reportador_fotografico(self):
+        """Carga el Reportador en CustomTkinter; sin navegador ni segundo login."""
+        if not self._verificar_permiso(
+            puede_ver_reportador_fotografico,
+            "El Reportador fotográfico solo está disponible para los roles 1, 2, 3 y 4.",
+        ):
+            return
+        self._registrar_vista("mostrar_reportador_fotografico")
+        self.limpiar_contenido()
+        self.cambiar_titulo(
+            "Reportes",
+            "Reportador fotográfico · Captura, fotografías, Órdenes de Servicio y PDF",
+        )
+        from views.reportador_fotografico_view import mostrar_reportador_fotografico
+        mostrar_reportador_fotografico(self.content, self.app)
 
     # =================================================
     # VISTA: REPORTES ADMINISTRATIVOS

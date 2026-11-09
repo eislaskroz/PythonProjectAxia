@@ -1,0 +1,4 @@
+# Reportador: valida credenciales AXIA y token opaco propio en Edge Function.
+# No depende de Supabase Auth JWT porque Desktop usa db_usuarios.
+[functions.axia-reportador-desktop]
+verify_jwt = false

@@ -1,0 +1,39 @@
+AXIA DESKTOP 2.06.13 | REPORTADOR FOTOGRAFICO | CAMBIOS 09 NOV 2026
+
+BASE: AXIA_DESKTOP_2.06.13_REPORTADOR_NATIVO_PDF_ORIGINAL.zip
+
+1. Hasta 50 actividades en captura, validacion Python, PDF, SQL.
+2. Seleccion de ACO desde db_acos via Edge Function autenticada.
+   Se autocompletan cliente de aco_cliente, sucursal de
+   db_clientes_sucursales (id_sucursal -> suc_id / suc_nombre)
+   y nombre del servicio de aco_descripcion. Si el ACO no tiene esos
+   datos, consulta OT (ot_asunto / ot_sucursal), OS (os_tipo_servicio /
+   os_actividad / os_sucursal) y LEV (lev_descripcion / lev_ubicacion),
+   en ese orden, siempre vinculados al mismo aco_numero.
+   Si faltan valores en el maestro se permite completarlos manualmente.
+   La SQL impide guardar un ACO que no exista en db_acos.
+3. Fecha visible DD-MM-AAAA, guardada como date ISO (sin modificar schema).
+   Historial y PDF presentan DD-MM-AAAA.
+4. Desmarcar 'Incluir descripcion' oculta la caja y la excluye del guardado.
+
+IMPORTANTE - ACTUALIZAR PRODUCCION EN ESTE ORDEN:
+A. Respaldar Supabase y revisar scripts.
+B. SQL Editor: ejecutar el archivo incremental
+   migrations/20261109_reportador_50_actividades_y_aco.sql
+   (NO repetir la migracion inicial ya desplegada).
+C. Edge Functions -> axia-reportador-desktop -> Code:
+   reemplazar index.ts por
+   supabase/functions/axia-reportador-desktop/index.ts
+   -> Deploy updates.
+   Mantener Verify JWT with legacy secret OFF para esta funcion,
+   que valida su propia sesion de forma segura.
+D. Sustituir AXIA DESKTOP por esta version y volver a entrar.
+E. Probar buscador ACO, autollenado, fecha, casilla y reporte con 21
+   y hasta 50 actividades (se requieren fotos completas y OS para finalizar).
+
+NO CAMBIAR el PHP; no se requieren usuarios/contraseñas adicionales.
+La Edge Function valida roles 1-4 y acceso por autor.
+No se ejecuto SQL ni se desplego la Edge Function desde este entorno.
+
+NOTA: ACOs sin sucursal vinculada en db_acos.id_sucursal no tienen
+sucursal autocargable; ingresar el sitio manualmente en ese caso.
