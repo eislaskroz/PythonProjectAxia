@@ -296,7 +296,7 @@ def _generar_pdf_orden_servicio_axia(datos, firma_base64=None, ruta_salida=None,
     left_rows = [
         ("Fecha", text("Fecha")), ("Cliente", text("Cliente")), ("Sucursal", text("Sucursal")),
         ("Domicilio", text("Domicilio")), ("Encargado", text("Encargado")),
-        ("Solicitante", text("Solicitante")), ("Correo", text("Correo")), ("Celular", text("Celular")),
+        ("Solicitante", text("Solicitante")),
         ("Hora de llegada", text("Hora de llegada")), ("Hora de salida", text("Hora de salida")),
     ]
     right_rows = [
@@ -424,11 +424,17 @@ def _generar_pdf_orden_servicio_axia(datos, firma_base64=None, ruta_salida=None,
     firma_content = firma_flow or p("", center)
     firmante_nombre = text("Nombre del encargado firmante", "Encargado")
     firmante_puesto = text("Puesto del encargado firmante")
+    firmante_correo = text("Correo")
+    firmante_celular = text("Celular")
     leyenda_firma = "FIRMA CLIENTE / ENCARGADO"
     if firmante_nombre:
         leyenda_firma += f"<br/><b>{html_escape(firmante_nombre)}</b>"
     if firmante_puesto:
         leyenda_firma += f"<br/>{html_escape(firmante_puesto)}"
+    if firmante_correo:
+        leyenda_firma += f"<br/>Correo: {html_escape(firmante_correo)}"
+    if firmante_celular:
+        leyenda_firma += f"<br/>Celular: {html_escape(firmante_celular)}"
     firma = Table([[firma_content], [Paragraph(leyenda_firma, center)]], colWidths=[2.55*inch], rowHeights=[0.68*inch, None])
     firma.setStyle(TableStyle([
         ("BOX", (0,0), (-1,-1), 0.55, BORDER), ("ALIGN", (0,0), (-1,-1), "CENTER"),

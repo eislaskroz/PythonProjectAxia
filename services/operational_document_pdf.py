@@ -60,8 +60,10 @@ def contrato_orden_servicio(registro):
         "Domicilio": r.get("os_domicilio") or r.get("os_direccion", ""),
         "Encargado": r.get("os_encargado") or r.get("os_contacto", ""),
         "Solicitante": r.get("os_solicitante", ""),
+        # os_correo y os_celular ahora son datos de la persona firmante.
+        # No sustituir automáticamente con el contacto general os_telefono.
         "Correo": r.get("os_correo", ""),
-        "Celular": r.get("os_celular") or r.get("os_telefono", ""),
+        "Celular": r.get("os_celular", ""),
         "Tipo de Servicio": r.get("os_tipo_servicio", ""),
         "Supervisor": r.get("os_supervisor", ""),
         "Encargado Servicio": r.get("os_encargado_servicio", ""),

@@ -66,8 +66,8 @@ def mostrar_orden_servicio(parent, app, aco=None):
     var_domicilio = ctk.StringVar(value=datos_aco.get("direccion", ""))
     var_encargado_general = ctk.StringVar(value=datos_aco.get("contacto", ""))
     var_solicitante = ctk.StringVar(value=datos_aco.get("contacto", ""))
-    var_correo = ctk.StringVar(value=datos_aco.get("correo", ""))
-    var_celular = ctk.StringVar(value=datos_aco.get("telefono", ""))
+    var_correo = ctk.StringVar()  # Correo del cliente firmante, capturado manualmente
+    var_celular = ctk.StringVar()  # Celular del cliente firmante, capturado manualmente
     var_hora_llegada = ctk.StringVar()
     var_hora_salida = ctk.StringVar()
     var_aco = ctk.StringVar(value=datos_aco.get("aco_numero", ""))
@@ -216,8 +216,11 @@ def mostrar_orden_servicio(parent, app, aco=None):
         contacto = datos_aco.get("contacto", "") or ot.get("ot_contacto", "")
         var_encargado_general.set(contacto)
         var_solicitante.set(contacto)
-        var_correo.set(datos_aco.get("correo", ""))
-        var_celular.set(datos_aco.get("telefono", ""))
+        # Los datos de contacto corresponden a quien firma la OS, no al ACO.
+        # Al abrir una orden guardada recuperamos sus valores; una orden nueva
+        # empieza con ambos campos libres para capturarlos en sitio.
+        var_correo.set(str(os_existente.get("os_correo") or "").strip())
+        var_celular.set(str(os_existente.get("os_celular") or "").strip())
         cargar_datos_firmante()
         if os_existente:
             var_folio.set(str(os_existente.get("os_folio") or var_folio.get()))
@@ -267,12 +270,10 @@ def mostrar_orden_servicio(parent, app, aco=None):
     entry("Cliente", var_cliente, "Autollenado", 1, 3, lock=True, width=355)
     entry("Sucursal", var_sucursal, "Autollenado", 1, 4, lock=True, width=275)
 
-    # Fila 2: domicilio y datos de contacto.
+    # Fila 2: datos generales. El contacto de quien firma se captura al final.
     entry("Domicilio", var_domicilio, "Autollenado", 2, 0, lock=True, width=370)
     entry("Encargado", var_encargado_general, "Autollenado", 2, 1, lock=True, width=300)
     entry("Solicitante", var_solicitante, "Autollenado", 2, 2, lock=True, width=175)
-    entry("Correo", var_correo, "Autollenado", 2, 3, lock=True, width=190)
-    entry("Celular", var_celular, "Autollenado", 2, 4, lock=True, width=220)
 
     # Fila 3: horarios y tipo de servicio, compactos y alineados a la izquierda.
     entry("Hora de Llegada", var_hora_llegada, "HH:MM", 3, 0, width=200)
@@ -393,6 +394,10 @@ def mostrar_orden_servicio(parent, app, aco=None):
     seccion("Firma del Cliente", 14)
     entry("Nombre del encargado", var_firmante_nombre, fila=15, col=0, required=True)
     entry("Puesto", var_firmante_puesto, fila=15, col=1, required=True)
+    # Datos del firmante: editables, sin autollenar desde el ACO.
+    # Se conservan las columnas os_correo y os_celular existentes en Supabase.
+    entry("Correo del firmante", var_correo, "Correo electrónico", fila=15, col=2, required=False)
+    entry("Celular del firmante", var_celular, "Número de celular", fila=15, col=3, required=False)
     c_firma = celda(16, 0, 5)
     ctk.CTkLabel(c_firma, textvariable=var_estado_firma, font=SMALL_FONT, text_color=TEXT_SECONDARY).pack(side="left", padx=(0, 5))
     ctk.CTkButton(c_firma, text="✍ Capturar firma", width=160, height=32, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=lambda: firmar_en_popup(parent, var_firma_cliente, actualizar_firma)).pack(side="left")
