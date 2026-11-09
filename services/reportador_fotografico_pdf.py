@@ -4,10 +4,12 @@ Referencia: módulo PHP original (noviembre 2026). Carta vertical 612x792 pt,
 coordenadas de texto, barras, actividades, fotografías por orientación y páginas
 individuales de OS. No necesita PHP ni un navegador.
 
-La plantilla externa `storage/templates/reporte_base.png` y las fuentes
-Montserrat originales NO están en los ZIP entregados. Si se añade la misma
-plantilla a assets/reportador/reporte_base.png, se dibuja en cada página. Si se
-instala Montserrat localmente, se usa; de lo contrario, Helvetica como fallback.
+De forma predeterminada utiliza el mismo fondo vertical corporativo que los
+PDF de levantamientos, OS y bitácoras: assets/FormatoFondo.png.
+Si se incorpora el fondo exacto del Reportador PHP en
+assets/reportador/reporte_base.png, este tiene prioridad. La tipografía
+Montserrat se utiliza cuando están disponibles los tres archivos TTF
+originales; en su ausencia usa Helvetica, como los otros PDF de Desktop.
 """
 from __future__ import annotations
 
@@ -130,8 +132,16 @@ class _OriginalStylePDF:
         self.report = report
         self.fonts = _font_names()
         base = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent.parent))
-        auto = base / 'assets' / 'reportador' / 'reporte_base.png'
-        self.background = Path(background_path) if background_path else auto
+        # Unificar la papelería con el resto de documentos corporativos.
+        # Se mantiene la prioridad del fondo original PHP si se facilita después.
+        original = base / 'assets' / 'reportador' / 'reporte_base.png'
+        corporativo = base / 'assets' / 'FormatoFondo.png'
+        provided = Path(background_path) if background_path else None
+        self.background = (
+            provided if provided and provided.is_file() else
+            original if original.is_file() else corporativo
+        )
+        self.using_corporate_background = self.background == corporativo
         self.logo = Path(logo_path) if logo_path else None
         self.y = 82.0
         self.page()
@@ -185,7 +195,10 @@ class _OriginalStylePDF:
         self.text(48, 82, 'REPORTE FOTOGRÁFICO', 18, 'bold', BLUE)
         self.text(48, 112, 'ACO: ' + str(r['aco']), 13, 'bold')
         # Evitar que fechas especialmente largas superen el ancho del papel.
-        self.text(438, 114, 'Fecha: ' + service.fecha_para_mostrar(r['fecha_servicio']), 10)
+        # FormatoFondo tiene el logotipo en la esquina superior derecha:
+        # evitar colocar la fecha encima de él.
+        fecha_x = 340 if self.using_corporate_background else 438
+        self.text(fecha_x, 114, 'Fecha: ' + service.fecha_para_mostrar(r['fecha_servicio']), 10)
         self.y = 140
         for label, field in [('Cliente', 'cliente'), ('Sucursal / sitio', 'sucursal'),
                              ('Servicio', 'nombre_servicio'), ('Tecnico responsable', 'tecnico_responsable')]:

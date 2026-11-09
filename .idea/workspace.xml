@@ -4,19 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="04557334-8dd2-4c5c-9e71-68cbc1b3eae6" name="Changes" comment="Merge remote-tracking branch 'orign/main'">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app.py" beforeDir="false" afterPath="$PROJECT_DIR$/app.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/controllers/navigation_controller.py" beforeDir="false" afterPath="$PROJECT_DIR$/controllers/navigation_controller.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/version.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/version.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/LEEME_CATALOGO_NOVIEMBRE_2026.txt" beforeDir="false" afterPath="$PROJECT_DIR$/docs/LEEME_CATALOGO_NOVIEMBRE_2026.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/installer/AXIA.iss" beforeDir="false" afterPath="$PROJECT_DIR$/installer/AXIA.iss" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/login.py" beforeDir="false" afterPath="$PROJECT_DIR$/login.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/security/permissions.py" beforeDir="false" afterPath="$PROJECT_DIR$/security/permissions.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/unit/test_levantamiento_form_body_inicializado_20505.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_levantamiento_form_body_inicializado_20505.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/unit/test_rrhh_integracion_20604.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_rrhh_integracion_20604.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ui/app_sidebar.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/app_sidebar.py" afterDir="false" />
-    </list>
+    <list default="true" id="04557334-8dd2-4c5c-9e71-68cbc1b3eae6" name="Changes" comment="Merge remote-tracking branch 'orign/main'" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -31,23 +19,23 @@
   </component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
-      <entry key="MS100" value="1.4921347984987605" />
-      <entry key="MS500" value="3.212570047004548" />
-      <entry key="S2" value="10.837558625578067" />
-      <entry key="S5" value="17.950399297451142" />
-      <entry key="S10" value="23.909068824261816" />
-      <entry key="S30" value="33.76129431980934" />
-      <entry key="S60" value="42.35438928146199" />
-      <entry key="M2" value="59.967127168962996" />
-      <entry key="M5" value="104.2557616026153" />
-      <entry key="M10" value="149.4538103156206" />
-      <entry key="M15" value="178.37741932038935" />
-      <entry key="M30" value="229.4638047175366" />
-      <entry key="H1" value="275.66926979419065" />
-      <entry key="H2" value="309.51910403068734" />
-      <entry key="H4" value="330.51167306970683" />
-      <entry key="D1" value="350.6454688775205" />
-      <entry key="W1" value="354.37079547515515" />
+      <entry key="MS100" value="1.3275983509645908" />
+      <entry key="MS500" value="1.8007020063182464" />
+      <entry key="S2" value="3.372836740244521" />
+      <entry key="S5" value="11.405189629880871" />
+      <entry key="S10" value="21.779555227872283" />
+      <entry key="S30" value="38.966341137467204" />
+      <entry key="S60" value="50.46126503414746" />
+      <entry key="M2" value="69.61250320293962" />
+      <entry key="M5" value="115.02770135797013" />
+      <entry key="M10" value="160.8899381494519" />
+      <entry key="M15" value="190.14323467859833" />
+      <entry key="M30" value="241.67772087091114" />
+      <entry key="H1" value="288.1998771655092" />
+      <entry key="H2" value="322.25645096515484" />
+      <entry key="H4" value="343.37167872811943" />
+      <entry key="D1" value="363.62075102982374" />
+      <entry key="W1" value="367.3672277336082" />
     </decayedCancelled>
     <decayedSelected>
       <entry key="MS100" value="0.0" />
@@ -69,23 +57,23 @@
       <entry key="W1" value="0.0" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="1.424583012201234" />
-      <entry key="MS500" value="3.1631758906629934" />
-      <entry key="S2" value="10.785066885813318" />
-      <entry key="S5" value="17.91285739170333" />
-      <entry key="S10" value="23.882209627757064" />
-      <entry key="S30" value="33.747823211049464" />
-      <entry key="S60" value="42.34583978255021" />
-      <entry key="M2" value="59.96080413706499" />
-      <entry key="M5" value="104.25027977327063" />
-      <entry key="M10" value="149.4492278702157" />
-      <entry key="M15" value="178.37357240348967" />
-      <entry key="M30" value="229.46123832913642" />
-      <entry key="H1" value="275.66772758648807" />
-      <entry key="H2" value="309.51824476245065" />
-      <entry key="H4" value="330.51121711940027" />
-      <entry key="D1" value="350.64538877601507" />
-      <entry key="W1" value="354.37078392474973" />
+      <entry key="MS100" value="1.234440994255332" />
+      <entry key="MS500" value="1.7775700015093459" />
+      <entry key="S2" value="3.3607208463315157" />
+      <entry key="S5" value="11.384876971142127" />
+      <entry key="S10" value="21.75805535826617" />
+      <entry key="S30" value="38.95229809728221" />
+      <entry key="S60" value="50.45190642553492" />
+      <entry key="M2" value="69.60564622270178" />
+      <entry key="M5" value="115.02198333824641" />
+      <entry key="M10" value="160.88522768021951" />
+      <entry key="M15" value="190.13929733080232" />
+      <entry key="M30" value="241.67510492581192" />
+      <entry key="H1" value="288.1983084597537" />
+      <entry key="H2" value="322.255577876816" />
+      <entry key="H4" value="343.371215699447" />
+      <entry key="D1" value="363.62066972247743" />
+      <entry key="W1" value="367.36721601025994" />
     </decayedShown>
   </component>
   <component name="ProjectColorInfo">{
@@ -575,14 +563,6 @@
       <option name="presentableId" value="Default" />
       <updated>1787595329657</updated>
     </task>
-    <task id="LOCAL-00112" summary="Merge remote-tracking branch 'orign/main'">
-      <option name="closed" value="true" />
-      <created>1793383344364</created>
-      <option name="number" value="00112" />
-      <option name="presentableId" value="LOCAL-00112" />
-      <option name="project" value="LOCAL" />
-      <updated>1793383344364</updated>
-    </task>
     <task id="LOCAL-00113" summary="Merge remote-tracking branch 'orign/main'">
       <option name="closed" value="true" />
       <created>1793383736012</created>
@@ -967,7 +947,15 @@
       <option name="project" value="LOCAL" />
       <updated>1794078155210</updated>
     </task>
-    <option name="localTasksCounter" value="161" />
+    <task id="LOCAL-00161" summary="Merge remote-tracking branch 'orign/main'">
+      <option name="closed" value="true" />
+      <created>1794246523794</created>
+      <option name="number" value="00161" />
+      <option name="presentableId" value="LOCAL-00161" />
+      <option name="project" value="LOCAL" />
+      <updated>1794246523794</updated>
+    </task>
+    <option name="localTasksCounter" value="162" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

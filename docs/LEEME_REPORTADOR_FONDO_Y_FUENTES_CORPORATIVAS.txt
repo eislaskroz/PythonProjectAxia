@@ -1,0 +1,18 @@
+AXIA DESKTOP 2.06.13 - Reportador Fotográfico: Fondo y fuentes corporativas
+
+1. El PDF nativo reutiliza automaticamente assets/FormatoFondo.png,
+   la misma plantilla de los PDF de levantamientos, ordenes y bitacoras.
+   Se aplica en TODAS las paginas, incluidas las hojas de Orden de Servicio.
+2. Se mantiene la posibilidad de usar la plantilla EXACTA del Reportador PHP:
+   si el usuario dispone de reporte_base.png, puede copiarla en
+   assets/reportador/reporte_base.png (el directorio es opcional).
+   Esa imagen tiene prioridad sobre FormatoFondo.png.
+3. Fuentes: el Reportador PHP utiliza Montserrat-Regular.ttf,
+   Montserrat-SemiBold.ttf y Montserrat-Bold.ttf. Si el usuario tiene copias
+   legitimas de esos TTF, puede colocarlos en assets/reportador/fonts/.
+   Sin ellas, se emplea Helvetica/Helvetica-Bold, igual que los PDF
+   corporativos existentes de AXIA DESKTOP. No se redistribuyen TTF.
+4. No necesita cambiar SQL, Edge Functions ni Supabase. Basta reemplazar
+   el proyecto de escritorio por este ZIP; comprobar PDF en Windows.
+5. El cambio solo afecta services/reportador_fotografico_pdf.py,
+   mas esta documentacion y una prueba nueva. No altera los otros PDF.
