@@ -667,6 +667,7 @@ class NavigationController:
 
         pdf_config_bit = {
             "titulo": "Bitácoras Operativas", "prefijo": "BIT", "campo_folio": "bit_folio",
+            "pdf_renderer": "bitacora_avance",
             "campos_aco": ["bit_aco_numero", "aco_numero"],
             "campos_cliente": ["bit_cliente", "aco_cliente", "cliente"],
             "campos_estatus": ["bit_estatus", "estatus"],

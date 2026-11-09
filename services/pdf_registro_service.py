@@ -455,7 +455,7 @@ def generar_pdf_registro(
     # Bitácora de Avance. La vista administrativa históricamente enviaba el
     # título "Bitácoras Operativas" y caía en el perfil genérico, mostrando
     # fotos como URLs y firmas que no pertenecen a este formato.
-    if _clasificar_registro(registro, configuracion) == "bitacora":
+    if (configuracion or {}).get("pdf_renderer") == "bitacora_avance" or _clasificar_registro(registro, configuracion) == "bitacora":
         from views.formato_helpers import generar_pdf_preview
 
         # Enriquecer la trazabilidad LEV <- OT cuando la bitácora ya está ligada.

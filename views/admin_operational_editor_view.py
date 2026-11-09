@@ -316,8 +316,16 @@ def mostrar_admin_operational_editor(parent, app, config):
 
     def preview_pdf():
         record = selected.get("record")
-        if record:
-            previsualizar_pdf_registro(record, config["pdf_config"])
+        if not record:
+            return
+        pdf_config = config["pdf_config"]
+        # El panel administrativo BIT debe utilizar el mismo renderizador
+        # maestro que las Bitácoras de Avance, no el PDF genérico.
+        if pdf_config.get("pdf_renderer") == "bitacora_avance":
+            from services.pdf_registro_service import generar_pdf_registro
+            generar_pdf_registro(record, pdf_config, abrir=True)
+        else:
+            previsualizar_pdf_registro(record, pdf_config)
 
     def final_action():
         record = selected.get("record")

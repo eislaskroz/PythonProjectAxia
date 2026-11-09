@@ -1,4 +1,4 @@
--- AXIA DESKTOP 2.06.14 | Reportador fotográfico nativo | Migración nueva
+-- AXIA DESKTOP 2.06.13 | Reportador fotográfico nativo | Migración nueva
 -- Ejecutar una sola vez en Supabase SQL Editor, revisando antes el proyecto.
 -- No modifica tablas existentes de AXIA; crea axia_rf_* y bucket privado.
 BEGIN;
