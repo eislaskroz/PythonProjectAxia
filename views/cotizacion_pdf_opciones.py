@@ -2,6 +2,7 @@
 import customtkinter as ctk
 from ui.colors import TEXT_PRIMARY
 from tkinter import messagebox
+from utils import centrar_ventana
 
 CAMPOS_PDF = [
     ("Datos de AXIA", [("empresa", "Razón social"), ("rfc", "RFC"), ("domicilio_axia", "Domicilio AXIA"),
@@ -24,11 +25,14 @@ TODOS_CAMPOS_PDF = frozenset(k for _, items in CAMPOS_PDF for k, _ in items)
 
 def solicitar_campos_pdf(parent):
     """Retorna conjunto de claves o None si se cancela."""
-    ventana = ctk.CTkToplevel(parent)
+    raiz = parent.winfo_toplevel()
+    ventana = ctk.CTkToplevel(raiz)
+    ventana.withdraw()  # Evita mostrar la ventana antes de colocarla en el centro.
     ventana.title("AXIA · Seleccionar campos del PDF de cotización")
-    ventana.geometry("590x660")
-    ventana.minsize(480, 480)
-    ventana.transient(parent.winfo_toplevel())
+    ventana.transient(raiz)
+    # Se adapta a pantallas pequeñas y evita que los botones queden fuera.
+    alto = max(420, min(660, int(ventana.winfo_screenheight() * 0.82)))
+    ventana.minsize(480, min(420, alto))
     resultado = {"valor": None}
     vars_ = {key: ctk.BooleanVar(master=ventana, value=True) for key in TODOS_CAMPOS_PDF}
     ctk.CTkLabel(ventana, text="¿Qué campos deseas incluir en el PDF?", font=("Montserrat", 17, "bold"), text_color=TEXT_PRIMARY).pack(anchor="w", padx=18, pady=(15, 3))
@@ -56,6 +60,9 @@ def solicitar_campos_pdf(parent):
         ventana.destroy()
     ctk.CTkButton(actions, text="Generar PDF", command=aceptar).pack(side="right", padx=(6, 0))
     ctk.CTkButton(actions, text="Cancelar", fg_color="#64748B", command=ventana.destroy).pack(side="right")
+    centrar_ventana(ventana, 590, alto, padre=raiz)
+    ventana.deiconify()
+    ventana.lift()
     ventana.grab_set()
     ventana.wait_window()
     return resultado["valor"]

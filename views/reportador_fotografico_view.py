@@ -19,6 +19,7 @@ from PIL import Image, ImageOps
 from services import reportador_fotografico_service as rf
 from security.permissions import obtener_tipo_usuario
 from app_context import obtener_usuario_actual
+from utils import centrar_ventana
 
 AZUL = '#102B4B'
 AZUL_CLARO = '#0369F8'
@@ -229,7 +230,7 @@ class ReportadorFotografico:
             return
         dialog = ctk.CTkToplevel(self.contenedor)
         dialog.title('Seleccionar ACO de AXIA')
-        dialog.geometry('760x590')
+        centrar_ventana(dialog, 760, 590, padre=self.contenedor.winfo_toplevel())
         dialog.minsize(610, 420)
         dialog.transient(self.contenedor.winfo_toplevel())
         dialog.configure(fg_color=FONDO)
@@ -610,7 +611,7 @@ class ReportadorFotografico:
             photo.thumbnail((820, 600))
             win = ctk.CTkToplevel(self.contenedor)
             win.title('AXIA · Imagen de evidencia')
-            win.geometry('880x660')
+            centrar_ventana(win, 880, 660, padre=self.contenedor.winfo_toplevel())
             win.transient(self.contenedor.winfo_toplevel())
             ctkimg = ctk.CTkImage(light_image=photo, dark_image=photo, size=photo.size)
             label = ctk.CTkLabel(win, text='', image=ctkimg)
@@ -712,7 +713,7 @@ class ReportadorFotografico:
                 raise rf.ErrorReportador('El PDF se generó sin páginas.')
             win = ctk.CTkToplevel(self.contenedor)
             win.title(f"AXIA · PDF {_filename(detalle['reporte'].get('aco'))}")
-            win.geometry('900x780')
+            centrar_ventana(win, 900, 780, padre=self.contenedor.winfo_toplevel())
             win.transient(self.contenedor.winfo_toplevel())
             toolbar = ctk.CTkFrame(win, fg_color=BLANCO)
             toolbar.pack(fill='x', padx=10, pady=8)
