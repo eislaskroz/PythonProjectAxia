@@ -441,18 +441,12 @@ def mostrar_cotizaciones(parent, app=None):
         for i, item in enumerate(partidas):
             servicio = es_lote_servicio(item, i, len(partidas))
             card = ctk.CTkFrame(cont, fg_color=WHITE, corner_radius=10)
-            card.grid(row=i, column=0, sticky="ew", padx=4, pady=3)
-            for c in range(8):
-                card.grid_columnconfigure(c, weight=1, uniform="partida")
-            ctk.CTkLabel(
-                card,
-                text=f"Lote {item.get('lote', i+1)} · {item.get('concepto', '')}",
-                font=("Montserrat", 11, "bold"), text_color=TEXT_PRIMARY,
-                anchor="center", justify="center", wraplength=1350,
-            ).grid(row=0, column=0, columnspan=8, sticky="ew", padx=6, pady=(4, 3))
+            card.grid(row=i, column=0, sticky="ew", padx=4, pady=1)
+            for c in range(12):
+                card.grid_columnconfigure(c, weight=1, uniform="partida_compacta")
 
-            # Se conservan todas las variables para el servicio y el PDF,
-            # aunque solo se muestren los cinco campos relevantes para mano de obra.
+            # Todas las variables originales siguen vivas incluso con el panel plegado:
+            # los cálculos, el guardado, el PDF y los permisos usan estas variables.
             vars_item = {
                 key: ctk.StringVar(value=str(value) if value is not None else "")
                 for key, value in item.items()
@@ -465,50 +459,126 @@ def mostrar_cotizaciones(parent, app=None):
             for key in todas_las_claves:
                 vars_item.setdefault(key, ctk.StringVar(value=""))
 
-            if servicio:
-                # Una única fila compacta: unidad, concepto, SKU, importe, notas.
-                fields = [
-                    ("Unidad / Tipo", "unidad_tipo", 1, 0, 1),
-                    ("Concepto", "concepto", 1, 1, 3),
-                    ("SKU", "sku", 1, 4, 1),
-                    ("Importe", "importe", 1, 5, 1),
-                    ("Observaciones", "observaciones", 1, 6, 2),
-                ]
-            else:
-                # Dos filas frente a las tres anteriores: conserva todas las
-                # columnas de gestión interna en el formulario comercial.
-                fields = [
-                    ("Unidad / Tipo", "unidad_tipo", 1, 0, 1),
-                    ("Cantidad", "cantidad", 1, 1, 1),
-                    ("Proveedor", "proveedor", 1, 2, 1),
-                    ("Modelo", "modelo", 1, 3, 1),
-                    ("SKU", "sku", 1, 4, 1),
-                    ("Marca", "marca", 1, 5, 1),
-                    ("P. Lista", "precio_lista", 1, 6, 1),
-                    ("Costo", "costo", 1, 7, 1),
-                    ("Concepto", "concepto", 3, 0, 2),
-                    ("Utilidad %", "utilidad_pct", 3, 2, 1),
-                    ("P. Venta", "precio_venta", 3, 3, 1),
-                    ("P. Unitario", "precio_unitario", 3, 4, 1),
-                    ("Importe", "importe", 3, 5, 1),
-                    ("Observaciones", "observaciones", 3, 6, 2),
-                ]
-            for lab, key, r, c, span in fields:
+            encabezado = ctk.CTkLabel(
+                card,
+                text=f"Lote {item.get('lote', i+1)} · {item.get('concepto', '')}",
+                font=("Montserrat", 9, "bold"), text_color=TEXT_PRIMARY,
+                anchor="w", justify="left", wraplength=1200,
+            )
+            encabezado.grid(row=0, column=0, columnspan=12, sticky="ew", padx=6, pady=(3, 0))
+            vars_item["concepto"].trace_add(
+                "write", lambda *_args, pv=vars_item, header=encabezado, lote=item.get("lote", i+1):
+                header.configure(text=f"Lote {lote} · {pv['concepto'].get()}")
+            )
+
+            # Retícula compacta: el campo y su etiqueta viven en la misma celda.
+            # Evita filas vacías producidas por etiquetas y entradas separadas.
+            def campo_partida(contenedor, etiqueta, clave, fila, columna, ancho):
+                celda = ctk.CTkFrame(contenedor, fg_color="transparent")
+                celda.grid(row=fila, column=columna, columnspan=ancho,
+                           sticky="ew", padx=2, pady=(0, 1))
                 ctk.CTkLabel(
-                    card, text=lab, font=("Montserrat", 9),
-                    text_color=TEXT_SECONDARY, anchor="w",
-                ).grid(row=r, column=c, columnspan=span, sticky="ew", padx=4, pady=(1, 0))
-                var = vars_item[key]
-                ent = AxiaEntry(card, textvariable=var, height=24, font=("Montserrat", 11))
-                ent.grid(row=r+1, column=c, columnspan=span, sticky="ew", padx=4, pady=(0, 3))
-                if key in {"precio_lista", "costo", "precio_venta", "precio_unitario", "importe"}:
-                    aplicar_mascara_numerica(ent, var, MONEY)
-                elif key in {"cantidad", "utilidad_pct"}:
-                    aplicar_mascara_numerica(ent, var, NUMBER)
-                if key in {"unidad_tipo", "cantidad", "concepto", "costo", "precio_venta", "precio_unitario", "importe"} and not (servicio and key == "importe"):
+                    celda, text=etiqueta, font=("Montserrat", 8),
+                    text_color=TEXT_SECONDARY, anchor="w", height=12,
+                ).pack(fill="x")
+                variable = vars_item[clave]
+                ent = AxiaEntry(celda, textvariable=variable, height=18,
+                                font=("Montserrat", 9))
+                ent.pack(fill="x")
+                if clave in {"precio_lista", "costo", "precio_venta", "precio_unitario", "importe"}:
+                    aplicar_mascara_numerica(ent, variable, MONEY)
+                elif clave in {"cantidad", "utilidad_pct"}:
+                    aplicar_mascara_numerica(ent, variable, NUMBER)
+                # Se mantienen las mismas reglas de solo lectura anteriores.
+                if clave in {"unidad_tipo", "cantidad", "concepto", "costo", "precio_venta", "precio_unitario", "importe"} and not (servicio and clave == "importe"):
                     ent.configure(state="disabled")
                 else:
                     estado["editables"].append(ent)
+                return ent
+
+            if servicio:
+                principales = [
+                    ("Unidad / Tipo", "unidad_tipo", 1, 0, 2),
+                    ("Cantidad", "cantidad", 1, 2, 1),
+                    ("Importe", "importe", 1, 3, 2),
+                    ("P. Unitario", "precio_unitario", 1, 5, 2),
+                    ("Concepto", "concepto", 2, 0, 9),
+                ]
+                secundarios = [
+                    ("Proveedor", "proveedor", 0, 0, 3),
+                    ("Modelo", "modelo", 0, 3, 3),
+                    ("SKU", "sku", 0, 6, 3),
+                    ("Marca", "marca", 0, 9, 3),
+                    ("P. Lista", "precio_lista", 1, 0, 3),
+                    ("Costo", "costo", 1, 3, 3),
+                    ("Utilidad %", "utilidad_pct", 1, 6, 3),
+                    ("Observaciones", "observaciones", 1, 9, 3),
+                ]
+                fila_boton = 2
+                columna_boton = 9
+                ancho_boton = 3
+            else:
+                principales = [
+                    ("Unidad / Tipo", "unidad_tipo", 1, 0, 2),
+                    ("Cantidad", "cantidad", 1, 2, 1),
+                    ("Modelo", "modelo", 1, 3, 2),
+                    ("Costo", "costo", 1, 5, 2),
+                    ("P. Venta", "precio_venta", 1, 7, 2),
+                    ("Importe", "importe", 1, 9, 2),
+                    ("Concepto", "concepto", 2, 0, 9),
+                ]
+                secundarios = [
+                    ("Proveedor", "proveedor", 0, 0, 3),
+                    ("SKU", "sku", 0, 3, 3),
+                    ("Marca", "marca", 0, 6, 3),
+                    ("P. Lista", "precio_lista", 0, 9, 3),
+                    ("Utilidad %", "utilidad_pct", 1, 0, 3),
+                    ("P. Unitario", "precio_unitario", 1, 3, 3),
+                    ("Observaciones", "observaciones", 1, 6, 6),
+                ]
+                fila_boton = 2
+                columna_boton = 9
+                ancho_boton = 3
+
+            for etiqueta, clave, fila, columna, ancho in principales:
+                campo_partida(card, etiqueta, clave, fila, columna, ancho)
+
+            zona_detalles = ctk.CTkFrame(card, fg_color="#F4F7FB", corner_radius=8)
+            zona_detalles.grid(row=3, column=0, columnspan=12, sticky="ew",
+                              padx=4, pady=(1, 3))
+            for col_detalle in range(12):
+                zona_detalles.grid_columnconfigure(col_detalle, weight=1,
+                                                     uniform="detalle_partida")
+            for etiqueta, clave, fila, col, span in secundarios:
+                campo_partida(zona_detalles, etiqueta, clave, fila, col, span)
+
+            # El ocultamiento no elimina widgets ni variables, solo la retícula.
+            zona_detalles.grid_remove()
+            detalles_abiertos = {"valor": False}
+
+            def alternar_detalles(panel=zona_detalles, estado_panel=detalles_abiertos,
+                                 boton_ref=None):
+                estado_panel["valor"] = not estado_panel["valor"]
+                if estado_panel["valor"]:
+                    panel.grid()
+                    if boton_ref is not None:
+                        boton_ref.configure(text="▲ Ocultar detalles")
+                else:
+                    panel.grid_remove()
+                    if boton_ref is not None:
+                        boton_ref.configure(text="▼ Más detalles")
+
+            boton_detalles = ctk.CTkButton(
+                card, text="▼ Más detalles", height=20, corner_radius=7,
+                fg_color="#E7EFF8", hover_color="#DAE7F5", text_color="#1F4E79",
+                font=("Montserrat", 9, "bold"),
+            )
+            boton_detalles.configure(command=lambda panel=zona_detalles,
+                                    visual=detalles_abiertos, boton=boton_detalles:
+                                    alternar_detalles(panel, visual, boton))
+            boton_detalles.grid(row=fila_boton, column=columna_boton,
+                                columnspan=ancho_boton, sticky="ew",
+                                padx=3, pady=(10 if servicio else 8, 1))
 
             if servicio:
                 # El importe lo introduce Ventas sin porcentajes ni costos.
