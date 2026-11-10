@@ -5,8 +5,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="04557334-8dd2-4c5c-9e71-68cbc1b3eae6" name="Changes" comment="Merge remote-tracking branch 'orign/main'">
-      <change beforePath="$PROJECT_DIR$/views/cotizacion_pdf_opciones.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/cotizacion_pdf_opciones.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/views/reportador_fotografico_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/reportador_fotografico_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/version.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/version.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/installer/AXIA.iss" beforeDir="false" afterPath="$PROJECT_DIR$/installer/AXIA.iss" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_catalogo_axia_visible_completo_20506.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_catalogo_axia_visible_completo_20506.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_levantamiento_form_body_inicializado_20505.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_levantamiento_form_body_inicializado_20505.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_rrhh_integracion_20604.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_rrhh_integracion_20604.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/bitacora_avance_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/bitacora_avance_view.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -22,23 +27,23 @@
   </component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
-      <entry key="MS100" value="1.0824868904080311" />
-      <entry key="MS500" value="1.9244195910588866" />
-      <entry key="S2" value="8.353130906746074" />
-      <entry key="S5" value="20.843116045545777" />
-      <entry key="S10" value="31.79965771302469" />
-      <entry key="S30" value="47.063855158743735" />
-      <entry key="S60" value="55.78342909313481" />
-      <entry key="M2" value="62.51388546439878" />
-      <entry key="M5" value="68.90259347087311" />
-      <entry key="M10" value="84.0633165688568" />
-      <entry key="M15" value="108.87175448716262" />
-      <entry key="M30" value="189.01138745144306" />
-      <entry key="H1" value="294.8085109933592" />
-      <entry key="H2" value="388.21517982038387" />
-      <entry key="H4" value="452.0967962787355" />
-      <entry key="D1" value="517.3795872853257" />
-      <entry key="W1" value="529.8765806595903" />
+      <entry key="MS100" value="1.0000000001013454" />
+      <entry key="MS500" value="1.0100633981978846" />
+      <entry key="S2" value="1.4248698197076353" />
+      <entry key="S5" value="2.4165056069020165" />
+      <entry key="S10" value="3.5170349188283416" />
+      <entry key="S30" value="7.3725546529736254" />
+      <entry key="S60" value="19.016482169842554" />
+      <entry key="M2" value="40.225787546140175" />
+      <entry key="M5" value="68.45351797943941" />
+      <entry key="M10" value="93.14242002757155" />
+      <entry key="M15" value="120.42090760047344" />
+      <entry key="M30" value="202.84638311359578" />
+      <entry key="H1" value="311.4690691664306" />
+      <entry key="H2" value="408.10223194891023" />
+      <entry key="H4" value="474.54547541392793" />
+      <entry key="D1" value="542.7032566849443" />
+      <entry key="W1" value="555.7776503164785" />
     </decayedCancelled>
     <decayedSelected>
       <entry key="MS100" value="0.0" />
@@ -60,23 +65,23 @@
       <entry key="W1" value="0.0" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="0.9987679333284047" />
-      <entry key="MS500" value="1.8979244650582798" />
-      <entry key="S2" value="8.29805712458258" />
-      <entry key="S5" value="20.779129960021876" />
-      <entry key="S10" value="31.751089769651724" />
-      <entry key="S30" value="47.040132031286184" />
-      <entry key="S60" value="55.7692248013192" />
-      <entry key="M2" value="62.505840380548726" />
-      <entry key="M5" value="68.89902224756462" />
-      <entry key="M10" value="84.06114452949579" />
-      <entry key="M15" value="108.86985088355196" />
-      <entry key="M30" value="189.0096408827796" />
-      <entry key="H1" value="294.8070963417204" />
-      <entry key="H2" value="388.2142336211541" />
-      <entry key="H4" value="452.09624202633506" />
-      <entry key="D1" value="517.3794811773822" />
-      <entry key="W1" value="529.8765651272844" />
+      <entry key="MS100" value="0.9201876507162127" />
+      <entry key="MS500" value="0.9933585711861863" />
+      <entry key="S2" value="1.4186744406465468" />
+      <entry key="S5" value="2.4120817974649684" />
+      <entry key="S10" value="3.5135073612971466" />
+      <entry key="S30" value="7.369319069131599" />
+      <entry key="S60" value="19.01156503921436" />
+      <entry key="M2" value="40.22036947526441" />
+      <entry key="M5" value="68.44979359350822" />
+      <entry key="M10" value="93.13990527982622" />
+      <entry key="M15" value="120.41873179658418" />
+      <entry key="M30" value="202.84448384092" />
+      <entry key="H1" value="311.4675662475918" />
+      <entry key="H2" value="408.10123401075845" />
+      <entry key="H4" value="474.54489217601196" />
+      <entry key="D1" value="542.7031451565853" />
+      <entry key="W1" value="555.7776339928513" />
     </decayedShown>
   </component>
   <component name="ProjectColorInfo">{
@@ -88,31 +93,31 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "Python.limpiar_proyecto.executor": "Debug",
-    "Python.version.executor": "Run",
-    "RunOnceActivity.MCP Project settings loaded": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "codeWithMe.voiceChat.enabledByDefault": "false",
-    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
-    "git-widget-placeholder": "main",
-    "junie.onboarding.icon.badge.shown": "true",
-    "last_opened_file_path": "C:/Users/Luis Mejia/PycharmProjects/PythonProject/scripts",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "python.packages.toolwindow.project.migrated.to.right.top.v2": "true",
-    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable",
-    "to.speed.mode.migration.done": "true",
-    "ts.external.directory.path": "C:\\Program Files\\JetBrains\\PyCharm 2026.1.2\\plugins\\javascript-plugin\\jsLanguageServicesImpl\\external"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;Python.limpiar_proyecto.executor&quot;: &quot;Run&quot;,
+    &quot;Python.version.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;codeWithMe.voiceChat.enabledByDefault&quot;: &quot;false&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/Luis Mejia/PycharmProjects/PythonProject/scripts&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;python.packages.toolwindow.project.migrated.to.right.top.v2&quot;: &quot;true&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
+    &quot;ts.external.directory.path&quot;: &quot;C:\\Program Files\\JetBrains\\PyCharm 2026.1.2\\plugins\\javascript-plugin\\jsLanguageServicesImpl\\external&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="C:\Users\Luis Mejia\PycharmProjects\PythonProject\scripts" />
@@ -566,14 +571,6 @@
       <option name="presentableId" value="Default" />
       <updated>1787595329657</updated>
     </task>
-    <task id="LOCAL-00134" summary="Merge remote-tracking branch 'orign/main'">
-      <option name="closed" value="true" />
-      <created>1793730536509</created>
-      <option name="number" value="00134" />
-      <option name="presentableId" value="LOCAL-00134" />
-      <option name="project" value="LOCAL" />
-      <updated>1793730536509</updated>
-    </task>
     <task id="LOCAL-00135" summary="Merge remote-tracking branch 'orign/main'">
       <option name="closed" value="true" />
       <created>1793730960868</created>
@@ -958,7 +955,15 @@
       <option name="project" value="LOCAL" />
       <updated>1794342545132</updated>
     </task>
-    <option name="localTasksCounter" value="183" />
+    <task id="LOCAL-00183" summary="Merge remote-tracking branch 'orign/main'">
+      <option name="closed" value="true" />
+      <created>1794343090484</created>
+      <option name="number" value="00183" />
+      <option name="presentableId" value="LOCAL-00183" />
+      <option name="project" value="LOCAL" />
+      <updated>1794343090484</updated>
+    </task>
+    <option name="localTasksCounter" value="184" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

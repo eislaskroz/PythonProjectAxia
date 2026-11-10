@@ -227,7 +227,7 @@ def mostrar_bitacora_avance(parent, app, aco=None):
     entry("Hora de Salida", var_hora_salida, "HH:MM", 2, 8, colspan=2)
 
     c_porcentaje = celda(2, 10, 1)
-    label(c_porcentaje, "Porcentaje de avance")
+    label(c_porcentaje, "% Avance")
     entry_porcentaje = AxiaEntry(
         c_porcentaje, textvariable=var_porcentaje, placeholder_text="0 - 100",
         height=ENTRY_H, corner_radius=8, font=SMALL_FONT
@@ -236,7 +236,7 @@ def mostrar_bitacora_avance(parent, app, aco=None):
     aplicar_mascara_numerica(entry_porcentaje, var_porcentaje, INTEGER)
 
     c_acumulado = celda(2, 11, 1)
-    label(c_acumulado, "Avance previo (bitácoras)")
+    label(c_acumulado, "% Previo")
     entry_acumulado = AxiaEntry(
         c_acumulado, textvariable=var_avance_anterior,
         height=ENTRY_H, corner_radius=8, font=SMALL_FONT, state="disabled"
