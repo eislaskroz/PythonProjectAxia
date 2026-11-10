@@ -5,22 +5,14 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="04557334-8dd2-4c5c-9e71-68cbc1b3eae6" name="Changes" comment="Merge remote-tracking branch 'orign/main'">
-      <change afterPath="$PROJECT_DIR$/tests/unit/test_cotizaciones_dg_pdf_opciones.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/views/cotizacion_pdf_opciones.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/views/cotizaciones_dg_view.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app.py" beforeDir="false" afterPath="$PROJECT_DIR$/app.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/controllers/navigation_controller.py" beforeDir="false" afterPath="$PROJECT_DIR$/controllers/navigation_controller.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/migrations/20261109_reportador_50_actividades_y_aco.sql" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/migrations/20261109_reportador_fotografico_nativo.sql" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/security/permissions.py" beforeDir="false" afterPath="$PROJECT_DIR$/security/permissions.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/axia_pdf_engine.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/axia_pdf_engine.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/migrations/20261110_cotizaciones_autorizacion_dg.sql" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/services/cotizacion_pdf.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/cotizacion_pdf.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/cotizaciones_schema.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/cotizaciones_schema.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/cotizaciones_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/cotizaciones_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/unit/test_cotizaciones_compactas.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_cotizaciones_compactas.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ui/app_sidebar.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/app_sidebar.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/views/compras_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/compras_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/supabase/functions/axia-admin-registros/index.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/supabase/functions/axia-reportador-desktop/index.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/supabase/functions/axia-rrhh-usuarios/index.ts" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/views/cotizaciones_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/cotizaciones_view.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -581,30 +573,6 @@
       <option name="presentableId" value="Default" />
       <updated>1787595329657</updated>
     </task>
-    <task id="LOCAL-00128" summary="Merge remote-tracking branch 'orign/main'">
-      <option name="closed" value="true" />
-      <created>1793645469181</created>
-      <option name="number" value="00128" />
-      <option name="presentableId" value="LOCAL-00128" />
-      <option name="project" value="LOCAL" />
-      <updated>1793645469181</updated>
-    </task>
-    <task id="LOCAL-00129" summary="Merge remote-tracking branch 'orign/main'">
-      <option name="closed" value="true" />
-      <created>1793648838570</created>
-      <option name="number" value="00129" />
-      <option name="presentableId" value="LOCAL-00129" />
-      <option name="project" value="LOCAL" />
-      <updated>1793648838570</updated>
-    </task>
-    <task id="LOCAL-00130" summary="Merge remote-tracking branch 'orign/main'">
-      <option name="closed" value="true" />
-      <created>1793648907104</created>
-      <option name="number" value="00130" />
-      <option name="presentableId" value="LOCAL-00130" />
-      <option name="project" value="LOCAL" />
-      <updated>1793648907104</updated>
-    </task>
     <task id="LOCAL-00131" summary="Merge remote-tracking branch 'orign/main'">
       <option name="closed" value="true" />
       <created>1793727358349</created>
@@ -973,7 +941,31 @@
       <option name="project" value="LOCAL" />
       <updated>1794338804842</updated>
     </task>
-    <option name="localTasksCounter" value="177" />
+    <task id="LOCAL-00177" summary="Merge remote-tracking branch 'orign/main'">
+      <option name="closed" value="true" />
+      <created>1794340132427</created>
+      <option name="number" value="00177" />
+      <option name="presentableId" value="LOCAL-00177" />
+      <option name="project" value="LOCAL" />
+      <updated>1794340132428</updated>
+    </task>
+    <task id="LOCAL-00178" summary="Merge remote-tracking branch 'orign/main'">
+      <option name="closed" value="true" />
+      <created>1794340777200</created>
+      <option name="number" value="00178" />
+      <option name="presentableId" value="LOCAL-00178" />
+      <option name="project" value="LOCAL" />
+      <updated>1794340777200</updated>
+    </task>
+    <task id="LOCAL-00179" summary="Merge remote-tracking branch 'orign/main'">
+      <option name="closed" value="true" />
+      <created>1794340799018</created>
+      <option name="number" value="00179" />
+      <option name="presentableId" value="LOCAL-00179" />
+      <option name="project" value="LOCAL" />
+      <updated>1794340799018</updated>
+    </task>
+    <option name="localTasksCounter" value="180" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

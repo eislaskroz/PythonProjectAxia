@@ -364,6 +364,13 @@ def mostrar_cotizaciones(parent, app=None):
         base = datos_generales_cotizacion(registro, usuario)
         if cot:
             base.update({k:v for k,v in cot.items() if v is not None})
+        # El título de la cotización representa el NOMBRE DEL SERVICIO del
+        # levantamiento (lev_descripcion), no su categoría/tipo técnico.
+        # Conservamos la referencia del levantamiento aun en cotizaciones
+        # previamente guardadas con el título anterior.
+        nombre_servicio = str(registro.get("lev_descripcion") or "").strip()
+        if nombre_servicio:
+            base["cot_asunto"] = nombre_servicio
         estado["cotizacion"] = dict(cot)
         estatus = str(cot.get("cot_estatus") or ESTATUS_BORRADOR).strip().upper() if cot else ESTATUS_BORRADOR
         finalizada = bool(cot) and estatus != ESTATUS_BORRADOR

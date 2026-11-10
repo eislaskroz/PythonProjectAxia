@@ -60,9 +60,44 @@ def _open(path: Path) -> None:
         logger.exception("No fue posible abrir el PDF de cotización.")
 
 
+def _titulo_del_levantamiento(cotizacion: dict) -> str:
+    """Prioriza el Nombre del Servicio ligado al levantamiento, sin escribir en BD.
+
+    Permite que los PDF ya guardados muestren el título correcto desde
+    Ventas, Dirección General y Compras. Si no se puede consultar el
+    levantamiento, conserva el asunto histórico almacenado.
+    """
+    if cotizacion.get("lev_descripcion"):
+        return str(cotizacion["lev_descripcion"]).strip()
+    id_lev = cotizacion.get("id_levantamiento")
+    folio_lev = str(cotizacion.get("lev_folio") or "").strip()
+    if id_lev in (None, "") and not folio_lev:
+        return str(cotizacion.get("cot_asunto") or "").strip()
+    try:
+        from supabase_config import supabase
+        consulta = supabase.table("db_levantamientos").select("lev_descripcion")
+        if id_lev not in (None, ""):
+            consulta = consulta.eq("id_levantamiento", id_lev)
+        else:
+            consulta = consulta.eq("lev_folio", folio_lev)
+        respuesta = consulta.limit(1).execute()
+        filas = respuesta.data or []
+        if filas:
+            titulo = str(filas[0].get("lev_descripcion") or "").strip()
+            if titulo:
+                return titulo
+    except Exception:
+        logger.exception("No se pudo consultar el nombre del servicio del levantamiento para la cotización")
+    return str(cotizacion.get("cot_asunto") or "").strip()
+
+
 def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = None, abrir: bool = True, campos_visibles=None) -> Path:
     """Genera una cotización corporativa AXIA en Letter horizontal."""
     cotizacion = dict(cotizacion or {})
+    # Solo modifica el contenido del PDF, nunca reescribe la cotización en BD.
+    titulo_servicio = _titulo_del_levantamiento(cotizacion)
+    if titulo_servicio:
+        cotizacion["cot_asunto"] = titulo_servicio
     folio = _txt(cotizacion.get("cot_folio"), "COT-BORRADOR")
     visibles = None if campos_visibles is None else set(campos_visibles)
     def ver(clave):
