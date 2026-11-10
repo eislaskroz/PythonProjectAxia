@@ -21,6 +21,7 @@ logger = configurar_logger(__name__)
 ESTATUS_BORRADOR = "BORRADOR"
 ESTATUS_EN_COMPRA = "EN COMPRA X COTIZACIÓN"
 ESTATUS_CONVERTIDA_OT = "CONVERTIDA A OT"
+ESTATUS_PENDIENTE_DG = "PENDIENTE DG"
 
 
 
@@ -188,7 +189,7 @@ def datos_generales_cotizacion(registro: dict, usuario_actual: dict | None = Non
     especialidad = str(detalle.get("tipo_levantamiento") or "").strip()
     tipo = especialidad or str(registro.get("lev_tipo") or "").strip()
     modalidad = str(registro.get("lev_modalidad_operativa") or "").strip()
-    asunto = " / ".join(filter(None, [tipo, modalidad]))
+    asunto = str(registro.get("lev_descripcion") or "").strip() or " / ".join(filter(None, [tipo, modalidad]))
 
     return {
         "cot_folio": "SE ASIGNA AL GUARDAR",
@@ -208,7 +209,7 @@ def datos_generales_cotizacion(registro: dict, usuario_actual: dict | None = Non
         "cot_supervisor": str(registro.get("lev_supervisor") or generales.get("supervisor") or "").strip(),
         "cot_dias": str(registro.get("lev_dias_trabajo") or recursos.get("dias_trabajo") or "").strip(),
         "cot_personas": str(registro.get("lev_personas_considerar") or recursos.get("personas_considerar") or "").strip(),
-        "cot_plan_pagos": "",
+        "cot_plan_pagos": "PPD",
         "cot_vigencia": "",
         "cot_descuento_pct": 0,
         "cot_iva_pct": 16,
@@ -421,7 +422,7 @@ def guardar_cotizacion_comercial(datos: dict, partidas: list[dict], usuario: str
         "cot_supervisor": str(datos.get("cot_supervisor") or "").strip(),
         "cot_dias": str(datos.get("cot_dias") or "").strip(),
         "cot_personas": str(datos.get("cot_personas") or "").strip(),
-        "cot_plan_pagos": str(datos.get("cot_plan_pagos") or "").strip(),
+        "cot_plan_pagos": str(datos.get("cot_plan_pagos") or "PPD").strip(),
         "cot_vigencia": str(datos.get("cot_vigencia") or "").strip(),
         "cot_descuento_pct": descuento_pct,
         "cot_iva_pct": iva_pct,
@@ -437,7 +438,11 @@ def guardar_cotizacion_comercial(datos: dict, partidas: list[dict], usuario: str
     }
 
     if cot_id:
-        resp = supabase.table(TABLA_COTIZACIONES).update(payload).eq("id_cotizacion", cot_id).execute()
+        payload["cot_estatus"] = ESTATUS_BORRADOR
+        resp = (supabase.table(TABLA_COTIZACIONES).update(payload)
+                .eq("id_cotizacion", cot_id).eq("cot_estatus", ESTATUS_BORRADOR).execute())
+        if not resp.data:
+            raise ValueError("La cotización ya no es un borrador editable. Vuelve a consultar su estado.")
         accion = "ACTUALIZAR_COTIZACION"
     else:
         payload["creado_por"] = str(usuario or "").strip()
@@ -530,7 +535,7 @@ def obtener_cotizacion_finalizada_de_levantamiento(
 
 
 def finalizar_cotizacion_para_compras(cotizacion: dict, usuario: str) -> dict:
-    """Finaliza una COT y la deja disponible para Compras, sin crear OT."""
+    """Entrega una COT borrador a Dirección General para autorización."""
     cotizacion = dict(cotizacion or {})
     cot_id = cotizacion.get("id_cotizacion")
     folio = str(cotizacion.get("cot_folio") or "").strip().upper()
@@ -538,14 +543,14 @@ def finalizar_cotizacion_para_compras(cotizacion: dict, usuario: str) -> dict:
         raise ValueError("Primero debes guardar la cotización antes de finalizarla.")
 
     estatus_actual = str(cotizacion.get("cot_estatus") or ESTATUS_BORRADOR).strip().upper()
-    if estatus_actual == ESTATUS_EN_COMPRA:
+    if estatus_actual == ESTATUS_PENDIENTE_DG:
         return cotizacion
     if estatus_actual != ESTATUS_BORRADOR:
         raise ValueError(f"La cotización {folio} no puede finalizarse desde el estado {estatus_actual}.")
 
     ahora = datetime.now(timezone.utc).isoformat()
     payload = {
-        "cot_estatus": ESTATUS_EN_COMPRA,
+        "cot_estatus": ESTATUS_PENDIENTE_DG,
         "cot_finalizado_por": str(usuario or "").strip(),
         "cot_fecha_finalizacion": ahora,
         "actualizado_por": str(usuario or "").strip(),
@@ -556,20 +561,54 @@ def finalizar_cotizacion_para_compras(cotizacion: dict, usuario: str) -> dict:
         .update(payload)
         .eq("id_cotizacion", cot_id)
         .eq("cot_folio", folio)
+        .eq("cot_estatus", ESTATUS_BORRADOR)
         .execute()
     )
-    guardada = dict((resp.data or [dict(cotizacion, **payload)])[0])
+    if not resp.data:
+        raise ValueError("La cotización cambió de estado; actualiza la bandeja.")
+    guardada = dict(resp.data[0])
     registrar_movimiento_seguro(
         modulo="COTIZACIONES",
-        accion="FINALIZAR_COTIZACION_COMPRAS",
+        accion="ENVIAR_COTIZACION_DG",
         descripcion=(
-            f"Cotización {folio} finalizada por Ventas y enviada a Compras. "
+            f"Cotización {folio} enviada por Ventas a Dirección General. "
             "No se generó Orden de Trabajo."
         ),
         registro_afectado=folio,
     )
     return guardada
 
+
+
+def obtener_cotizaciones_pendientes_dg(limite: int = 200) -> list[dict]:
+    resp = (supabase.table(TABLA_COTIZACIONES).select(COLUMNAS_COTIZACIONES)
+            .eq("cot_estatus", ESTATUS_PENDIENTE_DG)
+            .order("cot_fecha_finalizacion", desc=True).limit(max(1, int(limite))).execute())
+    return [dict(r) for r in (resp.data or [])]
+
+
+def autorizar_cotizacion_dg(cotizacion: dict, usuario_actual: dict) -> dict:
+    """Control de interfaz. La autorización segura requiere además política/RPC de servidor."""
+    from security.permissions import puede_autorizar_cotizacion_dg
+    if not puede_autorizar_cotizacion_dg(usuario_actual):
+        raise PermissionError("Solo Dirección General (9) o Administrador (1) puede autorizar cotizaciones.")
+    cot_id = cotizacion.get("id_cotizacion")
+    if not cot_id:
+        raise ValueError("La cotización seleccionada no tiene ID.")
+    ahora = datetime.now(timezone.utc).isoformat()
+    usuario = str(usuario_actual.get("usuario") or "DG").strip()
+    payload = {"cot_estatus": ESTATUS_EN_COMPRA, "cot_autorizado_dg_por": usuario,
+               "cot_fecha_autorizacion_dg": ahora, "actualizado_por": usuario,
+               "fecha_actualizacion": ahora}
+    resp = (supabase.table(TABLA_COTIZACIONES).update(payload)
+            .eq("id_cotizacion", cot_id).eq("cot_estatus", ESTATUS_PENDIENTE_DG).execute())
+    if not resp.data:
+        raise ValueError("No fue posible autorizar: cambió el estado o no hay permisos.")
+    registro = dict(resp.data[0])
+    registrar_movimiento_seguro(modulo="COTIZACIONES", accion="AUTORIZAR_DG",
+        descripcion=f"Dirección General autorizó {registro.get('cot_folio')} para Compras.",
+        registro_afectado=str(registro.get("cot_folio") or ""))
+    return registro
 
 # Compatibilidad temporal con llamadas de FIX10-FIX17.
 def guardar_cotizacion_levantamiento(registro: dict, partidas: list[dict], usuario: str, servicio: dict | None = None) -> dict:
@@ -631,3 +670,11 @@ def marcar_cotizacion_convertida_a_ot(cotizacion: dict, usuario: str, folio_ot: 
         registro_afectado=folio_ot or folio,
     )
     return guardada
+
+
+def obtener_cotizaciones_seguimiento_dg(limite: int = 200) -> list[dict]:
+    """Consulta de Ventas: COT enviadas a DG, autorizadas y convertidas."""
+    resp = (supabase.table(TABLA_COTIZACIONES).select(COLUMNAS_COTIZACIONES)
+            .in_("cot_estatus", [ESTATUS_PENDIENTE_DG, ESTATUS_EN_COMPRA, ESTATUS_CONVERTIDA_OT])
+            .order("fecha_actualizacion", desc=True).limit(max(1, int(limite))).execute())
+    return [dict(r) for r in (resp.data or [])]

@@ -62,6 +62,7 @@ from security.permissions import (
     puede_generar_levantamiento,
     puede_cotizar_levantamientos,
     puede_ver_compras,
+    puede_autorizar_cotizacion_dg,
     puede_ver_almacen,
     puede_generar_orden_servicio,
     puede_ver_auditoria,
@@ -304,6 +305,10 @@ def _opciones_menu_por_rol(usuario_activo, callbacks):
     if puede_cotizar_levantamientos(usuario_activo):
         opciones["administracion"].append((
             "cotizaciones", "💲", "Cotizaciones", callbacks["cotizaciones"],
+        ))
+    if puede_autorizar_cotizacion_dg(usuario_activo):
+        opciones["administracion"].append((
+            "autorizacion_dg", "✅", "Autorizar cotizaciones DG", callbacks["autorizacion_dg"],
         ))
     if puede_ver_compras(usuario_activo):
         opciones["administracion"].append((

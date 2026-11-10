@@ -206,6 +206,11 @@ def puede_cotizar_levantamientos(usuario_activo) -> bool:
 
 
 
+def puede_autorizar_cotizacion_dg(usuario_activo) -> bool:
+    """Dirección General/Calidad (9) y Administrador (1)."""
+    return _es_rol(usuario_activo, ADMINISTRADOR, DG_Y_CALIDAD)
+
+
 def puede_ver_compras(usuario_activo) -> bool:
     """Bandeja de Compras: rol 7 y Administrador como superusuario."""
     return _es_rol(usuario_activo, ADMINISTRADOR, COMPRAS)

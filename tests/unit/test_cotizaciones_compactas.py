@@ -52,7 +52,8 @@ def test_pdf_de_cliente_sin_datos_internos(tmp_path):
 def test_tres_bandejas_y_resumen_compacto():
     vista = (Path(__file__).resolve().parents[2] / 'views' / 'cotizaciones_view.py').read_text(encoding='utf-8')
     assert 'obtener_cotizaciones_en_compra' in vista
-    assert 'Cotizaciones Autorizadas' in vista
+    assert 'En DG / Compras' in vista
+    assert 'obtener_cotizaciones_seguimiento_dg' in vista
     assert 'Cotizaciones Realizadas' in vista
     assert 'Levantamientos Preautorizados' in vista
     assert 'es_lote_servicio(item, i, len(partidas))' in vista

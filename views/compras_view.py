@@ -13,6 +13,7 @@ from security.permissions import puede_ver_compras, puede_convertir_cotizacion_a
 from services.cotizaciones_service import obtener_cotizaciones_en_compra
 from services.ordenes_trabajo_service import convertir_cotizacion_a_trabajo
 from services.axia_pdf_engine import AxiaPdfEngine
+from views.cotizacion_pdf_opciones import solicitar_campos_pdf
 from ui.colors import WHITE, TEXT_PRIMARY, TEXT_SECONDARY, SECONDARY, BUTTON_HOVER
 from ui.fonts import TITLE_MD, TEXT_MD, BUTTON_FONT
 from ui.native_table import NativeTreeTable
@@ -110,7 +111,10 @@ def mostrar_compras(parent, app=None):
             messagebox.showinfo("Selecciona una cotización", "Selecciona primero una cotización de la tabla.")
             return
         try:
-            AxiaPdfEngine.render_cotizacion(cot, abrir=True)
+            opciones = solicitar_campos_pdf(parent)
+            if opciones is None:
+                return
+            AxiaPdfEngine.render_cotizacion(cot, abrir=True, campos_visibles=opciones)
         except Exception as error:
             logger.exception("Error generando Preview PDF de cotización desde Compras")
             messagebox.showerror("Visualizar cotización", str(error))

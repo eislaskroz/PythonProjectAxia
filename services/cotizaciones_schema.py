@@ -10,7 +10,7 @@ COLUMNAS_COTIZACIONES_TUPLE = (
     "cot_plan_pagos", "cot_vigencia", "cot_descuento_pct", "cot_iva_pct",
     "cot_partidas_json", "cot_subtotal", "cot_descuento", "cot_subtotal_descuento",
     "cot_iva", "cot_total", "cot_estatus", "cot_finalizado_por",
-    "cot_fecha_finalizacion", "creado_por", "actualizado_por",
+    "cot_fecha_finalizacion", "cot_autorizado_dg_por", "cot_fecha_autorizacion_dg", "creado_por", "actualizado_por",
     "fecha_registro", "fecha_actualizacion",
 )
 

@@ -563,6 +563,7 @@ class AxiaApp(ctk.CTk):
             "mis_ordenes_servicio": lambda: self.navigation.mostrar_mis_documentos("ordenes_servicio"),
             "cotizaciones": self.navigation.mostrar_cotizaciones,
             "compras": self.navigation.mostrar_compras,
+            "autorizacion_dg": self.navigation.mostrar_autorizacion_cotizaciones_dg,
             "almacen": self.navigation.mostrar_almacen,
             "admin_ordenes_servicio": self.navigation.mostrar_admin_ordenes_servicio,
             "admin_ordenes_trabajo": self.navigation.mostrar_admin_ordenes_trabajo,

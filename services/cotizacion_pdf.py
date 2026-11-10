@@ -60,10 +60,13 @@ def _open(path: Path) -> None:
         logger.exception("No fue posible abrir el PDF de cotización.")
 
 
-def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = None, abrir: bool = True) -> Path:
+def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = None, abrir: bool = True, campos_visibles=None) -> Path:
     """Genera una cotización corporativa AXIA en Letter horizontal."""
     cotizacion = dict(cotizacion or {})
     folio = _txt(cotizacion.get("cot_folio"), "COT-BORRADOR")
+    visibles = None if campos_visibles is None else set(campos_visibles)
+    def ver(clave):
+        return visibles is None or clave in visibles
     if ruta_salida:
         destino = Path(ruta_salida)
     else:
@@ -114,25 +117,29 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
     # El título documental lo dibuja BasePdfGenerator. No repetimos folio, fecha
     # ni levantamiento debajo del título; esos datos viven en la retícula formal
     # de la cotización, igual que en el formato comercial de referencia.
-    story.append(section_title("Datos generales de cotización", usable_width - 82))
-    story.append(Spacer(1, 2))
+    # El encabezado de sección se mantiene solo si existen campos generales.
+    if visibles is None or any(ver(k) for k in ("empresa", "rfc", "domicilio_axia", "esi", "correo_esi", "telefono_esi", "jefe", "supervisor", "dias", "personas")):
+        story.append(section_title("Datos generales de cotización", usable_width - 82))
+        story.append(Spacer(1, 2))
 
     # Dos retículas paralelas conservan la estructura del formato proporcionado,
     # pero usando el lenguaje visual AXIA de celdas azules y fondo claro.
-    left_rows = [
-        [p("NOMBRE", label, ""), p("AXIA COMUNICACIONES SA DE CV", normal, "")],
-        [p("RFC", label, ""), p("ACO1402056N2", normal, "")],
-        [p("DIRECCIÓN", label, ""), p("ÁLVARO OBREGÓN MZ 2 LT 3, SAN JUAN DE GUADALUPE, ZUMPANGO, ESTADO DE MÉXICO C.P. 55630", normal, "")],
-        [p("ESI / EJECUTIVA DE VENTAS", label, ""), p(cotizacion.get("cot_esi"), normal, "")],
-        [p("CORREO ESI", label, ""), p(cotizacion.get("cot_esi_correo"), normal, "")],
-        [p("TELÉFONO ESI", label, ""), p(cotizacion.get("cot_esi_telefono"), normal, "")],
+    left_defs = [
+        ("empresa", "NOMBRE", "AXIA COMUNICACIONES SA DE CV"),
+        ("rfc", "RFC", "ACO1402056N2"),
+        ("domicilio_axia", "DIRECCIÓN", "ÁLVARO OBREGÓN MZ 2 LT 3, SAN JUAN DE GUADALUPE, ZUMPANGO, ESTADO DE MÉXICO C.P. 55630"),
+        ("esi", "ESI / EJECUTIVA DE VENTAS", cotizacion.get("cot_esi")),
+        ("correo_esi", "CORREO ESI", cotizacion.get("cot_esi_correo")),
+        ("telefono_esi", "TELÉFONO ESI", cotizacion.get("cot_esi_telefono")),
     ]
-    right_rows = [
-        [p("JEFE DE OPERACIONES", label, ""), p(cotizacion.get("cot_jefe_operaciones"), normal, "")],
-        [p("SUPERVISOR", label, ""), p(cotizacion.get("cot_supervisor"), normal, "")],
-        [p("DÍAS", label, ""), p(cotizacion.get("cot_dias"), normal, "")],
-        [p("PERSONAS", label, ""), p(cotizacion.get("cot_personas"), normal, "")],
+    right_defs = [
+        ("jefe", "JEFE DE OPERACIONES", cotizacion.get("cot_jefe_operaciones")),
+        ("supervisor", "SUPERVISOR", cotizacion.get("cot_supervisor")),
+        ("dias", "DÍAS", cotizacion.get("cot_dias")),
+        ("personas", "PERSONAS", cotizacion.get("cot_personas")),
     ]
+    left_rows = [[p(t, label, ""), p(v, normal, "")] for k, t, v in left_defs if ver(k)]
+    right_rows = [[p(t, label, ""), p(v, normal, "")] for k, t, v in right_defs if ver(k)]
 
     def info_table(rows, widths):
         t = Table(rows, colWidths=widths)
@@ -148,48 +155,52 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
         ]))
         return t
 
-    left = info_table(left_rows, [1.45*inch, 3.95*inch])
-    right = info_table(right_rows, [1.45*inch, 1.75*inch])
-    # El bloque superior reserva físicamente la esquina derecha para el logo
-    # corporativo del fondo horizontal; ningún dato puede quedar debajo de él.
-    top_grid = Table([[left, right]], colWidths=[5.55*inch, 3.25*inch], hAlign="LEFT")
-    top_grid.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ("TOPPADDING", (0, 0), (-1, -1), 0),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-    ]))
-    story.extend([top_grid, Spacer(1, 3)])
+    # Reservar esquina de logo AXIA aun cuando se oculten filas.
+    if left_rows or right_rows:
+        left = info_table(left_rows, [1.45*inch, 3.95*inch]) if left_rows else Spacer(1, 1)
+        right = info_table(right_rows, [1.45*inch, 1.75*inch]) if right_rows else Spacer(1, 1)
+        top_grid = Table([[left, right]], colWidths=[5.55*inch, 3.25*inch], hAlign="LEFT")
+        top_grid.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ]))
+        story.extend([top_grid, Spacer(1, 3)])
 
     # Segunda retícula: fecha, folios y datos del cliente a la izquierda;
     # condiciones comerciales a la derecha. Esta disposición replica el flujo
     # visual del formato proporcionado sin duplicar el folio en el encabezado.
-    quote_rows = [
-        [p("FECHA DE COTIZACIÓN", label, ""), p(cotizacion.get("cot_fecha"), normal, "")],
-        [p("NO. COTIZACIÓN", label, ""), p(folio, normal, "")],
-        [p("NO. LEVANTAMIENTO", label, ""), p(cotizacion.get("lev_folio"), normal, "")],
-        [p("CLIENTE", label, ""), p(cotizacion.get("cot_cliente"), normal, "")],
-        [p("CONTACTO", label, ""), p(cotizacion.get("cot_contacto"), normal, "")],
-        [p("SUCURSAL", label, ""), p(cotizacion.get("cot_sucursal"), normal, "")],
-        [p("ASUNTO", label, ""), p(cotizacion.get("cot_asunto"), normal, "")],
+    quote_defs = [
+        ("fecha", "FECHA DE COTIZACIÓN", cotizacion.get("cot_fecha")),
+        ("folio", "NO. COTIZACIÓN", folio),
+        ("levantamiento", "NO. LEVANTAMIENTO", cotizacion.get("lev_folio")),
+        ("cliente", "CLIENTE", cotizacion.get("cot_cliente")),
+        ("contacto", "CONTACTO", cotizacion.get("cot_contacto")),
+        ("sucursal", "SUCURSAL", cotizacion.get("cot_sucursal")),
+        ("asunto", "TÍTULO / CONCEPTO", cotizacion.get("cot_asunto")),
     ]
-    quote = info_table(quote_rows, [1.45*inch, 3.95*inch])
-
-    terms_rows = [
-        [p("PLAN DE PAGOS", label, ""), p(cotizacion.get("cot_plan_pagos"), normal, "")],
-        [p("VIGENCIA DE COTIZACIÓN", label, ""), p(cotizacion.get("cot_vigencia"), normal, "")],
+    terms_defs = [
+        ("plan_pagos", "PLAN DE PAGOS", cotizacion.get("cot_plan_pagos") or "PPD"),
+        ("vigencia", "VIGENCIA DE COTIZACIÓN", cotizacion.get("cot_vigencia")),
     ]
-    terms = info_table(terms_rows, [1.55*inch, 2.65*inch])
-    quote_grid = Table([[quote, terms]], colWidths=[5.55*inch, 4.65*inch], hAlign="LEFT")
-    quote_grid.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ("TOPPADDING", (0, 0), (-1, -1), 0),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-    ]))
-    story.extend([quote_grid, Spacer(1, 4), section_title("Partidas de cotización", usable_width), Spacer(1, 2)])
+    quote_rows = [[p(t, label, ""), p(v, normal, "")] for k, t, v in quote_defs if ver(k)]
+    terms_rows = [[p(t, label, ""), p(v, normal, "")] for k, t, v in terms_defs if ver(k)]
+    if quote_rows or terms_rows:
+        quote = info_table(quote_rows, [1.45*inch, 3.95*inch]) if quote_rows else Spacer(1, 1)
+        terms = info_table(terms_rows, [1.55*inch, 2.65*inch]) if terms_rows else Spacer(1, 1)
+        quote_grid = Table([[quote, terms]], colWidths=[5.55*inch, 4.65*inch], hAlign="LEFT")
+        quote_grid.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ]))
+        story.extend([quote_grid, Spacer(1, 4)])
+    if ver("partidas"):
+        story.extend([section_title("Partidas de cotización", usable_width), Spacer(1, 2)])
 
     partidas = cotizacion.get("cot_partidas_json") or []
     if isinstance(partidas, str):
@@ -199,65 +210,70 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
             partidas = []
     partidas = partidas if isinstance(partidas, list) else []
 
-    # Documento para el cliente: excluir datos internos de compra (proveedor,
-    # precios de lista, costos y márgenes). Se conservan en Supabase/AXIA.
-    headers = ["LOTE", "UNIDAD / TIPO", "CANT.", "MODELO", "SKU", "MARCA", "CONCEPTO", "P. UNIT.", "IMPORTE", "OBSERVACIONES"]
-    table_data = [[Paragraph(h, header) for h in headers]]
-    for item in partidas:
-        table_data.append([
-            p(item.get("lote"), row_center, ""),
-            p(item.get("unidad_tipo"), row_center, ""),
-            p(item.get("cantidad"), row_center, ""),
-            p(item.get("modelo"), row_style, ""),
-            p(item.get("sku"), row_style, ""),
-            p(item.get("marca"), row_style, ""),
-            p(item.get("concepto"), row_style, ""),
-            p(_money(item.get("precio_unitario")), row_center, ""),
-            p(_money(item.get("importe")), row_center, ""),
-            p(item.get("observaciones"), row_style, ""),
-        ])
-    if len(table_data) == 1:
-        table_data.append([p("", row_style, "")] * len(headers))
+    # Sólo se muestran las columnas seleccionadas; nunca expone costos internos.
+    columnas = [
+        ("lote", "LOTE", "lote", 0.40),
+        ("unidad", "UNIDAD / TIPO", "unidad_tipo", 0.84),
+        ("cantidad", "CANT.", "cantidad", 0.45),
+        ("modelo", "MODELO", "modelo", 0.78),
+        ("sku", "SKU", "sku", 0.64),
+        ("marca", "MARCA", "marca", 0.65),
+        ("concepto", "CONCEPTO", "concepto", 2.45),
+        ("precio_unitario", "P. UNIT.", "precio_unitario", 0.87),
+        ("importe", "IMPORTE", "importe", 0.90),
+        ("observaciones", "OBSERVACIONES", "observaciones", 1.40),
+    ]
+    columnas = [(key, t, field, width) for key, t, field, width in columnas if ver(key)]
+    if ver("partidas") and columnas:
+        table_data = [[Paragraph(t, header) for _, t, _, _ in columnas]]
+        for item in partidas:
+            row = []
+            for key, _, field, _ in columnas:
+                value = _money(item.get(field)) if key in {"precio_unitario", "importe"} else item.get(field)
+                row.append(p(value, row_center if key in {"lote", "cantidad", "precio_unitario", "importe"} else row_style, ""))
+            table_data.append(row)
+        if len(table_data) == 1:
+            table_data.append([p("", row_style, "")] * len(columnas))
+        weights = [c[3] for c in columnas]
+        widths = [usable_width * w / sum(weights) for w in weights]
+        commercial = LongTable(table_data, colWidths=widths, repeatRows=1, splitByRow=1)
+        commercial.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), BLUE),
+            ("TEXTCOLOR", (0, 0), (-1, 0), WHITE),
+            ("GRID", (0, 0), (-1, -1), 0.4, BORDER),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 2.2),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 2.2),
+            ("TOPPADDING", (0, 0), (-1, -1), 1.4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 1.4),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [WHITE, colors.HexColor("#F8FAFC")]),
+        ]))
+        story.extend([commercial, Spacer(1, 4)])
 
-    # Redistribuir el espacio del proveedor hacia el concepto y las notas.
-    # El ancho total de la tabla se mantiene para respetar la paginación.
-    widths = [0.40, 0.84, 0.45, 0.78, 0.64, 0.65, 2.45, 0.87, 0.90, 1.40]
-    widths = [x*inch for x in widths]
-    commercial = LongTable(table_data, colWidths=widths, repeatRows=1, splitByRow=1)
-    commercial.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), BLUE),
-        ("TEXTCOLOR", (0, 0), (-1, 0), WHITE),
-        ("GRID", (0, 0), (-1, -1), 0.4, BORDER),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("ALIGN", (0, 1), (2, -1), "CENTER"),
-        ("ALIGN", (7, 1), (8, -1), "CENTER"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 2.2),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 2.2),
-        ("TOPPADDING", (0, 0), (-1, -1), 1.4),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 1.4),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [WHITE, colors.HexColor("#F8FAFC")]),
-    ]))
-    story.extend([commercial, Spacer(1, 4)])
-
-    totals = Table([
-        [p("SUBTOTAL", label, ""), p(_money(cotizacion.get("cot_subtotal")), normal, "")],
-        [p("DESCUENTO", label, ""), p(f"{cotizacion.get('cot_descuento_pct', 0)}%", normal, "")],
-        [p("SUBTOTAL CON DESCUENTO", label, ""), p(_money(cotizacion.get("cot_subtotal_descuento")), normal, "")],
-        [p("IVA", label, ""), p(f"{cotizacion.get('cot_iva_pct', 16)}% / {_money(cotizacion.get('cot_iva'))}", normal, "")],
-        [p("TOTAL", label, ""), p(_money(cotizacion.get("cot_total")), label, "")],
-    ], colWidths=[1.55*inch, 1.45*inch], hAlign="RIGHT")
-    totals.setStyle(TableStyle([
-        ("GRID", (0, 0), (-1, -1), 0.45, BORDER),
-        ("BACKGROUND", (0, 0), (0, -1), LIGHT_BLUE),
-        ("BACKGROUND", (1, -1), (1, -1), colors.HexColor("#EAF7FB")),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("ALIGN", (1, 0), (1, -1), "RIGHT"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 4),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-        ("TOPPADDING", (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-    ]))
-    story.append(totals)
+    totals_defs = [
+        ("subtotal", "SUBTOTAL", _money(cotizacion.get("cot_subtotal"))),
+        ("descuento", "DESCUENTO", f"{cotizacion.get('cot_descuento_pct', 0)}%"),
+        ("subtotal_desc", "SUBTOTAL CON DESCUENTO", _money(cotizacion.get("cot_subtotal_descuento"))),
+        ("iva", "IVA", f"{cotizacion.get('cot_iva_pct', 16)}% / {_money(cotizacion.get('cot_iva'))}"),
+        ("total", "TOTAL", _money(cotizacion.get("cot_total"))),
+    ]
+    totals_rows = [[p(t, label, ""), p(v, label if k == "total" else normal, "")] for k, t, v in totals_defs if ver(k)]
+    if ver("totales") and totals_rows:
+        totals = Table(totals_rows, colWidths=[1.55*inch, 1.45*inch], hAlign="RIGHT")
+        totals.setStyle(TableStyle([
+            ("GRID", (0, 0), (-1, -1), 0.45, BORDER),
+            ("BACKGROUND", (0, 0), (0, -1), LIGHT_BLUE),
+            ("BACKGROUND", (1, -1), (1, -1), colors.HexColor("#EAF7FB")),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 4),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        story.append(totals)
+    if not story:
+        story.append(Paragraph("Cotización sin campos seleccionados", normal))
 
     doc = SimpleDocTemplate(
         str(destino),

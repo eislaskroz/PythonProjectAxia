@@ -36,6 +36,7 @@ from security.permissions import (
     puede_modificar_levantamientos,
     puede_cotizar_levantamientos,
     puede_ver_compras,
+    puede_autorizar_cotizacion_dg,
     puede_ver_almacen,
     puede_entrar_inicio_aco,
     puede_generar_levantamiento,
@@ -498,10 +499,24 @@ class NavigationController:
         from views.almacen_view import mostrar_almacen
         mostrar_almacen(parent=self.content, app=self.app)
 
+    def mostrar_autorizacion_cotizaciones_dg(self):
+        """Bandeja de autorización de cotizaciones de DG / Calidad (tipo 9)."""
+        if not self._verificar_permiso(
+            puede_autorizar_cotizacion_dg,
+            "Solo DG (9) o Administrador (1) puede autorizar cotizaciones.",
+        ):
+            return
+        self._registrar_vista("mostrar_autorizacion_cotizaciones_dg")
+        self.limpiar_contenido()
+        self.cambiar_titulo("Autorización DG", "Cotizaciones enviadas por Ventas para su autorización.")
+        from views.cotizaciones_dg_view import mostrar_cotizaciones_dg
+        mostrar_cotizaciones_dg(parent=self.content, app=self.app)
+
     def mostrar_compras(self):
         """Muestra la bandeja de cotizaciones finalizadas pendientes de Compras."""
         if not self._verificar_permiso(
             puede_ver_compras,
+    puede_autorizar_cotizacion_dg,
             "Tu nivel de usuario no tiene permiso para acceder al módulo de Compras.",
         ):
             return

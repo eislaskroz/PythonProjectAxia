@@ -15,6 +15,7 @@ from services.cotizaciones_service import (
     obtener_levantamientos_para_cotizar,
     obtener_cotizaciones_pendientes_compras,
     obtener_cotizaciones_en_compra,
+    obtener_cotizaciones_seguimiento_dg,
     obtener_levantamiento_de_cotizacion,
     cargar_cotizacion,
     datos_generales_cotizacion,
@@ -23,8 +24,10 @@ from services.cotizaciones_service import (
     finalizar_cotizacion_para_compras,
     ESTATUS_BORRADOR,
     ESTATUS_EN_COMPRA,
+    ESTATUS_PENDIENTE_DG,
 )
 from services.axia_pdf_engine import AxiaPdfEngine
+from views.cotizacion_pdf_opciones import solicitar_campos_pdf
 from services.cotizacion_partidas import es_lote_servicio
 from services.usuarios_service import obtener_nombres_usuarios_por_tipos
 from ui.colors import WHITE, TEXT_PRIMARY, TEXT_SECONDARY, SECONDARY, BUTTON_HOVER
@@ -127,7 +130,7 @@ def mostrar_cotizaciones(parent, app=None):
     bandeja_aut = ctk.CTkFrame(superior, fg_color=WHITE, corner_radius=16)
     bandeja_aut.grid(row=0, column=2, sticky="nsew", padx=(5, 0))
     bandeja_aut.grid_columnconfigure(0, weight=1)
-    lbl_autorizadas = ctk.CTkLabel(bandeja_aut, text="Cotizaciones Autorizadas",
+    lbl_autorizadas = ctk.CTkLabel(bandeja_aut, text="En DG / Compras",
                                    font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="w")
     lbl_autorizadas.grid(row=0, column=0, sticky="ew", padx=10, pady=(6, 3))
     tabla_aut = NativeTreeTable(bandeja_aut, columns=columnas_cot, height=3, table_id="cotizaciones_autorizadas")
@@ -286,7 +289,7 @@ def mostrar_cotizaciones(parent, app=None):
         supervisor = str(estado["vars"]["cot_supervisor"].get()).strip()
         supervisores_validos = estado.get("supervisores_validos", frozenset())
         cot_previa = estado.get("cotizacion") or {}
-        finalizada_previa = str(cot_previa.get("cot_estatus") or "").strip().upper() == ESTATUS_EN_COMPRA
+        finalizada_previa = str(cot_previa.get("cot_estatus") or "").strip().upper() in {ESTATUS_PENDIENTE_DG, ESTATUS_EN_COMPRA}
         supervisor_historico = str(cot_previa.get("cot_supervisor") or "").strip()
         if supervisor not in supervisores_validos and not (finalizada_previa and supervisor == supervisor_historico):
             return False, "Selecciona un Supervisor válido (usu_tipo = 3)."
@@ -340,18 +343,18 @@ def mostrar_cotizaciones(parent, app=None):
     def actualizar_estado_botones(*_):
         valida, mensaje = validar_captura_completa()
         cot = estado.get("cotizacion") or {}
-        finalizada = str(cot.get("cot_estatus") or ESTATUS_BORRADOR).strip().upper() == ESTATUS_EN_COMPRA if cot else False
+        finalizada = str(cot.get("cot_estatus") or ESTATUS_BORRADOR).strip().upper() != ESTATUS_BORRADOR if cot else False
         modo = bool(estado.get("modo_edicion"))
         btn_pdf.configure(state="normal" if valida else "disabled")
         btn_guardar.configure(state="normal" if (modo and valida and not finalizada) else "disabled")
         btn_modificar.configure(state="normal" if (cot and not finalizada and not modo) else "disabled")
         btn_finalizar.configure(state="normal" if (cot and valida and not finalizada and not modo) else "disabled")
         if finalizada:
-            lbl_validacion.configure(text="Cotización finalizada y enviada a Compras.", text_color="#15803D")
+            lbl_validacion.configure(text="Cotización enviada a DG o autorizada para Compras.", text_color="#15803D")
         elif not valida:
             lbl_validacion.configure(text=f"Pendiente: {mensaje}", text_color="#B45309")
         elif cot and not modo:
-            lbl_validacion.configure(text="Cotización completa. Usa Modificar para editar o Finalizar para enviarla a Compras.", text_color="#15803D")
+            lbl_validacion.configure(text="Cotización completa. Usa Modificar para editar o Finalizar para enviarla a Dirección General.", text_color="#15803D")
         else:
             lbl_validacion.configure(text="Cotización completa. Preview y Guardar están habilitados.", text_color="#15803D")
 
@@ -363,7 +366,7 @@ def mostrar_cotizaciones(parent, app=None):
             base.update({k:v for k,v in cot.items() if v is not None})
         estado["cotizacion"] = dict(cot)
         estatus = str(cot.get("cot_estatus") or ESTATUS_BORRADOR).strip().upper() if cot else ESTATUS_BORRADOR
-        finalizada = bool(cot) and estatus == ESTATUS_EN_COMPRA
+        finalizada = bool(cot) and estatus != ESTATUS_BORRADOR
         estado["modo_edicion"] = (not bool(cot) or bool(forzar_edicion)) and not finalizada
 
         # Fecha de Supabase -> DD/MM/AAAA.
@@ -413,7 +416,7 @@ def mostrar_cotizaciones(parent, app=None):
 
         add_field(general,2,1,"Días","cot_dias",base.get("cot_dias"),True)
         add_field(general,2,2,"Personas","cot_personas",base.get("cot_personas"),True)
-        add_field(general,2,3,"Plan de Pagos","cot_plan_pagos",base.get("cot_plan_pagos"))
+        add_field(general,2,3,"Plan de Pagos","cot_plan_pagos",base.get("cot_plan_pagos") or "PPD")
 
         add_field(general,2,4,"Vigencia de Cotización","cot_vigencia",base.get("cot_vigencia"))
         vd=add_field(general,2,5,"Descuento %","cot_descuento_pct",base.get("cot_descuento_pct",0))
@@ -572,7 +575,7 @@ def mostrar_cotizaciones(parent, app=None):
         if finalizada:
             lbl_detalle.configure(text=f"{cot.get('cot_folio')} · En compra X Cotización. El registro quedó bloqueado para conservar lo enviado a Compras.", text_color="#15803D")
         elif cot:
-            lbl_detalle.configure(text=f"{cot.get('cot_folio')} · Cotización guardada. Usa Modificar para habilitar cambios o Finalizar para enviarla a Compras.")
+            lbl_detalle.configure(text=f"{cot.get('cot_folio')} · Cotización guardada. Usa Modificar para habilitar cambios o Finalizar para enviarla a Dirección General.")
         recalcular()
 
     def collect():
@@ -609,7 +612,7 @@ def mostrar_cotizaciones(parent, app=None):
                 except Exception:
                     pass
             actualizar_estado_botones()
-            lbl_detalle.configure(text=f"{cot.get('cot_folio')} · Cotización guardada. Usa Modificar para habilitar cambios o Finalizar para enviarla a Compras.")
+            lbl_detalle.configure(text=f"{cot.get('cot_folio')} · Cotización guardada. Usa Modificar para habilitar cambios o Finalizar para enviarla a Dirección General.")
             recalcular()
             refrescar()
             messagebox.showinfo("Cotización guardada",f"Cotización {cot.get('cot_folio')} guardada correctamente.\n\nTotal: ${float(cot.get('cot_total') or 0):,.2f} MXN")
@@ -622,8 +625,8 @@ def mostrar_cotizaciones(parent, app=None):
         if not reg or not cot.get("id_cotizacion"):
             messagebox.showinfo("Cotización pendiente", "Primero guarda la cotización para poder utilizar Modificar.")
             return
-        if str(cot.get("cot_estatus") or ESTATUS_BORRADOR).strip().upper() == ESTATUS_EN_COMPRA:
-            messagebox.showwarning("Cotización en Compras", "Esta cotización ya fue finalizada y enviada a Compras; no puede modificarse desde Ventas.")
+        if str(cot.get("cot_estatus") or ESTATUS_BORRADOR).strip().upper() != ESTATUS_BORRADOR:
+            messagebox.showwarning("Cotización bloqueada", "Esta cotización fue enviada a Dirección General o Compras; no puede modificarse desde Ventas.")
             return
         # Se vuelve a consultar la cotización desde Supabase mediante render() y
         # sólo entonces se habilitan los mismos campos disponibles al generarla.
@@ -644,12 +647,12 @@ def mostrar_cotizaciones(parent, app=None):
             actualizar_estado_botones()
             return
         folio = str(cot.get("cot_folio") or "").strip()
-        if str(cot.get("cot_estatus") or ESTATUS_BORRADOR).strip().upper() == ESTATUS_EN_COMPRA:
-            messagebox.showinfo("Cotización finalizada", f"{folio} ya se encuentra En compra X Cotización.")
+        if str(cot.get("cot_estatus") or ESTATUS_BORRADOR).strip().upper() != ESTATUS_BORRADOR:
+            messagebox.showinfo("Cotización enviada", f"{folio} ya salió del estado BORRADOR.")
             return
         if not messagebox.askyesno(
             "Finalizar cotización",
-            f"¿Confirmas finalizar {folio} y enviarla a Compras?\n\n"
+            f"¿Confirmas finalizar {folio} y enviarla a Dirección General?\n\n"
             "Esta acción NO genera una Orden de Trabajo y bloqueará la cotización para evitar cambios posteriores desde Ventas.",
         ):
             return
@@ -659,11 +662,11 @@ def mostrar_cotizaciones(parent, app=None):
             estado["cotizacion"] = actualizada
             estado["modo_edicion"] = False
             actualizar_estado_botones()
-            lbl_detalle.configure(text=f"{folio} · En compra X Cotización. Pendiente de atención por Compras.", text_color="#15803D")
+            lbl_detalle.configure(text=f"{folio} · Pendiente de autorización por DG.", text_color="#15803D")
             refrescar()
             messagebox.showinfo(
-                "Cotización enviada a Compras",
-                f"{folio} quedó con estado: En compra X Cotización.\n\nNo se generó ninguna Orden de Trabajo.",
+                "Cotización enviada a Dirección General",
+                f"{folio} quedó pendiente de autorización por Dirección General.\n\nCompras no puede procesarla hasta obtener esa autorización.",
             )
         run_async(
             parent.winfo_toplevel(),
@@ -720,7 +723,10 @@ def mostrar_cotizaciones(parent, app=None):
         })
 
         try:
-            AxiaPdfEngine.render_cotizacion(preview, abrir=True)
+            opciones = solicitar_campos_pdf(parent)
+            if opciones is None:
+                return
+            AxiaPdfEngine.render_cotizacion(preview, abrir=True, campos_visibles=opciones)
         except Exception as e:
             logger.exception("Error al generar Preview PDF de cotización")
             messagebox.showerror("Preview PDF", str(e))
@@ -750,7 +756,7 @@ def mostrar_cotizaciones(parent, app=None):
         def ok(reg):
             lbl_titulo.configure(text=f"{_texto(cot,'cot_folio')} · {_texto(cot,'cot_cliente')}")
             if origen == "autorizada":
-                lbl_detalle.configure(text=f"{_texto(cot,'cot_folio')} · Cotización autorizada y enviada a Compras (solo consulta).")
+                lbl_detalle.configure(text=f"{_texto(cot,'cot_folio')} · Estado: {_texto(cot,'cot_estatus')} (solo consulta).")
             else:
                 lbl_detalle.configure(text=f"{_texto(cot,'cot_folio')} · Cotización guardada sin autorizar. Usa Modificar para habilitar cambios.")
             render(reg)
@@ -762,7 +768,7 @@ def mostrar_cotizaciones(parent, app=None):
     def refrescar():
         lbl_lista.configure(text="Consultando levantamientos...")
         lbl_cotizaciones.configure(text="Consultando cotizaciones realizadas...")
-        lbl_autorizadas.configure(text="Consultando cotizaciones autorizadas...")
+        lbl_autorizadas.configure(text="Consultando cotizaciones en DG / Compras...")
 
         def valores_cot(r):
             return (_texto(r,"cot_folio"), _texto(r,"lev_folio"),
@@ -789,14 +795,14 @@ def mostrar_cotizaciones(parent, app=None):
 
         def pintar_aut(regs):
             autorizadas_cache[:] = list(regs or [])
-            lbl_autorizadas.configure(text=f"Cotizaciones Autorizadas ({len(autorizadas_cache)})")
+            lbl_autorizadas.configure(text=f"En DG / Compras ({len(autorizadas_cache)})")
             tabla_aut.set_rows(autorizadas_cache, value_factory=valores_cot)
 
         run_async(parent.winfo_toplevel(), obtener_levantamientos_para_cotizar, pintar_lev,
                   lambda e: messagebox.showerror("No fue posible consultar levantamientos", str(e)))
         run_async(parent.winfo_toplevel(), obtener_cotizaciones_pendientes_compras, pintar_cot,
                   lambda e: messagebox.showerror("No fue posible consultar cotizaciones", str(e)))
-        run_async(parent.winfo_toplevel(), obtener_cotizaciones_en_compra, pintar_aut,
+        run_async(parent.winfo_toplevel(), obtener_cotizaciones_seguimiento_dg, pintar_aut,
                   lambda e: messagebox.showerror("No fue posible consultar cotizaciones autorizadas", str(e)))
 
     ctk.CTkButton(
