@@ -1,4 +1,4 @@
--- AXIA REPORTADOR 2.06.14 | Actualización incremental 09/11/2026
+-- AXIA REPORTADOR 2.06.15 | Actualización incremental 09/11/2026
 -- SOLO después de la instalación inicial del Reportador; NO volver a
 -- ejecutar el SQL inicial. Ejecutar completo en Supabase SQL Editor.
 -- Cambia de 20 a 50 actividades y verifica que el ACO exista en db_acos.
