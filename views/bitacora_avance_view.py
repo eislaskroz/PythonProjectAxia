@@ -81,24 +81,25 @@ def mostrar_bitacora_avance(parent, app, aco=None):
     card.grid(row=0, column=0, sticky="nsew", pady=(0, 4))
     form = ctk.CTkFrame(card, fg_color="transparent")
     form.pack(fill="x", expand=True, padx=12, pady=(9, 4))
-    # Retícula de 6 columnas para aprovechar todo el ancho de la pantalla.
-    # Permite ordenar los campos en una sola línea como el formato operativo.
-    for col in range(6):
+    # Retícula de 12 columnas para compactar el formulario y permitir
+    # reacomodos más finos sin desperdiciar espacio horizontal.
+    FORM_COLS = 12
+    for col in range(FORM_COLS):
         form.grid_columnconfigure(col, weight=1, uniform="form_cols")
 
     def seccion(texto, fila):
         ctk.CTkLabel(form, text=texto, font=SECTION_FONT, text_color=TEXT_PRIMARY).grid(
-            row=fila, column=0, columnspan=6, sticky="w", pady=(6, 3))
+            row=fila, column=0, columnspan=FORM_COLS, sticky="w", pady=(4, 2))
 
     def label(frame, texto):
         ctk.CTkLabel(frame, text=texto, font=LABEL_FONT, text_color=TEXT_PRIMARY).pack(anchor="w", pady=(0, 1))
 
     def celda(fila, col, colspan=1):
         frame = ctk.CTkFrame(form, fg_color="transparent")
-        left = 0 if col == 0 else 5
-        right = 0 if col + colspan >= 6 else 5
+        left = 0 if col == 0 else 4
+        right = 0 if col + colspan >= FORM_COLS else 4
         frame.grid(row=fila, column=col, columnspan=colspan, sticky="ew",
-                   padx=(left, right), pady=(0, 3))
+                   padx=(left, right), pady=(0, 2))
         frame.grid_columnconfigure(0, weight=1)
         return frame
 
@@ -119,7 +120,7 @@ def mostrar_bitacora_avance(parent, app, aco=None):
         return cb
 
     def texto_largo(texto, fila, alto=100):
-        c = celda(fila, 0, 6)
+        c = celda(fila, 0, FORM_COLS)
         label(c, texto)
         box = AxiaTextbox(c, height=alto, corner_radius=8, font=SMALL_FONT)
         box.pack(fill="x")
@@ -210,101 +211,94 @@ def mostrar_bitacora_avance(parent, app, aco=None):
         validar_preview()
 
     seccion("Bitácora de Avance", 0)
-    # Primera línea: todos los datos de identificación, como en la maqueta aprobada.
-    entry("Folio de bitácora", var_folio, "Automático", 1, 0, state="disabled")
-    entry("Fecha", var_fecha, "DD-MM-AAAA", 1, 1, state="disabled")
-    option("Número de ACO", var_aco, acos_disponibles, 1, 2, command=cargar_aco,
-           state="normal" if acos_disponibles else "disabled")
-    entry("Nombre del Cliente", var_cliente, "Autollenado por ACO", 1, 3, state="disabled")
-    combo_sucursal = option("Sucursal operativa", var_sucursal, ["Selecciona un ACO primero"], 1, 4,
-                            command=cargar_sucursal, state="disabled")
-    entry("Nombre del encargado del proyecto", var_encargado, "Autollenado por ACO", 1, 5, state="disabled")
+    # Línea 1: identificación compacta.
+    entry("Folio de bitácora", var_folio, "Automático", 1, 0, state="disabled", colspan=2)
+    entry("Fecha", var_fecha, "DD-MM-AAAA", 1, 2, state="disabled", colspan=2)
+    option("Número de ACO", var_aco, acos_disponibles, 1, 4, command=cargar_aco,
+           state="normal" if acos_disponibles else "disabled", colspan=2)
+    entry("Nombre del Cliente", var_cliente, "Autollenado por ACO", 1, 6, state="disabled", colspan=2)
+    combo_sucursal = option("Sucursal operativa", var_sucursal, ["Selecciona un ACO primero"], 1, 8,
+                            command=cargar_sucursal, state="disabled", colspan=2)
+    entry("Nombre del encargado del proyecto", var_encargado, "Autollenado por ACO", 1, 10, state="disabled", colspan=2)
 
-    # Segunda línea: dirección amplia y horarios.
-    entry("Dirección de la sucursal", var_direccion, "Autollenado por sucursal", 2, 0, state="disabled", colspan=3)
-    entry("Hora de Llegada", var_hora_llegada, "HH:MM", 2, 3)
-    entry("Hora de Salida", var_hora_salida, "HH:MM", 2, 4)
+    # Línea 2: dirección, horarios y resumen inmediato del avance.
+    entry("Dirección de la sucursal", var_direccion, "Autollenado por sucursal", 2, 0, state="disabled", colspan=6)
+    entry("Hora de Llegada", var_hora_llegada, "HH:MM", 2, 6, colspan=2)
+    entry("Hora de Salida", var_hora_salida, "HH:MM", 2, 8, colspan=2)
 
-    # Tercera línea: operación y avance. Se mantiene compacta y alineada a la izquierda
-    # para dejar libre el resto de la pantalla, como en la maqueta operativa.
-    fila_operativa = ctk.CTkFrame(form, fg_color="transparent")
-    fila_operativa.grid(row=3, column=0, columnspan=6, sticky="ew", pady=(0, 3))
-    fila_operativa.grid_columnconfigure(0, weight=3)  # Técnico: el más ancho de los tres
-    fila_operativa.grid_columnconfigure(1, weight=1)  # Estatus: compacto
-    fila_operativa.grid_columnconfigure(2, weight=1)  # Porcentaje: compacto
-    fila_operativa.grid_columnconfigure(3, weight=1)  # Avance acumulado de bitácoras anteriores
-    fila_operativa.grid_columnconfigure(4, weight=4)  # Espacio libre a la derecha
-
-    def campo_operativo(texto, columna):
-        c = ctk.CTkFrame(fila_operativa, fg_color="transparent")
-        c.grid(row=0, column=columna, sticky="ew", padx=(0 if columna == 0 else 5, 5))
-        c.grid_columnconfigure(0, weight=1)
-        label(c, texto)
-        return c
-
-    c_tecnico = campo_operativo("Técnico en sitio", 0)
-    tecnico_linea = ctk.CTkFrame(c_tecnico, fg_color="transparent")
-    tecnico_linea.pack(fill="x")
-    combo_tecnico = NativeComboBox(
-        tecnico_linea, variable=var_tecnico_selector, values=tecnicos or ["Sin técnicos tipo 4 registrados"],
-        height=OPTION_H, font=SMALL_FONT, state="normal" if tecnicos else "disabled"
-    )
-    combo_tecnico.pack(side="left", fill="x", expand=True, padx=(0,4))
-    def agregar_tecnico():
-        nombre = var_tecnico_selector.get().strip()
-        if nombre and nombre in tecnicos and nombre not in tecnicos_seleccionados:
-            tecnicos_seleccionados.append(nombre)
-            var_tecnico.set(" | ".join(tecnicos_seleccionados))
-            validar_preview()
-    def quitar_ultimo_tecnico():
-        if tecnicos_seleccionados:
-            tecnicos_seleccionados.pop()
-            var_tecnico.set(" | ".join(tecnicos_seleccionados))
-            validar_preview()
-    ctk.CTkButton(tecnico_linea, text="+", width=34, height=30, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=agregar_tecnico).pack(side="left", padx=2)
-    ctk.CTkButton(tecnico_linea, text="−", width=34, height=30, fg_color="#DC2626", hover_color="#B91C1C", command=quitar_ultimo_tecnico).pack(side="left", padx=2)
-    ctk.CTkLabel(c_tecnico, textvariable=var_tecnico, font=SMALL_FONT, text_color=TEXT_SECONDARY, anchor="w", justify="left").pack(fill="x", pady=(2,0))
-
-    c_estatus = campo_operativo("Estatus", 1)
-    combo_estatus = NativeComboBox(
-        c_estatus, variable=var_estatus, values=["Pendiente", "En proceso", "Finalizada"],
-        height=OPTION_H, font=SMALL_FONT
-    )
-    combo_estatus.pack(fill="x")
-
-    c_porcentaje = campo_operativo("Porcentaje de avance", 2)
+    c_porcentaje = celda(2, 10, 1)
+    label(c_porcentaje, "Porcentaje de avance")
     entry_porcentaje = AxiaEntry(
         c_porcentaje, textvariable=var_porcentaje, placeholder_text="0 - 100",
         height=ENTRY_H, corner_radius=8, font=SMALL_FONT
     )
     entry_porcentaje.pack(fill="x")
     aplicar_mascara_numerica(entry_porcentaje, var_porcentaje, INTEGER)
-    lbl_avance = ctk.CTkLabel(form, text="0% de avance", font=SMALL_FONT, text_color=TEXT_SECONDARY)
 
-    # Dato exclusivamente informativo: no se captura ni guarda en la nueva bitácora.
-    c_acumulado = campo_operativo("Avance previo (bitácoras)", 3)
+    c_acumulado = celda(2, 11, 1)
+    label(c_acumulado, "Avance previo (bitácoras)")
     entry_acumulado = AxiaEntry(
         c_acumulado, textvariable=var_avance_anterior,
-        height=ENTRY_H, corner_radius=8, font=SMALL_FONT,
-        state="disabled",
+        height=ENTRY_H, corner_radius=8, font=SMALL_FONT, state="disabled"
     )
     entry_acumulado.pack(fill="x")
 
-    # Evidencias fotográficas reemplazan al antiguo campo Observaciones.
-    c_evid = celda(4, 0, 6)
+    # Línea 3: operación compacta y evidencias al costado.
+    c_tecnico = celda(3, 0, 4)
+    label(c_tecnico, "Técnico en sitio")
+    tecnico_linea = ctk.CTkFrame(c_tecnico, fg_color="transparent")
+    tecnico_linea.pack(fill="x")
+    combo_tecnico = NativeComboBox(
+        tecnico_linea, variable=var_tecnico_selector, values=tecnicos or ["Sin técnicos tipo 4 registrados"],
+        height=OPTION_H, font=SMALL_FONT, state="normal" if tecnicos else "disabled"
+    )
+    combo_tecnico.pack(side="left", fill="x", expand=True, padx=(0, 4))
+
+    def agregar_tecnico():
+        nombre = var_tecnico_selector.get().strip()
+        if nombre and nombre in tecnicos and nombre not in tecnicos_seleccionados:
+            tecnicos_seleccionados.append(nombre)
+            var_tecnico.set(" | ".join(tecnicos_seleccionados))
+            validar_preview()
+
+    def quitar_ultimo_tecnico():
+        if tecnicos_seleccionados:
+            tecnicos_seleccionados.pop()
+            var_tecnico.set(" | ".join(tecnicos_seleccionados))
+            validar_preview()
+
+    ctk.CTkButton(tecnico_linea, text="+", width=34, height=30, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=agregar_tecnico).pack(side="left", padx=2)
+    ctk.CTkButton(tecnico_linea, text="−", width=34, height=30, fg_color="#DC2626", hover_color="#B91C1C", command=quitar_ultimo_tecnico).pack(side="left", padx=2)
+    ctk.CTkLabel(c_tecnico, textvariable=var_tecnico, font=SMALL_FONT, text_color=TEXT_SECONDARY, anchor="w", justify="left").pack(fill="x", pady=(2, 0))
+
+    c_estatus = celda(3, 4, 2)
+    label(c_estatus, "Estatus")
+    combo_estatus = NativeComboBox(
+        c_estatus, variable=var_estatus, values=["Pendiente", "En proceso", "Finalizada"],
+        height=OPTION_H, font=SMALL_FONT
+    )
+    combo_estatus.pack(fill="x")
+
+    c_evid = celda(3, 6, 6)
     label(c_evid, "Evidencias fotográficas")
-    lbl_evidencias = ctk.CTkLabel(c_evid, text="Sin fotografías agregadas", font=SMALL_FONT,
-                                  text_color=TEXT_SECONDARY, anchor="w", justify="left")
-    lbl_evidencias.pack(fill="x", pady=(0, 4))
+    fila_evid = ctk.CTkFrame(c_evid, fg_color="transparent")
+    fila_evid.pack(fill="x")
+    lbl_evidencias = ctk.CTkLabel(
+        fila_evid, text="Sin fotografías agregadas", font=SMALL_FONT,
+        text_color=TEXT_SECONDARY, anchor="w", justify="left"
+    )
+    lbl_evidencias.pack(side="left", fill="x", expand=True, pady=(0, 2))
+    acciones = ctk.CTkFrame(fila_evid, fg_color="transparent")
+    acciones.pack(side="right", padx=(6, 0))
 
     def refrescar_evidencias():
         if not evidencias_locales:
             texto = "Sin fotografías agregadas"
         else:
             nombres = [Path(x).name for x in evidencias_locales]
-            muestra = ", ".join(nombres[:4])
-            if len(nombres) > 4:
-                muestra += f" y {len(nombres)-4} más"
+            muestra = ", ".join(nombres[:3])
+            if len(nombres) > 3:
+                muestra += f" y {len(nombres)-3} más"
             texto = f"{len(nombres)} fotografía(s): {muestra}"
         lbl_evidencias.configure(text=texto)
         validar_preview()
@@ -324,15 +318,38 @@ def mostrar_bitacora_avance(parent, app, aco=None):
             evidencias_locales.pop()
         refrescar_evidencias()
 
-    acciones = ctk.CTkFrame(c_evid, fg_color="transparent")
-    acciones.pack(anchor="w")
-    ctk.CTkButton(acciones, text="+ Agregar fotos", width=150, height=30, fg_color=SECONDARY,
+    ctk.CTkButton(acciones, text="+ Agregar fotos", width=140, height=30, fg_color=SECONDARY,
                   hover_color=BUTTON_HOVER, command=agregar_fotos).pack(side="left", padx=(0, 5))
-    ctk.CTkButton(acciones, text="Eliminar última", width=135, height=30, fg_color="#DC2626",
+    ctk.CTkButton(acciones, text="Eliminar última", width=130, height=30, fg_color="#DC2626",
                   hover_color="#B91C1C", command=quitar_ultima_foto).pack(side="left")
 
-    txt_descripcion = texto_largo("Descripción", 5, 110)
+    # Línea 4: barra interactiva y resumen del progreso proyectado.
+    c_progreso = celda(4, 0, FORM_COLS)
+    encabezado_progreso = ctk.CTkFrame(c_progreso, fg_color="transparent")
+    encabezado_progreso.pack(fill="x")
+    ctk.CTkLabel(encabezado_progreso, text="Avance total proyectado", font=LABEL_FONT, text_color=TEXT_PRIMARY).pack(side="left")
+    lbl_avance = ctk.CTkLabel(encabezado_progreso, text="0% de avance", font=SMALL_FONT, text_color=TEXT_SECONDARY)
+    lbl_avance.pack(side="right")
+    barra_avance = ctk.CTkProgressBar(c_progreso, height=16, corner_radius=8, progress_color=SECONDARY)
+    barra_avance.pack(fill="x", pady=(2, 2))
+    barra_avance.set(0)
+    lbl_avance_detalle = ctk.CTkLabel(
+        c_progreso,
+        text="Previo 0% + Jornada 0% = Total 0%",
+        font=SMALL_FONT, text_color=TEXT_SECONDARY, anchor="w", justify="left"
+    )
+    lbl_avance_detalle.pack(fill="x")
 
+    txt_descripcion = texto_largo("Descripción", 5, 95)
+
+    def _porcentaje_desde_texto(texto):
+        try:
+            valor = str(texto or "").replace("%", "").strip()
+            if not valor or valor in {"—", "No disponible"}:
+                return None
+            return float(valor)
+        except ValueError:
+            return None
     def porcentaje_valido(mostrar=False):
         raw = var_porcentaje.get().strip()
         try:
@@ -347,16 +364,41 @@ def mostrar_bitacora_avance(parent, app, aco=None):
             return None
         return valor
 
+    def actualizar_progreso_proyectado():
+        previo = _porcentaje_desde_texto(var_avance_anterior.get())
+        pct = porcentaje_valido(False)
+        previo_num = previo if previo is not None else 0.0
+        actual_num = float(pct) if pct is not None else 0.0
+        total = previo_num + actual_num
+        barra_avance.set(max(0.0, min(total, 100.0)) / 100.0)
+        if previo is None:
+            lbl_avance_detalle.configure(text=f"Avance previo no disponible · Jornada {actual_num:g}%")
+        else:
+            lbl_avance_detalle.configure(text=f"Previo {previo_num:g}% + Jornada {actual_num:g}% = Total {total:g}%")
+        if pct is None:
+            lbl_avance.configure(text="Porcentaje inválido", text_color="#DC2626")
+        else:
+            texto_total = f"{total:g}% proyectado"
+            color = TEXT_SECONDARY
+            if total > 100:
+                texto_total += " · excede 100%"
+                color = "#DC2626"
+            elif total == 100:
+                texto_total += " · cierre exacto"
+                color = SECONDARY
+            lbl_avance.configure(text=texto_total, text_color=color)
+
     def al_cambiar_porcentaje(*_):
         pct = porcentaje_valido(False)
-        lbl_avance.configure(text=f"{pct}% de avance" if pct is not None else "Porcentaje inválido")
         if pct == 100:
             var_estatus.set("Finalizada")
         elif pct is not None and pct > 0 and var_estatus.get() == "Pendiente":
             var_estatus.set("En proceso")
+        actualizar_progreso_proyectado()
         validar_preview()
 
     var_porcentaje.trace_add("write", al_cambiar_porcentaje)
+    var_avance_anterior.trace_add("write", lambda *_: actualizar_progreso_proyectado())
 
     def convertir_estatus(texto):
         return {"Pendiente": 1, "En proceso": 2, "Finalizada": 3}.get(texto, 2)
@@ -496,4 +538,5 @@ def mostrar_bitacora_avance(parent, app, aco=None):
                   command=app.mostrar_vista_inicio_aco).grid(row=0, column=3, padx=4)
 
     enfocar_inicio_formulario(card)
+    actualizar_progreso_proyectado()
     validar_preview()
