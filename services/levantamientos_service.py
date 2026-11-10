@@ -22,7 +22,7 @@ from core.date_utils import normalizar_campos_fecha
 from core.performance import page_range
 from core.search_utils import normalizar_termino_busqueda, puntaje_coincidencia
 from app_context import obtener_usuario_actual
-from security.permissions import obtener_tipo_usuario, ADMINISTRADOR, JEFE_OPERACIONES, SUPERVISOR
+from security.permissions import obtener_tipo_usuario, ADMINISTRADOR, JEFE_OPERACIONES, SUPERVISOR, ADMINISTRATIVO
 
 logger = configurar_logger(__name__)
 from services.movimientos_service import registrar_movimiento_seguro
@@ -103,8 +103,8 @@ def crear_levantamiento(datos_levantamiento):
         logger.exception("Error al crear levantamiento.")
         return None
 
-# Visibilidad de las consultas operativas: Administrador, Jefe de Operaciones
-# y Supervisor consultan todos los levantamientos. Los demas usuarios
+# Visibilidad de las consultas operativas: Administrador, Jefe de Operaciones,
+# Supervisor y Administrativo (valida LEV para Ventas) consultan todos. Los demas usuarios
 # autenticados solo consultan los propios.
 # NOTA: esta comprobación de aplicación NO sustituye RLS con identidad real.
 def _filtro_autor_levantamiento(usuario=None):
@@ -112,7 +112,7 @@ def _filtro_autor_levantamiento(usuario=None):
     nickname = str((usuario or {}).get("usuario") or "").strip()
     if not (usuario or {}).get("id_usuario") or not nickname or nickname.upper() == "DESCONOCIDO":
         return None, False
-    if obtener_tipo_usuario(usuario) in (ADMINISTRADOR, JEFE_OPERACIONES, SUPERVISOR):
+    if obtener_tipo_usuario(usuario) in (ADMINISTRADOR, JEFE_OPERACIONES, SUPERVISOR, ADMINISTRATIVO):
         return None, True
     return nickname, True
 

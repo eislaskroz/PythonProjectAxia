@@ -747,3 +747,66 @@ def convertir_cotizacion_a_trabajo(cotizacion, usuario_activo=None):
         logger.exception("La OT %s fue creada, pero no se pudo actualizar el estado de la cotización %s", folio_ot, folio_cot)
 
     return resultado
+
+
+# =====================================================
+# REGULARIZACIÓN OPERATIVA DE ACO EXISTENTE
+# =====================================================
+def habilitar_aco_manual_para_operacion(aco, usuario_activo=None):
+    """Genera una OT de seguimiento para un ACO preexistente sin OT.
+
+    No inventa levantamiento, cotización ni autorización de Compras. Solo se
+    invoca tras confirmar explícitamente una operación de regularización.
+    La OT es el vínculo requerido por Bitácoras y la OS de cierre.
+    """
+    registro = dict(aco or {})
+    numero = str(registro.get("aco_numero") or "").strip().upper()
+    if not numero:
+        raise ValueError("El ACO no tiene número válido.")
+
+    # Comprobación de permisos en la capa de servicio, además de la interfaz.
+    from security.permissions import puede_generar_orden
+    if not puede_generar_orden(usuario_activo or {}):
+        raise PermissionError("No tienes permisos para habilitar operaciones manuales.")
+
+    existente = supabase.table(TABLA_ORDENES_TRABAJO).select(
+        "ot_id,ot_folio,ot_estatus"
+    ).eq("ot_aco_numero", numero).limit(1).execute()
+    if existente.data:
+        folio = existente.data[0].get("ot_folio") or "sin folio"
+        raise ValueError(f"Este ACO ya está vinculado a la OT {folio}. No se creará otra.")
+
+    cliente = str(registro.get("aco_cliente") or "").strip()
+    if not cliente:
+        raise ValueError("El ACO debe tener cliente antes de habilitar su operación.")
+    usuario = str((usuario_activo or {}).get("usu_nickname") or (usuario_activo or {}).get("usuario") or "").strip()
+    if not usuario:
+        raise ValueError("No se pudo identificar al usuario que solicita la regularización.")
+
+    # Metadato explícito de origen. No se crean LEV/COT ficticios.
+    detalle = f"Seguimiento operativo de ACO existente {numero}, sin levantamiento/cotización registrados en AXIA."
+    datos = {
+        "id_aco": registro.get("id_aco") or registro.get("aco_id"),
+        "ot_aco_numero": numero,
+        "ot_cliente": cliente,
+        "ot_contacto": registro.get("aco_contacto") or "",
+        "ot_sucursal": registro.get("aco_sucursal") or registro.get("aco_direccion") or "",
+        "ot_asunto": f"Regularización operativa de {numero}",
+        "ot_descripcion": detalle,
+        "ot_partidas_json": [{"_axia_meta": {"origen": "aco_manual", "aco": numero}}],
+        "ot_estatus": 2,
+        "ot_prioridad": 2,
+        "creado_por": usuario,
+    }
+    datos = filter_payload({k:v for k,v in datos.items() if v not in (None, "")})
+    creado = crear_orden_trabajo(datos)
+    if not creado:
+        raise RuntimeError("No fue posible confirmar la OT de regularización.")
+    fila = creado[0] if isinstance(creado,list) else creado
+    folio = str((fila or {}).get("ot_folio") or "")
+    registrar_movimiento_seguro(
+        modulo="ORDENES_TRABAJO", accion="REGULARIZAR_ACO_MANUAL",
+        descripcion=f"ACO preexistente {numero} habilitado sin LEV/COT. OT operativa {folio}",
+        registro_afectado=folio or numero,
+    )
+    return fila

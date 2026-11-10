@@ -57,6 +57,7 @@ from services.sucursales_service import (
 )
 
 from services.movimientos_service import registrar_movimiento
+from services.ordenes_trabajo_service import habilitar_aco_manual_para_operacion
 from services.usuarios_service import obtener_usuarios_por_tipos
 from security.permissions import TIPOS_VALIDOS
 from services.aco_form_helpers import datos_contacto_aco
@@ -479,6 +480,40 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
                     lambda: app.mostrar_vista_bitacora_avance(aco)
                 )
             )
+
+        # Habilitación manual de un ACO heredado sin OT.
+        # No crea documentos comerciales falsos y requiere confirmación explícita.
+        if puede_generar_orden(usuario_activo):
+            def regularizar_operacion():
+                confirmado = messagebox.askyesno(
+                    "Habilitar ACO manual",
+                    "Se creará una OT OPERATIVA para seguimiento de este ACO, "
+                    "sin inventar levantamiento ni cotización.\n\n"
+                    "Esta operación debe utilizarse únicamente para trabajos "
+                    "preexistentes o incorporados manualmente.\n\n"
+                    "¿Deseas habilitar este ACO?",
+                    parent=panel_dinamico.winfo_toplevel(),
+                )
+                if not confirmado:
+                    return
+                try:
+                    creada = habilitar_aco_manual_para_operacion(aco, usuario_activo)
+                    folio_ot = str((creada or {}).get("ot_folio") or "")
+                    messagebox.showinfo(
+                        "ACO habilitado",
+                        f"ACO {numero_aco} habilitado con OT {folio_ot}.\n"
+                        "Ahora puedes generar bitácoras y, al llegar al 100% "
+                        "con firma del cliente, la Orden de Servicio definitiva.",
+                        parent=panel_dinamico.winfo_toplevel(),
+                    )
+                    mostrar_opciones_con_aco(aco)
+                except Exception as error:
+                    messagebox.showwarning(
+                        "No se habilitó el ACO", str(error),
+                        parent=panel_dinamico.winfo_toplevel(),
+                    )
+
+            opciones.append(("Habilitar ACO manual para seguimiento", regularizar_operacion))
 
         # =================================================
         # RENDERIZAR BOTONES
