@@ -18,7 +18,7 @@ from services.acos_service import buscar_aco_por_numero
 from services.folios_service import generar_siguiente_folio
 from services.bitacoras_service import (
     crear_bitacora, buscar_bitacora_por_folio, actualizar_bitacora,
-    obtener_contextos_aco_disponibles_bitacora,
+    obtener_contextos_aco_disponibles_bitacora, avance_orden_trabajo,
 )
 from services.usuarios_service import obtener_nombres_usuarios_por_tipos
 from services.sucursales_service import obtener_sucursales_por_cliente, construir_domicilio_sucursal
@@ -67,6 +67,7 @@ def mostrar_bitacora_avance(parent, app, aco=None):
     tecnicos_seleccionados = []
     var_estatus = ctk.StringVar(value="En proceso")
     var_porcentaje = ctk.StringVar(value="0")
+    var_avance_anterior = ctk.StringVar(value="—")
 
     contextos = obtener_contextos_aco_disponibles_bitacora()
     contexto_por_aco = {x["aco_numero"]: x for x in contextos}
@@ -172,6 +173,23 @@ def mostrar_bitacora_avance(parent, app, aco=None):
             if len(valores) != 1:
                 var_direccion.set("")
 
+    def actualizar_avance_anterior():
+        """Lee el avance REAL de las bitácoras anteriores de la OT seleccionada.
+
+        No suma el porcentaje que se está capturando en este formulario.
+        Ante un fallo de consulta muestra un valor desconocido, no un 0 % falso.
+        """
+        folio_ot = str(contexto_ot.get("ot_folio") or "").strip()
+        if not folio_ot:
+            var_avance_anterior.set("—")
+            return
+        try:
+            acumulado, _ = avance_orden_trabajo(folio_ot)
+            var_avance_anterior.set(f"{acumulado:g}%")
+        except Exception:
+            logger.exception("No se pudo consultar el avance anterior de %s.", folio_ot)
+            var_avance_anterior.set("No disponible")
+
     def cargar_aco(numero=None):
         nonlocal datos_aco, contexto_ot
         numero = str(numero or var_aco.get() or "").strip().upper()
@@ -179,10 +197,12 @@ def mostrar_bitacora_avance(parent, app, aco=None):
             return
         registro = buscar_aco_por_numero(numero)
         if not registro:
+            var_avance_anterior.set("—")
             messagebox.showwarning("ACO no encontrado", "No se encontró información para el ACO seleccionado.")
             return
         datos_aco = normalizar_datos_aco(registro)
         contexto_ot = contexto_por_aco.get(numero, {})
+        actualizar_avance_anterior()
         var_aco.set(numero)
         var_cliente.set(datos_aco.get("cliente", ""))
         var_encargado.set(datos_aco.get("jefe_operacion", "") or datos_aco.get("responsable", ""))
@@ -212,7 +232,8 @@ def mostrar_bitacora_avance(parent, app, aco=None):
     fila_operativa.grid_columnconfigure(0, weight=3)  # Técnico: el más ancho de los tres
     fila_operativa.grid_columnconfigure(1, weight=1)  # Estatus: compacto
     fila_operativa.grid_columnconfigure(2, weight=1)  # Porcentaje: compacto
-    fila_operativa.grid_columnconfigure(3, weight=5)  # Espacio libre a la derecha
+    fila_operativa.grid_columnconfigure(3, weight=1)  # Avance acumulado de bitácoras anteriores
+    fila_operativa.grid_columnconfigure(4, weight=4)  # Espacio libre a la derecha
 
     def campo_operativo(texto, columna):
         c = ctk.CTkFrame(fila_operativa, fg_color="transparent")
@@ -259,6 +280,15 @@ def mostrar_bitacora_avance(parent, app, aco=None):
     entry_porcentaje.pack(fill="x")
     aplicar_mascara_numerica(entry_porcentaje, var_porcentaje, INTEGER)
     lbl_avance = ctk.CTkLabel(form, text="0% de avance", font=SMALL_FONT, text_color=TEXT_SECONDARY)
+
+    # Dato exclusivamente informativo: no se captura ni guarda en la nueva bitácora.
+    c_acumulado = campo_operativo("Avance previo (bitácoras)", 3)
+    entry_acumulado = AxiaEntry(
+        c_acumulado, textvariable=var_avance_anterior,
+        height=ENTRY_H, corner_radius=8, font=SMALL_FONT,
+        state="disabled",
+    )
+    entry_acumulado.pack(fill="x")
 
     # Evidencias fotográficas reemplazan al antiguo campo Observaciones.
     c_evid = celda(4, 0, 6)
