@@ -441,8 +441,9 @@ def mostrar_cotizaciones(parent, app=None):
         for i, item in enumerate(partidas):
             servicio = es_lote_servicio(item, i, len(partidas))
             card = ctk.CTkFrame(cont, fg_color=WHITE, corner_radius=10)
-            card.grid(row=i, column=0, sticky="ew", padx=4, pady=1)
-            for c in range(12):
+            card.grid(row=i, column=0, sticky="ew", padx=4, pady=2)
+            # 24 columnas: anchos proporcionales al contenido, no cajas uniformes gigantes.
+            for c in range(24):
                 card.grid_columnconfigure(c, weight=1, uniform="partida_compacta")
 
             # Todas las variables originales siguen vivas incluso con el panel plegado:
@@ -462,10 +463,10 @@ def mostrar_cotizaciones(parent, app=None):
             encabezado = ctk.CTkLabel(
                 card,
                 text=f"Lote {item.get('lote', i+1)} · {item.get('concepto', '')}",
-                font=("Montserrat", 9, "bold"), text_color=TEXT_PRIMARY,
-                anchor="w", justify="left", wraplength=1200,
+                font=("Montserrat", 11, "bold"), text_color=TEXT_PRIMARY,
+                anchor="w", justify="left", wraplength=1240,
             )
-            encabezado.grid(row=0, column=0, columnspan=12, sticky="ew", padx=6, pady=(3, 0))
+            encabezado.grid(row=0, column=0, columnspan=24, sticky="ew", padx=7, pady=(4, 1))
             vars_item["concepto"].trace_add(
                 "write", lambda *_args, pv=vars_item, header=encabezado, lote=item.get("lote", i+1):
                 header.configure(text=f"Lote {lote} · {pv['concepto'].get()}")
@@ -476,14 +477,14 @@ def mostrar_cotizaciones(parent, app=None):
             def campo_partida(contenedor, etiqueta, clave, fila, columna, ancho):
                 celda = ctk.CTkFrame(contenedor, fg_color="transparent")
                 celda.grid(row=fila, column=columna, columnspan=ancho,
-                           sticky="ew", padx=2, pady=(0, 1))
+                           sticky="ew", padx=3, pady=(0, 2))
                 ctk.CTkLabel(
-                    celda, text=etiqueta, font=("Montserrat", 8),
-                    text_color=TEXT_SECONDARY, anchor="w", height=12,
+                    celda, text=etiqueta, font=("Montserrat", 9),
+                    text_color=TEXT_SECONDARY, anchor="w", height=15,
                 ).pack(fill="x")
                 variable = vars_item[clave]
-                ent = AxiaEntry(celda, textvariable=variable, height=18,
-                                font=("Montserrat", 9))
+                ent = AxiaEntry(celda, textvariable=variable, height=25,
+                                font=("Montserrat", 10))
                 ent.pack(fill="x")
                 if clave in {"precio_lista", "costo", "precio_venta", "precio_unitario", "importe"}:
                     aplicar_mascara_numerica(ent, variable, MONEY)
@@ -498,55 +499,54 @@ def mostrar_cotizaciones(parent, app=None):
 
             if servicio:
                 principales = [
-                    ("Unidad / Tipo", "unidad_tipo", 1, 0, 2),
-                    ("Cantidad", "cantidad", 1, 2, 1),
-                    ("Importe", "importe", 1, 3, 2),
-                    ("P. Unitario", "precio_unitario", 1, 5, 2),
-                    ("Concepto", "concepto", 2, 0, 9),
+                    ("Unidad / Tipo", "unidad_tipo", 1, 0, 3),
+                    ("Cantidad", "cantidad", 1, 3, 2),
+                    ("Modelo", "modelo", 1, 5, 4),
+                    ("Marca", "marca", 1, 9, 3),
+                    ("P. Unitario", "precio_unitario", 1, 12, 3),
+                    ("Importe", "importe", 1, 15, 3),
+                    ("Concepto", "concepto", 2, 0, 20),
                 ]
                 secundarios = [
-                    ("Proveedor", "proveedor", 0, 0, 3),
-                    ("Modelo", "modelo", 0, 3, 3),
-                    ("SKU", "sku", 0, 6, 3),
-                    ("Marca", "marca", 0, 9, 3),
-                    ("P. Lista", "precio_lista", 1, 0, 3),
-                    ("Costo", "costo", 1, 3, 3),
-                    ("Utilidad %", "utilidad_pct", 1, 6, 3),
-                    ("Observaciones", "observaciones", 1, 9, 3),
+                    ("Proveedor", "proveedor", 0, 0, 5),
+                    ("SKU", "sku", 0, 5, 4),
+                    ("P. Lista", "precio_lista", 0, 9, 3),
+                    ("Costo", "costo", 0, 12, 3),
+                    ("Utilidad %", "utilidad_pct", 0, 15, 3),
+                    ("P. Venta", "precio_venta", 0, 18, 3),
+                    ("Observaciones", "observaciones", 1, 0, 24),
                 ]
-                fila_boton = 2
-                columna_boton = 9
-                ancho_boton = 3
             else:
                 principales = [
-                    ("Unidad / Tipo", "unidad_tipo", 1, 0, 2),
-                    ("Cantidad", "cantidad", 1, 2, 1),
-                    ("Modelo", "modelo", 1, 3, 2),
-                    ("Costo", "costo", 1, 5, 2),
-                    ("P. Venta", "precio_venta", 1, 7, 2),
-                    ("Importe", "importe", 1, 9, 2),
-                    ("Concepto", "concepto", 2, 0, 9),
+                    ("Unidad / Tipo", "unidad_tipo", 1, 0, 3),
+                    ("Cantidad", "cantidad", 1, 3, 2),
+                    ("Modelo", "modelo", 1, 5, 4),
+                    ("Marca", "marca", 1, 9, 3),
+                    ("Costo", "costo", 1, 12, 3),
+                    ("P. Venta", "precio_venta", 1, 15, 3),
+                    ("Importe", "importe", 1, 18, 3),
+                    ("Concepto", "concepto", 2, 0, 20),
                 ]
                 secundarios = [
-                    ("Proveedor", "proveedor", 0, 0, 3),
-                    ("SKU", "sku", 0, 3, 3),
-                    ("Marca", "marca", 0, 6, 3),
+                    ("Proveedor", "proveedor", 0, 0, 5),
+                    ("SKU", "sku", 0, 5, 4),
                     ("P. Lista", "precio_lista", 0, 9, 3),
-                    ("Utilidad %", "utilidad_pct", 1, 0, 3),
-                    ("P. Unitario", "precio_unitario", 1, 3, 3),
-                    ("Observaciones", "observaciones", 1, 6, 6),
+                    ("Utilidad %", "utilidad_pct", 0, 12, 3),
+                    ("P. Unitario", "precio_unitario", 0, 15, 3),
+                    ("Observaciones", "observaciones", 0, 18, 6),
                 ]
-                fila_boton = 2
-                columna_boton = 9
-                ancho_boton = 3
+
+            fila_boton = 2
+            columna_boton = 20
+            ancho_boton = 4
 
             for etiqueta, clave, fila, columna, ancho in principales:
                 campo_partida(card, etiqueta, clave, fila, columna, ancho)
 
             zona_detalles = ctk.CTkFrame(card, fg_color="#F4F7FB", corner_radius=8)
-            zona_detalles.grid(row=3, column=0, columnspan=12, sticky="ew",
+            zona_detalles.grid(row=3, column=0, columnspan=24, sticky="ew",
                               padx=4, pady=(1, 3))
-            for col_detalle in range(12):
+            for col_detalle in range(24):
                 zona_detalles.grid_columnconfigure(col_detalle, weight=1,
                                                      uniform="detalle_partida")
             for etiqueta, clave, fila, col, span in secundarios:
@@ -569,16 +569,16 @@ def mostrar_cotizaciones(parent, app=None):
                         boton_ref.configure(text="▼ Más detalles")
 
             boton_detalles = ctk.CTkButton(
-                card, text="▼ Más detalles", height=20, corner_radius=7,
+                card, text="▼ Más detalles", height=27, corner_radius=8,
                 fg_color="#E7EFF8", hover_color="#DAE7F5", text_color="#1F4E79",
-                font=("Montserrat", 9, "bold"),
+                font=("Montserrat", 10, "bold"),
             )
             boton_detalles.configure(command=lambda panel=zona_detalles,
                                     visual=detalles_abiertos, boton=boton_detalles:
                                     alternar_detalles(panel, visual, boton))
             boton_detalles.grid(row=fila_boton, column=columna_boton,
                                 columnspan=ancho_boton, sticky="ew",
-                                padx=3, pady=(10 if servicio else 8, 1))
+                                padx=4, pady=(15, 2))
 
             if servicio:
                 # El importe lo introduce Ventas sin porcentajes ni costos.
