@@ -78,11 +78,11 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
     styles = BasePdfGenerator.styles()
     normal = ParagraphStyle(
         "AxiaCotNormal", parent=styles["normal"], fontName="Helvetica",
-        fontSize=6.6, leading=8.0, textColor=TEXT,
+        fontSize=5.7, leading=6.7, textColor=TEXT,
     )
     label = ParagraphStyle(
         "AxiaCotLabel", parent=normal, fontName="Helvetica-Bold",
-        fontSize=6.5, leading=7.8,
+        fontSize=5.65, leading=6.6,
     )
     header = ParagraphStyle(
         "AxiaCotHeader", parent=normal, fontName="Helvetica-Bold",
@@ -114,16 +114,10 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
     usable_width = page_w - 56  # 28 pt por lado
     story = []
 
-    # El título documental lo dibuja BasePdfGenerator. No repetimos folio, fecha
-    # ni levantamiento debajo del título; esos datos viven en la retícula formal
-    # de la cotización, igual que en el formato comercial de referencia.
-    # El encabezado de sección se mantiene solo si existen campos generales.
-    if visibles is None or any(ver(k) for k in ("empresa", "rfc", "domicilio_axia", "esi", "correo_esi", "telefono_esi", "jefe", "supervisor", "dias", "personas")):
-        story.append(section_title("Datos generales de cotización", usable_width - 82))
-        story.append(Spacer(1, 2))
-
-    # Dos retículas paralelas conservan la estructura del formato proporcionado,
-    # pero usando el lenguaje visual AXIA de celdas azules y fondo claro.
+    # Datos seleccionados: fluido, sin columnas vacías ni bloques paralelos de
+    # alturas independientes. Dos pares Etiqueta/Valor por fila, reducidos a
+    # un par de ancho completo cuando solamente queda un campo.
+    # La reserva de 82 puntos protege la esquina del logo corporativo.
     left_defs = [
         ("empresa", "NOMBRE", "AXIA COMUNICACIONES SA DE CV"),
         ("rfc", "RFC", "ACO1402056N2"),
@@ -131,47 +125,11 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
         ("esi", "ESI / EJECUTIVA DE VENTAS", cotizacion.get("cot_esi")),
         ("correo_esi", "CORREO ESI", cotizacion.get("cot_esi_correo")),
         ("telefono_esi", "TELÉFONO ESI", cotizacion.get("cot_esi_telefono")),
-    ]
-    right_defs = [
         ("jefe", "JEFE DE OPERACIONES", cotizacion.get("cot_jefe_operaciones")),
         ("supervisor", "SUPERVISOR", cotizacion.get("cot_supervisor")),
         ("dias", "DÍAS", cotizacion.get("cot_dias")),
         ("personas", "PERSONAS", cotizacion.get("cot_personas")),
     ]
-    left_rows = [[p(t, label, ""), p(v, normal, "")] for k, t, v in left_defs if ver(k)]
-    right_rows = [[p(t, label, ""), p(v, normal, "")] for k, t, v in right_defs if ver(k)]
-
-    def info_table(rows, widths):
-        t = Table(rows, colWidths=widths)
-        t.setStyle(TableStyle([
-            ("GRID", (0, 0), (-1, -1), 0.45, BORDER),
-            ("BACKGROUND", (0, 0), (0, -1), LIGHT_BLUE),
-            ("BACKGROUND", (1, 0), (1, -1), WHITE),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 4),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-            ("TOPPADDING", (0, 0), (-1, -1), 2.5),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),
-        ]))
-        return t
-
-    # Reservar esquina de logo AXIA aun cuando se oculten filas.
-    if left_rows or right_rows:
-        left = info_table(left_rows, [1.45*inch, 3.95*inch]) if left_rows else Spacer(1, 1)
-        right = info_table(right_rows, [1.45*inch, 1.75*inch]) if right_rows else Spacer(1, 1)
-        top_grid = Table([[left, right]], colWidths=[5.55*inch, 3.25*inch], hAlign="LEFT")
-        top_grid.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ("TOPPADDING", (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-        ]))
-        story.extend([top_grid, Spacer(1, 3)])
-
-    # Segunda retícula: fecha, folios y datos del cliente a la izquierda;
-    # condiciones comerciales a la derecha. Esta disposición replica el flujo
-    # visual del formato proporcionado sin duplicar el folio en el encabezado.
     quote_defs = [
         ("fecha", "FECHA DE COTIZACIÓN", cotizacion.get("cot_fecha")),
         ("folio", "NO. COTIZACIÓN", folio),
@@ -180,25 +138,58 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
         ("contacto", "CONTACTO", cotizacion.get("cot_contacto")),
         ("sucursal", "SUCURSAL", cotizacion.get("cot_sucursal")),
         ("asunto", "TÍTULO / CONCEPTO", cotizacion.get("cot_asunto")),
-    ]
-    terms_defs = [
         ("plan_pagos", "PLAN DE PAGOS", cotizacion.get("cot_plan_pagos") or "PPD"),
         ("vigencia", "VIGENCIA DE COTIZACIÓN", cotizacion.get("cot_vigencia")),
     ]
-    quote_rows = [[p(t, label, ""), p(v, normal, "")] for k, t, v in quote_defs if ver(k)]
-    terms_rows = [[p(t, label, ""), p(v, normal, "")] for k, t, v in terms_defs if ver(k)]
-    if quote_rows or terms_rows:
-        quote = info_table(quote_rows, [1.45*inch, 3.95*inch]) if quote_rows else Spacer(1, 1)
-        terms = info_table(terms_rows, [1.55*inch, 2.65*inch]) if terms_rows else Spacer(1, 1)
-        quote_grid = Table([[quote, terms]], colWidths=[5.55*inch, 4.65*inch], hAlign="LEFT")
-        quote_grid.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ("TOPPADDING", (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-        ]))
-        story.extend([quote_grid, Spacer(1, 4)])
+
+    def datos_compactos(definiciones, ancho):
+        """Filas adaptativas: ningún dato oculto conserva su antiguo espacio."""
+        seleccionados = [(etiqueta, valor) for clave, etiqueta, valor in definiciones if ver(clave)]
+        if not seleccionados:
+            return None
+        datos = []
+        spans = []
+        for i in range(0, len(seleccionados), 2):
+            etiqueta, valor = seleccionados[i]
+            fila = [p(etiqueta, label, ""), p(valor, normal, "")]
+            if i + 1 < len(seleccionados):
+                etiqueta2, valor2 = seleccionados[i + 1]
+                fila += [p(etiqueta2, label, ""), p(valor2, normal, "")]
+            else:
+                fila += ["", ""]
+                spans.append(len(datos))
+            datos.append(fila)
+        # Cada par tiene el mismo ancho; el contenido extenso ajusta su alto.
+        ancho_etiqueta = 0.16 * ancho
+        ancho_valor = ancho / 2 - ancho_etiqueta
+        t = Table(datos, colWidths=[ancho_etiqueta, ancho_valor] * 2, hAlign="LEFT")
+        reglas = [
+            ("GRID", (0, 0), (-1, -1), 0.4, BORDER),
+            ("BACKGROUND", (0, 0), (0, -1), LIGHT_BLUE),
+            ("BACKGROUND", (2, 0), (2, -1), LIGHT_BLUE),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 3),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+            ("TOPPADDING", (0, 0), (-1, -1), 1.5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5),
+        ]
+        for n in spans:
+            reglas.append(("SPAN", (1, n), (3, n)))
+            reglas.append(("BACKGROUND", (2, n), (3, n), WHITE))
+        t.setStyle(TableStyle(reglas))
+        return t
+
+    generales = datos_compactos(left_defs, usable_width - 82)
+    if generales is not None:
+        story.append(section_title("Datos generales de cotización", usable_width - 82))
+        story.append(Spacer(1, 2))
+        story.append(generales)
+        story.append(Spacer(1, 3))
+
+    comerciales = datos_compactos(quote_defs, usable_width)
+    if comerciales is not None:
+        story.append(comerciales)
+        story.append(Spacer(1, 4))
     if ver("partidas"):
         story.extend([section_title("Partidas de cotización", usable_width), Spacer(1, 2)])
 
