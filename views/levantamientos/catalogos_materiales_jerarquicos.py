@@ -1,7 +1,7 @@
 """Catálogo maestro de canalización y materiales, noviembre 2026.
 
 Fuente: «Catálogo de Materiales Noviembre 2026.xlsx», hoja NOV2026,
-251 combinaciones explícitas Categoría/Material/Tipo. Las capturas nuevas
+261 combinaciones explícitas Categoría/Material/Tipo. Las capturas nuevas
 utilizan este listado como lista cerrada; las opciones retiradas no reaparecen.
 
 El Excel NO contiene columnas de tamaño, unidad ni uso. Esas listas se
@@ -207,7 +207,9 @@ CATALOGO_NOVIEMBRE_2026 = {'Conexiones y Uniones': {'Faceplate': ['1 puerto', '2
                                                                   'Tubo de Cobre Tipo M',
                                                                   'Tubo de Cobre ACR',
                                                                   'Tubo de Cobre para Gas']},
- 'Protección y Potencia': {'Centros de Carga / Tableros': ['Tablero de alumbrado',
+ 'Protección y Potencia': {'Apagadores': ['Apagador sencillo (1 vía)', 'Apagador de escalera (3 vías)', 'Apagador de paso (4 vías)', 'Pulsador (timbre)', 'Atenuador (dimmer)'],
+                           'Contactos': ['Contacto sencillo o dúplex (NEMA 1-15)', 'Contacto dúplex aterrizado (NEMA 5-15 / 2P+T)', 'Contacto de 20 Amperes (NEMA 5-20)', 'Contacto GFCI (falla a tierra)', 'Contacto con puertos USB'],
+                           'Centros de Carga / Tableros': ['Tablero de alumbrado',
                                                            'Tablero de fuerza',
                                                            'Tablero mixto',
                                                            'Monofásico',

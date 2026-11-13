@@ -1504,5 +1504,65 @@
     "familia": "Conductores y Canalización",
     "material": "Cable",
     "tipo": "UTP Cat6A exterior"
+  },
+  {
+    "row": 253,
+    "familia": "Protección y Potencia",
+    "material": "Apagadores",
+    "tipo": "Apagador sencillo (1 vía)"
+  },
+  {
+    "row": 254,
+    "familia": "Protección y Potencia",
+    "material": "Apagadores",
+    "tipo": "Apagador de escalera (3 vías)"
+  },
+  {
+    "row": 255,
+    "familia": "Protección y Potencia",
+    "material": "Apagadores",
+    "tipo": "Apagador de paso (4 vías)"
+  },
+  {
+    "row": 256,
+    "familia": "Protección y Potencia",
+    "material": "Apagadores",
+    "tipo": "Pulsador (timbre)"
+  },
+  {
+    "row": 257,
+    "familia": "Protección y Potencia",
+    "material": "Apagadores",
+    "tipo": "Atenuador (dimmer)"
+  },
+  {
+    "row": 258,
+    "familia": "Protección y Potencia",
+    "material": "Contactos",
+    "tipo": "Contacto sencillo o dúplex (NEMA 1-15)"
+  },
+  {
+    "row": 259,
+    "familia": "Protección y Potencia",
+    "material": "Contactos",
+    "tipo": "Contacto dúplex aterrizado (NEMA 5-15 / 2P+T)"
+  },
+  {
+    "row": 260,
+    "familia": "Protección y Potencia",
+    "material": "Contactos",
+    "tipo": "Contacto de 20 Amperes (NEMA 5-20)"
+  },
+  {
+    "row": 261,
+    "familia": "Protección y Potencia",
+    "material": "Contactos",
+    "tipo": "Contacto GFCI (falla a tierra)"
+  },
+  {
+    "row": 262,
+    "familia": "Protección y Potencia",
+    "material": "Contactos",
+    "tipo": "Contacto con puertos USB"
   }
 ]

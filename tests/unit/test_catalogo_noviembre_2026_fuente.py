@@ -8,11 +8,11 @@ from views.levantamientos.catalogos_materiales_jerarquicos import (
 )
 
 
-def test_catalogo_coincide_con_las_251_filas_de_la_fuente():
+def test_catalogo_coincide_con_las_261_filas_de_la_fuente():
     archivo = Path(__file__).resolve().parents[2] / "docs" / "catalogo_materiales_noviembre_2026_fuente.json"
     filas = json.loads(archivo.read_text(encoding="utf8"))
     triples = [(x["familia"], x["material"], x["tipo"]) for x in filas]
-    assert len(triples) == 251 == len(CATALOGO_XLSX)
+    assert len(triples) == 261 == len(CATALOGO_XLSX)
     assert sorted(triples) == sorted(CATALOGO_XLSX)
     assert set(familias_materiales()) == {f for f, _, _ in triples}
     for familia, material, tipo in triples:

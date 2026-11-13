@@ -12,11 +12,11 @@ from views.levantamientos.catalogos_materiales_jerarquicos import (
 from views.levantamientos.canalizacion_aproximado import texto_aproximado_canalizacion
 
 
-def test_excel_noviembre_251_combinaciones_37_materiales_7_categorias():
-    assert len(CATALOGO_XLSX) == 251
+def test_excel_noviembre_261_combinaciones_39_materiales_7_categorias():
+    assert len(CATALOGO_XLSX) == 261
     assert len(familias_materiales()) == 7
-    assert len(FAMILIA_POR_MATERIAL) == 37
-    assert len({(f, m, t) for f, m, t in CATALOGO_XLSX}) == 251
+    assert len(FAMILIA_POR_MATERIAL) == 39
+    assert len({(f, m, t) for f, m, t in CATALOGO_XLSX}) == 261
     assert all(f and m and t for f, m, t in CATALOGO_XLSX)
     assert all(m in FAMILIA_POR_MATERIAL for grupo in MATERIALES_POR_FAMILIA.values() for m in grupo)
     assert all(len(tipos) == len(set(tipos)) for mats in CATALOGO_NOVIEMBRE_2026.values() for tipos in mats.values())
