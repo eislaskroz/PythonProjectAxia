@@ -5147,13 +5147,22 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     def registro_pdf_levantamiento(folio_override=""):
         """Construye la fuente única del PDF con la misma forma que Supabase."""
         modalidad = modalidad_seleccionada()
-        detalle = obtener_detalle_tecnico_json() if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else {}
+        # El General sí contiene secciones técnicas y listas de materiales.
+        # No excluirlo: de lo contrario el PDF puede mostrarlas, pero el
+        # borrador local/remoto las pierde al serializarse.
+        detalle = obtener_detalle_tecnico_json() if (
+            tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS
+            or tipo_levantamiento == "General"
+        ) else {}
         detalle = dict(detalle or {})
-        # El Levantamiento General también tiene una descripción técnica,
-        # aunque no utilice los formularios especializados. Debe viajar en
-        # el borrador compartido, no solamente en los datos del PDF.
         if tipo_levantamiento == "General":
-            detalle["detalle_levantamiento"] = txt_descripcion.get("1.0", "end").strip()
+            # Campo real de la pantalla General (TextBox enlazado a vars_extra).
+            # txt_descripcion es otro control y no refleja esta captura.
+            detalle_general = vars_extra.get("detalle_levantamiento")
+            detalle["detalle_levantamiento"] = (
+                detalle_general.get().strip() if detalle_general else ""
+            )
+            detalle["resumen_servicio"] = detalle["detalle_levantamiento"]
         # Autoría del usuario autenticado; siempre toma usu_nombre y usu_apellido.
         detalle["elaborado_por"] = autoria_desde_usuario(usuario_activo)
         detalle["datos_generales_axia"] = {}
@@ -5189,11 +5198,17 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 "altura": var_altura_comun.get().strip() if var_trabajo_alturas_comun.get() == "Sí" else "",
                 "riesgo": var_riesgo_comun.get().strip() if var_trabajo_alturas_comun.get() == "Sí" else "",
             }
-        if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS:
+        if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS or tipo_levantamiento == "General":
             detalle["canalizacion_materiales"] = obtener_canalizacion_materiales_json()
             detalle["equipos_principales"] = obtener_equipos_catalogo_json()
             detalle["materiales_miscelaneos"] = obtener_materiales_miscelaneos_json()
             detalle["herramientas"] = obtener_herramientas_json()
+            # Preservar el estado explícito para restaurar el selector en
+            # vez de aplicar su valor inicial "No" y perder las filas.
+            detalle["canalizacion_cableado_materiales"] = {
+                "requiere": var_requiere_canalizacion.get().strip(),
+                "partidas": detalle["canalizacion_materiales"],
+            }
 
         descripcion_fallas = ""
         equipos_danados = []
@@ -5307,13 +5322,22 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     def registro_pdf_levantamiento(folio_override=""):
         """Construye la fuente única del PDF con la misma forma que Supabase."""
         modalidad = modalidad_seleccionada()
-        detalle = obtener_detalle_tecnico_json() if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else {}
+        # El General sí contiene secciones técnicas y listas de materiales.
+        # No excluirlo: de lo contrario el PDF puede mostrarlas, pero el
+        # borrador local/remoto las pierde al serializarse.
+        detalle = obtener_detalle_tecnico_json() if (
+            tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS
+            or tipo_levantamiento == "General"
+        ) else {}
         detalle = dict(detalle or {})
-        # El Levantamiento General también tiene una descripción técnica,
-        # aunque no utilice los formularios especializados. Debe viajar en
-        # el borrador compartido, no solamente en los datos del PDF.
         if tipo_levantamiento == "General":
-            detalle["detalle_levantamiento"] = txt_descripcion.get("1.0", "end").strip()
+            # Campo real de la pantalla General (TextBox enlazado a vars_extra).
+            # txt_descripcion es otro control y no refleja esta captura.
+            detalle_general = vars_extra.get("detalle_levantamiento")
+            detalle["detalle_levantamiento"] = (
+                detalle_general.get().strip() if detalle_general else ""
+            )
+            detalle["resumen_servicio"] = detalle["detalle_levantamiento"]
         # Autoría del usuario autenticado; siempre toma usu_nombre y usu_apellido.
         detalle["elaborado_por"] = autoria_desde_usuario(usuario_activo)
         detalle["datos_generales_axia"] = {}
@@ -5335,11 +5359,17 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "adicional": var_requiere_epp.get().strip(),
             "partidas": obtener_epp_json(),
         }
-        if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS:
+        if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS or tipo_levantamiento == "General":
             detalle["canalizacion_materiales"] = obtener_canalizacion_materiales_json()
             detalle["equipos_principales"] = obtener_equipos_catalogo_json()
             detalle["materiales_miscelaneos"] = obtener_materiales_miscelaneos_json()
             detalle["herramientas"] = obtener_herramientas_json()
+            # Preservar el estado explícito para restaurar el selector en
+            # vez de aplicar su valor inicial "No" y perder las filas.
+            detalle["canalizacion_cableado_materiales"] = {
+                "requiere": var_requiere_canalizacion.get().strip(),
+                "partidas": detalle["canalizacion_materiales"],
+            }
 
         descripcion_fallas = ""
         equipos_danados = []
@@ -5492,9 +5522,21 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         nota_guardada = str(registro.get("lev_notas") or "").strip()
         var_desea_notas_cliente.set("Sí" if nota_guardada else "No")
         var_notas_cliente.set(nota_guardada)
-        for box, valor in ((txt_descripcion, registro.get("lev_descripcion")), (txt_observaciones, registro.get("lev_observaciones"))):
+        # Restauración desde la misma clave técnica usada al capturar el
+        # General; no copiar aquí el nombre del servicio por equivocación.
+        descripcion_detalle = (
+            detalle.get("detalle_levantamiento")
+            or (detalle.get("secciones", {}).get("descripción_o_detalle_de_levantamiento", {})
+                if isinstance(detalle.get("secciones"), dict) else {}).get("detalle_levantamiento")
+            or registro.get("lev_requerimientos")
+            or ""
+        )
+        for box, valor in ((txt_descripcion, descripcion_detalle),
+                           (txt_observaciones, registro.get("lev_observaciones"))):
             box.delete("1.0", "end")
             box.insert("1.0", str(valor or ""))
+        if tipo_levantamiento == "General" and "detalle_levantamiento" in vars_extra:
+            vars_extra["detalle_levantamiento"].set(str(descripcion_detalle))
 
         # Anotación y evidencias existentes.
         anotacion = _json_dict(registro.get("lev_anotacion_plano_json"))
@@ -5593,11 +5635,20 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             if isinstance(_candidate, dict) and _candidate.get("requiere") not in (None, ""):
                 _canal_cfg = _candidate
                 break
-        if _canal_cfg:
+        _filas_canal_guardadas = (
+            detalle.get("canalizacion_materiales")
+            if isinstance(detalle.get("canalizacion_materiales"), list) else []
+        )
+        if not _filas_canal_guardadas and _canal_cfg:
+            _anidadas = _canal_cfg.get("partidas")
+            if isinstance(_anidadas, list):
+                _filas_canal_guardadas = _anidadas
+        # Priorizar partidas reales por encima del valor inicial "No" del
+        # selector, también para borradores antiguos sin bandera explícita.
+        if _filas_canal_guardadas:
+            var_requiere_canalizacion.set("Sí")
+        elif _canal_cfg:
             var_requiere_canalizacion.set(str(_canal_cfg.get("requiere") or "No"))
-        _filas_canal_guardadas = detalle.get("canalizacion_materiales", []) if isinstance(detalle.get("canalizacion_materiales"), list) else []
-        if var_requiere_canalizacion.get() == "No":
-            _filas_canal_guardadas = []
         for fila in _filas_canal_guardadas:
             try:
                 categoria_guardada = normalizar_material(fila.get("material") or fila.get("categoria") or "Tubo")
@@ -6207,6 +6258,21 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         haber guardado únicamente el JSON en Supabase.
         """
         try:
+            # Nunca afirmar "sincronizado" si hay partidas visibles cuya
+            # captura fue desactivada mediante el selector.
+            if var_requiere_canalizacion.get() != "Sí" and any(
+                str(it.get("cantidad").get()).strip()
+                for it in canalizacion_materiales_items
+                if it.get("cantidad") is not None
+            ):
+                messagebox.showwarning(
+                    "Revisar materiales",
+                    "Hay partidas de canalización con cantidad, pero la opción "
+                    "«¿Se requiere?» está en No. Actívala antes de guardar "
+                    "para no omitir las partidas.",
+                    parent=parent.winfo_toplevel(),
+                )
+                return
             datos = registro_pdf_levantamiento() or {}
             if not isinstance(datos, dict):
                 raise ValueError("No fue posible obtener los datos del formulario.")
