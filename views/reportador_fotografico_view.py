@@ -144,6 +144,35 @@ class ReportadorFotografico:
                 label = f"{data.get('aco') or 'Sin ACO'}  ·  {draft.get('actualizado_en', '')[:16]}"
                 ctk.CTkLabel(row, text=label, text_color=TEXTO, anchor='w').pack(side='left', padx=10)
                 self._button(row, 'Recuperar', lambda d=draft: self.recuperar(d), width=110).pack(side='right', padx=8, pady=5)
+                self._button(row, 'Eliminar', lambda d=draft: self.eliminar_borrador(d),
+                             kind='red', width=100).pack(side='right', padx=(2, 0), pady=5)
+
+    def eliminar_borrador(self, draft: dict):
+        """Quita un único autoguardado; no borra el reporte formal ni sus fotos."""
+        clave = str(draft.get('clave') or '').strip()
+        if not clave:
+            self._error('El borrador no tiene identificador válido para eliminarlo.')
+            return
+        datos = draft.get('datos') or {}
+        aco = str(datos.get('aco') or 'Sin ACO')
+        if not messagebox.askyesno(
+            'Eliminar borrador',
+            f'¿Eliminar definitivamente el autoguardado de {aco}?\n\n'
+            'Esta acción no elimina un reporte ya guardado ni sus fotografías.',
+            parent=self.contenedor.winfo_toplevel(),
+        ):
+            return
+        try:
+            rf.borrar_autoguardado(clave)
+        except Exception as exc:
+            self._error(f'No se pudo eliminar el borrador: {exc}')
+            return
+        # Al refrescar se cancela cualquier autoguardado pendiente de esta vista.
+        # Si se elimina el borrador que estaba abierto, se reinicia su identidad
+        # para que no vuelva a crearse con la misma clave por accidente.
+        if self.draft_key == clave:
+            self.draft_key = str(uuid4())
+        self.panel()
 
     def recuperar(self, draft: dict):
         self.nuevo(datos=draft.get('datos') or {}, id_reporte=draft.get('reporte_id'),
@@ -323,7 +352,7 @@ class ReportadorFotografico:
         obs.bind('<KeyRelease>', self._changed, add='+')
         self.fields['observaciones'] = obs
         block = self._panel(area, 'Actividades y evidencias',
-                            'Selecciona de 1 a 5 fotos por actividad. Puedes guardar un borrador con evidencias pendientes.')
+                            'Selecciona de 1 a 5 fotos por actividad. Puedes agregar, cambiar o eliminar cada foto sin afectar las demás.')
         self.activity_host = ctk.CTkFrame(block, fg_color='transparent')
         self.activity_host.pack(fill='x', padx=12, pady=6)
         acts = values.get('actividades') or [rf.nueva_actividad()]
@@ -510,6 +539,61 @@ class ReportadorFotografico:
         self._actualizar_fotos(activity)
         self._changed()
 
+    def _cambiar_foto(self, act: dict, slot: int):
+        """Reemplaza solo la fotografía indicada, sin tocar los demás espacios."""
+        if self.estado == 'FINALIZADO':
+            return
+        path = filedialog.askopenfilename(
+            parent=self.contenedor.winfo_toplevel(),
+            title=f'Selecciona la fotografía {slot}',
+            filetypes=[('Imágenes', '*.jpg *.jpeg *.png *.webp')],
+        )
+        if not path:
+            return
+        try:
+            rf.preparar_jpeg(path)
+        except Exception as exc:
+            self._error(exc)
+            return
+        act['pendientes'][slot] = path
+        self._actualizar_fotos(act)
+        self._changed()
+
+    def _eliminar_foto(self, act: dict, slot: int):
+        """Elimina exclusivamente un espacio de evidencia del borrador.
+
+        Una foto ya subida se elimina inmediatamente de Supabase mediante la
+        operación existente 'quitar_imagen'; las demás no se modifican.
+        """
+        if self.estado == 'FINALIZADO':
+            return
+        pendiente = slot in act['pendientes']
+        guardada = slot in act['fotos'] and self.report_id is not None
+        if not pendiente and not guardada:
+            return
+        explicacion = (
+            f'¿Eliminar únicamente la Foto {slot} de esta actividad?\n\n'
+            'Las demás fotografías permanecerán intactas.'
+        )
+        if guardada:
+            explicacion += '\n\nLa fotografía guardada se eliminará del servidor.'
+        if not messagebox.askyesno(
+            'Eliminar fotografía', explicacion,
+            parent=self.contenedor.winfo_toplevel(),
+        ):
+            return
+        # No modificar la pantalla si Supabase rechaza la eliminación.
+        if guardada:
+            try:
+                rf.quitar_imagen(self.report_id, slot, act['clave'])
+            except Exception as exc:
+                self._error(f'No se pudo eliminar la Foto {slot}: {exc}')
+                return
+        act['pendientes'].pop(slot, None)
+        act['fotos'].pop(slot, None)
+        self._actualizar_fotos(act)
+        self._changed()
+
     def _actualizar_fotos(self, act):
         for widget in act['preview'].winfo_children():
             widget.destroy()
@@ -535,9 +619,19 @@ class ReportadorFotografico:
             ctk.CTkLabel(box, text='Nueva' if local else ('Guardada' if saved else 'Pendiente'),
                          text_color=VERDE if (saved or local) else MUTED,
                          font=ctk.CTkFont(size=10)).pack(padx=8, pady=(0, 5))
-            if saved and self.report_id:
+            if saved and self.report_id and not local:
                 self._button(box, 'Ver', lambda n=slot,a=act: self._preview_foto(self.report_id,n,a['clave']),
                              width=60, kind='grey').pack(pady=(0, 3))
+            if self.estado != 'FINALIZADO':
+                # Cada recuadro controla únicamente su propio número de foto.
+                # Incluso un espacio vacío admite cargar una sola imagen.
+                self._button(box, 'Cambiar' if (local or saved) else 'Agregar',
+                             lambda n=slot,a=act: self._cambiar_foto(a, n),
+                             width=72, kind='blue').pack(padx=5, pady=(1, 3))
+                if local or saved:
+                    self._button(box, 'Eliminar',
+                                 lambda n=slot,a=act: self._eliminar_foto(a, n),
+                                 width=72, kind='red').pack(padx=5, pady=(0, 5))
 
     def _snapshot(self) -> dict:
         values = {key: widget.get().strip() for key, widget in self.fields.items() if key!='observaciones'}

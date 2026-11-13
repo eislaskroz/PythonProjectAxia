@@ -6,12 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="04557334-8dd2-4c5c-9e71-68cbc1b3eae6" name="Changes" comment="Merge remote-tracking branch 'orign/main'">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/version.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/version.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/installer/AXIA.iss" beforeDir="false" afterPath="$PROJECT_DIR$/installer/AXIA.iss" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/unit/test_catalogo_axia_visible_completo_20506.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_catalogo_axia_visible_completo_20506.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/unit/test_levantamiento_form_body_inicializado_20505.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_levantamiento_form_body_inicializado_20505.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/unit/test_rrhh_integracion_20604.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_rrhh_integracion_20604.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/views/bitacora_avance_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/bitacora_avance_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/reportador_fotografico_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/reportador_fotografico_view.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -27,23 +22,23 @@
   </component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
-      <entry key="MS100" value="1.0000000001013454" />
-      <entry key="MS500" value="1.0100633981978846" />
-      <entry key="S2" value="1.4248698197076353" />
-      <entry key="S5" value="2.4165056069020165" />
-      <entry key="S10" value="3.5170349188283416" />
-      <entry key="S30" value="7.3725546529736254" />
-      <entry key="S60" value="19.016482169842554" />
-      <entry key="M2" value="40.225787546140175" />
-      <entry key="M5" value="68.45351797943941" />
-      <entry key="M10" value="93.14242002757155" />
-      <entry key="M15" value="120.42090760047344" />
-      <entry key="M30" value="202.84638311359578" />
-      <entry key="H1" value="311.4690691664306" />
-      <entry key="H2" value="408.10223194891023" />
-      <entry key="H4" value="474.54547541392793" />
-      <entry key="D1" value="542.7032566849443" />
-      <entry key="W1" value="555.7776503164785" />
+      <entry key="MS100" value="1.3165782285133893" />
+      <entry key="MS500" value="2.345750412467215" />
+      <entry key="S2" value="6.9059213942833395" />
+      <entry key="S5" value="12.277408749750773" />
+      <entry key="S10" value="16.28225797829657" />
+      <entry key="S30" value="22.81951555957716" />
+      <entry key="S60" value="34.7858076148703" />
+      <entry key="M2" value="56.24392734620875" />
+      <entry key="M5" value="85.19575915928901" />
+      <entry key="M10" value="110.3109157097988" />
+      <entry key="M15" value="137.71821040524026" />
+      <entry key="M30" value="220.27122634356465" />
+      <entry key="H1" value="329.03403572501236" />
+      <entry key="H2" value="425.8191159051192" />
+      <entry key="H4" value="492.38136241095737" />
+      <entry key="D1" value="560.6720480404139" />
+      <entry key="W1" value="573.7730862525186" />
     </decayedCancelled>
     <decayedSelected>
       <entry key="MS100" value="0.0" />
@@ -65,23 +60,23 @@
       <entry key="W1" value="0.0" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="0.9201876507162127" />
-      <entry key="MS500" value="0.9933585711861863" />
-      <entry key="S2" value="1.4186744406465468" />
-      <entry key="S5" value="2.4120817974649684" />
-      <entry key="S10" value="3.5135073612971466" />
-      <entry key="S30" value="7.369319069131599" />
-      <entry key="S60" value="19.01156503921436" />
-      <entry key="M2" value="40.22036947526441" />
-      <entry key="M5" value="68.44979359350822" />
-      <entry key="M10" value="93.13990527982622" />
-      <entry key="M15" value="120.41873179658418" />
-      <entry key="M30" value="202.84448384092" />
-      <entry key="H1" value="311.4675662475918" />
-      <entry key="H2" value="408.10123401075845" />
-      <entry key="H4" value="474.54489217601196" />
-      <entry key="D1" value="542.7031451565853" />
-      <entry key="W1" value="555.7776339928513" />
+      <entry key="MS100" value="1.2717294008218094" />
+      <entry key="MS500" value="2.3227736568756003" />
+      <entry key="S2" value="6.88176592738757" />
+      <entry key="S5" value="12.25948898800997" />
+      <entry key="S10" value="16.2698926238557" />
+      <entry key="S30" value="22.812747621474223" />
+      <entry key="S60" value="34.77917569889509" />
+      <entry key="M2" value="56.237652202864915" />
+      <entry key="M5" value="85.19165985042811" />
+      <entry key="M10" value="110.30820283747062" />
+      <entry key="M15" value="137.71590048388532" />
+      <entry key="M30" value="220.26925916136122" />
+      <entry key="H1" value="329.03249828839284" />
+      <entry key="H2" value="425.81810035914003" />
+      <entry key="H4" value="492.3807702268434" />
+      <entry key="D1" value="560.6719349941243" />
+      <entry key="W1" value="573.77306971127" />
     </decayedShown>
   </component>
   <component name="ProjectColorInfo">{
@@ -524,6 +519,55 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
+    <configuration name="limpiar_proyecto" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="PythonProject" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="SDK_NAME" value="Python 3.13 (PyCharmMiscProject)" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/scripts" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="DEBUG_JUST_MY_CODE" value="false" />
+      <option name="RUN_TOOL" value="" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/scripts/limpiar_proyecto.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="version" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="PythonProject" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/core" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="DEBUG_JUST_MY_CODE" value="false" />
+      <option name="RUN_TOOL" value="" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/core/version.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <configuration name="version" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="PythonProject" />
       <option name="ENV_FILES" value="" />
@@ -570,14 +614,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1787595329657</updated>
-    </task>
-    <task id="LOCAL-00135" summary="Merge remote-tracking branch 'orign/main'">
-      <option name="closed" value="true" />
-      <created>1793730960868</created>
-      <option name="number" value="00135" />
-      <option name="presentableId" value="LOCAL-00135" />
-      <option name="project" value="LOCAL" />
-      <updated>1793730960868</updated>
     </task>
     <task id="LOCAL-00136" summary="Merge remote-tracking branch 'orign/main'">
       <option name="closed" value="true" />
@@ -963,7 +999,15 @@
       <option name="project" value="LOCAL" />
       <updated>1794343090484</updated>
     </task>
-    <option name="localTasksCounter" value="184" />
+    <task id="LOCAL-00184" summary="Merge remote-tracking branch 'orign/main'">
+      <option name="closed" value="true" />
+      <created>1794344076810</created>
+      <option name="number" value="00184" />
+      <option name="presentableId" value="LOCAL-00184" />
+      <option name="project" value="LOCAL" />
+      <updated>1794344076811</updated>
+    </task>
+    <option name="localTasksCounter" value="185" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
