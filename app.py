@@ -1050,6 +1050,11 @@ class AxiaApp(ctk.CTk):
             rf_cerrar()
         except Exception:
             pass
+        try:
+            from services.sesion_axia_compartida import cerrar_sesion as borrar_sesion_cerrar
+            borrar_sesion_cerrar()
+        except Exception:
+            pass
         from app_context import establecer_usuario_actual
         from services.movimientos_service import registrar_movimiento_seguro
 
@@ -1078,6 +1083,11 @@ class AxiaApp(ctk.CTk):
         try:
             from services.reportador_fotografico_service import cerrar_sesion as rf_cerrar
             rf_cerrar()
+        except Exception:
+            pass
+        try:
+            from services.sesion_axia_compartida import cerrar_sesion as borrar_sesion_cerrar
+            borrar_sesion_cerrar()
         except Exception:
             pass
         self.logout_requested = False

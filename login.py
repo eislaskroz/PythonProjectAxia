@@ -517,8 +517,22 @@ def abrir_login():
                         "Reportador fotográfico no habilitado en Supabase; no hay sesión nativa.",
                         exc_info=True,
                     )
+                # Token AXIA común a DESKTOP/FIELD: se solicita con las mismas
+                # credenciales de este login; nunca se conserva en disco.
+                token_borradores, expira_borradores = None, 0
+                try:
+                    from services.sesion_axia_compartida import solicitar_sesion
+                    token_borradores, expira_borradores = solicitar_sesion(
+                        nickname, password, usuario.get("id_usuario")
+                    )
+                except Exception:
+                    from core.logger import configurar_logger
+                    configurar_logger(__name__).warning(
+                        "Sesión para borradores compartidos no disponible; el guardado local seguirá funcionando."
+                    )
                 return {"acceso": True, "usuario": usuario, "ubicacion": ubicacion,
-                        "token_catalogo": token_catalogo, "token_reportador": token_reportador}
+                        "token_catalogo": token_catalogo, "token_reportador": token_reportador,
+                        "token_borradores": token_borradores, "expira_borradores": expira_borradores}
 
             servicios["registrar_bitacora_login"](
                 id_usuario=None,
@@ -563,6 +577,11 @@ def abrir_login():
             establecer_sesion_catalogo(resultado.get("token_catalogo"), usuario.get("id_usuario"))
             from services.reportador_fotografico_service import establecer_sesion as rf_sesion
             rf_sesion(resultado.get('token_reportador'), usuario.get('id_usuario'))
+            from services.sesion_axia_compartida import establecer_sesion as establecer_sesion_borradores
+            establecer_sesion_borradores(
+                resultado.get("token_borradores"), usuario.get("id_usuario"),
+                resultado.get("expira_borradores", 0),
+            )
             establecer_usuario_actual(
                 id_usuario=usuario.get("id_usuario"),
                 usuario=usuario.get("usu_nickname"),

@@ -10,6 +10,7 @@ import os
 
 from security.data_encryption import cifrar_valor, descifrar_valor
 from datetime import datetime
+from uuid import uuid4
 from pathlib import Path
 
 
@@ -33,9 +34,17 @@ def ruta_borrador(usuario: dict | None) -> Path:
 
 def guardar_borrador(usuario: dict | None, tipo_levantamiento: str, datos: dict) -> Path:
     ruta = ruta_borrador(usuario)
+    previo = cargar_borrador(usuario) or {}
+    cloud = previo.get("sincronizacion") if isinstance(previo.get("sincronizacion"), dict) else {}
+    cloud = {
+        "clave_cliente": cloud.get("clave_cliente") or str(uuid4()),
+        "revision": int(cloud.get("revision") or 0),
+        "estado": "pendiente",
+    }
     payload = {
         "version": 1,
-        "guardado_en": datetime.now().isoformat(timespec="seconds"),
+        "sincronizacion": cloud,
+        "guardado_en": datetime.now().isoformat(timespec="microseconds"),
         "tipo_levantamiento": str(tipo_levantamiento or ""),
         "datos": datos or {},
     }
@@ -66,3 +75,25 @@ def eliminar_borrador(usuario: dict | None) -> bool:
         return True
     except Exception:
         return False
+
+
+def confirmar_sincronizacion(usuario: dict | None, clave_cliente: str, revision: int, guardado_en: str) -> bool:
+    """Confirma la revision remota solo si la captura local no cambió durante la petición."""
+    actual = cargar_borrador(usuario)
+    if not actual:
+        return False
+    cloud = actual.get("sincronizacion") or {}
+    if cloud.get("clave_cliente") != clave_cliente:
+        return False
+    # Se conserva la revisión devuelta por el servidor aun si el autoguardado
+    # local avanzó durante la petición. En ese caso queda pendiente de
+    # sincronizar la captura más reciente, evitando una colisión falsa en el
+    # próximo intento por reutilizar la revisión anterior.
+    misma_captura = actual.get("guardado_en") == guardado_en
+    cloud.update({"revision": int(revision), "estado": "sincronizado" if misma_captura else "pendiente"})
+    actual["sincronizacion"] = cloud
+    ruta = ruta_borrador(usuario)
+    temporal = ruta.with_suffix(".tmp")
+    temporal.write_text(cifrar_valor(json.dumps(actual, ensure_ascii=False)), encoding="utf-8")
+    temporal.replace(ruta)
+    return misma_captura

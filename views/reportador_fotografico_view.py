@@ -52,24 +52,9 @@ class ReportadorFotografico:
         self.restoring = False
         self.contenedor = ctk.CTkFrame(parent, fg_color=FONDO, corner_radius=0)
         self.contenedor.pack(fill='both', expand=True)
-        self._header()
         self.content = ctk.CTkFrame(self.contenedor, fg_color='transparent')
         self.content.pack(fill='both', expand=True, padx=12, pady=(5, 8))
         self.panel()
-
-    def _header(self):
-        bar = ctk.CTkFrame(self.contenedor, fg_color=BLANCO, border_width=1,
-                           border_color=BORDE, corner_radius=10, height=61)
-        bar.pack(fill='x', padx=12, pady=(9, 2))
-        row = ctk.CTkFrame(bar, fg_color='transparent')
-        row.pack(fill='x', padx=15, pady=9)
-        ctk.CTkLabel(row, text='AXIA  |  Reportador fotográfico', text_color=AZUL,
-                     font=ctk.CTkFont(size=18, weight='bold')).pack(side='left')
-        for text, cb in [('Panel', self.panel), ('Nuevo reporte', self.nuevo),
-                         ('Historial', self.historial)]:
-            ctk.CTkButton(row, text=text, width=115, height=36, command=cb,
-                          fg_color=AZUL_CLARO if text == 'Nuevo reporte' else AZUL,
-                          hover_color='#15466B').pack(side='right', padx=3)
 
     def _clear(self):
         if self.autosave_job:

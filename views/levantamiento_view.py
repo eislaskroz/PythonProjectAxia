@@ -6189,6 +6189,107 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         command=(parent.winfo_toplevel().destroy if modal else app.volver_atras)
     ).grid(row=0, column=0, padx=4)
 
+    def guardar_borrador_compartido():
+        """Primero respaldo local cifrado; luego nube, sin bloquear la interfaz.
+
+        La conversión FIELD y la transferencia de anexos siguen pendientes.
+        Nunca se anuncia una captura como recuperable en FIELD por el hecho de
+        haber guardado únicamente el JSON en Supabase.
+        """
+        try:
+            datos = registro_pdf_levantamiento() or {}
+            if not isinstance(datos, dict):
+                raise ValueError("No fue posible obtener los datos del formulario.")
+            from services.levantamiento_borradores_service import guardar_borrador, cargar_borrador
+            guardar_borrador(usuario_activo, tipo_levantamiento or var_tipo.get(), datos)
+            guardado = cargar_borrador(usuario_activo)
+            if not guardado:
+                raise RuntimeError("No se pudo verificar la copia local")
+        except Exception as exc:
+            messagebox.showerror("Guardar borrador",
+                                 f"No se pudo guardar el borrador local: {exc}",
+                                 parent=parent.winfo_toplevel())
+            return
+
+        # Por seguridad: las rutas locales y bases64 de los adjuntos no son
+        # transferibles. No se envía un sobre engañosamente 'completo'.
+        def _contiene_medios_locales(objeto):
+            if isinstance(objeto, dict):
+                for k, v in objeto.items():
+                    clave = str(k).lower()
+                    if v and (clave in {"__evidencias_locales", "__archivos_adjuntos_locales",
+                                      "__anotacion_plano_base64"} or "base64" in clave):
+                        return True
+                    if _contiene_medios_locales(v):
+                        return True
+            elif isinstance(objeto, list):
+                return any(_contiene_medios_locales(v) for v in objeto)
+            return False
+
+        if _contiene_medios_locales(datos):
+            messagebox.showinfo(
+                "Borrador guardado localmente",
+                "Se guardó tu captura en esta computadora. Contiene fotografías, "
+                "planos o anexos que todavía requieren transferencia segura; "
+                "por ahora NO está disponible en FIELD.",
+                parent=parent.winfo_toplevel(),
+            )
+            return
+
+        from services.sesion_axia_compartida import obtener_sesion
+        jwt = obtener_sesion(usuario_activo.get("id_usuario"))
+        if not jwt:
+            messagebox.showinfo(
+                "Borrador guardado localmente",
+                "Tu captura quedó protegida en esta computadora. No hay una "
+                "sesión AXIA compartida activa para sincronizar; vuelve a ingresar "
+                "en DESKTOP con Internet para intentarlo de nuevo.",
+                parent=parent.winfo_toplevel(),
+            )
+            return
+
+        from services.borradores_compartidos_service import SesionBorradores, sobre_desktop
+        from supabase_config import SUPABASE_URL, SUPABASE_KEY
+        cloud = guardado.get("sincronizacion") or {}
+        clave = cloud.get("clave_cliente")
+        revision = int(cloud.get("revision") or 0)
+        guardado_en = guardado.get("guardado_en")
+        sobre = sobre_desktop(tipo_levantamiento or var_tipo.get(), datos)
+        cliente = SesionBorradores(SUPABASE_URL, SUPABASE_KEY, jwt)
+
+        def enviar():
+            return cliente.guardar(clave, revision, "DESKTOP", sobre)
+
+        def completado(revision_nueva):
+            from services.levantamiento_borradores_service import confirmar_sincronizacion
+            confirmado = confirmar_sincronizacion(
+                usuario_activo, clave, revision_nueva, guardado_en,
+            )
+            mensaje = ("Respaldo local y JSON sincronizados con Supabase. "
+                       "La recuperación completa en FIELD aún requiere el "
+                       "adaptador de formularios y anexos.") if confirmado else (
+                       "La nube recibió el borrador, pero la captura local cambió mientras "
+                       "se sincronizaba. Guarda nuevamente para actualizarla.")
+            messagebox.showinfo("Borrador", mensaje, parent=parent.winfo_toplevel())
+
+        def error_sincronizacion(exc):
+            messagebox.showwarning(
+                "Borrador local · pendiente de sincronizar",
+                "La captura está protegida en esta computadora, pero Supabase no "
+                f"confirmó su sincronización.\n\nDetalle: {str(exc)[:200]}",
+                parent=parent.winfo_toplevel(),
+            )
+
+        run_async(parent.winfo_toplevel(), enviar, on_success=completado,
+                  on_error=error_sincronizacion)
+
+    btn_guardar_borrador = ctk.CTkButton(
+        barra_botones, text="Guardar borrador", width=175, height=38,
+        corner_radius=10, fg_color="#0F766E", hover_color="#115E59",
+        font=BUTTON_FONT, command=guardar_borrador_compartido,
+    )
+    btn_guardar_borrador.grid(row=0, column=1, padx=4)
+
     btn_guardar_levantamiento = ctk.CTkButton(
         barra_botones,
         text="Guardar Nueva Versión" if registro_editar else "Guardar Levantamiento",
@@ -6203,7 +6304,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         state="disabled",
         command=guardar_levantamiento
     )
-    btn_guardar_levantamiento.grid(row=0, column=1, padx=4)
+    btn_guardar_levantamiento.grid(row=0, column=2, padx=4)
 
     btn_preview_levantamiento = ctk.CTkButton(
         barra_botones,
@@ -6219,7 +6320,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         state="disabled",
         command=preview_pdf_levantamiento
     )
-    btn_preview_levantamiento.grid(row=0, column=2, padx=4)
+    btn_preview_levantamiento.grid(row=0, column=3, padx=4)
 
     def mostrar_campos_pendientes():
         faltantes = campos_faltantes_preview()
@@ -6351,7 +6452,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         fg_color="gray",
         font=BUTTON_FONT,
         command=(parent.winfo_toplevel().destroy if modal else app.mostrar_vista_inicio_aco)
-    ).grid(row=0, column=3, padx=4)
+    ).grid(row=0, column=4, padx=4)
 
     enfocar_inicio_formulario(card)
 
