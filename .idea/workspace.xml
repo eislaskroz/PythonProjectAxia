@@ -6,11 +6,6 @@
   <component name="ChangeListManager">
     <list default="true" id="04557334-8dd2-4c5c-9e71-68cbc1b3eae6" name="Changes" comment="Merge remote-tracking branch 'orign/main'">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app.py" beforeDir="false" afterPath="$PROJECT_DIR$/app.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/login.py" beforeDir="false" afterPath="$PROJECT_DIR$/login.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/levantamiento_borradores_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/levantamiento_borradores_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/views/levantamiento_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/levantamiento_view.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/views/reportador_fotografico_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/reportador_fotografico_view.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -619,22 +614,6 @@
       <option name="presentableId" value="Default" />
       <updated>1787595329657</updated>
     </task>
-    <task id="LOCAL-00140" summary="Merge remote-tracking branch 'orign/main'">
-      <option name="closed" value="true" />
-      <created>1793740389746</created>
-      <option name="number" value="00140" />
-      <option name="presentableId" value="LOCAL-00140" />
-      <option name="project" value="LOCAL" />
-      <updated>1793740389747</updated>
-    </task>
-    <task id="LOCAL-00141" summary="Merge remote-tracking branch 'orign/main'">
-      <option name="closed" value="true" />
-      <created>1793744830435</created>
-      <option name="number" value="00141" />
-      <option name="presentableId" value="LOCAL-00141" />
-      <option name="project" value="LOCAL" />
-      <updated>1793744830436</updated>
-    </task>
     <task id="LOCAL-00142" summary="Merge remote-tracking branch 'orign/main'">
       <option name="closed" value="true" />
       <created>1793822913904</created>
@@ -1011,7 +990,23 @@
       <option name="project" value="LOCAL" />
       <updated>1794592803970</updated>
     </task>
-    <option name="localTasksCounter" value="189" />
+    <task id="LOCAL-00189" summary="Merge remote-tracking branch 'orign/main'">
+      <option name="closed" value="true" />
+      <created>1794595316781</created>
+      <option name="number" value="00189" />
+      <option name="presentableId" value="LOCAL-00189" />
+      <option name="project" value="LOCAL" />
+      <updated>1794595316782</updated>
+    </task>
+    <task id="LOCAL-00190" summary="Merge remote-tracking branch 'orign/main'">
+      <option name="closed" value="true" />
+      <created>1794595345602</created>
+      <option name="number" value="00190" />
+      <option name="presentableId" value="LOCAL-00190" />
+      <option name="project" value="LOCAL" />
+      <updated>1794595345602</updated>
+    </task>
+    <option name="localTasksCounter" value="191" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

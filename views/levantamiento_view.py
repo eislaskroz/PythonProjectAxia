@@ -5149,6 +5149,11 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         modalidad = modalidad_seleccionada()
         detalle = obtener_detalle_tecnico_json() if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else {}
         detalle = dict(detalle or {})
+        # El Levantamiento General también tiene una descripción técnica,
+        # aunque no utilice los formularios especializados. Debe viajar en
+        # el borrador compartido, no solamente en los datos del PDF.
+        if tipo_levantamiento == "General":
+            detalle["detalle_levantamiento"] = txt_descripcion.get("1.0", "end").strip()
         # Autoría del usuario autenticado; siempre toma usu_nombre y usu_apellido.
         detalle["elaborado_por"] = autoria_desde_usuario(usuario_activo)
         detalle["datos_generales_axia"] = {}
@@ -5304,6 +5309,11 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         modalidad = modalidad_seleccionada()
         detalle = obtener_detalle_tecnico_json() if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS else {}
         detalle = dict(detalle or {})
+        # El Levantamiento General también tiene una descripción técnica,
+        # aunque no utilice los formularios especializados. Debe viajar en
+        # el borrador compartido, no solamente en los datos del PDF.
+        if tipo_levantamiento == "General":
+            detalle["detalle_levantamiento"] = txt_descripcion.get("1.0", "end").strip()
         # Autoría del usuario autenticado; siempre toma usu_nombre y usu_apellido.
         detalle["elaborado_por"] = autoria_desde_usuario(usuario_activo)
         detalle["datos_generales_axia"] = {}
