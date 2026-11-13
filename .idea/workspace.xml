@@ -5,8 +5,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="04557334-8dd2-4c5c-9e71-68cbc1b3eae6" name="Changes" comment="Merge remote-tracking branch 'orign/main'">
+      <change afterPath="$PROJECT_DIR$/migrations/20261113_borradores_compartidos.sql" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/services/borradores_compartidos_service.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/supabase/functions/axia-borradores-compartidos/index.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/test_borradores_compartidos_etapa1.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/views/reportador_fotografico_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/reportador_fotografico_view.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -615,14 +618,6 @@
       <option name="presentableId" value="Default" />
       <updated>1787595329657</updated>
     </task>
-    <task id="LOCAL-00136" summary="Merge remote-tracking branch 'orign/main'">
-      <option name="closed" value="true" />
-      <created>1793731233715</created>
-      <option name="number" value="00136" />
-      <option name="presentableId" value="LOCAL-00136" />
-      <option name="project" value="LOCAL" />
-      <updated>1793731233715</updated>
-    </task>
     <task id="LOCAL-00137" summary="Merge remote-tracking branch 'orign/main'">
       <option name="closed" value="true" />
       <created>1793732096553</created>
@@ -1007,7 +1002,15 @@
       <option name="project" value="LOCAL" />
       <updated>1794344076811</updated>
     </task>
-    <option name="localTasksCounter" value="185" />
+    <task id="LOCAL-00185" summary="Merge remote-tracking branch 'orign/main'">
+      <option name="closed" value="true" />
+      <created>1794590012412</created>
+      <option name="number" value="00185" />
+      <option name="presentableId" value="LOCAL-00185" />
+      <option name="project" value="LOCAL" />
+      <updated>1794590012413</updated>
+    </task>
+    <option name="localTasksCounter" value="186" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
