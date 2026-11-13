@@ -6287,8 +6287,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                                  parent=parent.winfo_toplevel())
             return
 
-        # Por seguridad: las rutas locales y bases64 de los adjuntos no son
-        # transferibles. No se envía un sobre engañosamente 'completo'.
+        # Los archivos viajan únicamente a través de axia-borradores-medios,
+        # nunca mediante rutas de Windows o base64 en el JSON remoto.
         def _contiene_medios_locales(objeto):
             if isinstance(objeto, dict):
                 for k, v in objeto.items():
@@ -6302,12 +6302,22 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 return any(_contiene_medios_locales(v) for v in objeto)
             return False
 
-        if _contiene_medios_locales(datos):
-            messagebox.showinfo(
-                "Borrador guardado localmente",
-                "Se guardó tu captura en esta computadora. Contiene fotografías, "
-                "planos o anexos que todavía requieren transferencia segura; "
-                "por ahora NO está disponible en FIELD.",
+        # Los archivos históricos que ya existen en otra ubicación de Storage
+        # no deben ocultarse al crear una copia nueva en el bucket privado.
+        # Se conserva el respaldo local y se solicita completar su migración.
+        def _lista_remota_sin_transferir(value):
+            try:
+                lista = json.loads(value) if isinstance(value, str) else value
+                return isinstance(lista, list) and bool(lista)
+            except (TypeError, ValueError):
+                return bool(value)
+        if (_lista_remota_sin_transferir(datos.get("lev_evidencias_json")) or
+                _lista_remota_sin_transferir(datos.get("lev_archivos_adjuntos_json"))):
+            messagebox.showwarning(
+                "Borrador protegido localmente",
+                "Esta captura incluye evidencias que ya estaban guardadas en otro "
+                "almacén de AXIA. Se conservó el borrador local, pero no se "
+                "marcará como completo en FIELD hasta transferir esos archivos.",
                 parent=parent.winfo_toplevel(),
             )
             return
@@ -6334,6 +6344,38 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         cliente = SesionBorradores(SUPABASE_URL, SUPABASE_KEY, jwt)
 
         def enviar():
+            # Primera revisión: registrar el borrador y reservar su identidad
+            # antes de subir archivos; FIELD no lo interpretará como completo.
+            from services.levantamiento_evidencias_borrador import (
+                sanear_json_remoto, preparar_medios_borrador,
+            )
+            annotation = datos.get("lev_anotacion_plano_json") or ""
+            tiene_plano = bool(annotation and '"imagen_base64"' in str(annotation)
+                               and _contiene_medios_locales({"imagen_base64": annotation}))
+            tiene_archivos = _contiene_medios_locales(datos) or tiene_plano
+            if tiene_archivos:
+                sobre["media_transfer_complete"] = False
+                sobre["media"] = []
+                sobre["native"]["desktop"] = sanear_json_remoto(datos)
+                nueva_revision = cliente.guardar(clave, revision, "DESKTOP", sobre)
+                # Si falla cualquier foto, guardar la nueva revisión como
+                # pendiente para poder reintentar sin conflicto 409.
+                from services.levantamiento_borradores_service import registrar_revision_parcial
+                registrar_revision_parcial(usuario_activo, clave, nueva_revision)
+                from services.levantamiento_medios_compartidos import MediosCompartidos
+                cliente_medios = MediosCompartidos(
+                    SUPABASE_URL,
+                    lambda: obtener_sesion(usuario_activo.get("id_usuario")),
+                    int(usuario_activo.get("id_usuario")),
+                )
+                transfer = preparar_medios_borrador(datos, clave, cliente_medios)
+                sobre["native"]["desktop"] = transfer["desktop"]
+                sobre["media"] = transfer["media"]
+                sobre["media_transfer_complete"] = True
+                return cliente.guardar(clave, nueva_revision, "DESKTOP", sobre)
+            # Sin adjuntos, la captura ya es transferible por JSON.
+            sobre["media"] = []
+            sobre["media_transfer_complete"] = True
             return cliente.guardar(clave, revision, "DESKTOP", sobre)
 
         def completado(revision_nueva):
@@ -6341,18 +6383,21 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             confirmado = confirmar_sincronizacion(
                 usuario_activo, clave, revision_nueva, guardado_en,
             )
-            mensaje = ("Respaldo local y JSON sincronizados con Supabase. "
-                       "La recuperación completa en FIELD aún requiere el "
-                       "adaptador de formularios y anexos.") if confirmado else (
-                       "La nube recibió el borrador, pero la captura local cambió mientras "
-                       "se sincronizaba. Guarda nuevamente para actualizarla.")
+            mensaje = (
+                "Borrador guardado en esta PC y sincronizado con Supabase. "
+                "Ya puedes abrirlo y continuar la captura en AXIA FIELD."
+            ) if confirmado else (
+                "Supabase recibió el borrador, pero el formulario cambió durante "
+                "la sincronización. Guarda nuevamente para enviar los cambios recientes."
+            )
             messagebox.showinfo("Borrador", mensaje, parent=parent.winfo_toplevel())
 
         def error_sincronizacion(exc):
             messagebox.showwarning(
                 "Borrador local · pendiente de sincronizar",
-                "La captura está protegida en esta computadora, pero Supabase no "
-                f"confirmó su sincronización.\n\nDetalle: {str(exc)[:200]}",
+                "La captura local está protegida. La sincronización de datos o "
+                "anexos no terminó; FIELD podría mostrar una versión incompleta. "
+                f"No elimines este borrador.\n\nDetalle: {str(exc)[:200]}",
                 parent=parent.winfo_toplevel(),
             )
 

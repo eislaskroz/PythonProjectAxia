@@ -97,3 +97,24 @@ def confirmar_sincronizacion(usuario: dict | None, clave_cliente: str, revision:
     temporal.write_text(cifrar_valor(json.dumps(actual, ensure_ascii=False)), encoding="utf-8")
     temporal.replace(ruta)
     return misma_captura
+
+
+def registrar_revision_parcial(usuario: dict | None, clave_cliente: str, revision: int) -> bool:
+    """Conserva el número de revisión tras guardar metadatos, aunque falle un anexo.
+
+    Evita que el siguiente intento choque contra la revisión creada en Supabase.
+    El estado continúa pendiente: los anexos aún no están confirmados.
+    """
+    actual = cargar_borrador(usuario)
+    if not actual:
+        return False
+    cloud = actual.get("sincronizacion") or {}
+    if cloud.get("clave_cliente") != clave_cliente:
+        return False
+    cloud.update({"revision": int(revision), "estado": "pendiente"})
+    actual["sincronizacion"] = cloud
+    ruta = ruta_borrador(usuario)
+    temporal = ruta.with_suffix(".tmp")
+    temporal.write_text(cifrar_valor(json.dumps(actual, ensure_ascii=False)), encoding="utf-8")
+    temporal.replace(ruta)
+    return True
