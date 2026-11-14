@@ -6411,6 +6411,110 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     )
     btn_guardar_borrador.grid(row=0, column=1, padx=4)
 
+    def eliminar_borrador_compartido():
+        """Elimina la copia local y la remota vinculadas al usuario actual.
+
+        Si falla el servidor, la copia local no se toca. No elimina un LEV
+        guardado definitivamente ni otros borradores del mismo usuario.
+        """
+        from services.levantamiento_borradores_service import cargar_borrador, eliminar_borrador
+        guardado = cargar_borrador(usuario_activo)
+        if not guardado:
+            messagebox.showinfo("Borrador", "No hay un borrador local para este usuario.",
+                                parent=parent.winfo_toplevel())
+            return
+        sincronizacion = guardado.get("sincronizacion") or {}
+        clave = str(sincronizacion.get("clave_cliente") or "").strip()
+        revision = int(sincronizacion.get("revision") or 0)
+        respuesta = messagebox.askyesno(
+            "Eliminar borrador",
+            "¿Eliminar el borrador de este usuario?\n\n"
+            "Se quitará la copia local de esta PC y, si está sincronizada, "
+            "también la de Supabase y sus archivos temporales. "
+            "Las capturas ya importadas en FIELD no se borrarán.\n\n"
+            "Esta acción no se puede deshacer.",
+            parent=parent.winfo_toplevel(),
+        )
+        if not respuesta:
+            return
+        def final_local(mensaje):
+            # Evita eliminar un borrador reemplazado durante la petición.
+            vigente = cargar_borrador(usuario_activo)
+            if not vigente or (vigente.get("sincronizacion") or {}).get("clave_cliente") != clave:
+                messagebox.showwarning("Borrador", "El borrador local cambió durante la eliminación. "
+                                       "No se borró la nueva copia.", parent=parent.winfo_toplevel())
+                return
+            if not eliminar_borrador(usuario_activo):
+                messagebox.showwarning("Borrador", "La eliminación remota terminó, pero no se pudo "
+                                       "borrar la copia local. Revisa los permisos de AppData.",
+                                       parent=parent.winfo_toplevel())
+                return
+            messagebox.showinfo("Borrador eliminado", mensaje, parent=parent.winfo_toplevel())
+        if revision <= 0:
+            final_local("Se eliminó el borrador local. Aún no estaba sincronizado con Supabase.")
+            return
+        from services.sesion_axia_compartida import obtener_sesion
+        jwt = obtener_sesion(usuario_activo.get("id_usuario"))
+        if not jwt:
+            messagebox.showwarning("Borrador protegido", "No hay una sesión AXIA válida para "
+                                   "eliminar la copia de Supabase. Se conservó el borrador local.",
+                                   parent=parent.winfo_toplevel())
+            return
+        from services.borradores_compartidos_service import SesionBorradores
+        from supabase_config import SUPABASE_URL, SUPABASE_KEY
+        cliente = SesionBorradores(SUPABASE_URL, SUPABASE_KEY, jwt)
+        def borrar_remoto():
+            return cliente.solicitar("eliminar", "LEVANTAMIENTO", clave_cliente=clave,
+                                    revision=revision)
+        def borrado_remoto(respuesta_servidor):
+            pendiente = respuesta_servidor.get("limpieza_completa") is False
+            final_local("Borrador eliminado de esta PC y de la lista de Supabase." +
+                        (" La limpieza de evidencias está pendiente y se reintentará "
+                         "desde el servidor." if pendiente else ""))
+        def error_borrado(exc):
+            messagebox.showerror("No se eliminó el borrador",
+                                 "Se conservó la copia local. Actualiza la sesión o "
+                                 f"comprueba el borrador remoto.\n\n{str(exc)[:250]}",
+                                 parent=parent.winfo_toplevel())
+        run_async(parent.winfo_toplevel(), borrar_remoto,
+                  on_success=borrado_remoto, on_error=error_borrado)
+
+    ctk.CTkButton(
+        barra_botones, text="Eliminar borrador", width=135, height=38,
+        corner_radius=10, fg_color="#B91C1C", hover_color="#991B1B",
+        font=BUTTON_FONT, command=eliminar_borrador_compartido,
+    ).grid(row=0, column=2, padx=4)
+
+    def recuperar_borrador_local():
+        """Restaura el borrador cifrado ya existente, sin sobrescribir Supabase."""
+        from services.levantamiento_borradores_service import cargar_borrador
+        guardado = cargar_borrador(usuario_activo)
+        if not guardado or not isinstance(guardado.get("datos"), dict):
+            messagebox.showinfo("Recuperar borrador", "No hay un borrador local recuperable.",
+                                parent=parent.winfo_toplevel())
+            return
+        tipo = str(guardado.get("tipo_levantamiento") or tipo_levantamiento or var_tipo.get())
+        if not messagebox.askyesno(
+            "Recuperar borrador",
+            "Se reemplazará la información que tienes actualmente en pantalla "
+            "por la última captura local guardada. ¿Deseas continuar?",
+            parent=parent.winfo_toplevel(),
+        ):
+            return
+        # El constructor existente de la vista es la única ruta de restauración
+        # validada para materiales, equipos y datos generales.
+        if modal:
+            messagebox.showinfo("Recuperar borrador", "Cierra esta ventana modal y recupera "
+                                "el borrador desde la pantalla principal.", parent=parent.winfo_toplevel())
+            return
+        app.navigation.mostrar_levantamiento(tipo_levantamiento=tipo, borrador=guardado["datos"])
+
+    ctk.CTkButton(
+        barra_botones, text="Recuperar borrador", width=145, height=38,
+        corner_radius=10, fg_color="#1F4E79", hover_color="#183B5C",
+        font=BUTTON_FONT, command=recuperar_borrador_local,
+    ).grid(row=0, column=3, padx=4)
+
     btn_guardar_levantamiento = ctk.CTkButton(
         barra_botones,
         text="Guardar Nueva Versión" if registro_editar else "Guardar Levantamiento",
@@ -6425,7 +6529,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         state="disabled",
         command=guardar_levantamiento
     )
-    btn_guardar_levantamiento.grid(row=0, column=2, padx=4)
+    btn_guardar_levantamiento.grid(row=0, column=4, padx=4)
 
     btn_preview_levantamiento = ctk.CTkButton(
         barra_botones,
@@ -6441,7 +6545,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         state="disabled",
         command=preview_pdf_levantamiento
     )
-    btn_preview_levantamiento.grid(row=0, column=3, padx=4)
+    btn_preview_levantamiento.grid(row=0, column=5, padx=4)
 
     def mostrar_campos_pendientes():
         faltantes = campos_faltantes_preview()
@@ -6573,7 +6677,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         fg_color="gray",
         font=BUTTON_FONT,
         command=(parent.winfo_toplevel().destroy if modal else app.mostrar_vista_inicio_aco)
-    ).grid(row=0, column=4, padx=4)
+    ).grid(row=0, column=6, padx=4)
 
     enfocar_inicio_formulario(card)
 
