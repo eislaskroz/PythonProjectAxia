@@ -1,8 +1,3 @@
-"""Regenera etiquetas y tickets exclusivamente con movimientos históricos confirmados.
-
-Esta capa no registra movimientos ni realiza escrituras en Supabase.
-Los datos deben proceder de la consulta autenticada `comprobante_kardex`.
-"""
 from __future__ import annotations
 
 from pathlib import Path
@@ -12,12 +7,6 @@ from services.almacen_comprobantes import generar_etiqueta_entrada, generar_tick
 
 
 def generar_comprobante_historico(detalle: Mapping, *, ruta: str | Path | None = None) -> Path:
-    """Reutiliza exactamente los generadores de comprobantes de Entrada/Salida.
-
-    `detalle` representa el resultado del servidor para un movimiento real: para
-    una entrega por OT incluye solamente las partidas de ESA entrega, no todas
-    las que compartan el mismo folio de OT.
-    """
     if not isinstance(detalle, Mapping):
         raise ValueError('No se recibió el movimiento histórico del Kárdex.')
     tipo = str(detalle.get('tipo') or '').strip().upper()

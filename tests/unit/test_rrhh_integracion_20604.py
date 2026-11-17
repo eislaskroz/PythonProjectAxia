@@ -1,4 +1,3 @@
-"""Comprobaciones de la integración de RH, sin conexión a Supabase."""
 from __future__ import annotations
 
 import importlib.util
@@ -21,7 +20,6 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def _load_service(monkeypatch, actor_tipo=10, response=None):
-    """Aísla un cliente RH sin cargar secretos ni llamar a la red."""
     supa = types.ModuleType("supabase_config")
     supa.SUPABASE_URL = "https://example.supabase.co"
     supa.SUPABASE_KEY = "anon-ficticia-de-prueba"
@@ -39,7 +37,7 @@ def _load_service(monkeypatch, actor_tipo=10, response=None):
     module.obtener_usuario_actual = lambda: {
         "usu_tipo": actor_tipo, "usuario": "PERSONA_PRUEBA", "id_usuario": 99
     }
-    # La prueba inspecciona el contrato de campos sin procesar información real.
+
     module.cifrar_diccionario = lambda values, fields: dict(values)
     module.descifrar_diccionario = lambda values, fields: dict(values)
     sent = []

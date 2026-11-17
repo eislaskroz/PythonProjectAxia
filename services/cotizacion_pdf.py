@@ -1,9 +1,3 @@
-"""PDF comercial de cotización con identidad visual del AXIA PDF Engine.
-
-La cotización mantiene la misma jerarquía, paleta, retícula, fondo corporativo
-y comportamiento multipágina de Levantamientos, OT, OS y Bitácoras, usando
-Letter horizontal únicamente por la cantidad de columnas comerciales.
-"""
 from __future__ import annotations
 
 import json
@@ -24,10 +18,6 @@ from core.logger import configurar_logger
 from core.pdf.base_pdf import BasePdfGenerator
 
 logger = configurar_logger(__name__)
-
-# Etiquetas históricas del formato comercial conservadas por compatibilidad:
-# No. Cotización | No. Levantamiento | Plan de Pagos | Vigencia de Cotización
-# P. Unitario | Importe | Observaciones (datos externos)
 
 BLUE = colors.HexColor("#1F4E79")
 LIGHT_BLUE = colors.HexColor("#EAF1F7")
@@ -61,12 +51,6 @@ def _open(path: Path) -> None:
 
 
 def _titulo_del_levantamiento(cotizacion: dict) -> str:
-    """Prioriza el Nombre del Servicio ligado al levantamiento, sin escribir en BD.
-
-    Permite que los PDF ya guardados muestren el título correcto desde
-    Ventas, Dirección General y Compras. Si no se puede consultar el
-    levantamiento, conserva el asunto histórico almacenado.
-    """
     if cotizacion.get("lev_descripcion"):
         return str(cotizacion["lev_descripcion"]).strip()
     id_lev = cotizacion.get("id_levantamiento")
@@ -92,9 +76,7 @@ def _titulo_del_levantamiento(cotizacion: dict) -> str:
 
 
 def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = None, abrir: bool = True, campos_visibles=None) -> Path:
-    """Genera una cotización corporativa AXIA en Letter horizontal."""
     cotizacion = dict(cotizacion or {})
-    # Solo modifica el contenido del PDF, nunca reescribe la cotización en BD.
     titulo_servicio = _titulo_del_levantamiento(cotizacion)
     if titulo_servicio:
         cotizacion["cot_asunto"] = titulo_servicio
@@ -149,10 +131,6 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
     usable_width = page_w - 56  # 28 pt por lado
     story = []
 
-    # Datos seleccionados: fluido, sin columnas vacías ni bloques paralelos de
-    # alturas independientes. Dos pares Etiqueta/Valor por fila, reducidos a
-    # un par de ancho completo cuando solamente queda un campo.
-    # La reserva de 82 puntos protege la esquina del logo corporativo.
     left_defs = [
         ("empresa", "NOMBRE", "AXIA COMUNICACIONES SA DE CV"),
         ("rfc", "RFC", "ACO1402056N2"),
@@ -178,7 +156,6 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
     ]
 
     def datos_compactos(definiciones, ancho):
-        """Filas adaptativas: ningún dato oculto conserva su antiguo espacio."""
         seleccionados = [(etiqueta, valor) for clave, etiqueta, valor in definiciones if ver(clave)]
         if not seleccionados:
             return None
@@ -194,7 +171,6 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
                 fila += ["", ""]
                 spans.append(len(datos))
             datos.append(fila)
-        # Cada par tiene el mismo ancho; el contenido extenso ajusta su alto.
         ancho_etiqueta = 0.16 * ancho
         ancho_valor = ancho / 2 - ancho_etiqueta
         t = Table(datos, colWidths=[ancho_etiqueta, ancho_valor] * 2, hAlign="LEFT")
@@ -236,7 +212,6 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
             partidas = []
     partidas = partidas if isinstance(partidas, list) else []
 
-    # Sólo se muestran las columnas seleccionadas; nunca expone costos internos.
     columnas = [
         ("lote", "LOTE", "lote", 0.40),
         ("unidad", "UNIDAD / TIPO", "unidad_tipo", 0.84),

@@ -1,32 +1,4 @@
-"""
-=========================================================
-SERVICIO: aco_context_service.py
-=========================================================
-
-Normaliza la información de un ACO para que las vistas puedan
-usar siempre las mismas llaves internas, aunque en la base de datos
-los campos crezcan o cambien ligeramente de nombre.
-
-Este servicio evita repetir lógica en levantamientos, órdenes de
-servicio y bitácoras.
-"""
-
-
 def _primer_valor(datos, posibles_llaves):
-    """
-    Devuelve el primer valor encontrado dentro de un diccionario.
-
-    PARÁMETROS:
-        datos:
-            Diccionario original del ACO.
-        posibles_llaves:
-            Lista de nombres de campo que podrían contener el dato.
-
-    RETORNA:
-        str:
-            Valor encontrado o cadena vacía.
-    """
-
     if not datos:
         return ""
 
@@ -39,26 +11,6 @@ def _primer_valor(datos, posibles_llaves):
 
 
 def normalizar_datos_aco(aco):
-    """
-    Convierte el diccionario del ACO en una estructura estándar.
-
-    Esto permite que las vistas consuman siempre:
-    - id_aco
-    - aco_numero
-    - cliente
-    - contacto
-    - telefono
-    - correo
-    - direccion
-    - ubicacion
-    - responsable
-
-    Si hoy la tabla db_acos no tiene todos esos campos, simplemente
-    regresará valores vacíos. Cuando se agreguen en Supabase, el
-    formulario los tomará automáticamente si coinciden con alguna de
-    las llaves contempladas.
-    """
-
     aco = aco or {}
 
     return {

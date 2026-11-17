@@ -1,20 +1,3 @@
-"""
-=========================================================
-SERVICIO DE BITÁCORAS DE AVANCE - AXIA
-=========================================================
-
-Este archivo pertenece a la capa de servicios de AXIA.
-
-Responsabilidad principal:
-- Contener lógica de negocio.
-- Consultar y modificar datos en Supabase.
-- Devolver resultados limpios a las vistas.
-
-Regla de arquitectura:
-Las vistas en `views/` no deben hablar directamente con Supabase.
-Deben llamar funciones de esta capa `services/`.
-"""
-
 from core.logger import configurar_logger
 from core.error_reporting import register_error
 from core.date_utils import normalizar_campos_fecha
@@ -36,18 +19,10 @@ COLUMNAS_BITACORAS = "id_bitacora,id_sucursal,ot_id,bit_ot_folio,bit_aco_numero,
 # FUNCIÓN: crear_bitacora()
 # =====================================================
 def _cerrar_ot_por_avance_cien(datos_bitacora):
-    """Compatibilidad: las bitácoras NUNCA cierran una OT.
-
-    La Orden de Servicio firmada es el único documento de cierre.
-    """
     return False
 
 
 def crear_bitacora(datos_bitacora):
-    """
-    Crea una nueva bitácora operativa.
-    """
-
     try:
         datos_bitacora = asegurar_folio(datos_bitacora, "bit_folio", "BIT")
         datos_bitacora = normalizar_campos_fecha(datos_bitacora)
@@ -90,10 +65,6 @@ def crear_bitacora(datos_bitacora):
 # FUNCIÓN: obtener_bitacoras()
 # =====================================================
 def obtener_bitacoras(page=1, page_size=100):
-    """
-    Obtiene todas las bitácoras registradas.
-    """
-
     try:
         respuesta = execute_select_compatible(
             supabase,
@@ -121,10 +92,6 @@ def obtener_bitacoras(page=1, page_size=100):
 # FUNCIÓN: obtener_bitacoras_por_aco()
 # =====================================================
 def obtener_bitacoras_por_aco(aco_numero, page=1, page_size=100):
-    """
-    Obtiene bitácoras relacionadas con un ACO.
-    """
-
     try:
         respuesta = execute_select_compatible(
             supabase,
@@ -153,10 +120,6 @@ def obtener_bitacoras_por_aco(aco_numero, page=1, page_size=100):
 # FUNCIÓN: buscar_bitacora_por_folio()
 # =====================================================
 def buscar_bitacora_por_folio(folio):
-    """
-    Busca una bitácora por folio.
-    """
-
     try:
         respuesta = execute_select_compatible(
             supabase,
@@ -192,10 +155,6 @@ def buscar_bitacora_por_folio(folio):
 # FUNCIÓN: actualizar_bitacora()
 # =====================================================
 def actualizar_bitacora(id_bitacora, datos_bitacora):
-    """
-    Actualiza una bitácora existente.
-    """
-
     try:
         respuesta = (
             supabase
@@ -222,10 +181,6 @@ def actualizar_bitacora(id_bitacora, datos_bitacora):
 # FUNCIÓN: obtener_estadisticas_bitacoras()
 # =====================================================
 def obtener_estadisticas_bitacoras(page=1, page_size=100):
-    """
-    Obtiene estadísticas generales de bitácoras.
-    """
-
     try:
         bitacoras = obtener_bitacoras()
 
@@ -252,7 +207,6 @@ def obtener_estadisticas_bitacoras(page=1, page_size=100):
         logger.exception("Error al obtener estadísticas de movimientos.")
         return 0, 0, 0, 0
 
-# Búsqueda parcial unificada
 def buscar_bitacoras(termino, limite=100):
     resultados = buscar_parcial_supabase(
         supabase=supabase, tabla=TABLA_BITACORAS, columnas=COLUMNAS_BITACORAS, termino=termino,
@@ -270,7 +224,6 @@ def buscar_bitacoras(termino, limite=100):
 # RELACIÓN BITÁCORA -> ORDEN DE TRABAJO
 # =====================================================
 def asignar_bitacora_a_ot(id_bitacora, orden_trabajo):
-    """Liga una Bitácora Operativa con una Orden de Trabajo existente."""
     ot = dict(orden_trabajo or {})
     ot_id = ot.get("ot_id")
     folio = str(ot.get("ot_folio") or "").strip().upper()
@@ -285,7 +238,6 @@ def asignar_bitacora_a_ot(id_bitacora, orden_trabajo):
     )
     filas = list(getattr(respuesta, "data", None) or [])
     if not filas:
-        # Confirmación para configuraciones PostgREST con retorno minimal.
         check = execute_select_compatible(
             supabase, TABLA_BITACORAS, COLUMNAS_BITACORAS,
             lambda q: q.eq("id_bitacora", id_bitacora).limit(1),
@@ -301,7 +253,6 @@ def asignar_bitacora_a_ot(id_bitacora, orden_trabajo):
 
 
 def obtener_bitacoras_por_ot(folio_ot):
-    """Consulta las bitácoras asociadas a una OT."""
     folio = str(folio_ot or "").strip().upper()
     if not folio:
         return []
@@ -313,7 +264,6 @@ def obtener_bitacoras_por_ot(folio_ot):
 
 
 def avance_orden_trabajo(folio_ot):
-    """Devuelve la SUMA incremental de jornadas para una OT (no el máximo)."""
     bitacoras = obtener_bitacoras_por_ot(folio_ot)
     porcentajes = []
     for bit in bitacoras:
@@ -328,12 +278,6 @@ def avance_orden_trabajo(folio_ot):
 # ACOS DISPONIBLES PARA CAPTURA DE BITÁCORA
 # =====================================================
 def obtener_contextos_aco_disponibles_bitacora(limite=1000):
-    """Devuelve ACOs con una OT abierta cuyo avance máximo aún sea menor a 100%.
-
-    Cada elemento contiene ``aco_numero``, ``ot_id``, ``ot_folio`` y el avance
-    actualmente registrado. El ACO sirve como selector operativo y la OT se
-    conserva internamente para que la bitácora nazca ya ligada al trabajo.
-    """
     try:
         ots_resp = execute_select_compatible(
             supabase, "db_ordenes_trabajo",

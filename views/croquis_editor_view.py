@@ -1,4 +1,3 @@
-"""Editor de croquis AXIA, etapa 2: planos, símbolos y capas editables."""
 from __future__ import annotations
 
 import copy
@@ -28,11 +27,6 @@ SURFACE = "#F5F8FC"
 
 
 def calcular_zoom_para_lienzo(ancho_visible, alto_visible):
-    """Ajuste proporcional al espacio visible, incluso cuando requiere zoom > 100%.
-
-    El tamaño lógico de 980 x 460 del documento NO cambia; únicamente cambia
-    cómo se presenta en pantalla. Se reserva una holgura para no recortar bordes.
-    """
     if ancho_visible < 2 or alto_visible < 2:
         return .80
     espacio_h = max(1, ancho_visible - 12)
@@ -41,7 +35,6 @@ def calcular_zoom_para_lienzo(ancho_visible, alto_visible):
 
 
 def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anotaciones tipo plano"):
-    """Abre un editor modal sin cambiar el contrato PNG Base64 existente."""
     try:
         doc = CroquisDocumento(str(variable_base64.get() or "").strip())
     except Exception as exc:
@@ -50,9 +43,7 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
 
     win = Toplevel(parent)
     win.title(titulo)
-    # Tamaño restaurado amplio, adaptable incluso en portátiles. La ventana
-    # abrirá maximizada si el gestor de ventanas lo permite (barra de título
-    # y controles de Windows disponibles, sin usar pantalla completa).
+
     sw, sh = win.winfo_screenwidth(), win.winfo_screenheight()
     ww = max(640, min(sw - 48, int(sw * .96)))
     wh = max(480, min(sh - 95, int(sh * .93)))
@@ -85,9 +76,6 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
     commands_right = ctk.CTkFrame(commands, fg_color="transparent")
     commands_right.pack(side="right", padx=6, pady=5)
 
-    # Reservar primero el pie de acciones: Tk asigna espacio según el orden
-    # de pack(). Si el lienzo expansible se empaqueta antes, puede ocupar
-    # toda la altura disponible y dejar «Guardar croquis» fuera de la vista.
     bottom = ctk.CTkFrame(root, fg_color=WHITE, corner_radius=0)
     bottom.pack(side="bottom", fill="x", padx=12, pady=(0, 11))
     status = ctk.CTkLabel(root, text="", height=20, font=("Montserrat", 10),
@@ -106,7 +94,7 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
     center.pack(side="left", fill="both", expand=True)
     canvas_box = ctk.CTkFrame(center, fg_color="transparent")
     canvas_box.pack(fill="both", expand=True, padx=8, pady=8)
-    # El área fuera del papel se distingue visualmente del espacio editable.
+
     drawing = Canvas(canvas_box, bg="#E8EEF5", highlightthickness=1, highlightbackground="#CBD5E1",
                      xscrollincrement=1, yscrollincrement=1, cursor="crosshair")
     xbar = Scrollbar(canvas_box, orient="horizontal", command=drawing.xview)
@@ -114,7 +102,7 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
     drawing.configure(xscrollcommand=xbar.set, yscrollcommand=ybar.set)
     canvas_box.grid_rowconfigure(0, weight=1)
     canvas_box.grid_columnconfigure(0, weight=1)
-    # Usamos grid en este marco para conservar ambas barras de desplazamiento.
+
     drawing.grid(row=0, column=0, sticky="nsew")
     ybar.grid(row=0, column=1, sticky="ns")
     xbar.grid(row=1, column=0, sticky="ew")
@@ -146,8 +134,6 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
                 max(0., min(HEIGHT, drawing.canvasy(ev.y) / z)))
 
     def set_zoom(value, *, por_ajuste=False):
-        # Un zoom explícito (+/−/Ctrl+rueda) se conserva al redimensionar.
-        # «Ajustar» reactiva el ajuste automático al tamaño de la ventana.
         if not por_ajuste:
             state["fit_to_window"] = False
         nuevo_zoom = max(.40, min(4.0, round(value, 2)))
@@ -161,7 +147,7 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
     def repaint():
         z = state["zoom"]
         drawing.delete("all")
-        state["text_images"] = []  # Referencias vivas de gráficos en Tk.
+        state["text_images"] = []
         drawing.configure(scrollregion=(0, 0, WIDTH * z, HEIGHT * z))
         key = (z, id(doc.background))
         if state["bg_key"] != key:
@@ -533,9 +519,6 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
         grid_btn.configure(fg_color=DARK if state["grid"] else SECONDARY)
         repaint()
 
-    # Un acceso fijo al guardado que NO depende del espacio disponible al pie.
-    # El pie inferior puede quedar fuera de pantalla en algunos equipos Windows
-    # al maximizar por resolución/escalado; esta barra superior siempre se ve.
     def save():
         try:
             variable_base64.set(doc.export_base64())
@@ -560,7 +543,7 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
     zoom_label.pack(side="left", padx=3)
     top_button(commands_right, "+", lambda: set_zoom(state["zoom"] + .15), width=35).pack(side="left", padx=2)
     top_button(commands_right, "Ajustar", lambda: fit_zoom(), width=65).pack(side="left", padx=2)
-    # Botón primario persistente: visible incluso si Windows recorta el pie.
+
     ctk.CTkButton(commands_right, text="Guardar croquis", width=157, height=32,
                   fg_color="#15803D", hover_color="#166534",
                   font=("Montserrat", 11, "bold"),
@@ -570,11 +553,9 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
         state["fit_to_window"] = True
         ancho, alto = drawing.winfo_width(), drawing.winfo_height()
         if ancho <= 2 or alto <= 2:
-            return  # Tk aún no ha calculado el tamaño visible del widget.
+            return
         set_zoom(calcular_zoom_para_lienzo(ancho, alto), por_ajuste=True)
 
-    # En ventanas redimensionables, el dibujo se adapta automáticamente.
-    # Se evita una ráfaga de repintados mientras Windows cambia el tamaño.
     ajuste_pendiente = {"id": None}
 
     def ajustar_despues_de_redimensionar(_event=None):
@@ -704,7 +685,7 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
     win.bind("<Control-z>", lambda ev: undo())
     win.bind("<Control-y>", lambda ev: redo())
     win.bind("<Control-d>", lambda ev: duplicate() if state["selected"] is not None else None)
-    # Guardar desde teclado sin depender de la posición del botón inferior.
+
     win.bind("<Control-s>", lambda ev: save())
 
     ctk.CTkButton(bottom, text="Cancelar", width=140, height=35, fg_color="#64748B",
@@ -716,9 +697,6 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
     win.protocol("WM_DELETE_WINDOW", win.destroy)
 
     def ampliar_editor():
-        # Windows/Tk: maximizada normal, NO modo fullscreen. En otros gestores
-        # de ventanas se intenta -zoomed; si no existe, queda el tamaño amplio
-        # calculado arriba. El lienzo se ajusta DESPUÉS de expandir el editor.
         try:
             win.state("zoomed")
         except Exception:

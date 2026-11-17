@@ -1,17 +1,3 @@
-"""
-=========================================================
-CORE: CACHE LIGERO EN MEMORIA
-=========================================================
-
-Uso:
-- Evitar consultas repetidas a Supabase para catálogos y combos.
-- Mantener la interfaz más fluida en equipos limitados.
-
-Regla:
-- No usar para datos críticos que cambian cada segundo.
-- Invalidar cache después de crear/actualizar registros.
-"""
-
 from __future__ import annotations
 
 import time
@@ -26,7 +12,6 @@ def _make_key(nombre: str, args: tuple, kwargs: dict) -> str:
 
 
 def ttl_cache(ttl_seconds: int = 60) -> Callable:
-    """Decorador simple de cache con tiempo de vida."""
 
     def decorator(func: Callable) -> Callable:
         @wraps(func)
@@ -48,9 +33,6 @@ def ttl_cache(ttl_seconds: int = 60) -> Callable:
 
 
 def clear_cache(prefix: str | None = None) -> None:
-    """
-    Limpia la cache completa o solo entradas cuyo identificador inicia con prefix.
-    """
     if not prefix:
         _CACHE.clear()
         return

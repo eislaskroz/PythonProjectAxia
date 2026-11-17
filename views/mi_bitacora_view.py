@@ -1,18 +1,3 @@
-"""
-=========================================================
-MÓDULO: views/mi_bitacora_view.py
-DESCRIPCIÓN:
-Vista personal del usuario en sesión.
-
-Nuevo comportamiento:
-- La sección se muestra como "Mi Usuario".
-- Presenta datos generales del usuario en modo solo lectura.
-- Permite cambio de contraseña de la cuenta activa.
-- Mantiene consulta de movimientos personales únicamente bajo búsqueda,
-  sin cargar registros al abrir la pantalla.
-=========================================================
-"""
-
 import customtkinter as ctk
 from ui.form_fields import AxiaEntry, AxiaTextbox
 from tkinter import messagebox
@@ -103,7 +88,6 @@ def _valor_visible(valor):
 
 
 def _normalizar_valor_usuario(campo, valor):
-    """Convierte valores técnicos a texto legible para Mi Usuario."""
     if campo == "usu_tipo":
         mapa = {1: "Administrador", 2: "Jefe de Operaciones", 3: "Supervisor", 4: "Operador", 5: "Administrativo", 6: "Especial", "1": "Administrador", "2": "Jefe de Operaciones", "3": "Supervisor", "4": "Operador", "5": "Administrativo", "6": "Especial"}
         return mapa.get(valor, _valor_visible(valor))
@@ -128,11 +112,6 @@ def _campos_usuario_ordenados(usuario):
 
 
 def _columnas_perfil_para_ancho(ancho):
-    """Distribución fluida sin cortar las fichas al estrechar la ventana.
-
-    En escritorio ancho caben siete datos por fila; en tamaños intermedios,
-    seis. Se mantiene un mínimo razonable de ancho por dato.
-    """
     if ancho >= 1350:
         return 7
     if ancho >= 1120:
@@ -147,7 +126,6 @@ def _columnas_perfil_para_ancho(ancho):
 
 
 def _alto_texto_perfil(texto, ancho, *, etiqueta=False):
-    """Reserva altura para las etiquetas largas sin recortar su contenido."""
     from math import ceil
 
     fuente_aproximada = 6.0 if etiqueta else 6.5
@@ -156,7 +134,6 @@ def _alto_texto_perfil(texto, ancho, *, etiqueta=False):
 
 
 def mostrar_mi_usuario(parent, app):
-    """Renderiza la sección Mi Usuario."""
 
     for widget in parent.winfo_children():
         widget.destroy()
@@ -193,8 +170,6 @@ def mostrar_mi_usuario(parent, app):
     )
     subtitulo_perfil.grid(row=1, column=0, columnspan=7, sticky="ew", padx=7, pady=(0, 2))
 
-    # Las fichas se crean una única vez; al cambiar el tamaño de la ventana
-    # solo se reordenan. No se alteran datos, consultas ni permisos.
     fichas = []
     for campo, valor in _campos_usuario_ordenados(usuario):
         etiqueta = ETIQUETAS_USUARIO.get(campo, campo.replace("_", " ").title())
@@ -222,7 +197,6 @@ def mostrar_mi_usuario(parent, app):
 
     def acomodar_fichas(ancho_disponible):
         columnas = _columnas_perfil_para_ancho(ancho_disponible)
-        # Se reserva espacio para bordes y los márgenes compactos de cada ficha.
         ancho_texto = max(88, int((ancho_disponible - 16) / columnas) - 18)
         if (estado_cuadricula["columnas"] == columnas and
                 estado_cuadricula["ancho_texto"] is not None and
@@ -248,8 +222,6 @@ def mostrar_mi_usuario(parent, app):
                 height=_alto_texto_perfil(texto_valor, ancho_texto),
             )
 
-    # La vista se adapta al tamaño real después del primer dibujo y al
-    # maximizar/restaurar, sin reconstruir fichas ni ejecutar consultas.
     acomodar_fichas(1440)
     card_datos.bind("<Configure>", lambda evento: acomodar_fichas(evento.width), add="+")
 
@@ -418,10 +390,7 @@ def mostrar_mi_usuario(parent, app):
     ctk.CTkButton(barra, text="⬇ Exportar", width=120, height=34, fg_color=SECONDARY, hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=lambda: exportar_registros_dialogo(estado.get("movimientos", []), "AXIA_mis_movimientos")).grid(row=0, column=3)
 
     entry_busqueda.bind("<Return>", lambda _event: buscar())
-    # Sin autofocus: el usuario decide cuándo entrar al buscador.
     limpiar_panel()
 
-
-# Compatibilidad temporal con el nombre anterior.
 def mostrar_mi_bitacora(parent, app):
     mostrar_mi_usuario(parent, app)

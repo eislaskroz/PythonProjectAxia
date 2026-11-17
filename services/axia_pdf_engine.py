@@ -1,8 +1,3 @@
-"""AXIA PDF ENGINE - Fase 5.
-
-Motor único basado en bloques reutilizables. Preview, guardado y descarga
-trabajan sobre el mismo :class:`AxiaPdfDocument` inmutable.
-"""
 from __future__ import annotations
 
 import tempfile
@@ -19,13 +14,10 @@ logger = configurar_logger(__name__)
 
 @dataclass(frozen=True)
 class AxiaPdfRequest:
-    """Solicitud inmutable de renderizado de un documento AXIA."""
-
     document: AxiaPdfDocument
     ruta_salida: str | Path | None = None
     abrir: bool = True
 
-    # Propiedades de compatibilidad con Fases 1-3 y pruebas existentes.
     @property
     def titulo(self) -> str:
         return self.document.title
@@ -52,7 +44,6 @@ class AxiaPdfRequest:
 
 
 class AxiaPdfEngine:
-    """Motor único de salida PDF de AXIA."""
 
     @staticmethod
     def prepare(
@@ -64,7 +55,6 @@ class AxiaPdfEngine:
         firma_tecnico_base64: str | None = None,
         mostrar_firmas: bool | None = None,
     ) -> AxiaPdfRequest:
-        """Adapta el contrato histórico a un documento de bloques."""
         document = AxiaPdfDocument.from_legacy(
             title=titulo,
             data=datos,
@@ -81,11 +71,6 @@ class AxiaPdfEngine:
         titulo: str,
         bloques: Sequence[AxiaPdfBlock],
     ) -> AxiaPdfRequest:
-        """API nativa Fase 4 para formularios nuevos o migrados.
-
-        Cada formulario solo declara los bloques que necesita; no implementa
-        lógica propia de ReportLab ni duplica plantillas.
-        """
         document = AxiaPdfDocument(
             title=str(titulo or "Documento AXIA"),
             blocks=tuple(bloques or ()),
@@ -95,7 +80,6 @@ class AxiaPdfEngine:
 
     @staticmethod
     def prepare_profile(*, profile_key: str, data: Mapping[str, Any]) -> AxiaPdfRequest:
-        """API declarativa Fase 5 basada en perfiles registrados."""
         document = AxiaPdfProfileRegistry.build(profile_key, data)
         return AxiaPdfRequest(document=document)
 
@@ -168,7 +152,6 @@ class AxiaPdfEngine:
 
     @classmethod
     def render_cotizacion(cls, cotizacion: Mapping[str, Any], ruta_salida: str | Path | None = None, abrir: bool = True, campos_visibles=None):
-        """Ruta especializada del PDF Engine para la cotización comercial horizontal."""
         from services.cotizacion_pdf import generar_pdf_cotizacion
         return generar_pdf_cotizacion(dict(cotizacion or {}), ruta_salida=ruta_salida, abrir=abrir, campos_visibles=campos_visibles)
 

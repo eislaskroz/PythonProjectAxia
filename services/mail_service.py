@@ -1,9 +1,3 @@
-"""Cliente del relay de correo de AXIA.
-
-AXIA DESKTOP NO conoce credenciales SMTP. Todos los envíos salen por la Edge
-Function ``axia-mail-relay`` de Supabase. Las credenciales y el remitente se
-configuran exclusivamente como secretos del lado servidor.
-"""
 from __future__ import annotations
 
 import base64
@@ -95,12 +89,6 @@ def enviar_correo(
     bcc: Iterable[str] | None = None,
     flow: str = "operational",
 ) -> MailResult:
-    """Solicita al relay central de AXIA el envío de un correo.
-
-    La aplicación sólo transmite contenido y destinatarios. El servidor aplica
-    una allowlist de destinatarios y es el único componente que conoce SMTP,
-    contraseña, remitente y BCC de auditoría.
-    """
     try:
         config = _relay_config()
     except Exception as exc:
@@ -114,7 +102,7 @@ def enviar_correo(
 
     destinatarios = [str(x).strip() for x in (to or []) if str(x).strip()]
     copias = [str(x).strip() for x in (cc or []) if str(x).strip()]
-    # BCC deliberadamente no se transmite: se controla sólo en el servidor.
+
     if bcc:
         logger.info("BCC solicitado por cliente ignorado; el relay controla BCC de auditoría.")
 

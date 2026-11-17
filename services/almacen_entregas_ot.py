@@ -1,8 +1,3 @@
-"""Preparación y validación de una entrega de almacén vinculada a OT.
-
-Ninguna partida de la OT se convierte en descuento hasta confirmar un código
-exacto del catálogo y su cantidad. Las entregas múltiples son indivisibles.
-"""
 from __future__ import annotations
 
 import json
@@ -39,7 +34,7 @@ def validar_entrega_ot(folio, partidas, destinatario, motivo):
 
 
 def preparar_sugerencias_ot(datos, catalogo):
-    """Empareja SOLO códigos/SKU exactos; nunca deduce stock por similitud de nombre."""
+
     raw = (datos or {}).get('partidas') or (datos or {}).get('ot_partidas_json') or []
     if isinstance(raw, str):
         try:
@@ -53,7 +48,6 @@ def preparar_sugerencias_ot(datos, catalogo):
         if not isinstance(item, dict) or '_axia_meta' in item:
             continue
         concepto = str(item.get('concepto') or item.get('descripcion') or '').strip()
-        # Las partidas 'Servicio' o mano de obra no son artículos del inventario.
         if str(item.get('unidad') or item.get('unidad_tipo') or '').strip().casefold() == 'servicio':
             continue
         codigo = str(item.get('codigo') or item.get('sku') or '').strip()

@@ -1,8 +1,3 @@
-"""Consola de mantenimiento para administradores AXIA.
-
-El cliente no edita ni borra directamente Supabase: cada operación pasa por
-Edge Function + RPC transaccional con contraseña/rol verificados en el servidor.
-"""
 from __future__ import annotations
 from utils import centrar_ventana
 import json
@@ -30,7 +25,6 @@ def _formato(valor):
 
 
 def _convertir(original, texto, campo):
-    """Reconstruye los tipos existentes; deja que PostgreSQL valide el esquema."""
     s = texto.strip()
     if isinstance(original, (dict, list)):
         resultado = json.loads(s)
@@ -52,7 +46,6 @@ def _convertir(original, texto, campo):
             return json.loads(s)
         return s
     if campo.endswith("_json") and s and isinstance(original, str):
-        # Algunos esquemas históricos guardan el JSON como texto: no cambiar tipo.
         json.loads(s)
     return texto if texto else ""
 
@@ -247,7 +240,6 @@ def dialogo_registro(tabla, original, clave, root, *, editar=False, eliminar=Fal
         confirma=AxiaEntry(pie,placeholder_text=f"Escribe exactamente el folio: {folio}",height=34)
         confirma.pack(fill="x",pady=(0,6))
     else:confirma=None
-    # No se conserva la clave del módulo como autorización para un borrado.
     clave_confirmacion=AxiaEntry(pie,placeholder_text="Confirma la contraseña de Administrador",show="●",height=34)
     clave_confirmacion.pack(fill="x",pady=(0,7))
     acciones=ctk.CTkFrame(pie,fg_color="transparent")

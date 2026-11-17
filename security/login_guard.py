@@ -1,4 +1,3 @@
-"""Limitación local de intentos de acceso para reducir fuerza bruta."""
 from __future__ import annotations
 import json, os, time
 from pathlib import Path
@@ -30,7 +29,6 @@ def estado(nickname):
     return remaining
 
 def registrar_fallo(nickname):
-    """Compatibilidad: devuelve los segundos de bloqueo tras registrar un fallo."""
     return registrar_fallo_detallado(nickname)["restante"]
 
 def registrar_fallo_detallado(nickname):

@@ -1,16 +1,5 @@
 from utils import centrar_ventana
 from core.error_reporting import show_operation_error
-"""
-=========================================================
-MÓDULO: levantamiento_view.py
-DESCRIPCIÓN:
-Vista visual para generar levantamientos operativos AXIA.
-
-Esta vista se carga dentro del área dinámica de app.py.
-No abre ventanas nuevas.
-=========================================================
-"""
-
 from core.logger import configurar_logger
 
 logger = configurar_logger(__name__)
@@ -48,8 +37,6 @@ from ui.fonts import (
     BUTTON_FONT
 )
 
-# Escala visual única para formularios de levantamiento.
-# Campo/etiqueta: 11 pt; encabezado de sección: 13 pt bold.
 FORM_FIELD_FONT = ("Montserrat", 11)
 FORM_SECTION_FONT = ("Montserrat", 13, "bold")
 FORM_TABLE_HEADER_FONT = ("Montserrat", 11)
@@ -57,13 +44,11 @@ FORM_CONTROL_HEIGHT = 30
 
 
 def _titulo_sin_numeracion(titulo: str) -> str:
-    """Quita numeraciones visuales tipo '1.', '2.-' sin alterar el icono/título."""
     texto = str(titulo or "")
     return re.sub(r"^(\s*(?:[^\w\d]\s*)*)\d+\s*[.\-:]\s*", r"\1", texto).strip()
 
 
 def _abrir_selector_dias_horario(parent, variable):
-    """Selector reutilizable: varios días y un mismo horario de inicio/fin."""
     dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
     actual = str(variable.get() or "").strip()
     seleccion_actual = set()
@@ -173,10 +158,6 @@ from services.bitacora_evidencias_service import subir_evidencias_levantamiento,
 
 from security.permissions import puede_generar_levantamiento, puede_convertir_levantamiento_a_orden
 
-
-# El catálogo maestro de materiales se carga desde services.materiales_catalogo_service.
-
-
 from views.levantamientos.catalogos_canalizacion import (
     TIPOS_TUBOS,
     TAMANOS_TUBOS,
@@ -212,19 +193,6 @@ from views.levantamientos.form_definitions import (
 # FUNCIÓN: mostrar_levantamiento()
 # =====================================================
 def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, registro_editar=None, on_saved=None, modal=False, borrador=None):
-    """
-    Muestra el formulario para generar un levantamiento.
-    PARÁMETROS:
-        parent:
-            Frame dinámico principal.
-        app:
-            Instancia de AxiaApp.
-        aco:
-            Diccionario opcional con información del ACO validado.
-        tipo_levantamiento:
-            Tipo específico de levantamiento seleccionado previamente.
-            Actualmente se libera formulario dedicado para Seguridad y Monitoreo.
-    """
 
     usuario_activo = obtener_usuario_actual()
 
@@ -257,15 +225,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         pady=6
     )
 
-    # El encabezado de la pantalla se muestra únicamente en app.py.
-    # Se elimina el título interno para evitar textos duplicados y
-    # aprovechar mejor el espacio vertical del formulario.
-
-    # Reservar la botonera ANTES de empaquetar el formulario.
-    # En ventanas modales, si el área expandible se empaqueta primero, Tk puede
-    # consumir toda la altura disponible y dejar la barra de acciones fuera de
-    # la zona visible. Mantener este frame como hijo fijo del contenedor evita
-    # que el botón Guardar Cambios desaparezca al maximizar la ventana.
     frame_botones = ctk.CTkFrame(
         contenedor,
         fg_color="#F4F4F4",
@@ -275,7 +234,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     frame_botones.pack(side="bottom", fill="x", pady=(0, 0))
     frame_botones.pack_propagate(False)
 
-    # Card principal: queda reservado únicamente para la captura operativa.
     card = ctk.CTkScrollableFrame(
         contenedor,
         height=520,
@@ -302,54 +260,46 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     var_tecnico = ctk.StringVar()
     var_supervisor = ctk.StringVar()
     var_encargado_proyecto = ctk.StringVar()
-    # Fecha visible del levantamiento: se precarga con la fecha actual en formato mexicano.
-    # La columna histórica lev_fecha_programada se conserva en Supabase por compatibilidad.
+
     var_fecha_programada = ctk.StringVar(value=datetime.now().strftime("%d/%m/%Y"))
     var_fecha_realizacion = ctk.StringVar()
-    # Notas opcionales sobre el cliente. El campo sólo se habilita cuando el usuario lo solicita.
+
     var_desea_notas_cliente = ctk.StringVar(value="No")
     var_notas_cliente = ctk.StringVar()
-    # Recursos proyectados: obligatorios y comunes a TODOS los levantamientos.
-    # Son la fuente única de verdad para días y personas, independientemente
-    # del tipo/modalidad del formulario.
+
     var_duracion_proyecto = ctk.StringVar(value="Un día")
     var_horas_estimadas_general = ctk.StringVar()
     var_dias_trabajo_general = ctk.StringVar()
     var_personas_considerar_general = ctk.StringVar()
-    # Anotación gráfica opcional común a TODOS los levantamientos.
+
     var_desea_anotacion_plano = ctk.StringVar(value="No")
     var_anotacion_plano_base64 = ctk.StringVar()
-    # Evidencia fotográfica opcional común a TODOS los levantamientos.
+
     var_desea_evidencias = ctk.StringVar(value="No")
     evidencias_levantamiento = []
-    # Archivos técnicos opcionales (PDF / planos) comunes a todos los levantamientos.
+
     var_desea_archivos_adjuntos = ctk.StringVar(value="No")
     archivos_adjuntos_levantamiento = []
     archivos_adjuntos_existentes = []
-    # Acceso, alturas y riesgos común para especialidades que antes no lo tenían.
+
     var_trabajo_alturas_comun = ctk.StringVar(value="No")
     var_sistema_acceso_comun = ctk.StringVar(value="Escalera")
     var_altura_comun = ctk.StringVar()
     var_riesgo_comun = ctk.StringVar(value="Bajo")
-    # Condiciones operativas del sitio, compartidas sin duplicar la sección propia de Redes.
+
     var_sitio_horario_comun = ctk.StringVar()
     var_sitio_acceso_comun = ctk.StringVar(value="Fácil acceso")
     var_sitio_permiso_comun = ctk.StringVar(value="No")
     var_sitio_riesgo_comun = ctk.StringVar(value="Bajo")
-    # Equipo de Protección Personal (EPP) común a TODOS los levantamientos.
-    # Si se requiere, se captura un listado estructurado para conservarlo en el JSON técnico.
-    var_requiere_epp = ctk.StringVar(value="No")  # EPP adicional; los cuatro básicos son obligatorios
 
-    # Catálogos de asignación obtenidos directamente de db_usuarios.
+
+    var_requiere_epp = ctk.StringVar(value="No")
+
+
     tecnicos_disponibles = obtener_tecnicos_responsables()
     supervisores_disponibles = obtener_supervisores_formulario()
     encargados_proyecto_disponibles = obtener_encargados_proyecto_formulario()
 
-    # Un levantamiento nuevo queda asignado al usuario que lo está realizando.
-    # El supervisor NO se autoasigna: queda pendiente para la etapa operativa
-    # posterior (OT). Esto evita que todos los LEV hereden al primer supervisor
-    # del catálogo. En modo edición se conserva el valor persistido y el
-    # restaurador lo vuelve a cargar más abajo.
     if not registro_editar and not borrador:
         nombre_usuario = " ".join(filter(None, [
             str(usuario_activo.get("nombre") or "").strip(),
@@ -367,9 +317,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     herramientas_items = []
     epp_items = []
     canalizacion_materiales_items = []
-    # Los tres formularios mantienen sus catálogos y presentación originales.
-    # La relación con Almacén se calcula internamente al serializar las partidas;
-    # nunca se usan sus saldos ni sus permisos para realizar movimientos.
+
     correlacionador_almacen = CorrelacionadorAxia()
 
     def cargar_referencias_almacen():
@@ -378,13 +326,12 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             correlacionador_almacen.actualizar(productos)
             logger.info('Almacén AXIA: %d productos disponibles para correlación de levantamientos.', len(productos))
         def fallo(error):
-            # Fallar la consulta NO modifica las listas operativas del técnico.
-            # Ningún dato se asignará a un Código AXIA si no se pudo verificar.
+
             logger.warning('Catálogo AXIA no disponible para correlación; LEV permanece operativo: %s', error)
         run_async(form_body, servicio.todos, on_success=recibido, on_error=fallo)
 
     def referencia_de_partida(item, claves, nueva_referencia):
-        """Conservar referencias anteriores mientras no cambien sus campos visibles."""
+
         firma = tuple(str(item[k].get()).strip() for k in claves)
         if item.get('_firma_axia_guardada') == firma and item.get('_referencia_axia_guardada'):
             return dict(item['_referencia_axia_guardada'])
@@ -398,10 +345,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             'familia_axia', 'unidad_inventario_axia')}
         item['_firma_axia_guardada'] = tuple(str(item[k].get()).strip() for k in claves)
 
-
-    # Campos dedicados del formulario Seguridad y Monitoreo.
-    # Se guardan dentro de los campos descriptivos existentes para evitar
-    # romper la estructura actual de Supabase mientras se valida el proceso.
     var_cctv_requiere_camaras = ctk.StringVar()
     var_cctv_cantidad_camaras = ctk.StringVar()
     var_cctv_tipo_camaras = ctk.StringVar(value="IP")
@@ -415,9 +358,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     var_cctv_distancia_aprox = ctk.StringVar()
     var_cctv_iluminacion = ctk.StringVar(value="Mixta")
 
-    # Campos dedicados del formulario Aires Acondicionados.
-    # El flujo va desde necesidad inicial, condiciones del sitio, equipo requerido,
-    # infraestructura, instalación, entrega y pruebas finales.
     var_aa_necesidad = ctk.StringVar(value="Instalación")
     var_aa_cantidad_equipos = ctk.StringVar()
     var_aa_area_climatizar = ctk.StringVar()
@@ -461,9 +401,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     var_aa_limpieza_entrega = ctk.StringVar(value="Sí")
     var_aa_capacitacion_usuario = ctk.StringVar(value="Sí")
 
-    # Campos dedicados del formulario Redes de Voz y Datos.
-    # El flujo va desde necesidad inicial, alcance, condiciones del sitio,
-    # materiales, rack/energía, instalación, pruebas y entrega.
     var_rvd_necesidad = ctk.StringVar(value="Instalación")
     var_rvd_tipo_servicio = ctk.StringVar(value="Datos")
     var_rvd_cantidad_nodos = ctk.StringVar()
@@ -490,7 +427,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     var_rvd_modalidad_rack = ctk.StringVar(value="Kit completo")
     var_rvd_cantidad_rack = ctk.StringVar(value="1")
     var_rvd_cantidad_kit_rack = ctk.StringVar(value="1")
-    var_rvd_rack_organizadores = ctk.StringVar()  # compatibilidad histórica
+    var_rvd_rack_organizadores = ctk.StringVar()
     var_rvd_rack_organizadores_verticales = ctk.StringVar()
     var_rvd_rack_organizadores_horizontales = ctk.StringVar()
     var_rvd_rack_charolas = ctk.StringVar()
@@ -526,8 +463,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     var_rvd_dias_trabajo = ctk.StringVar()
     var_rvd_personas_trabajo = ctk.StringVar()
 
-    # Campos dedicados del formulario Plantas de Energía.
-    # Flujo: necesidad -> carga -> sitio -> combustible -> transferencia -> instalación, pruebas y entrega.
     var_pe_necesidad = ctk.StringVar(value="Instalación")
     var_pe_tipo_planta = ctk.StringVar(value="Diésel")
     var_pe_capacidad = ctk.StringVar()
@@ -558,8 +493,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     var_pe_dias_trabajo = ctk.StringVar()
     var_pe_personas_trabajo = ctk.StringVar()
 
-    # Campos dedicados del formulario Electricidad.
-    # Flujo detallado: necesidad -> carga -> tablero -> canalización -> protecciones -> instalación, pruebas y entrega.
     var_ele_necesidad = ctk.StringVar(value="Instalación")
     var_ele_area = ctk.StringVar()
     var_ele_tipo_servicio = ctk.StringVar(value="Contactos")
@@ -576,7 +509,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     var_ele_metros_canalizacion = ctk.StringVar()
     var_ele_metros_cable = ctk.StringVar()
     var_ele_calibre_cable = ctk.StringVar(value=CALIBRES_CABLE_ELECTRICO[0])
-    # Infraestructura requerida homologada con los demás levantamientos.
+
     var_ele_tubos_tipo = ctk.StringVar(value=TIPOS_TUBOS[0])
     var_ele_tubos_tamano = ctk.StringVar(value=TAMANOS_TUBOS[0])
     var_ele_tubos_cantidad = ctk.StringVar()
@@ -607,29 +540,20 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     var_ele_dias_trabajo = ctk.StringVar()
     var_ele_personas_trabajo = ctk.StringVar()
 
-    # Variables dinámicas para formularios especializados adicionales
-    # (Control de Accesos, Enlaces Inalámbricos y Paneles Solares).
     vars_extra = {}
     if tipo_levantamiento in FORMULARIOS_DETALLADOS_EXTRA:
         for _titulo_sec, _campos_sec in FORMULARIOS_DETALLADOS_EXTRA[tipo_levantamiento]["secciones"]:
             for _clave, _tipo_campo, _etiqueta, _opciones_placeholder, _default in _campos_sec:
                 vars_extra[_clave] = ctk.StringVar(value=_default or "")
 
-    # Infraestructura Seguridad y Monitoreo: estas variables permiten levantar información
-    # previa a los datos técnicos. La sección se habilita dinámicamente
-    # según la respuesta a: ¿Existe infraestructura?
     var_infra_existe = ctk.StringVar(value="Sí")
     var_infra_estado = ctk.StringVar(value="Bueno")
     var_infra_tipo_existente = ctk.StringVar(value="Canalización")
     var_infra_aprovechable_m = ctk.StringVar()
     var_infra_observaciones = ctk.StringVar()
 
-    # Modalidad operativa del levantamiento Seguridad y Monitoreo.
-    # Instalación conserva el formulario actual; Reparación muestra diagnóstico;
-    # Mantenimiento queda preparado para próximas preguntas.
     var_modalidad_levantamiento = ctk.StringVar(value="Instalación")
 
-    # Reparación: tipo de elemento, ubicación, estado y síntomas.
     var_rep_objetivo = ctk.StringVar(value="Cámaras")
     var_rep_ubicacion_equipos = ctk.StringVar()
     var_rep_descripcion_infraestructura = ctk.StringVar()
@@ -638,17 +562,14 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     var_rep_codigo_error = ctk.StringVar(value="No")
     var_rep_horario_falla = ctk.StringVar(value="Día y noche")
 
-    # Reparación: alimentación y energía.
     var_rep_voltaje_correcto = ctk.StringVar(value="Sí")
     var_rep_amperaje_suficiente = ctk.StringVar(value="Sí")
     var_rep_conectores_danados = ctk.StringVar(value="No")
 
-    # Reparación: conectividad y transmisión de video.
     var_rep_tipo_cableado = ctk.StringVar(value="BalUns + UTP")
     var_rep_cable_danado = ctk.StringVar(value="No")
     var_rep_rj45_correcto = ctk.StringVar(value="No aplica")
 
-    # Reparación: configuración y grabador.
     var_rep_disco_operativo = ctk.StringVar(value="Sí")
     var_rep_firmware_software = ctk.StringVar(value="No")
     var_rep_actualizacion_corte = ctk.StringVar(value="No")
@@ -666,7 +587,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     var_metros_fibra = ctk.StringVar()
     var_metros_coaxial = ctk.StringVar()
 
-    # Infraestructura requerida en el orden operativo solicitado.
     var_infra_tubos_tipo = ctk.StringVar(value=TIPOS_TUBOS[0])
     var_infra_tubos_tamano = ctk.StringVar(value=TAMANOS_TUBOS[0])
     var_infra_tubos_cantidad = ctk.StringVar()
@@ -692,7 +612,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     var_cctv_modalidad_rack = ctk.StringVar(value="Kit completo")
     var_cctv_cantidad_rack = ctk.StringVar(value="1")
     var_cctv_cantidad_kit_rack = ctk.StringVar(value="1")
-    var_cctv_rack_organizadores = ctk.StringVar()  # compatibilidad histórica
+    var_cctv_rack_organizadores = ctk.StringVar()
     var_cctv_rack_organizadores_verticales = ctk.StringVar()
     var_cctv_rack_organizadores_horizontales = ctk.StringVar()
     var_cctv_rack_charolas = ctk.StringVar()
@@ -718,7 +638,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     var_cctv_tierra_tuberia = ctk.StringVar()
     var_cctv_tierra_bote = ctk.StringVar()
 
-    var_escalera_requerida = ctk.StringVar(value="No")  # ahora representa trabajo en alturas
+    var_escalera_requerida = ctk.StringVar(value="No")
     var_sistema_acceso_temporal = ctk.StringVar(value="Escalera")
     var_altura_trabajo = ctk.StringVar()
     var_riesgo_instalacion = ctk.StringVar(value="Bajo")
@@ -743,9 +663,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     # =================================================
     # CLIENTES PARA LEVANTAMIENTO Seguridad y Monitoreo
     # =================================================
-    # En Seguridad y Monitoreo el levantamiento ocurre antes de generar el ACO, por eso
-    # NO se captura ACO. El técnico selecciona cliente desde db_clientes
-    # para evitar duplicidad o errores de captura manual.
     clientes_disponibles = []
     clientes_por_nombre = {}
 
@@ -807,14 +724,12 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         return f"{nombre} — {puesto}" if nombre and puesto else (nombre or "Contacto sin nombre")
 
     def bloquear_datos_aco_autollenados():
-        """Bloquea campos heredados del ACO para que no sean modificados."""
         for etiqueta in ("Cliente", "Contacto", "Teléfono", "Correo", "Dirección", "Ubicación / referencia", "Ubicación"):
             entry = entradas.get(etiqueta)
             if entry:
                 entry.configure(state="disabled")
 
     def _restaurar_datos_cliente_principal():
-        """Restaura los datos maestros de db_clientes como fuente principal."""
         cliente_db = clientes_por_nombre.get(str(var_cliente.get() or var_cliente_selector.get() or "").strip())
         if not cliente_db:
             return
@@ -844,7 +759,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         if sucursal:
             var_ubicacion.set(_nombre_sucursal(sucursal))
             var_direccion_sucursal.set(construir_domicilio_sucursal(sucursal))
-            # Al elegir explícitamente una sucursal, sus datos tienen prioridad.
             var_contacto.set("")
             var_telefono.set(str(sucursal.get("suc_telefono") or "").strip())
             var_correo.set(str(sucursal.get("suc_correo") or "").strip())
@@ -894,13 +808,12 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 if str(_id_sucursal(sucursal)) == str(id_sucursal_preferida):
                     elegido = nombre_opcion
                     break
-        # Sin una sucursal previamente guardada, nunca elegimos una automáticamente.
+
         elegido = elegido or OPCION_PRINCIPAL
         var_sucursal.set(elegido)
         cargar_contactos_sucursal(elegido, id_contacto_preferido=id_contacto_preferido)
 
     def cargar_aco_desde_campo():
-        """Busca el ACO capturado y autollena cliente, sucursal y encargado catalogados."""
         numero = var_aco.get().strip()
         if not numero:
             return
@@ -933,7 +846,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             widget.pack_forget()
 
     def activar_modo_cliente_otro(activar=True):
-        """Permite captura libre sin crear registros en db_clientes/db_sucursales."""
         _mostrar_manual("cliente", activar)
         _mostrar_manual("sucursal", activar)
         _mostrar_manual("encargado", activar)
@@ -961,7 +873,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 combo_encargado["widget"].configure(state="normal")
 
     def cargar_cliente_desde_selector(nombre_cliente=None):
-        """Carga un cliente maestro o activa captura libre al elegir «Otros»."""
         nombre = (nombre_cliente or var_cliente_selector.get() or "").strip()
         if nombre == "Otros":
             activar_modo_cliente_otro(True)
@@ -971,7 +882,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         if not cliente_db:
             return
         var_cliente.set(nombre)
-        # db_clientes es siempre la fuente principal al seleccionar un cliente.
         var_contacto.set(str(cliente_db.get("cli_contacto") or "").strip())
         var_telefono.set(str(cliente_db.get("cli_telefono") or "").strip())
         var_correo.set(str(cliente_db.get("cli_correo") or "").strip())
@@ -1013,15 +923,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
 
     def mostrar_panel_datos_aco():
-        """
-        Muestra la información del ACO en una ficha compacta de solo lectura.
-
-        Objetivo del diseño:
-        - Ocupar menos alto en pantalla.
-        - Evitar scroll innecesario.
-        - Mostrar datos maestros como resumen operativo, no como formulario editable.
-        """
-
         panel_aco = ctk.CTkFrame(
             contenedor,
             fg_color="#F4F7FB",
@@ -1153,8 +1054,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         card,
         fg_color="transparent"
     )
-    # Fondo neutro: se retiraron los wallpapers temáticos para conservar
-    # una interfaz limpia, legible y consistente en todos los formularios.
+
     def _fondo_seccion(frame):
         try:
             frame.configure(
@@ -1165,8 +1065,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         except Exception:
             pass
         return None
-    # Bloque de datos generales compacto: no debe consumir más altura que
-    # las demás secciones del levantamiento.
+
     form_body.pack(
         fill="x",
         expand=False,
@@ -1174,27 +1073,21 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         pady=(7, 3)
     )
 
-    # Cuadrícula principal en 4 columnas para aprovechar mejor el ancho.
-    # La primera columna puede alojar campos cortos y las demás campos medianos/largos.
     for _col in range(5):
         form_body.grid_columnconfigure(_col, weight=1, uniform="form_cols")
 
     fila_actual = {"valor": 0}
 
-    # Los observadores trace_add se activan también al restaurar un LEV.
-    # Estas funciones se declaran antes de crear los controles, para evitar
-    # NameError: cannot access free variable 'programar_actualizacion_estado_preview'.
-    # Durante la construcción no se valida: todavía no existen los botones.
     _preview_lista_activa = False
     _preview_after_id = None
 
     def actualizar_estado_preview():
-        """Punto de entrada seguro, incluso durante la restauración."""
+
         if _preview_lista_activa:
             _actualizar_estado_preview_impl()
 
     def programar_actualizacion_estado_preview(delay_ms=110):
-        """Agrupa cambios cuando la interfaz ya está completamente armada."""
+
         nonlocal _preview_after_id
         if not _preview_lista_activa:
             return
@@ -1269,11 +1162,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         return contenedor_campo
 
     def campo_entry(texto, variable, placeholder, state="normal", columna=0, fila=None, colspan=1):
-        """
-        Crea un campo de texto dentro de una cuadrícula de tres columnas.
-        Se usa para aprovechar mejor la pantalla maximizada.
-        """
-
         if fila is None:
             fila = fila_actual["valor"]
 
@@ -1290,8 +1178,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             state=state
         )
 
-        # Campos de captura corta: ocupan menos ancho para evitar espacio muerto.
-        # Se conservan en su columna para no romper el orden TAB ni el layout general.
         campos_compactos = {
             "Folio de levantamiento",
             "Teléfono",
@@ -1317,9 +1203,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             asociar_selector_fecha(entry, contenedor_campo, variable, formato_salida=formato_fecha)
 
     def campo_option(texto, variable, values, columna=0, fila=None, colspan=1):
-        """
-        Crea un selector dentro de la cuadrícula de dos columnas.
-        """
 
         if fila is None:
             fila = fila_actual["valor"]
@@ -1338,7 +1221,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         )
 
     def campo_cliente_selector(texto, variable, values, columna=0, fila=None, colspan=1):
-        """Selector de cliente desde db_clientes para levantamientos Seguridad y Monitoreo."""
         if fila is None:
             fila = fila_actual["valor"]
 
@@ -1381,10 +1263,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         return combo
 
     def campo_texto(texto, altura=90, fila=None):
-        """
-        Crea un campo de texto largo usando el ancho completo del formulario.
-        """
-
         if fila is None:
             fila = fila_actual["valor"]
 
@@ -1419,11 +1297,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     # =================================================
     # CAMPOS BASE
     # =================================================
-    # Regla especial Seguridad y Monitoreo:
-    # - Este proceso inicia antes de generar ACO, por lo tanto NO se captura ACO.
-    # - Cliente, contacto, teléfono y correo vienen desde db_clientes.
-    # - Tipo de levantamiento y estatus no se muestran porque ya están definidos por flujo.
-
     es_cctv = tipo_levantamiento == "Seguridad y Monitoreo"
     es_aire = tipo_levantamiento == "Aires Acondicionados"
     es_redes = tipo_levantamiento == "Redes Voz y Datos"
@@ -1441,7 +1314,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         fila=0 + desplazamiento_filas
     )
 
-    # Datos del cliente: la dirección visible es siempre la fiscal/principal.
     if not aco:
         nombres_clientes = sorted(clientes_por_nombre.keys())
         nombres_clientes.append("Otros")
@@ -1465,9 +1337,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         campo_entry("Correo", var_correo, "Autollenado desde encargado", state="disabled", columna=4, fila=1 + desplazamiento_filas)
         cargar_sucursales_cliente(datos_aco.get("id_cliente"), datos_aco.get("id_sucursal"), datos_aco.get("id_contacto"))
 
-    # En esta etapa sólo se captura el levantamiento. La asignación interna de
-    # jefe/supervisor/técnico ocurre en procesos posteriores y no se muestra aquí.
-
     campo_entry(
         "Dirección de Sucursal",
         var_direccion_sucursal,
@@ -1480,7 +1349,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     if not aco and var_cliente_selector.get() == "Otros":
         activar_modo_cliente_otro(True)
 
-    # Sección común y obligatoria para todos los tipos de levantamiento.
     recursos_frame = ctk.CTkFrame(form_body, fg_color="#F7F9FC", corner_radius=12, border_width=1, border_color="#DCE5EF")
     _fondo_seccion(recursos_frame)
     recursos_frame.grid(row=3 + desplazamiento_filas, column=0, columnspan=5, sticky="ew", pady=(3, 5))
@@ -1541,7 +1409,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         fila=4 + desplazamiento_filas
     )
 
-    # Notas sobre el cliente: pregunta + captura de una sola línea.
     contenedor_pregunta_notas = _crear_contenedor_campo(4 + desplazamiento_filas, 1)
     _label_campo(contenedor_pregunta_notas, "¿Deseas agregar notas sobre el cliente?")
     combo_notas_cliente = NativeComboBox(
@@ -1567,7 +1434,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     var_desea_notas_cliente.trace_add("write", actualizar_notas_cliente)
     actualizar_notas_cliente()
 
-    # Identificación corta común. Usa lev_descripcion, columna ya existente.
     var_nombre_servicio = ctk.StringVar()
     contenedor_nombre = _crear_contenedor_campo(5 + desplazamiento_filas, 0, colspan=5)
     _label_campo(contenedor_nombre, "Nombre del servicio *")
@@ -1605,7 +1471,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         )
         fila_operativa = fila_inicio_operativa + 1
     else:
-        # Para formularios especializados estos valores se asignan por sistema y no se exponen al técnico.
         var_tipo.set("Seguridad" if (es_cctv or tipo_levantamiento == "Control de Accesos") else ("Energía" if (es_plantas or es_electricidad or tipo_levantamiento == "Paneles Solares") else "Infraestructura"))
         var_estatus.set("Pendiente")
         fila_operativa = fila_inicio_operativa
@@ -1620,20 +1485,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         # =============================================================
         # FORMULARIO Seguridad y Monitoreo ESPECIALIZADO
         # =============================================================
-        # El levantamiento Seguridad y Monitoreo se divide en secciones operativas.
-        # Primero se valida si existe infraestructura. Dependiendo de la
-        # respuesta, se habilitan/deshabilitan bloques para evitar capturar
-        # datos que no aplican.
-
         secciones_dinamicas = {}
 
         def crear_seccion(titulo, fila):
-            """Crea un bloque visual compacto para agrupar campos relacionados.
-
-            En Seguridad y Monitoreo muchas respuestas son valores cortos. Por eso las secciones
-            usan hasta 5 columnas internas cuando aplica, reduciendo altura y
-            aprovechando mejor la pantalla maximizada.
-            """
             frame = ctk.CTkFrame(form_body, fg_color="#F7F9FC", corner_radius=14, border_width=1, border_color="#DCE5EF")
             _fondo_seccion(frame)
             frame.grid(row=fila, column=0, columnspan=5, sticky="ew", pady=(2, 5))
@@ -1698,7 +1552,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         TIPOS_CABLE = TIPOS_CABLE_DATOS_CONTROL
 
         def agregar_fila_canalizacion(frame, coleccion):
-            """Agrega una partida exclusiva de canalización."""
             indice = len(coleccion)
             fila_base = 3 + indice
             var_tipo = ctk.StringVar(value=TIPOS_CANALIZACION[0])
@@ -1725,7 +1578,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             coleccion.append({"frame": fila, "tipo": var_tipo, "metros": var_metros})
 
         def agregar_fila_cable(frame, coleccion):
-            """Agrega una partida exclusiva de cable."""
             indice = len(coleccion)
             fila_base = 3 + indice
             var_tipo = ctk.StringVar(value=TIPOS_CABLE[0])
@@ -1752,7 +1604,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             coleccion.append({"frame": fila, "tipo": var_tipo, "metros": var_metros})
 
         def obtener_resumen_infraestructura(canalizaciones, cables):
-            """Devuelve líneas limpias separando canalización y cable."""
             lineas = []
             lineas.append("Canalización requerida:")
             for idx, item in enumerate(canalizaciones, start=1):
@@ -1767,11 +1618,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             return lineas or ["Sin datos capturados"]
 
         def configurar_estado_seccion(frame, habilitado=True):
-            """
-            Activa o bloquea widgets capturables dentro de una sección.
-            Los labels permanecen visibles para que el técnico entienda
-            qué datos aplican y cuáles no.
-            """
             estado = "normal" if habilitado else "disabled"
             for widget in frame.winfo_children():
                 try:
@@ -1781,7 +1627,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     logger.debug("Excepción recuperable controlada.", exc_info=True)
 
         def actualizar_campos_infra_existente(_valor=None):
-            """Si no existe infraestructura, bloquea los campos que no aplican."""
             habilitado = var_infra_existe.get() != "No"
             estado = "normal" if habilitado else "disabled"
             if not habilitado:
@@ -1798,7 +1643,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 logger.debug("Excepción recuperable controlada.", exc_info=True)
 
         def actualizar_detalle_rack_energia(*_args):
-            """Gestiona Rack, gabinete, energía y tierra física de Seguridad y Monitoreo."""
             requiere_rack = var_rack_requerido.get() == "Sí"
             requiere_gabinete = var_gabinete_requerido.get() == "Sí"
             requiere_ups = var_ups_requerida.get() == "Sí"
@@ -1853,16 +1697,12 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 logger.debug("Excepción recuperable controlada.", exc_info=True)
 
         def actualizar_secciones_infraestructura(_valor=None):
-            """Muestra el subformulario correcto según Instalación/Reparación/Mantenimiento."""
             modalidad = var_modalidad_levantamiento.get()
             es_instalacion = modalidad == "Instalación"
             es_reparacion = modalidad == "Reparación"
             es_mantenimiento = modalidad == "Mantenimiento"
             valor = var_infra_existe.get()
 
-            # Acceso/alturas/riesgos aplica tanto para instalación como para
-            # mantenimiento. El resto de los bloques de infraestructura de CCTV
-            # pertenecen únicamente al levantamiento de instalación.
             secciones_instalacion = [
                 "existente",
                 "rack_energia", "datos_cctv"
@@ -1881,8 +1721,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     else:
                         frame.grid_remove()
 
-            # Riesgos de acceso sí se evalúan durante mantenimiento, pero no
-            # durante reparación (la reparación tiene su propio campo Acceso).
             frame_seguridad = secciones_dinamicas.get("seguridad")
             if frame_seguridad:
                 if es_instalacion or es_mantenimiento:
@@ -1900,7 +1738,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     else:
                         frame.grid_remove()
 
-            # La sección provisional de mantenimiento ya no se muestra.
             frame_mantenimiento = secciones_dinamicas.get("mantenimiento")
             if frame_mantenimiento:
                 frame_mantenimiento.grid_remove()
@@ -1922,7 +1759,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             except Exception:
                 logger.debug("Excepción recuperable controlada.", exc_info=True)
 
-        # Tipo operativo del levantamiento: detona formularios dentro de la misma vista.
         seccion_tipo_operativo = crear_seccion("🧭 El levantamiento es para Instalación, Reparación o Mantenimiento", fila_textos)
         option_en(
             seccion_tipo_operativo,
@@ -1934,7 +1770,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             command=actualizar_secciones_infraestructura
         )
 
-        # Infraestructura del sitio / existente reutilizable en una sola sección.
         seccion_existente = crear_seccion("🏗️ Infraestructura del sitio / existente reutilizable", fila_textos + 1)
         registrar_seccion("existente", seccion_existente)
         option_en(
@@ -1957,10 +1792,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             justify="left"
         ).grid(row=3, column=0, columnspan=5, sticky="w", padx=6, pady=(0, 2))
 
-        # La captura de infraestructura requerida se realiza exclusivamente
-        # mediante la sección dinámica común de canalización y materiales.
-
-        # Consumibles de Conectividad
         seccion_conectividad = crear_seccion("🔌 Consumibles de Conectividad", fila_textos + 3)
         registrar_seccion("conectividad", seccion_conectividad)
         seccion_conectividad.grid_remove()
@@ -1970,7 +1801,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         entry_en(seccion_conectividad, "Faceplates", var_faceplate, "Ej. 12", 0, 3)
         entry_en(seccion_conectividad, "Patch cords", var_patchcord, "Ej. 12", 0, 4)
 
-        # Rack / energía
         seccion_rack_energia = crear_seccion("🗄️ Rack, gabinete y energía", fila_textos + 4)
         registrar_seccion("rack_energia", seccion_rack_energia)
         widget_cctv_requiere_rack = option_en(seccion_rack_energia, "¿Se requiere Rack?", var_rack_requerido, ["Sí", "No"], 0, 0, command=actualizar_detalle_rack_energia)
@@ -2005,7 +1835,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         cctv_tierra_widgets = (widget_tipo_tierra_fisica, widget_cctv_t_barra, widget_cctv_t_aisl, widget_cctv_t_omega, widget_cctv_t_varilla, widget_cctv_t_abraz, widget_cctv_t_cable, widget_cctv_t_tornillos, widget_cctv_t_quim, widget_cctv_t_tubo, widget_cctv_t_bote)
         actualizar_detalle_rack_energia()
 
-        # Seguridad / acceso para instalación y mantenimiento.
         seccion_seguridad = crear_seccion("🪜 Acceso, alturas y riesgos", fila_textos + 5)
         registrar_seccion("seguridad", seccion_seguridad)
         def actualizar_acceso_altura(_valor=None):
@@ -2031,11 +1860,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         widget_riesgo_instalacion = option_en(seccion_seguridad, "Riesgo", var_riesgo_instalacion, ["Bajo", "Medio", "Alto", "Crítico"], 0, 3)
         actualizar_acceso_altura()
 
-        # Datos técnicos Seguridad y Monitoreo compactados dentro de una sola sección.
         seccion_cctv = crear_seccion("📹 Datos técnicos Seguridad y Monitoreo", fila_textos + 6)
         registrar_seccion("datos_cctv", seccion_cctv)
-        widget_cctv_cantidad = None  # Cantidades en Equipos principales requeridos
-        widget_cctv_tipo = None  # Tipos en Equipos principales requeridos
+        widget_cctv_cantidad = None
+        widget_cctv_tipo = None
         widget_cctv_nvr = entry_en(seccion_cctv, "¿Dónde se ubicará el NVR/DVR?", var_cctv_ubicacion_nvr, "Ej. SITE", 0, 0)
 
         widget_cctv_red = entry_en(seccion_cctv, "¿Dónde estará el punto de enlace de red?", var_cctv_punto_red, "Ej. Rack/SITE", 0, 1)
@@ -2043,7 +1871,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         widgets_detalle_camaras = (widget_cctv_nvr, widget_cctv_red, widget_cctv_energia)
 
         def actualizar_requerimiento_camaras(_valor=None):
-            """Activa el detalle de CCTV y recalcula Guardar/Preview al cambiar Sí/No."""
             estado = "normal" if var_cctv_requiere_camaras.get() == "Sí" else "disabled"
             for widget in widgets_detalle_camaras:
                 try:
@@ -2055,8 +1882,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             except Exception:
                 logger.debug("Excepción recuperable controlada.", exc_info=True)
 
-        # Los equipos/cámaras se especifican en la tabla de Equipos principales.
-        # Se conserva la variable histórica para registros existentes.
         var_cctv_requiere_camaras.set("Sí")
         actualizar_requerimiento_camaras()
 
@@ -2180,7 +2005,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         txt_rep_descripcion_fallas.grid(row=1, column=0, columnspan=5, sticky="ew", padx=6, pady=(0, 5))
 
         def actualizar_formulario_reparacion(*_args):
-            """Muestra únicamente las preguntas aplicables al elemento seleccionado."""
             objetivo = var_rep_objetivo.get()
             es_camaras = objetivo == "Cámaras"
             es_grabador = objetivo == "NVRs y/o DVRs"
@@ -2188,8 +2012,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             es_energia = objetivo == "Alimentación y Energía"
             es_conectividad = objetivo == "Conectividad"
 
-            # Ubicación y acceso aplican salvo en infraestructura, donde se solicita
-            # exclusivamente una descripción abierta con todos los pormenores.
             if es_infraestructura:
                 seccion_rep_sintomas.grid_remove()
                 seccion_rep_infraestructura.grid()
@@ -2197,7 +2019,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 seccion_rep_sintomas.grid()
                 seccion_rep_infraestructura.grid_remove()
 
-            # Estado contextual.
             if es_camaras:
                 lbl_estado_reparacion.configure(text="Estado de Cámaras")
                 widget_estado_reparacion.configure(values=["Apagadas", "Intermitencias", "Operando parcialmente", "Sin video"])
@@ -2260,10 +2081,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         # =============================================================
         # FORMULARIO Aires Acondicionados ESPECIALIZADO
         # =============================================================
-        # El orden del levantamiento sigue el flujo operativo real:
-        # necesidad -> sitio -> equipo -> ubicación -> infraestructura ->
-        # materiales -> riesgos -> instalación, entrega y pruebas.
-
         secciones_aa = {}
 
         def crear_seccion_aa(titulo, fila):
@@ -2396,9 +2213,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         # =============================================================
         # FORMULARIO Redes de Voz y Datos ESPECIALIZADO
         # =============================================================
-        # Flujo operativo: necesidad -> alcance -> sitio -> materiales ->
-        # rack/energía -> instalación -> pruebas -> entrega.
-
         def crear_seccion_rvd(titulo, fila):
             frame = ctk.CTkFrame(form_body, fg_color="#F7F9FC", corner_radius=14, border_width=1, border_color="#DCE5EF")
             _fondo_seccion(frame)
@@ -2485,7 +2299,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         widget_rvd_horario.bind("<Button-1>", lambda _e: _abrir_selector_dias_horario(widget_rvd_horario, var_rvd_horario_trabajo))
         widget_rvd_horario.bind("<Key>", lambda _e: "break")
         option_rvd(seccion_rvd_sitio, "Acceso para instalación", var_rvd_acceso, ["Fácil acceso", "Difícil acceso", "Requiere maniobra"], 0, 1)
-        # Altura se captura en Acceso, alturas y riesgos (sección común).
         option_rvd(seccion_rvd_sitio, "¿Requiere permiso del sitio?", var_rvd_permiso, ["Sí", "No"], 0, 3)
         option_rvd(seccion_rvd_sitio, "Nivel de riesgo", var_rvd_riesgo, ["Bajo", "Medio", "Alto"], 0, 4)
 
@@ -2521,7 +2334,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
         widget_rvd_patch_panel.configure(command=lambda _valor: actualizar_patch_panel_rvd())
         actualizar_patch_panel_rvd()
-        seccion_rvd_materiales.grid_remove()  # Sustituida por captura dinámica común.
+        seccion_rvd_materiales.grid_remove()
 
         seccion_rvd_rack = crear_seccion_rvd("🗄️ 4. Rack, gabinete y energía", fila_textos + 3)
         widget_rvd_requiere_rack = option_rvd(seccion_rvd_rack, "¿Se requiere Rack?", var_rvd_requiere_rack, ["Sí", "No"], 0, 0)
@@ -2583,7 +2396,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             widget.configure(command=lambda _valor: actualizar_detalles_rack_rvd())
         actualizar_detalles_rack_rvd()
 
-        # Equipo activo heredado: no se muestra; los switches se capturan en Equipos principales.
         seccion_rvd_switch = crear_seccion_rvd("🔀 Equipo activo", fila_textos + 4)
         widget_rvd_requiere_switch = option_rvd(seccion_rvd_switch, "¿Se requiere switch?", var_rvd_requiere_switch, ["Sí", "No"], 0, 0)
         widget_rvd_tipo_switch = entry_rvd(seccion_rvd_switch, "Tipo/modelo o características del switch", var_rvd_tipo_switch, "Ej. administrable Gigabit", 0, 1)
@@ -2609,8 +2421,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         # =============================================================
         # FORMULARIO Plantas de Energía ESPECIALIZADO
         # =============================================================
-        # Orden operativo: necesidad -> carga -> sitio -> combustible -> transferencia -> instalación, pruebas y entrega.
-
         def crear_seccion_pe(titulo, fila):
             frame = ctk.CTkFrame(form_body, fg_color="#F7F9FC", corner_radius=14, border_width=1, border_color="#DCE5EF")
             _fondo_seccion(frame)
@@ -2685,8 +2495,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         # =============================================================
         # FORMULARIO Electricidad ESPECIALIZADO
         # =============================================================
-        # Orden operativo: requerimiento -> carga -> tablero -> canalización -> materiales -> seguridad -> pruebas y entrega.
-
         def crear_seccion_ele(titulo, fila):
             frame = ctk.CTkFrame(form_body, fg_color="#F7F9FC", corner_radius=14, border_width=1, border_color="#DCE5EF")
             _fondo_seccion(frame)
@@ -2741,7 +2549,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         option_ele(seccion_ele_carga, "Tipo de circuito", var_ele_tipo_circuito, ["Normal", "Regulado", "Emergencia", "Dedicado", "Por validar"], 1, 1)
 
         seccion_ele_materiales = crear_seccion_ele("📦 3. Canalización, cableado y materiales", fila_textos + 2)
-        # Infraestructura requerida: formato tipo + cantidad/metros.
+
         option_ele(seccion_ele_materiales, "Tubos / tipo", var_ele_tubos_tipo, TIPOS_TUBOS, 0, 0)
         option_ele(seccion_ele_materiales, "Tubos / tamaño", var_ele_tubos_tamano, TAMANOS_TUBOS, 0, 1)
         entry_ele(seccion_ele_materiales, "Tubos / cantidad o metros", var_ele_tubos_cantidad, "Ej. 30", 0, 2, ancho_corto=True)
@@ -2756,7 +2564,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         option_ele(seccion_ele_materiales, "Cable / tipo", var_ele_cable_tipo, TIPOS_CABLE_ELECTRICO, 2, 2)
         entry_ele(seccion_ele_materiales, "Cable / cantidad o metros", var_ele_cable_cantidad, "Ej. 90", 2, 3, ancho_corto=True)
 
-        # Datos eléctricos complementarios que siguen siendo necesarios para el cálculo.
         option_ele(seccion_ele_materiales, "Tipo de canalización", var_ele_canalizacion, TIPOS_CANALIZACION, 3, 0)
         entry_ele(seccion_ele_materiales, "Metros de canalización", var_ele_metros_canalizacion, "Ej. 30", 3, 1, ancho_corto=True)
         entry_ele(seccion_ele_materiales, "Metros de cable", var_ele_metros_cable, "Ej. 90", 3, 2, ancho_corto=True)
@@ -2766,7 +2573,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         entry_ele(seccion_ele_materiales, "Luminarias", var_ele_luminarias, "Ej. 6", 4, 2, ancho_corto=True)
         option_ele(seccion_ele_materiales, "Tierra física", var_ele_tierra_fisica, ["Existente", "Requerida", "Por validar"], 4, 3)
         option_ele(seccion_ele_materiales, "Neutro disponible", var_ele_neutro, ["Sí", "No", "Por validar"], 4, 4)
-        seccion_ele_materiales.grid_remove()  # Sustituida por captura dinámica común.
+        seccion_ele_materiales.grid_remove()
 
         seccion_ele_seguridad = crear_seccion_ele("🦺 4. Condiciones de seguridad y operación", fila_textos + 3)
         entry_ele(seccion_ele_seguridad, "Altura de trabajo", var_ele_altura_trabajo, "Ej. 3 m", 0, 0, ancho_corto=True)
@@ -2787,8 +2594,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         # =============================================================
         # FORMULARIOS ESPECIALIZADOS ADICIONALES
         # =============================================================
-        # Se usa una plantilla común para mantener espacios, tamaños y comportamiento
-        # consistente con los formularios ya liberados.
         def crear_seccion_extra(titulo, fila):
             frame = ctk.CTkFrame(form_body, fg_color="#F7F9FC", corner_radius=14, border_width=1, border_color="#DCE5EF")
             _fondo_seccion(frame)
@@ -2897,7 +2702,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 etiqueta_lower = etiqueta.lower()
                 es_corto = any(palabra in etiqueta_lower for palabra in ("cantidad", "días", "personas", "metros", "distancia", "altura", "capacidad", "consumo", "área", "ancho"))
                 if tipo_levantamiento == "General" and clave == "detalle_levantamiento":
-                    # Captura libre multilineal como el formato impreso tradicional.
                     label_extra(contenedor_campos, "Descripción o detalle de levantamiento", 1, 0)
                     caja_detalle = AxiaTextbox(contenedor_campos, height=260, corner_radius=9, wrap="word", font=FORM_FIELD_FONT)
                     caja_detalle.grid(row=2, column=0, columnspan=5, sticky="ew", padx=6, pady=(0, 10))
@@ -2921,8 +2725,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     columnspan = 5 if tipo_levantamiento == "General" and len(campos_visibles) == 1 else 1
                     extra_widgets[clave] = entry_extra(contenedor_campos, etiqueta, variable, opciones_placeholder, fila_campo, columna_campo, ancho_corto=es_corto and columnspan == 1, columnspan=columnspan)
 
-        # La canalización de estos formularios se captura en la sección dinámica común.
-
         fila_textos = fila_textos + len(secciones_extra_frames)
 
     # =============================================================
@@ -2943,9 +2745,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         return especificaciones_de_material(material, tipo)
 
     def obtener_canalizacion_materiales_json():
-        # En Seguridad y Monitoreo la canalización es parte exclusiva de
-        # Instalación. Reparación y Mantenimiento no deben guardar partidas
-        # ocultas ni heredarlas hacia Supabase/PDF.
         if (
             tipo_levantamiento == "Seguridad y Monitoreo"
             and var_modalidad_levantamiento.get().strip() != "Instalación"
@@ -2958,12 +2757,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             categoria = item["categoria"].get().strip()
             tipo = item["tipo"].get().strip()
             cantidad = item["cantidad"].get().strip()
-            # Una fila recien creada trae categoria/tipo por defecto. Sin cantidad
-            # no representa una captura real y nunca debe llegar a Supabase/PDF.
             if not cantidad:
                 continue
             fila_guardada = {
-                # Campo histórico: categoria = material. Nuevos: familia y material.
                 "categoria": categoria,
                 "familia": item["familia"].get().strip(),
                 "material": categoria,
@@ -3010,7 +2806,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         return True
 
     def pendientes_canalizacion_materiales():
-        """Mensajes precisos del bloque dinámico, respetando ¿Se requiere? No."""
         if tipo_levantamiento not in tipos_con_canalizacion:
             return []
         if (tipo_levantamiento == "Seguridad y Monitoreo" and
@@ -3078,7 +2873,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             material_inicial = normalizar_material(categoria_inicial)
             familia_inicial = familia_de_material(material_inicial)
             var_familia = ctk.StringVar(value=familia_inicial)
-            var_categoria = ctk.StringVar(value=material_inicial)  # Identificador histórico del material
+            var_categoria = ctk.StringVar(value=material_inicial)
             var_tipo_item = ctk.StringVar()
             var_especificacion = ctk.StringVar()
             var_color_modelo = ctk.StringVar()
@@ -3140,7 +2935,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     materiales = materiales_de_familia(familia)
                     material = normalizar_material(var_categoria.get())
                     if historico and material == material_inicial and material not in materiales and familia == familia_inicial:
-                        materiales.append(material)  # Solo esta partida antigua, no el catálogo global
+                        materiales.append(material)
                     if material not in materiales:
                         material = materiales[0] if materiales else ""
                     combo_categoria.configure(values=materiales)
@@ -3148,15 +2943,13 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                         var_categoria.set(material)
                     cambiado_material = material != ultimo_material
                     if cambiado_material:
-                        # Limpiar el tipo y tamaño del material anterior; no mezclar
-                        # especificaciones de un conector con las de una tubería.
                         var_tipo_item.set("")
                         var_especificacion.set("")
                         var_color_modelo.set("")
                         var_unidad_item.set(unidad_inicial_material(material))
                         ultimo_material = material
                     tipos = catalogo_tipos_por_categoria(material)
-                    # Preservar tipos históricos al cargar un registro anterior.
+
                     if not cambiado_material and var_tipo_item.get() and var_tipo_item.get() not in tipos:
                         tipos = tipos + [var_tipo_item.get()]
                     tipo, especificacion, especificaciones = normalizar_seleccion_material(
@@ -3173,7 +2966,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                         var_especificacion.set(especificacion)
                     unidades = unidades_de_material(material, tipo)
                     if not unidad_fija_canalizacion(material, tipo) and var_unidad_item.get() and var_unidad_item.get() not in unidades:
-                        unidades.append(var_unidad_item.get())  # Compatibilidad con registros viejos
+                        unidades.append(var_unidad_item.get())
                     combo_unidad.configure(values=unidades)
                     var_unidad_item.set(unidad_forzada_canalizacion(material, var_unidad_item.get(), tipo))
                     combo_unidad.configure(state="disabled" if unidad_fija_canalizacion(material, tipo) else "normal")
@@ -3212,8 +3005,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         def actualizar_requiere_canalizacion(*_):
             habilitado = var_requiere_canalizacion.get() == "Sí"
             if not habilitado:
-                # NO canalizacion significa NO datos de canalizacion. Limpiamos
-                # cualquier partida visible/heredada para impedir informacion ficticia.
                 for item in canalizacion_materiales_items:
                     for key in ("cantidad", "especificacion"):
                         try:
@@ -3234,8 +3025,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         agregar_partida_canalizacion("Tubo")
         fila_textos += 1
 
-    # Condiciones del sitio: se omite en Tecnología (suministro) y en Redes,
-    # que ya dispone de estos mismos campos en su sección especializada.
     TIPOS_CON_CONDICIONES_SITIO = {
         "Seguridad y Monitoreo", "Control de Accesos", "Enlaces Inalámbricos",
         "Electricidad", "Paneles Solares", "Plantas de Energía", "Aires Acondicionados",
@@ -3325,7 +3114,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     # =============================================================
     # EQUIPOS PRINCIPALES REQUERIDOS (CATÁLOGO ESCALABLE)
     # =============================================================
-    # Familia/subfamilia se mantienen estables; marca y modelo son dinámicos.
     seccion_equipos = ctk.CTkFrame(form_body, fg_color="#F7F9FC", corner_radius=14, border_width=1, border_color="#DCE5EF")
     _fondo_seccion(seccion_equipos)
     seccion_equipos.grid(row=fila_textos, column=0, columnspan=5, sticky="ew", pady=(2, 5))
@@ -3404,7 +3192,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         btn_eliminar.grid(row=fila_eq, column=6, sticky="ew", padx=4, pady=2)
         item_equipo["widgets"].extend([
             btn_eliminar,
-            # localizar widgets creados en esa fila para borrarlos juntos
             *[w for w in seccion_equipos.grid_slaves(row=fila_eq) if w not in (btn_eliminar, om_familia, om_subfamilia)]
         ])
         equipos_catalogo_items.append(item_equipo)
@@ -3453,8 +3240,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     # =============================================================
     # MATERIALES MISCELÁNEOS (COMÚN A TODOS LOS LEVANTAMIENTOS)
     # =============================================================
-    # La captura inicia vacía. Si el técnico agrega una fila, el material
-    # se considera requerido por definición; no se solicita un Sí/No redundante.
     seccion_misc = ctk.CTkFrame(form_body, fg_color="#F7F9FC", corner_radius=14, border_width=1, border_color="#DCE5EF")
     _fondo_seccion(seccion_misc)
     seccion_misc.grid(row=fila_textos, column=0, columnspan=5, sticky="ew", pady=(2, 5))
@@ -3543,8 +3328,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         item_material["widgets"].append(btn_eliminar)
         materiales_miscelaneos_items.append(item_material)
 
-    # En Tecnología se ofrece un catálogo rápido de insumos/consumibles.
-    # La captura manual se conserva para cualquier material no contemplado.
     if tipo_levantamiento in ("Tecnología, Equipos y Periféricos", "General"):
         _insumos_ti = sorted(
             obtener_materiales_por_especialidad(tipo_levantamiento),
@@ -3568,7 +3351,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             seccion_misc, variable=_var_insumo_catalogo,
             values=list(_insumos_por_nombre.keys()), height=31
         )
-        # Un único selector compacto. No ocupar tres columnas ni deformar la tabla.
         _combo_insumo_catalogo.configure(width=360)
         _combo_insumo_catalogo.grid(row=998, column=0, columnspan=2, sticky="w", padx=5, pady=(5, 2))
 
@@ -3579,8 +3361,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             nombre = str(insumo.get("nombre") or "").strip().casefold()
             categoria = str(insumo.get("categoria") or "Otro").strip().casefold()
             unidad = str(insumo.get("unidad") or "Pieza(s)").strip().casefold()
-            # Una segunda pulsación no debe crear otra fila vacía del mismo insumo.
-            # Si la anterior ya tiene cantidad, se permite otra partida (p. ej. otra medida).
             for item in materiales_miscelaneos_items:
                 if (item["material"].get().strip().casefold() == nombre
                         and item["categoria"].get().strip().casefold() == categoria
@@ -3600,9 +3380,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         command=lambda: agregar_material_miscelaneo(None)
     ).grid(row=1000, column=0, columnspan=2, sticky="w", padx=5, pady=(4, 5))
 
-    # Flujo dinámico exclusivo para Tecnología, Equipos y Periféricos.
-    # - Suministro: solo información del producto/equipo; sin materiales ni mano de obra.
-    # - Suministro e instalación: producto + instalación, materiales, días y personal.
     if tipo_levantamiento == "Tecnología, Equipos y Periféricos":
         def actualizar_secciones_ti(*_args):
             accion = vars_extra["accion_ti"].get().strip()
@@ -3610,8 +3387,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             if accion == "Suministro":
                 visibles = {0, 1, 4}
                 seccion_misc.grid_remove()
-                # Evita guardar materiales previamente seleccionados si el usuario
-                # cambia de "Suministro e instalación" a "Suministro".
                 for item in list(materiales_miscelaneos_items):
                     for widget in item.get("widgets", []):
                         try:
@@ -3771,7 +3546,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     EPP_BASE = EPP_BASICO
 
     def obtener_epp_json():
-        # El equipo básico se registra siempre, aunque no se requieran extras.
         if tipo_levantamiento == "Tecnología, Equipos y Periféricos":
             return []
         resultado = partidas_epp_basico(var_personas_considerar_general.get())
@@ -3810,7 +3584,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             return
         if var_requiere_epp.get() == "Sí":
             epp_detalle_frame.grid()
-            # Solo se capturan aquí EPP adicionales; los cuatro básicos son fijos.
         else:
             epp_detalle_frame.grid_remove()
         try:
@@ -3931,7 +3704,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         seccion_herramientas.grid_remove()
 
     def obtener_herramientas_json():
-        # Herramientas no aplican al formulario de suministro de Tecnología.
         if tipo_levantamiento == "Tecnología, Equipos y Periféricos":
             return []
         resultado = []
@@ -3962,8 +3734,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     fila_textos += 1
 
     if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS:
-        # En formularios especializados el resumen técnico se construye desde campos estructurados.
-        # Se conserva un textbox oculto como respaldo para no romper funciones existentes.
         txt_descripcion = AxiaTextbox(form_body, height=1)
         titulo_observaciones = "Descripción detallada del servicio"
         txt_observaciones = campo_texto(titulo_observaciones, altura=100, fila=fila_textos)
@@ -4119,8 +3889,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         def actualizar_secciones_comunes_seguridad(*_args):
             modalidad = var_modalidad_levantamiento.get()
 
-            # La captura dinámica de canalización/materiales de infraestructura
-            # corresponde únicamente a Instalación en Seguridad y Monitoreo.
             if seccion_canalizacion_dinamica is not None:
                 if modalidad == "Instalación":
                     seccion_canalizacion_dinamica.grid()
@@ -4135,7 +3903,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 seccion_equipos.grid_remove()
                 seccion_misc.grid_remove()
                 txt_observaciones.master.grid_remove()
-            else:  # Mantenimiento
+            else:
                 seccion_equipos.grid_remove()
                 seccion_misc.grid()
                 txt_observaciones.master.grid()
@@ -4144,7 +3912,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         actualizar_secciones_comunes_seguridad()
 
     def obtener_materiales_miscelaneos_json():
-        """Devuelve únicamente los materiales marcados como requeridos."""
         materiales = []
         for item in materiales_miscelaneos_items:
             material = item["material"].get().strip()
@@ -4181,7 +3948,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         return "\n".join(lineas)
 
     def obtener_equipos_danados_json():
-        """Devuelve los equipos dañados capturados como lista JSON-compatible."""
         equipos = []
         try:
             for item in equipos_danados_items:
@@ -4196,7 +3962,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         return equipos
 
     def construir_materiales_rack_tierra_seguridad():
-        """Materiales automáticos de rack/tierra para Seguridad y Monitoreo."""
         if tipo_levantamiento != "Seguridad y Monitoreo" or var_modalidad_levantamiento.get().strip() != "Instalación":
             return []
         filas = []
@@ -4224,7 +3989,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         return filas
 
     def construir_materiales_rack_tierra_rvd():
-        """Materiales automáticos de rack/tierra para PDF, cotización y procesos posteriores."""
         if tipo_levantamiento != "Redes Voz y Datos":
             return []
         filas = []
@@ -4253,7 +4017,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         return filas
 
     def obtener_detalle_tecnico_json():
-        """Devuelve los campos dinámicos del formulario especializado en JSON."""
         if tipo_levantamiento == "Aires Acondicionados":
             return {
                 "tipo_levantamiento": "Aires Acondicionados",
@@ -4523,7 +4286,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         if modalidad == "Mantenimiento":
             detalle["acceso_alturas_riesgos"] = {
                 "trabajo_alturas": var_escalera_requerida.get().strip(),
-                "escalera_andamio": var_escalera_requerida.get().strip(),  # compatibilidad
+                "escalera_andamio": var_escalera_requerida.get().strip(),
                 "sistema_acceso_temporal": var_sistema_acceso_temporal.get().strip() if var_escalera_requerida.get() == "Sí" else "",
                 "altura_trabajo": var_altura_trabajo.get().strip() if var_escalera_requerida.get() == "Sí" else "",
                 "riesgo_instalacion": var_riesgo_instalacion.get().strip() if var_escalera_requerida.get() == "Sí" else "",
@@ -4578,7 +4341,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "materiales_rack_tierra": construir_materiales_rack_tierra_seguridad(),
             "acceso_alturas_riesgos": {
                 "trabajo_alturas": var_escalera_requerida.get().strip(),
-                "escalera_andamio": var_escalera_requerida.get().strip(),  # compatibilidad
+                "escalera_andamio": var_escalera_requerida.get().strip(),
                 "sistema_acceso_temporal": var_sistema_acceso_temporal.get().strip() if var_escalera_requerida.get() == "Sí" else "",
                 "altura_trabajo": var_altura_trabajo.get().strip(),
                 "riesgo_instalacion": var_riesgo_instalacion.get().strip(),
@@ -4597,7 +4360,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         return detalle
 
     def construir_resumen_aires_acondicionados():
-        """Devuelve el bloque técnico de Aires Acondicionados para PDF y Supabase."""
         if tipo_levantamiento != "Aires Acondicionados":
             return ""
 
@@ -4666,7 +4428,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         return "\n".join(lineas)
 
     def construir_resumen_redes_voz_datos():
-        """Devuelve el bloque técnico de Redes Voz y Datos para PDF y Supabase."""
         if tipo_levantamiento != "Redes Voz y Datos":
             return ""
 
@@ -4730,7 +4491,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         return "\n".join(lineas)
 
     def construir_resumen_formulario_detallado():
-        """Construye el resumen técnico de formularios especializados adicionales."""
         if tipo_levantamiento not in FORMULARIOS_DETALLADOS_EXTRA:
             return ""
 
@@ -4765,15 +4525,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         return "\n".join(lineas).strip()
 
     def construir_resumen_cctv():
-        """
-        Devuelve un bloque técnico Seguridad y Monitoreo para anexarlo al levantamiento.
-
-        El bloque ya incluye infraestructura, materiales, canalización,
-        conectividad, energía y riesgos. Por ahora se almacena en campos
-        descriptivos existentes para no forzar cambios inmediatos en Supabase.
-        Cuando el flujo sea aprobado por operación, conviene crear tablas
-        específicas para puntos de cámara, materiales y partidas.
-        """
         if tipo_levantamiento != "Seguridad y Monitoreo":
             return ""
 
@@ -4885,15 +4636,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
 
     def formulario_preview_completo():
-        """Una sola fuente de verdad para Preview, Guardar e indicador de faltantes.
-
-        Antes existían dos bloques de reglas distintos: el primero podía devolver
-        False y el segundo una lista vacía, causando el aviso genérico sin ayuda.
-        """
         return not campos_faltantes_preview()
 
     def campos_faltantes_preview():
-        """Devuelve nombres legibles de los requisitos que aún bloquean Guardar/PDF."""
         faltan = []
         def falta(nombre, condicion):
             if condicion and nombre not in faltan:
@@ -4908,8 +4653,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         falta("Nombre del servicio", not var_nombre_servicio.get().strip())
         falta("Notas sobre el cliente", var_desea_notas_cliente.get() == "Sí" and vacia(var_notas_cliente))
         falta("Anotación tipo plano", var_desea_anotacion_plano.get() == "Sí" and not var_anotacion_plano_base64.get().strip())
-        # Al editar, las evidencias ya cargadas en Supabase también satisfacen
-        # la elección «Sí»; no exigir volver a adjuntarlas desde el equipo.
+
         evidencias_guardadas = _json_list((registro_editar or {}).get("lev_evidencias_json")) if registro_editar else []
         falta("Evidencia fotográfica", var_desea_evidencias.get() == "Sí" and
               not (evidencias_levantamiento or evidencias_guardadas))
@@ -4953,8 +4697,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 falta("Descripción detallada del servicio", not txt_observaciones.get("1.0", "end").strip())
                 if modalidad == "Instalación":
                     falta("Infraestructura existente", vacia(var_infra_existe))
-                    # Ya no existe la pregunta «¿Se requieren cámaras?».
-                    # Se validan únicamente los tres datos técnicos visibles.
+
                     for nombre, variable in [
                         ("Ubicación NVR/DVR", var_cctv_ubicacion_nvr),
                         ("Punto de enlace de red", var_cctv_punto_red),
@@ -5001,7 +4744,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             descripcion = txt_descripcion.get("1.0", "end").strip()
             observaciones = txt_observaciones.get("1.0", "end").strip()
             if tipo_levantamiento == "General":
-                pass  # El único campo de descripción se valida más adelante.
+                pass
             elif tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS:
                 falta("Descripción detallada del servicio", not observaciones)
             else:
@@ -5019,7 +4762,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     falta("Medida de Rack",vacia(var_rvd_tipo_rack))
                     for nombre, variable in [("Organizadores verticales",var_rvd_rack_organizadores_verticales),("Organizadores horizontales",var_rvd_rack_organizadores_horizontales),("Charolas",var_rvd_rack_charolas),("PDU",var_rvd_rack_pdu)]: falta(nombre,vacia(variable))
                 if var_rvd_requiere_gabinete.get()=="Sí": falta("Tipo de gabinete",vacia(var_rvd_tipo_gabinete))
-                if False:  # Equipo activo retirado
+                if False:
                     falta("Tipo de switch",vacia(var_rvd_tipo_switch)); falta("Puertos de switch",vacia(var_rvd_puertos_switch)); falta("PoE de switch",vacia(var_rvd_switch_poe))
                 if var_rvd_ups.get()=="Sí": falta("Tipo/capacidad de UPS",vacia(var_rvd_detalle_ups))
                 if var_rvd_contacto_regulado.get()=="Sí": falta("Detalle contacto regulado",vacia(var_rvd_detalle_contacto))
@@ -5051,7 +4794,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         return faltan
 
     def modalidad_seleccionada():
-        """Obtiene la acción real del formulario, sin asumir Instalación."""
         if tipo_levantamiento == "Seguridad y Monitoreo":
             return var_modalidad_levantamiento.get().strip()
         por_especialidad = {
@@ -5087,7 +4829,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         return titulos.get(tipo_levantamiento, "Levantamiento")
 
     def _fecha_levantamiento_iso(valor=None):
-        """Convierte la fecha visible DD/MM/AAAA a ISO para Supabase sin cambiar el esquema."""
         texto = str(var_fecha_programada.get() if valor is None else valor or "").strip()
         if not texto:
             return None
@@ -5099,7 +4840,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         raise ValueError("La Fecha de Levantamiento debe tener formato DD/MM/AAAA.")
 
     def _fecha_levantamiento_visible(valor):
-        """Convierte fechas persistidas ISO al formato DD/MM/AAAA usado por el formulario."""
         texto = str(valor or "").strip()
         if not texto:
             return datetime.now().strftime("%d/%m/%Y")
@@ -5145,25 +4885,19 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         }
 
     def registro_pdf_levantamiento(folio_override=""):
-        """Construye la fuente única del PDF con la misma forma que Supabase."""
         modalidad = modalidad_seleccionada()
-        # El General sí contiene secciones técnicas y listas de materiales.
-        # No excluirlo: de lo contrario el PDF puede mostrarlas, pero el
-        # borrador local/remoto las pierde al serializarse.
         detalle = obtener_detalle_tecnico_json() if (
             tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS
             or tipo_levantamiento == "General"
         ) else {}
         detalle = dict(detalle or {})
         if tipo_levantamiento == "General":
-            # Campo real de la pantalla General (TextBox enlazado a vars_extra).
-            # txt_descripcion es otro control y no refleja esta captura.
             detalle_general = vars_extra.get("detalle_levantamiento")
             detalle["detalle_levantamiento"] = (
                 detalle_general.get().strip() if detalle_general else ""
             )
             detalle["resumen_servicio"] = detalle["detalle_levantamiento"]
-        # Autoría del usuario autenticado; siempre toma usu_nombre y usu_apellido.
+
         detalle["elaborado_por"] = autoria_desde_usuario(usuario_activo)
         detalle["datos_generales_axia"] = {}
         if tipo_levantamiento in TIPOS_CON_CONDICIONES_SITIO:
@@ -5203,8 +4937,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             detalle["equipos_principales"] = obtener_equipos_catalogo_json()
             detalle["materiales_miscelaneos"] = obtener_materiales_miscelaneos_json()
             detalle["herramientas"] = obtener_herramientas_json()
-            # Preservar el estado explícito para restaurar el selector en
-            # vez de aplicar su valor inicial "No" y perder las filas.
             detalle["canalizacion_cableado_materiales"] = {
                 "requiere": var_requiere_canalizacion.get().strip(),
                 "partidas": detalle["canalizacion_materiales"],
@@ -5269,9 +5001,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             abrir=True,
         )
 
-    # =================================================
-    # FUNCIÓN: guardar_levantamiento()
-
     def titulo_pdf_levantamiento():
         titulos = {
             "Seguridad y Monitoreo": "Levantamiento Seguridad y Monitoreo",
@@ -5322,23 +5051,17 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     def registro_pdf_levantamiento(folio_override=""):
         """Construye la fuente única del PDF con la misma forma que Supabase."""
         modalidad = modalidad_seleccionada()
-        # El General sí contiene secciones técnicas y listas de materiales.
-        # No excluirlo: de lo contrario el PDF puede mostrarlas, pero el
-        # borrador local/remoto las pierde al serializarse.
         detalle = obtener_detalle_tecnico_json() if (
             tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS
             or tipo_levantamiento == "General"
         ) else {}
         detalle = dict(detalle or {})
         if tipo_levantamiento == "General":
-            # Campo real de la pantalla General (TextBox enlazado a vars_extra).
-            # txt_descripcion es otro control y no refleja esta captura.
             detalle_general = vars_extra.get("detalle_levantamiento")
             detalle["detalle_levantamiento"] = (
                 detalle_general.get().strip() if detalle_general else ""
             )
             detalle["resumen_servicio"] = detalle["detalle_levantamiento"]
-        # Autoría del usuario autenticado; siempre toma usu_nombre y usu_apellido.
         detalle["elaborado_por"] = autoria_desde_usuario(usuario_activo)
         detalle["datos_generales_axia"] = {}
         if tipo_levantamiento in TIPOS_CON_CONDICIONES_SITIO:
@@ -5364,8 +5087,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             detalle["equipos_principales"] = obtener_equipos_catalogo_json()
             detalle["materiales_miscelaneos"] = obtener_materiales_miscelaneos_json()
             detalle["herramientas"] = obtener_herramientas_json()
-            # Preservar el estado explícito para restaurar el selector en
-            # vez de aplicar su valor inicial "No" y perder las filas.
             detalle["canalizacion_cableado_materiales"] = {
                 "requiere": var_requiere_canalizacion.get().strip(),
                 "partidas": detalle["canalizacion_materiales"],
@@ -5407,9 +5128,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             "lev_descripcion_fallas": descripcion_fallas,
             "lev_detalle_tecnico_json": json.dumps(detalle, ensure_ascii=False) if detalle else "",
             "lev_equipos_danados_json": json.dumps(equipos_danados, ensure_ascii=False) if equipos_danados else "",
-            # El preview usa esta misma estructura que el PDF definitivo.
-            # Sin este campo el renderer maestro no recibe el croquis capturado
-            # antes de guardar en Supabase.
             "lev_anotacion_plano_json": json.dumps({
                 "habilitado": var_desea_anotacion_plano.get() == "Sí",
                 "imagen_base64": var_anotacion_plano_base64.get().strip()
@@ -5463,7 +5181,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         return []
 
     def _cargar_registro_edicion():
-        """Rellena el formulario desde un registro persistido o un borrador local."""
         fuente_restauracion = registro_editar or borrador
         if not fuente_restauracion:
             return
@@ -5471,12 +5188,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         registro = dict(fuente_restauracion or {})
         detalle = _json_dict(registro.get("lev_detalle_tecnico_json"))
 
-        # Datos generales.
         reversa_tipo = {1:"Técnico", 2:"Comercial", 3:"Infraestructura", 4:"Seguridad", 5:"Energía", 6:"Otro"}
         reversa_estatus = {1:"Pendiente", 2:"En proceso", 3:"Realizado", 4:"Cancelado"}
         reversa_prioridad = {1:"Baja", 2:"Media", 3:"Alta", 4:"Urgente"}
-        # Tkinter Variable (StringVar/IntVar/etc.) no es hashable, por lo que
-        # no puede utilizarse como llave de un dict. Usamos pares (variable, valor).
+
         comunes = [
             (var_folio, registro.get("lev_folio")), (var_aco, registro.get("lev_aco_numero")),
             (var_cliente, registro.get("lev_cliente")), (var_cliente_selector, registro.get("lev_cliente")),
@@ -5517,13 +5232,11 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         elif cliente_guardado:
             var_cliente_selector.set(cliente_guardado)
 
-        # Textos generales.
         var_nombre_servicio.set(str(registro.get("lev_descripcion") or ""))
         nota_guardada = str(registro.get("lev_notas") or "").strip()
         var_desea_notas_cliente.set("Sí" if nota_guardada else "No")
         var_notas_cliente.set(nota_guardada)
-        # Restauración desde la misma clave técnica usada al capturar el
-        # General; no copiar aquí el nombre del servicio por equivocación.
+
         descripcion_detalle = (
             detalle.get("detalle_levantamiento")
             or (detalle.get("secciones", {}).get("descripción_o_detalle_de_levantamiento", {})
@@ -5538,7 +5251,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         if tipo_levantamiento == "General" and "detalle_levantamiento" in vars_extra:
             vars_extra["detalle_levantamiento"].set(str(descripcion_detalle))
 
-        # Anotación y evidencias existentes.
         anotacion = _json_dict(registro.get("lev_anotacion_plano_json"))
         if anotacion.get("habilitado") or anotacion.get("imagen_base64"):
             var_desea_anotacion_plano.set("Sí")
@@ -5547,14 +5259,11 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         if evidencias_existentes:
             var_desea_evidencias.set("Sí")
 
-        # Valores históricos: se mantienen en BD, pero se muestran con la etiqueta homologada.
         normalizar_modalidad = {"Instalación nueva": "Instalación", "Sistema nuevo": "Instalación", "Diagnóstico previo": "Diagnóstico"}
         for variable in (var_aa_necesidad, var_rvd_necesidad, var_pe_necesidad, var_ele_necesidad):
             if variable.get() in normalizar_modalidad:
                 variable.set(normalizar_modalidad[variable.get()])
 
-        # Aplana el detalle técnico y usa los nombres de las variables del formulario
-        # para restaurar todos los campos especializados sin duplicar cada formulario.
         hojas = {}
         def recorrer(obj):
             if isinstance(obj, dict):
@@ -5594,11 +5303,8 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             if clave in hojas:
                 variable.set(str(hojas[clave]))
 
-        # Compatibilidad con levantamientos previos al desglose vertical/horizontal y
-        # a los nuevos componentes de tierra física.
         if tipo_levantamiento == "Seguridad y Monitoreo":
-            # Los registros anteriores no tenían la pregunta explícita. Si ya
-            # contienen detalle de cámaras, se consideran afirmativos.
+
             if not var_cctv_requiere_camaras.get().strip():
                 var_cctv_requiere_camaras.set(
                     "Sí" if any(v.get().strip() for v in (
@@ -5626,9 +5332,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 if not var_rvd_tierra_abrazadera_omega.get().strip(): var_rvd_tierra_abrazadera_omega.set("0")
                 if not var_rvd_tierra_tornillos_cobre.get().strip(): var_rvd_tierra_tornillos_cobre.set("0")
 
-        # Listas dinámicas que forman parte del formulario original.
-        # Restaura primero la decisión explícita de canalización. Los formatos
-        # históricos pueden guardarla en cualquiera de estos dos bloques.
         _canal_cfg = {}
         for _canal_key in ("canalizacion_cableado_materiales", "cableado_canalizacion_consumibles"):
             _candidate = detalle.get(_canal_key)
@@ -5643,8 +5346,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             _anidadas = _canal_cfg.get("partidas")
             if isinstance(_anidadas, list):
                 _filas_canal_guardadas = _anidadas
-        # Priorizar partidas reales por encima del valor inicial "No" del
-        # selector, también para borradores antiguos sin bandera explícita.
+
         if _filas_canal_guardadas:
             var_requiere_canalizacion.set("Sí")
         elif _canal_cfg:
@@ -5663,8 +5365,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                         if k == "tipo":
                             valor = normalizar_tipo_canalizacion(valor)
                         item[destino].set(str(valor))
-                # La unidad capturada se valida contra el tipo actual; las cuatro
-                # tuberías flexibles se cuantifican por metro y las demás por pieza.
+
                 item["unidad"].set(unidad_forzada_canalizacion(
                     item["categoria"].get(), item["unidad"].get(), item["tipo"].get()))
                 conservar_referencia_guardada(item, fila, ("categoria", "tipo", "especificacion", "unidad"))
@@ -5692,7 +5393,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         partidas_epp_guardadas = epp_guardado.get("partidas", []) if isinstance(epp_guardado.get("partidas"), list) else []
         extras_epp_guardados = [fila for fila in partidas_epp_guardadas
                                if isinstance(fila, dict) and str(fila.get("epp") or fila.get("equipo") or "").strip() not in EPP_BASE]
-        # 'adicional' es la nueva bandera; si falta, se infiere de las partidas antiguas.
+
         epp_adicional = epp_guardado.get("adicional")
         if epp_adicional not in ("Sí", "No"):
             epp_adicional = "Sí" if extras_epp_guardados else "No"
@@ -5733,7 +5434,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 except Exception:
                     logger.debug("No fue posible restaurar una herramienta.", exc_info=True)
 
-        # Equipos dañados de Seguridad/Reparación.
         equipos_danados_guardados = _json_list(registro.get("lev_equipos_danados_json"))
         if equipos_danados_guardados:
             try:
@@ -5742,7 +5442,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 frame_danados = marco_local.get("frame_equipos_danados") or marco_local.get("seccion_rep_equipos")
                 coleccion_danados = marco_local.get("equipos_danados_items")
                 if callable(agregar_danado) and frame_danados is not None and isinstance(coleccion_danados, list):
-                    # Si el formulario creó una fila vacía por defecto, reutilízala primero.
+
                     while len(coleccion_danados) < len(equipos_danados_guardados):
                         agregar_danado(frame_danados, coleccion_danados)
                     for item, fila in zip(coleccion_danados, equipos_danados_guardados):
@@ -5753,7 +5453,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             except Exception:
                 logger.debug("No fue posible restaurar los equipos dañados.", exc_info=True)
 
-        # Campos de reparación que viven fuera del detalle principal.
         if registro.get("lev_descripcion_fallas"):
             try:
                 txt_rep_descripcion_fallas.delete("1.0", "end")
@@ -5769,8 +5468,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
     _cargar_registro_edicion()
 
-    # Tecnología: los bloques opcionales permanecen cerrados en registros nuevos.
-    # En edición/borrador se abren automáticamente sólo si ya contienen datos reales.
     if tipo_levantamiento == "Tecnología, Equipos y Periféricos":
         for _titulo_ti, _switch_var in ti_switch_vars.items():
             _campos_ti = next((c for t, c in FORMULARIOS_DETALLADOS_EXTRA[tipo_levantamiento]["secciones"] if t == _titulo_ti), [])
@@ -5780,8 +5477,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             if _frame_ti is not None:
                 (_frame_ti.grid if _tiene_datos else _frame_ti.grid_remove)()
 
-    # Expone al contenedor principal una captura segura del formulario actual.
-    # Se usa para autoguardado local antes de cerrar la sesión por inactividad.
     try:
         if hasattr(app, "registrar_proveedor_borrador_levantamiento"):
             app.registrar_proveedor_borrador_levantamiento(
@@ -5796,10 +5491,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     # =================================================
 
     def guardar_levantamiento():
-        """
-        Valida y guarda el levantamiento en Supabase.
-        """
-
         folio = ""
         evidencias_previas = _json_list((registro_editar or {}).get("lev_evidencias_json")) if registro_editar else []
         archivos_previos = _json_list((registro_editar or {}).get("lev_archivos_adjuntos_json")) if registro_editar else list(archivos_adjuntos_existentes)
@@ -5894,7 +5585,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         if tipo_levantamiento in TIPOS_LEVANTAMIENTO_ESPECIALIZADOS:
             modalidad_operativa = modalidad_seleccionada()
             detalle_tecnico = obtener_detalle_tecnico_json()
-            # Instantánea para que la autoría original sobreviva a reimpresiones.
             detalle_tecnico["elaborado_por"] = autoria_desde_usuario(usuario_activo)
             if tipo_levantamiento in TIPOS_CON_CONDICIONES_SITIO:
                 detalle_tecnico["condiciones_sitio_ruta"] = {
@@ -5945,17 +5635,12 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
         folio_origen_revision = ""
         if registro_editar:
-            # Una modificación genera una NUEVA VERSIÓN del levantamiento.
-            # El registro y folio originales permanecen intactos para conservar
-            # trazabilidad histórica y permitir comparar propuestas/versiones.
             id_levantamiento_edicion = registro_editar.get("id_levantamiento")
             if not id_levantamiento_edicion:
                 messagebox.showerror("No se pudo guardar", "El levantamiento no contiene id_levantamiento.")
                 return
             folio_origen_revision = str(registro_editar.get("lev_folio") or "").strip().upper()
 
-            # Forzamos a crear_levantamiento() a solicitar un LEV nuevo mediante
-            # la RPC centralizada de Supabase. Nunca reutilizamos el folio origen.
             datos["lev_folio"] = ""
             for campo_id in ("id_aco", "id_cliente", "id_sucursal", "id_contacto"):
                 if datos.get(campo_id) in (None, ""):
@@ -6023,8 +5708,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             registro_pdf["__archivos_adjuntos_locales"] = list(archivos_adjuntos_levantamiento) if var_desea_archivos_adjuntos.get() == "Sí" else []
             if archivos_subidos or archivos_previos:
                 registro_pdf["lev_archivos_adjuntos_json"] = json.dumps(list(archivos_previos) + archivos_subidos, ensure_ascii=False)
-            # El archivo local se genera ANTES del envío por correo. Su ubicación
-            # corresponde a la carpeta Documentos real del usuario de Windows.
             try:
                 ruta_pdf_destino = ruta_documentos_axia("levantamientos") / f"AXIA_{folio}.pdf"
                 ruta_pdf = generar_pdf_registro(
@@ -6044,8 +5727,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 mensaje_pdf = ("\n\n⚠ El levantamiento se registró, pero no se pudo guardar "
                                f"el PDF en Documentos/AXIA/levantamientos.\nDetalle: {error_pdf}")
 
-            # El correo es una notificación secundaria: una falla SMTP nunca
-            # revierte ni invalida el levantamiento ya guardado en Supabase.
             if ruta_pdf:
                 resultado_correo = enviar_levantamiento_pdf(
                     registro_pdf,
@@ -6071,7 +5752,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 ) + mensaje_pdf + mensaje_correo
             )
 
-            # Un guardado definitivo invalida cualquier borrador local del mismo usuario.
             try:
                 from services.levantamiento_borradores_service import eliminar_borrador
                 eliminar_borrador(usuario_activo)
@@ -6101,11 +5781,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     # HOMOLOGACIÓN VISUAL FINAL DEL FORMULARIO
     # =================================================
     def _homologar_controles_levantamiento(widget):
-        """Mantiene captura/selectores en Montserrat 11 y altura compacta.
-
-        Los encabezados de sección conservan 13 pt bold para no perder
-        jerarquía visual; los botones mantienen su estilo corporativo.
-        """
         try:
             if isinstance(widget, ctk.CTkEntry):
                 widget.configure(font=FORM_FIELD_FONT, height=FORM_CONTROL_HEIGHT, corner_radius=0)
@@ -6124,10 +5799,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     # =================================================
     # EDICION SEGURA POR SECCIONES
     # =================================================
-    # Al abrir una revision, cada bloque queda protegido. El usuario habilita
-    # solamente la seccion que necesita modificar; al volver a bloquearla se
-    # restauran los estados previos de sus controles (incluidos estados
-    # condicionales que ya estaban deshabilitados).
     if registro_editar:
         def _descendientes(widget):
             for child in widget.winfo_children():
@@ -6181,7 +5852,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 return
             aplicar()
 
-        # Cada frame directo del cuerpo representa un bloque/seccion visual.
         for _seccion in form_body.winfo_children():
             if isinstance(_seccion, ctk.CTkFrame):
                 _instalar_bloqueo_seccion(_seccion)
@@ -6191,14 +5861,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     # =================================================
     # BOTONES FIJOS
     # =================================================
-
-    # La barra inferior ya fue reservada antes de empaquetar el área
-    # desplazable; aquí solamente agregamos sus controles.
-
-    # Separar el aviso de validación y su botón de consulta de las acciones
-    # principales. Antes «Ver campos pendientes» y «Cancelar» compartían la
-    # columna 3 del mismo grid, de modo que Cancelar tapaba el botón naranja.
-    # Esta fila independiente también evita desbordamientos en ventanas angostas.
     fila_estado_preview = ctk.CTkFrame(frame_botones, fg_color="transparent")
     fila_estado_preview.pack(fill="x", padx=12, pady=(4, 0))
     fila_estado_preview.grid_columnconfigure(0, weight=1)
@@ -6210,7 +5872,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     lbl_faltantes_preview.grid(row=0, column=0, sticky="ew", padx=(0, 8))
 
     def ajustar_ancho_aviso_preview(event):
-        # Reservar espacio para el botón a la derecha, sin truncar el aviso.
         lbl_faltantes_preview.configure(wraplength=max(180, event.width - 218))
 
     fila_estado_preview.bind("<Configure>", ajustar_ancho_aviso_preview, add="+")
@@ -6251,15 +5912,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     ).grid(row=0, column=0, padx=4)
 
     def guardar_borrador_compartido():
-        """Primero respaldo local cifrado; luego nube, sin bloquear la interfaz.
-
-        La conversión FIELD y la transferencia de anexos siguen pendientes.
-        Nunca se anuncia una captura como recuperable en FIELD por el hecho de
-        haber guardado únicamente el JSON en Supabase.
-        """
         try:
-            # Nunca afirmar "sincronizado" si hay partidas visibles cuya
-            # captura fue desactivada mediante el selector.
             if var_requiere_canalizacion.get() != "Sí" and any(
                 str(it.get("cantidad").get()).strip()
                 for it in canalizacion_materiales_items
@@ -6287,8 +5940,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                                  parent=parent.winfo_toplevel())
             return
 
-        # Los archivos viajan únicamente a través de axia-borradores-medios,
-        # nunca mediante rutas de Windows o base64 en el JSON remoto.
         def _contiene_medios_locales(objeto):
             if isinstance(objeto, dict):
                 for k, v in objeto.items():
@@ -6302,9 +5953,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 return any(_contiene_medios_locales(v) for v in objeto)
             return False
 
-        # Los archivos históricos que ya existen en otra ubicación de Storage
-        # no deben ocultarse al crear una copia nueva en el bucket privado.
-        # Se conserva el respaldo local y se solicita completar su migración.
         def _lista_remota_sin_transferir(value):
             try:
                 lista = json.loads(value) if isinstance(value, str) else value
@@ -6344,8 +5992,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         cliente = SesionBorradores(SUPABASE_URL, SUPABASE_KEY, jwt)
 
         def enviar():
-            # Primera revisión: registrar el borrador y reservar su identidad
-            # antes de subir archivos; FIELD no lo interpretará como completo.
             from services.levantamiento_evidencias_borrador import (
                 sanear_json_remoto, preparar_medios_borrador,
             )
@@ -6358,8 +6004,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 sobre["media"] = []
                 sobre["native"]["desktop"] = sanear_json_remoto(datos)
                 nueva_revision = cliente.guardar(clave, revision, "DESKTOP", sobre)
-                # Si falla cualquier foto, guardar la nueva revisión como
-                # pendiente para poder reintentar sin conflicto 409.
                 from services.levantamiento_borradores_service import registrar_revision_parcial
                 registrar_revision_parcial(usuario_activo, clave, nueva_revision)
                 from services.levantamiento_medios_compartidos import MediosCompartidos
@@ -6373,7 +6017,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 sobre["media"] = transfer["media"]
                 sobre["media_transfer_complete"] = True
                 return cliente.guardar(clave, nueva_revision, "DESKTOP", sobre)
-            # Sin adjuntos, la captura ya es transferible por JSON.
             sobre["media"] = []
             sobre["media_transfer_complete"] = True
             return cliente.guardar(clave, revision, "DESKTOP", sobre)
@@ -6412,11 +6055,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     btn_guardar_borrador.grid(row=0, column=1, padx=4)
 
     def eliminar_borrador_compartido():
-        """Elimina la copia local y la remota vinculadas al usuario actual.
-
-        Si falla el servidor, la copia local no se toca. No elimina un LEV
-        guardado definitivamente ni otros borradores del mismo usuario.
-        """
         from services.levantamiento_borradores_service import cargar_borrador, eliminar_borrador
         guardado = cargar_borrador(usuario_activo)
         if not guardado:
@@ -6438,7 +6076,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         if not respuesta:
             return
         def final_local(mensaje):
-            # Evita eliminar un borrador reemplazado durante la petición.
             vigente = cargar_borrador(usuario_activo)
             if not vigente or (vigente.get("sincronizacion") or {}).get("clave_cliente") != clave:
                 messagebox.showwarning("Borrador", "El borrador local cambió durante la eliminación. "
@@ -6486,7 +6123,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     ).grid(row=0, column=2, padx=4)
 
     def recuperar_borrador_local():
-        """Restaura el borrador cifrado ya existente, sin sobrescribir Supabase."""
         from services.levantamiento_borradores_service import cargar_borrador
         guardado = cargar_borrador(usuario_activo)
         if not guardado or not isinstance(guardado.get("datos"), dict):
@@ -6501,8 +6137,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             parent=parent.winfo_toplevel(),
         ):
             return
-        # El constructor existente de la vista es la única ruta de restauración
-        # validada para materiales, equipos y datos generales.
         if modal:
             messagebox.showinfo("Recuperar borrador", "Cierra esta ventana modal y recupera "
                                 "el borrador desde la pantalla principal.", parent=parent.winfo_toplevel())
@@ -6564,7 +6198,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     btn_ver_pendientes.grid(row=0, column=1, sticky="e")
 
     def _actualizar_estado_preview_impl():
-        """Misma lista controla el texto de ayuda y el estado de los botones."""
         faltantes = campos_faltantes_preview()
         completo = not faltantes
         if completo:
@@ -6661,8 +6294,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         txt_rep_infraestructura.bind("<KeyRelease>", lambda _event: programar_actualizacion_estado_preview(), add="+")
     except Exception:
         logger.debug("Excepción recuperable controlada.", exc_info=True)
-    # Ahora ya están creadas todas las variables, secciones y acciones.
-    # Recalcular sobre los datos recuperados de la versión editada.
     _preview_lista_activa = True
     actualizar_estado_preview()
 
@@ -6681,8 +6312,6 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
     enfocar_inicio_formulario(card)
 
-    # La consulta de Almacén se agenda cuando el formulario ya está construido.
-    # Este callback solo lee; nunca suma ni descuenta existencias.
     try:
         form_body.after(300, cargar_referencias_almacen)
     except Exception:

@@ -1,9 +1,3 @@
-"""Documento de croquis AXIA: capas editables dentro del mismo PNG Base64.
-
-La interfaz y el PDF ENGINE siguen recibiendo PNG Base64. Los objetos se guardan
-como metadatos del PNG; los levantamientos antiguos sin metadatos son una capa
-raster de fondo, preservada al guardar. La cuadrícula es solo de edición.
-"""
 from __future__ import annotations
 
 import base64
@@ -39,7 +33,6 @@ def get_layer_id(obj):
 
 
 def ordered_objects(objects, layers):
-    """Retorna (índice original, objeto) en orden visible de renderizado."""
     by_id = {layer['id']: (pos, layer) for pos, layer in enumerate(layers)}
     pairs = [(i, obj) for i, obj in enumerate(objects)
              if by_id.get(get_layer_id(obj), (-1, {'visible': True}))[1].get('visible', True)]
@@ -57,7 +50,6 @@ def image_bitmap(obj):
 
 
 def import_image_bytes(raw: bytes, suffix: str = '') -> str:
-    """Prepara un plano como imagen comprimida y autocontenida (para Supabase)."""
     if not raw or len(raw) > MAX_IMPORT_BYTES:
         raise ValueError('La imagen debe ocupar como máximo 12 MB.')
     if suffix.lower() == '.pdf':
@@ -88,7 +80,7 @@ def import_image_bytes(raw: bytes, suffix: str = '') -> str:
         except (OSError, Image.DecompressionBombError) as exc:
             raise ValueError('Archivo de imagen no válido o demasiado grande.') from exc
     source.thumbnail((1400, 1200), Image.Resampling.LANCZOS)
-    # Conservar transparencias en dibujos/logo; fotografías JPEG para evitar un Base64 enorme.
+
     out = io.BytesIO()
     has_alpha = ('A' in source.getbands() and source.getextrema()[-1][0] < 255
                  or 'transparency' in source.info)
@@ -152,7 +144,6 @@ def translate(obj: dict, dx: float, dy: float) -> None:
 
 
 def resize(obj: dict, anchor: tuple[float, float], point: tuple[float, float], initial: dict) -> None:
-    """Reescala el objeto tomando como ancla su esquina superior izquierda."""
     x0, y0, x1, y1 = bounds(initial)
     sx = (point[0] - anchor[0]) / max(1, x1 - x0)
     sy = (point[1] - anchor[1]) / max(1, y1 - y0)
@@ -174,7 +165,6 @@ def resize(obj: dict, anchor: tuple[float, float], point: tuple[float, float], i
 
 
 def rotate_90(obj: dict) -> None:
-    """Rota un elemento 90° en sentido horario, conservando su posición central."""
     kind = obj["kind"]
     if kind == "text":
         obj["rotation"] = (int(obj.get("rotation", 0)) + 90) % 360
@@ -201,7 +191,6 @@ def rotate_90(obj: dict) -> None:
 
 
 def text_bitmap(obj: dict) -> Image.Image:
-    """Texto transparente de Pillow para rotación sin alterar la salida PNG."""
     font = _font(obj.get("size", 20))
     content = str(obj.get("text", ""))
     trial = Image.new("RGBA", (1,1), (0,0,0,0))
@@ -223,7 +212,6 @@ def _segment_distance(x, y, ax, ay, bx, by):
 
 
 def hit_test(objects: list[dict], x: float, y: float, tolerance: float = 8, layers=None) -> int | None:
-    """Obtiene el objeto visible de mayor prioridad bajo el puntero."""
     layers = layers or default_layers()
     lookup = {layer['id']: layer for layer in layers}
     for i, obj in reversed(ordered_objects(objects, layers)):
@@ -311,7 +299,6 @@ class CroquisDocumento:
                 self.objects = payload["objects"]
                 supplied = payload.get('layers')
                 self.layers = supplied if isinstance(supplied, list) and supplied else default_layers()
-                # Si faltan capas de versiones anteriores, se conservan como Trazos.
                 if 'trazos' not in {v.get('id') for v in self.layers}:
                     self.layers.insert(0, default_layers()[1])
                 background_data = source.info.get(BASE_KEY)

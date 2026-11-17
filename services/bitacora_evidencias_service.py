@@ -1,4 +1,3 @@
-"""Gestión de evidencias fotográficas para Bitácoras Operativas."""
 from __future__ import annotations
 
 import mimetypes
@@ -31,7 +30,6 @@ def _slug(texto: str) -> str:
 
 
 def _subir_evidencias(prefijo: str, folio: str, rutas) -> list[dict]:
-    """Sube fotografías operativas al bucket existente y devuelve metadatos JSON."""
     folio = _slug(str(folio or "SIN-FOLIO").upper())
     prefijo = _slug(prefijo or "operacion")
     evidencias = []
@@ -67,27 +65,22 @@ def _subir_evidencias(prefijo: str, folio: str, rutas) -> list[dict]:
 
 
 def subir_evidencias_bitacora(folio: str, rutas) -> list[dict]:
-    """Compatibilidad: guarda evidencias de Bitácora."""
     return _subir_evidencias("bitacoras", folio or "BIT-SIN-FOLIO", rutas)
 
 
 def subir_evidencias_orden_servicio(folio: str, rutas) -> list[dict]:
-    """Guarda evidencias fotográficas de una Orden de Servicio."""
     return _subir_evidencias("ordenes-servicio", folio or "OS-SIN-FOLIO", rutas)
 
 
 def subir_evidencias_levantamiento(folio: str, rutas) -> list[dict]:
-    """Guarda evidencias fotográficas de un Levantamiento."""
     return _subir_evidencias("levantamientos", folio or "LEV-SIN-FOLIO", rutas)
 
 
 def subir_evidencias_obra_civil(folio: str, rutas) -> list[dict]:
-    """Guarda evidencias fotográficas de Obra Civil."""
     return _subir_evidencias("obras-civiles", folio or "OBC-SIN-FOLIO", rutas)
 
 
 def _subir_archivos_tecnicos(prefijo: str, folio: str, rutas) -> list[dict]:
-    """Sube PDF/planos al bucket operativo y devuelve metadatos JSON."""
     folio = _slug(str(folio or "SIN-FOLIO").upper())
     prefijo = _slug(prefijo or "archivos-tecnicos")
     archivos = []

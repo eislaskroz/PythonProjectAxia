@@ -1,9 +1,3 @@
-"""Limpieza segura del proyecto AXIA.
-
-Elimina carpetas generadas por Python/PyInstaller sin tocar código fuente.
-Ejecutar desde la raíz del proyecto:
-    python scripts/limpiar_proyecto.py
-"""
 from pathlib import Path
 import shutil
 

@@ -1,10 +1,3 @@
-"""Repositorio local de artefactos PDF canónicos de AXIA PDF ENGINE Fase 3.
-
-Un PDF definitivo se registra junto con su huella SHA-256. Las descargas
-posteriores copian exactamente esos mismos bytes en lugar de volver a renderizar
-el documento. Si el artefacto no existe en el equipo actual, el servicio puede
-regenerarlo y registrarlo como mecanismo de compatibilidad.
-"""
 from __future__ import annotations
 
 import hashlib
@@ -68,7 +61,6 @@ class AxiaPdfArtifact:
 
 
 class AxiaPdfArtifactStore:
-    """Índice persistente de PDFs definitivos generados en este equipo."""
 
     @classmethod
     def _load(cls) -> dict[str, Any]:

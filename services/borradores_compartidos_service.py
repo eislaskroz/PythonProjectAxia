@@ -1,8 +1,3 @@
-"""Cliente opcional para borradores AXIA en Supabase (etapa 1).
-
-La fuente local sigue siendo la primaria. No se conecta ni sincroniza automáticamente
-hasta disponer de sesión AXIA JWT y validación de equivalencia DESKTOP/FIELD.
-"""
 from __future__ import annotations
 
 import json
@@ -23,11 +18,6 @@ class ConflictoBorrador(ErrorBorradoresCompartidos):
 
 
 def sobre_desktop(tipo: str, datos: dict[str, Any]) -> dict[str, Any]:
-    """Conserva TODAS las claves lev_*; no inventa conversiones ni copia fotos locales.
-
-    No permitir restauración en FIELD sin un conversor validado: rutas de evidencia,
-    estructura de detalles técnicos y estado de firma pueden ser incompatibles.
-    """
     if not isinstance(datos, dict):
         raise ValueError("Se requiere un diccionario")
     return {
@@ -49,7 +39,6 @@ def sobre_desktop(tipo: str, datos: dict[str, Any]) -> dict[str, Any]:
 
 
 def restaurar_desktop(sobre: dict[str, Any]) -> tuple[str, dict[str, Any]]:
-    """Fail closed si el borrador no es nativo; evita pérdida silenciosa."""
     if sobre.get("schema") != SCHEMA or sobre.get("module") != "LEVANTAMIENTO":
         raise ValueError("Versión o módulo de borrador incompatible")
     native = sobre.get("native")

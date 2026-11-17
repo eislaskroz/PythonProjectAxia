@@ -1,4 +1,3 @@
-"""Símbolos técnicos propios de AXIA, dibujados vectorialmente (sin recursos externos)."""
 from __future__ import annotations
 
 from PIL import Image, ImageDraw, ImageFont
@@ -21,7 +20,7 @@ SYMBOLS = {
 
 def symbol_bitmap(symbol: str, color: str = '#172554', width: int = 128,
                   height: int = 128, rotation: int = 0) -> Image.Image:
-    """Genera un pictograma transparente a resolución escalable."""
+
     w, h = 128, 128
     img = Image.new('RGBA', (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)

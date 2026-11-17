@@ -81,8 +81,7 @@ def mostrar_bitacora_avance(parent, app, aco=None):
     card.grid(row=0, column=0, sticky="nsew", pady=(0, 4))
     form = ctk.CTkFrame(card, fg_color="transparent")
     form.pack(fill="x", expand=True, padx=12, pady=(9, 4))
-    # Retícula de 12 columnas para compactar el formulario y permitir
-    # reacomodos más finos sin desperdiciar espacio horizontal.
+
     FORM_COLS = 12
     for col in range(FORM_COLS):
         form.grid_columnconfigure(col, weight=1, uniform="form_cols")
@@ -148,7 +147,6 @@ def mostrar_bitacora_avance(parent, app, aco=None):
         sucursales = obtener_sucursales_por_cliente(id_cliente) if id_cliente else []
         for sucursal in sucursales:
             etiqueta = _etiqueta_sucursal(sucursal)
-            # Evita colisiones visuales si dos sucursales tienen el mismo nombre.
             if etiqueta in sucursales_por_etiqueta:
                 sid = sucursal.get("suc_id") or sucursal.get("id_sucursal")
                 etiqueta = f"{etiqueta} [{sid}]"
@@ -175,11 +173,6 @@ def mostrar_bitacora_avance(parent, app, aco=None):
                 var_direccion.set("")
 
     def actualizar_avance_anterior():
-        """Lee el avance REAL de las bitácoras anteriores de la OT seleccionada.
-
-        No suma el porcentaje que se está capturando en este formulario.
-        Ante un fallo de consulta muestra un valor desconocido, no un 0 % falso.
-        """
         folio_ot = str(contexto_ot.get("ot_folio") or "").strip()
         if not folio_ot:
             var_avance_anterior.set("—")
@@ -211,7 +204,7 @@ def mostrar_bitacora_avance(parent, app, aco=None):
         validar_preview()
 
     seccion("Bitácora de Avance", 0)
-    # Línea 1: identificación compacta.
+
     entry("Folio de bitácora", var_folio, "Automático", 1, 0, state="disabled", colspan=2)
     entry("Fecha", var_fecha, "DD-MM-AAAA", 1, 2, state="disabled", colspan=2)
     option("Número de ACO", var_aco, acos_disponibles, 1, 4, command=cargar_aco,
@@ -221,7 +214,7 @@ def mostrar_bitacora_avance(parent, app, aco=None):
                             command=cargar_sucursal, state="disabled", colspan=2)
     entry("Nombre del encargado del proyecto", var_encargado, "Autollenado por ACO", 1, 10, state="disabled", colspan=2)
 
-    # Línea 2: dirección, horarios y resumen inmediato del avance.
+
     entry("Dirección de la sucursal", var_direccion, "Autollenado por sucursal", 2, 0, state="disabled", colspan=6)
     entry("Hora de Llegada", var_hora_llegada, "HH:MM", 2, 6, colspan=2)
     entry("Hora de Salida", var_hora_salida, "HH:MM", 2, 8, colspan=2)
@@ -243,7 +236,7 @@ def mostrar_bitacora_avance(parent, app, aco=None):
     )
     entry_acumulado.pack(fill="x")
 
-    # Línea 3: operación compacta y evidencias al costado.
+
     c_tecnico = celda(3, 0, 4)
     label(c_tecnico, "Técnico en sitio")
     tecnico_linea = ctk.CTkFrame(c_tecnico, fg_color="transparent")
@@ -323,7 +316,6 @@ def mostrar_bitacora_avance(parent, app, aco=None):
     ctk.CTkButton(acciones, text="Eliminar última", width=130, height=30, fg_color="#DC2626",
                   hover_color="#B91C1C", command=quitar_ultima_foto).pack(side="left")
 
-    # Línea 4: barra interactiva y resumen del progreso proyectado.
     c_progreso = celda(4, 0, FORM_COLS)
     encabezado_progreso = ctk.CTkFrame(c_progreso, fg_color="transparent")
     encabezado_progreso.pack(fill="x")

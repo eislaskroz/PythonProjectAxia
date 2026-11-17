@@ -1,4 +1,3 @@
-"""Versión centralizada del sistema AXIA."""
 from __future__ import annotations
 
 import re

@@ -1,7 +1,3 @@
-"""Motor corporativo PDF 2.0 para documentos AXIA.
-
-Centraliza fondo, metadatos, márgenes, estilos y numeración de página.
-"""
 from __future__ import annotations
 
 from core.logger import configurar_logger
@@ -19,7 +15,6 @@ from core.version import APP_VERSION
 
 
 class BasePdfGenerator:
-    """Configuración visual compartida por todos los documentos PDF de AXIA."""
 
     PRIMARY = colors.HexColor("#0B324A")
     SECONDARY = colors.HexColor("#00BCEB")
@@ -31,7 +26,6 @@ class BasePdfGenerator:
     BACKGROUND_PATH = ASSETS_DIR / "FormatoFondo.png"
     BACKGROUND_LANDSCAPE_PATH = ASSETS_DIR / "FormatoFondoHorizontal.png"
 
-    # Área útil calculada para no invadir encabezado ni pie de la plantilla.
     LEFT_MARGIN = 34
     RIGHT_MARGIN = 34
     TOP_MARGIN = 96
@@ -50,7 +44,6 @@ class BasePdfGenerator:
 
     @classmethod
     def draw_page(cls, canvas, document, *, title: str = "Documento AXIA") -> None:
-        """Dibuja la plantilla antes del contenido en cada página."""
         canvas.saveState()
         width, height = document.pagesize
 
@@ -69,10 +62,6 @@ class BasePdfGenerator:
             except Exception:
                 logger.debug("Excepción recuperable controlada.", exc_info=True)
 
-        # Título documental centrado en la parte superior. Solo se aplica a
-        # Levantamientos y Órdenes de Trabajo para conservar intactos los demás
-        # formatos corporativos. El texto visible es homogéneo aunque el título
-        # interno incluya el tipo/modalidad del levantamiento.
         title_key = str(title or "").strip().casefold()
         visible_title = None
         if title_key.startswith("levantamiento"):
@@ -89,7 +78,6 @@ class BasePdfGenerator:
             canvas.setFont("Helvetica-Bold", 13)
             canvas.drawCentredString(width / 2, height - 88, visible_title)
 
-        # Número de página sobre la franja inferior, sin duplicar datos del fondo.
         canvas.setFillColor(cls.TEXT)
         canvas.setFont("Helvetica", 6.5)
         if width > height:

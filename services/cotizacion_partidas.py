@@ -1,12 +1,7 @@
-"""Reglas comunes para identificar y valorizar el lote de mano de obra.
-
-Se preservan las claves JSON antiguas para no exigir migraciones en Supabase.
-"""
 from __future__ import annotations
 
 
 def es_lote_servicio(item: dict, indice: int, total: int) -> bool:
-    """El servicio que AXIA agrega al final del levantamiento, no cualquier insumo."""
     if indice != total - 1 or not isinstance(item, dict):
         return False
     unidad = str(item.get("unidad_tipo") or "").strip().casefold()
@@ -15,7 +10,6 @@ def es_lote_servicio(item: dict, indice: int, total: int) -> bool:
 
 
 def importes_servicio(item: dict) -> tuple[float, float]:
-    """Importe manual del servicio y precio unitario implícito según cantidad."""
     def numero(valor):
         try:
             return float(str(valor or "0").replace("$", "").replace(",", "").strip() or 0)

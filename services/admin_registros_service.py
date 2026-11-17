@@ -1,8 +1,3 @@
-"""Puerta HTTPS hacia el módulo administrativo protegido de AXIA.
-
-No se envían service_role keys a Windows; únicamente la contraseña del
-administrador, de forma efímera, a la Edge Function por HTTPS.
-"""
 from __future__ import annotations
 import os
 import requests
@@ -17,8 +12,6 @@ TIPOS = {
     "Órdenes de Servicio": ("db_ordenes_servicio", "id_orden", "os_folio", "os_cliente", "os_estatus", "fecha_registro"),
     "Bitácoras": ("db_bitacoras", "id_bitacora", "bit_folio", "bit_cliente", "bit_estatus", "fecha_registro"),
 }
-# La lista no incluye folios, IDs, firmas, evidencias, anexos, relaciones ni
-# aprobaciones, para prevenir incoherencias en operaciones encadenadas.
 EDITABLES = {
     "db_acos": "aco_cliente aco_descripcion aco_observaciones aco_responsable aco_fecha_inicio aco_fecha_compromiso aco_estatus",
     "db_levantamientos": "lev_cliente lev_tipo lev_estatus lev_prioridad lev_contacto lev_telefono lev_correo lev_direccion lev_direccion_sucursal lev_ubicacion lev_descripcion lev_requerimientos lev_observaciones lev_tecnico lev_supervisor lev_duracion_proyecto lev_horas_estimadas lev_dias_trabajo lev_personas_considerar lev_notas lev_fecha_programada lev_fecha_realizacion lev_modalidad_operativa lev_descripcion_fallas lev_detalle_tecnico_json lev_equipos_danados_json",
@@ -33,11 +26,6 @@ class AdministracionError(RuntimeError):
 
 
 def _mensaje_error_servidor(resultado, status):
-    """Convierte errores JSON de Edge/PostgREST a un mensaje útil y seguro.
-
-    Compatible con el despliegue anterior, que entregaba «[object Object]»,
-    y con el nuevo, que devuelve {error: texto, codigo: codigo_pg}.
-    """
     if not isinstance(resultado, dict):
         return f"El servidor devolvió HTTP {status} sin información de error legible."
     detalle = resultado.get("error") or resultado.get("message")

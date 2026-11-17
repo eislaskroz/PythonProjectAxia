@@ -1,5 +1,3 @@
-"""Consultar, modificar y Convertir levantamiento en Orden de Trabajo."""
-
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -48,7 +46,6 @@ def _valor(registro, *campos, default=""):
 
 
 def _tipo_levantamiento_origen(registro):
-    """Obtiene la especialidad original para reabrir exactamente su formulario."""
     registro = normalizar_registro_levantamiento(registro)
     detalle = registro.get("lev_detalle_tecnico_json")
     if isinstance(detalle, str) and detalle.strip():
@@ -142,7 +139,6 @@ def mostrar_conversion_orden_servicio(parent, app):
     )
     entrada.grid(row=0, column=1, sticky="ew", padx=(0, 12), pady=6)
 
-    # Texto de ayuda integrado al campo; no crea un rectángulo blanco sobre el gris.
     entrada.configure(placeholder_text='Realiza tu búsqueda', placeholder_text_color="#64748B")
 
     cuerpo = ctk.CTkFrame(contenedor, fg_color="transparent")
@@ -165,8 +161,6 @@ def mostrar_conversion_orden_servicio(parent, app):
      table_id="ordenes_servicio_conversion",)
     tabla.grid(row=1, column=0, sticky="nsew", padx=8, pady=(0, 8))
 
-    # Panel derecho: contenido desplazable + barra de acciones fija.
-    # Los botones no deben desplazarse junto con el formulario.
     panel_form_shell = ctk.CTkFrame(cuerpo, fg_color=WHITE, corner_radius=16)
     panel_form_shell.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
     panel_form_shell.grid_columnconfigure(0, weight=1)
@@ -247,11 +241,11 @@ def mostrar_conversion_orden_servicio(parent, app):
                 widget.configure(state=estado)
             except Exception:
                 pass
-        # OBC tiene su propio esquema; bloquear campos sin correspondencia.
+
         if habilitado and es_obra_civil(seleccionado.get("registro")):
             for clave in ("lev_fecha_programada", "lev_tipo", "lev_modalidad_operativa", "lev_prioridad"):
                 entradas_por_campo[clave].configure(state="disabled")
-        # El folio siempre es de solo lectura.
+
         btn_editar.configure(state="disabled" if habilitado or (
             es_obra_civil(seleccionado.get("registro")) and seleccionado["registro"].get("lev_validado_ventas"))
             else ("normal" if seleccionado.get("registro") else "disabled"))
@@ -279,11 +273,6 @@ def mostrar_conversion_orden_servicio(parent, app):
             )
 
     def poner_texto(box, valor):
-        # CTkTextbox acepta ``state`` en configure(), pero algunas versiones de
-        # CustomTkinter no lo exponen mediante cget(). Consultarlo provocaba:
-        # ValueError: 'state' is not a supported argument.
-        # Durante la carga siempre habilitamos temporalmente el textbox;
-        # _set_modo_edicion(False) se encarga de bloquearlo al terminar.
         try:
             box.configure(state="normal")
         except Exception:
@@ -311,7 +300,7 @@ def mostrar_conversion_orden_servicio(parent, app):
                 ok_detalle, lambda e: messagebox.showerror('Consulta de Obra Civil', str(e)))
             return
         seleccionado["registro"] = dict(registro)
-        # Habilita temporalmente para cargar los valores y vuelve a bloquear al final.
+
         for widget in widgets_editables:
             try:
                 widget.configure(state="normal")
@@ -327,7 +316,6 @@ def mostrar_conversion_orden_servicio(parent, app):
             detalle = json.dumps(detalle, ensure_ascii=False, indent=2)
         poner_texto(txt_detalle, str(detalle or ""))
         if es_obra_civil(registro):
-            # No buscar un ID LEV ficticio ni habilitar conversiones LEV -> OT.
             seleccionado["ot_existente"] = {}
             seleccionado["cotizacion_finalizada"] = {}
             btn_preview.configure(state="normal")
@@ -421,9 +409,6 @@ def mostrar_conversion_orden_servicio(parent, app):
                       f"No fue posible consultar levantamientos.\n\n{e}"))
 
     def _capturar_cambios():
-        # El supervisor es una asignación operativa posterior y puede quedar
-        # pendiente en el LEV. El técnico sí debe identificar al usuario que
-        # realizó el levantamiento.
         obligatorios = ("lev_cliente", "lev_contacto", "lev_direccion", "lev_tecnico", "lev_tipo")
         faltantes = [k for k in obligatorios if not vars_campos[k].get().strip()]
         if not txt_descripcion.get("1.0", "end").strip():
@@ -484,11 +469,6 @@ def mostrar_conversion_orden_servicio(parent, app):
         ventana = ctk.CTkToplevel(parent.winfo_toplevel())
         ventana.title(f"Editar {original.get('lev_folio', 'levantamiento')} · {tipo_origen}")
 
-        # El editor se abre al 90 % del área útil de la pantalla. No se maximiza:
-        # así dejamos un margen visual alrededor de la ventana y, sobre todo,
-        # conservamos siempre visible la barra inferior con Guardar Cambios.
-        # El formulario de levantamiento ya usa CTkScrollableFrame, por lo que
-        # cualquier contenido que exceda la altura disponible se recorre con scroll.
         ventana.update_idletasks()
         screen_w = max(1, ventana.winfo_screenwidth())
         screen_h = max(1, ventana.winfo_screenheight())
@@ -650,14 +630,6 @@ def mostrar_conversion_orden_servicio(parent, app):
         )
 
     def _registro_levantamiento_para_pdf():
-        """Reconstruye el levantamiento actual con el mismo contrato del operador.
-
-        La vista administrativa trabaja con el registro persistido, donde ``lev_tipo``
-        es un código general. La plantilla maestra del levantamiento necesita además
-        la especialidad real (p. ej. Redes Voz y Datos), guardada dentro del detalle
-        técnico. Normalizarla aquí garantiza que Operador y Administrativo rendericen
-        exactamente el mismo documento.
-        """
         original = normalizar_registro_levantamiento(seleccionado.get("registro"))
         detalle_texto = txt_detalle.get("1.0", "end").strip()
         try:
@@ -755,7 +727,6 @@ def mostrar_conversion_orden_servicio(parent, app):
                 lbl_estado.configure(text=f"Obra Civil {folio} validada y enviada a Ventas.", text_color="#15803D")
                 messagebox.showinfo("Obra Civil validada", f"Se validó {folio} y se envió su PDF a Ventas.")
             def error_obc(exc):
-                # Si falló solo la confirmación, evitar confirmar dos veces sin refrescar.
                 btn_validar.configure(state="normal")
                 lbl_estado.configure(text="No se confirmó la validación OBC; consulta su estado antes de reintentar.", text_color="#B91C1C")
                 messagebox.showerror("Validación pendiente", str(exc))
@@ -868,7 +839,6 @@ def mostrar_conversion_orden_servicio(parent, app):
                   hover_color="#475569", text_color=WHITE, hover=True, font=BUTTON_FONT, command=lambda: (var_busqueda.set(""), ejecutar_busqueda())).grid(row=2, column=2, padx=(0, 12), pady=(0, 10))
     entrada.bind("<Return>", lambda _e: ejecutar_busqueda())
 
-    # Barra fija: queda visible aunque el usuario haga scroll en el formulario.
     acciones = ctk.CTkFrame(panel_form_shell, fg_color=WHITE, corner_radius=0)
     acciones.grid(row=1, column=0, sticky="ew", padx=8, pady=(4, 10))
     for columna in range(3):

@@ -1,9 +1,3 @@
-"""Perfiles declarativos de AXIA PDF ENGINE Fase 5.
-
-Los formularios dejan de construir bloques manualmente. Cada tipo de documento
-registra un perfil que declara título, campos generales, detalle técnico,
-tablas y firmas. El motor transforma datos crudos en un AxiaPdfDocument.
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -178,7 +172,6 @@ def _generic_table_blocks(data: Mapping[str, Any]) -> Sequence[AxiaPdfBlock]:
 
 
 def register_builtin_profiles() -> None:
-    """Registra perfiles base para las entidades actuales de AXIA."""
     generic = AxiaPdfProfile(
         key="registro_generico",
         title=lambda d: str(d.get("_titulo_pdf") or "Registro AXIA"),

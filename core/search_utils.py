@@ -1,5 +1,3 @@
-"""Utilidades compartidas para búsquedas consistentes en AXIA."""
-
 from __future__ import annotations
 
 import unicodedata
@@ -7,12 +5,10 @@ from collections.abc import Iterable, Mapping
 
 
 def normalizar_termino_busqueda(valor: object) -> str:
-    """Convierte una entrada a texto limpio y en mayúsculas."""
     return " ".join(str(valor or "").strip().upper().split())
 
 
 def texto_comparable(valor: object) -> str:
-    """Normaliza texto para comparar sin distinguir acentos ni mayúsculas."""
     texto = normalizar_termino_busqueda(valor)
     return "".join(
         caracter
@@ -22,7 +18,6 @@ def texto_comparable(valor: object) -> str:
 
 
 def coincide_en_campos(registro: Mapping[str, object], termino: object, campos: Iterable[str]) -> bool:
-    """Indica si el término aparece parcialmente en cualquiera de los campos."""
     buscado = texto_comparable(termino)
     if not buscado:
         return False
@@ -30,7 +25,6 @@ def coincide_en_campos(registro: Mapping[str, object], termino: object, campos: 
 
 
 def puntaje_coincidencia(registro: Mapping[str, object], termino: object, campos: Iterable[str]) -> tuple[int, str]:
-    """Genera un puntaje estable para ordenar primero las coincidencias más cercanas."""
     buscado = texto_comparable(termino)
     mejor = 10_000
     etiqueta = ""

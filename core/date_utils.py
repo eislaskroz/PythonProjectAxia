@@ -1,5 +1,3 @@
-
-"""Utilidades centralizadas para normalizar fechas antes de enviar a Supabase."""
 from __future__ import annotations
 
 from core.logger import configurar_logger
@@ -37,9 +35,6 @@ def normalizar_campos_fecha(datos):
             normalizados[campo] = normalizar_fecha_supabase(valor)
     return normalizados
 
-
-# Las fechas de la base conservan su valor y tipo original. Este formato
-# es EXCLUSIVAMENTE para mostrar información en la aplicación.
 from datetime import date as _date, timezone as _timezone
 import re as _re
 
@@ -47,18 +42,11 @@ _FECHA_VISUAL = "%d/%m/%Y %H:%M:%S"
 
 
 def es_campo_fecha(nombre):
-    """Detecta columnas de fecha; excluye horas aisladas y fechas en texto libre."""
     n = str(nombre or "").lower().strip()
     return ("fecha" in n or n in ("created_at", "updated_at", "timestamp", "date"))
 
 
 def formatear_fecha_visual(valor):
-    """YYYY-MM-DD[THH:MM:SS[Z/offset]] -> DD/MM/AAAA HH:MM:SS.
-
-    Las fechas sin hora se representan como 00:00:00. Fechas con zona UTC
-    se llevan a la zona local del equipo; los valores sin zona no se desplazan.
-    Nunca transforma cadenas no reconocidas ni modifica el valor almacenado.
-    """
     if valor is None or valor == "":
         return ""
     if isinstance(valor, datetime):
@@ -90,16 +78,10 @@ def formatear_fecha_visual(valor):
 
 
 def fecha_para_vista(campo, valor):
-    """Solo formatea columnas de fecha y deja intactos los demás datos."""
     return formatear_fecha_visual(valor) if es_campo_fecha(campo) else valor
 
 
 def fecha_desde_vista(texto, valor_original):
-    """Vuelve al formato del valor original solo si hubo edición explícita.
-
-    Evita actualizar campos cuando únicamente se abrió el editor.
-    Para date se conserva YYYY-MM-DD; para timestamp se conserva ISO 8601.
-    """
     texto = str(texto or "").strip()
     if texto == str(formatear_fecha_visual(valor_original) or "").strip():
         return valor_original
@@ -108,7 +90,6 @@ def fecha_desde_vista(texto, valor_original):
     try:
         dt = datetime.strptime(texto, _FECHA_VISUAL)
     except ValueError:
-        # El calendario antiguo devuelve ISO y debe seguir siendo compatible.
         try:
             dt = datetime.fromisoformat(texto.replace("Z", "+00:00"))
         except ValueError as e:

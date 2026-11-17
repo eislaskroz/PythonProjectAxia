@@ -6,12 +6,68 @@
   <component name="ChangeListManager">
     <list default="true" id="04557334-8dd2-4c5c-9e71-68cbc1b3eae6" name="Changes" comment="Merge remote-tracking branch 'orign/main'">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/controllers/navigation_controller.py" beforeDir="false" afterPath="$PROJECT_DIR$/controllers/navigation_controller.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/app_paths.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/app_paths.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/background_tasks.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/background_tasks.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/cache.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/cache.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/date_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/date_utils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/deployment.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/deployment.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/environment.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/environment.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/error_reporting.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/error_reporting.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/logger.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/logger.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/pdf/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/pdf/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/pdf/base_pdf.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/pdf/base_pdf.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/performance.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/performance.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/search_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/search_utils.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/version.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/version.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/installer/AXIA.iss" beforeDir="false" afterPath="$PROJECT_DIR$/installer/AXIA.iss" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/acos.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/acos.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/bitacoras.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/bitacoras.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/levantamientos.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/levantamientos.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/ordenes_servicio.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/ordenes_servicio.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/limpiar_proyecto.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/limpiar_proyecto.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/security/data_encryption.py" beforeDir="false" afterPath="$PROJECT_DIR$/security/data_encryption.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/security/login_guard.py" beforeDir="false" afterPath="$PROJECT_DIR$/security/login_guard.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/security/passwords.py" beforeDir="false" afterPath="$PROJECT_DIR$/security/passwords.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/security/permissions.py" beforeDir="false" afterPath="$PROJECT_DIR$/security/permissions.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/unit/test_catalogo_axia_visible_completo_20506.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_catalogo_axia_visible_completo_20506.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/aco_context_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/aco_context_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/aco_form_helpers.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/aco_form_helpers.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/acos_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/acos_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/admin_registros_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/admin_registros_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/almacen_catalogo_maestro.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/almacen_catalogo_maestro.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/almacen_comprobantes.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/almacen_comprobantes.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/almacen_entregas_ot.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/almacen_entregas_ot.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/almacen_fechas.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/almacen_fechas.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/almacen_reimpresion.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/almacen_reimpresion.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/almacen_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/almacen_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/auditoria_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/auditoria_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/auth_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/auth_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/axia_pdf_artifacts.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/axia_pdf_artifacts.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/axia_pdf_blocks.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/axia_pdf_blocks.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/axia_pdf_engine.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/axia_pdf_engine.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/axia_pdf_profiles.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/axia_pdf_profiles.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/bitacora_evidencias_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/bitacora_evidencias_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/bitacoras_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/bitacoras_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/borradores_compartidos_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/borradores_compartidos_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/clientes_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/clientes_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/correlacion_levantamientos_almacen.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/correlacion_levantamientos_almacen.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/cotizacion_partidas.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/cotizacion_partidas.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/cotizacion_pdf.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/cotizacion_pdf.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/cotizaciones_schema.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/cotizaciones_schema.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/cotizaciones_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/cotizaciones_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/croquis_documento.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/croquis_documento.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/croquis_simbolos.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/croquis_simbolos.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/mail_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/mail_service.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tests/unit/test_levantamiento_form_body_inicializado_20505.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_levantamiento_form_body_inicializado_20505.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tests/unit/test_rrhh_integracion_20604.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_rrhh_integracion_20604.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/admin_registros_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/admin_registros_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/bitacora_avance_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/bitacora_avance_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/croquis_editor_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/croquis_editor_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/levantamiento_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/levantamiento_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/mi_bitacora_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/mi_bitacora_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/orden_servicio_conversion_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/orden_servicio_conversion_view.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -27,23 +83,23 @@
   </component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
-      <entry key="MS100" value="1.0483227390299807" />
-      <entry key="MS500" value="2.9406665989866383" />
-      <entry key="S2" value="8.889333004065428" />
-      <entry key="S5" value="13.846386756100708" />
-      <entry key="S10" value="20.922852296101638" />
-      <entry key="S30" value="38.20277540029228" />
-      <entry key="S60" value="54.49060693564587" />
-      <entry key="M2" value="78.89091231763811" />
-      <entry key="M5" value="111.72834952152138" />
-      <entry key="M10" value="138.8475675022416" />
-      <entry key="M15" value="166.8927194959155" />
-      <entry key="M30" value="250.08630082164404" />
-      <entry key="H1" value="359.43347527027083" />
-      <entry key="H2" value="456.79269743348476" />
-      <entry key="H4" value="523.7903677781433" />
-      <entry key="D1" value="592.5602448690925" />
-      <entry key="W1" value="605.7567497097256" />
+      <entry key="MS100" value="1.1569659949326292" />
+      <entry key="MS500" value="2.8761882942535326" />
+      <entry key="S2" value="11.348782017359252" />
+      <entry key="S5" value="21.928866606708876" />
+      <entry key="S10" value="32.671554487349255" />
+      <entry key="S30" value="54.636924702381606" />
+      <entry key="S60" value="72.95667960727215" />
+      <entry key="M2" value="98.71446077705333" />
+      <entry key="M5" value="132.97060116657724" />
+      <entry key="M10" value="160.7691943258937" />
+      <entry key="M15" value="189.03738237403644" />
+      <entry key="M30" value="272.45679722069923" />
+      <entry key="H1" value="381.98614542080554" />
+      <entry key="H2" value="479.5100096010132" />
+      <entry key="H4" value="546.6287143418904" />
+      <entry key="D1" value="615.5298279903702" />
+      <entry key="W1" value="628.7523091867895" />
     </decayedCancelled>
     <decayedSelected>
       <entry key="MS100" value="0.0" />
@@ -65,23 +121,23 @@
       <entry key="W1" value="0.0" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="0.9987339521566034" />
-      <entry key="MS500" value="2.907163966283564" />
-      <entry key="S2" value="8.85237048073056" />
-      <entry key="S5" value="13.819809350180087" />
-      <entry key="S10" value="20.899989182233504" />
-      <entry key="S30" value="38.18741537658114" />
-      <entry key="S60" value="54.47885016732033" />
-      <entry key="M2" value="78.88178755636304" />
-      <entry key="M5" value="111.72292743642873" />
-      <entry key="M10" value="138.84414287252267" />
-      <entry key="M15" value="166.88992476673795" />
-      <entry key="M30" value="250.084086596202" />
-      <entry key="H1" value="359.4318119433666" />
-      <entry key="H2" value="456.79161763375845" />
-      <entry key="H4" value="523.7897429503623" />
-      <entry key="D1" value="592.5601262858139" />
-      <entry key="W1" value="605.7567323747184" />
+      <entry key="MS100" value="1.133137361212574" />
+      <entry key="MS500" value="2.8470818338527657" />
+      <entry key="S2" value="11.298080540662932" />
+      <entry key="S5" value="21.88561370580312" />
+      <entry key="S10" value="32.637045864924815" />
+      <entry key="S30" value="54.6160493782228" />
+      <entry key="S60" value="72.94180741868448" />
+      <entry key="M2" value="98.70365483036593" />
+      <entry key="M5" value="132.9644455331396" />
+      <entry key="M10" value="160.7653870735686" />
+      <entry key="M15" value="189.0343291983214" />
+      <entry key="M30" value="272.45445220518314" />
+      <entry key="H1" value="381.98441599090233" />
+      <entry key="H2" value="479.5088963860826" />
+      <entry key="H4" value="546.6280726661173" />
+      <entry key="D1" value="615.5297065731736" />
+      <entry key="W1" value="628.7522914461981" />
     </decayedShown>
   </component>
   <component name="ProjectColorInfo">{
@@ -599,15 +655,15 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.version" />
         <item itemvalue="Python.limpiar_proyecto" />
+        <item itemvalue="Python.version" />
       </list>
     </recent_temporary>
   </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-python-sdk-ebb3072d7bdf-5bd6d13a2a75-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-262.11879.98" />
+        <option value="bundled-python-sdk-3c73f5f83ce7-5c0e4880bfa8-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-262.12573.39" />
       </set>
     </attachedChunks>
   </component>
@@ -618,14 +674,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1787595329657</updated>
-    </task>
-    <task id="LOCAL-00148" summary="Merge remote-tracking branch 'orign/main'">
-      <option name="closed" value="true" />
-      <created>1793898378357</created>
-      <option name="number" value="00148" />
-      <option name="presentableId" value="LOCAL-00148" />
-      <option name="project" value="LOCAL" />
-      <updated>1793898378358</updated>
     </task>
     <task id="LOCAL-00149" summary="Merge remote-tracking branch 'orign/main'">
       <option name="closed" value="true" />
@@ -1011,7 +1059,15 @@
       <option name="project" value="LOCAL" />
       <updated>1794665369073</updated>
     </task>
-    <option name="localTasksCounter" value="197" />
+    <task id="LOCAL-00197" summary="Merge remote-tracking branch 'orign/main'">
+      <option name="closed" value="true" />
+      <created>1794930345404</created>
+      <option name="number" value="00197" />
+      <option name="presentableId" value="LOCAL-00197" />
+      <option name="project" value="LOCAL" />
+      <updated>1794930345405</updated>
+    </task>
+    <option name="localTasksCounter" value="198" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

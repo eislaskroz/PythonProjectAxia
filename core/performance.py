@@ -1,9 +1,3 @@
-"""Infraestructura de rendimiento de AXIA.
-
-Incluye medición ligera, caché TTL, paginación y ejecución segura de tareas
-fuera del hilo visual. Ninguna utilidad debe impedir el arranque de AXIA si
-el registro de métricas falla.
-"""
 from __future__ import annotations
 
 import os
@@ -25,7 +19,6 @@ _START_MONOTONIC = time.perf_counter()
 
 
 def page_range(page: int = 1, page_size: int = DEFAULT_PAGE_SIZE) -> tuple[int, int]:
-    """Convierte número/tamaño de página al rango inclusivo de Supabase."""
     page = max(1, int(page or 1))
     page_size = min(MAX_PAGE_SIZE, max(1, int(page_size or DEFAULT_PAGE_SIZE)))
     start = (page - 1) * page_size
@@ -33,11 +26,6 @@ def page_range(page: int = 1, page_size: int = DEFAULT_PAGE_SIZE) -> tuple[int, 
 
 
 def mark(label: str) -> float:
-    """Registra una marca temporal y devuelve segundos desde el arranque.
-
-    El registro detallado se activa con ``AXIA_ENABLE_PERFORMANCE_LOG=1``.
-    La función existe siempre para que la instrumentación nunca rompa AXIA.
-    """
     elapsed = time.perf_counter() - _START_MONOTONIC
     if _PERF_ENABLED:
         logger.info("PERF mark | %s | %.3f s", label, elapsed)
@@ -48,12 +36,6 @@ def mark(label: str) -> float:
 
 @contextmanager
 def measure(label: str, *, warning_ms: float = 750.0) -> Iterator[None]:
-    """Mide un bloque sin ocultar sus excepciones.
-
-    Los bloques lentos se registran como advertencia. Las excepciones se
-    propagan intactas después de registrar la duración, evitando convertir
-    esta herramienta en una fuente de fallos silenciosos.
-    """
     started = time.perf_counter()
     try:
         yield
@@ -78,7 +60,6 @@ class _CacheEntry:
 
 
 class TTLCache:
-    """Caché en memoria segura para acceso concurrente."""
 
     def __init__(self, ttl_seconds: float = 120):
         if ttl_seconds < 0:
@@ -127,7 +108,6 @@ def run_in_background(
     on_error: Callable[[Exception], None] | None = None,
     name: str = "AXIA-worker",
 ) -> threading.Thread:
-    """Ejecuta red/PDF fuera del hilo Tk y devuelve callbacks al hilo visual."""
 
     def dispatch(callback, *args):
         if callback is None:

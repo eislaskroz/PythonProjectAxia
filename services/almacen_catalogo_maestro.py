@@ -1,7 +1,3 @@
-"""Catálogo Maestro AXIA en entorno piloto: SOLO LECTURA.
-
-No traslada existencias de ELEVENTA a saldos operativos ni autoriza movimientos.
-"""
 from __future__ import annotations
 
 CAMPOS_ORIGINALES = (
@@ -53,7 +49,6 @@ COLUMNAS_TABLA = (
 
 
 def ficha_producto_maestro(registro: dict) -> str:
-    """Muestra 11 campos originales + atributos de clasificación (sin perder nulos)."""
     def mostrar(valor):
         return '— (pendiente)' if valor is None or valor == '' else str(valor)
     lineas = [f'{titulo}: {mostrar(registro.get(clave))}'

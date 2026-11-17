@@ -1,25 +1,3 @@
-"""
-=========================================================
-MÓDULO: controllers/navigation_controller.py
-DESCRIPCIÓN:
-Controlador central de navegación interna de AXIA.
-
-OBJETIVO:
-Evitar que app.py crezca demasiado.
-
-Este archivo se encarga de:
-- Limpiar el área dinámica de contenido.
-- Cambiar títulos y subtítulos del encabezado.
-- Cargar vistas internas del sistema.
-- Mantener concentrada la lógica de navegación.
-
-IMPORTANTE:
-Las vistas siguen viviendo en views/.
-Este controlador NO debe contener lógica de negocio.
-Solo coordina qué vista se muestra y cuándo.
-=========================================================
-"""
-
 # =====================================================
 # IMPORTACIÓN DE LIBRERÍAS
 # =====================================================
@@ -73,44 +51,19 @@ logger = configurar_logger(__name__)
 # CLASE: NavigationController
 # =====================================================
 class NavigationController:
-    """
-    Controlador de navegación principal.
-
-    Recibe referencias de la aplicación y del área visual
-    donde se deben cargar las pantallas.
-
-    Esto permite que app.py se mantenga limpio y que las
-    nuevas pantallas se agreguen aquí, no directamente en
-    la clase principal de la aplicación.
-    """
 
     def __init__(self, app, content_frame, title_label, subtitle_label):
-        """
-        Inicializa el controlador de navegación.
-
-        Args:
-            app:
-                Instancia principal de AxiaApp.
-            content_frame:
-                Frame donde se renderizan las vistas.
-            title_label:
-                Label del título superior.
-            subtitle_label:
-                Label del subtítulo superior.
-        """
 
         self.app = app
         self.content = content_frame
         self.title_label = title_label
         self.subtitle_label = subtitle_label
 
-        # Historial simple de navegación para el botón ATRÁS.
         self._historial = []
         self._vista_actual = None
         self._regresando = False
 
     def _verificar_permiso(self, validador, mensaje):
-        """Aplica defensa en profundidad antes de cargar una vista."""
         usuario = obtener_usuario_actual()
         if validador(usuario):
             return True
@@ -126,15 +79,12 @@ class NavigationController:
     # HISTORIAL DE NAVEGACIÓN
     # =================================================
     def _registrar_vista(self, nombre_metodo, **kwargs):
-        """Guarda la vista actual antes de cambiar de pantalla."""
         if self._vista_actual and not self._regresando:
             self._historial.append(self._vista_actual)
             if len(self._historial) > 25:
                 self._historial = self._historial[-25:]
         self._vista_actual = (nombre_metodo, kwargs)
 
-        # FIX16: fuera del formulario de levantamiento, la barra lateral vuelve
-        # automáticamente al fondo GENERAL (el logotipo AXIA permanece encima).
         if nombre_metodo != "mostrar_levantamiento":
             try:
                 from ui.app_sidebar import actualizar_sidebar_especialidad
@@ -143,7 +93,6 @@ class NavigationController:
                 logger.debug("No fue posible restaurar cabecera del sidebar.", exc_info=True)
 
     def volver_atras(self):
-        """Regresa a la pantalla anterior sin repetir pasos."""
         if not self._historial:
             self.mostrar_inicio_aco()
             return
@@ -162,13 +111,6 @@ class NavigationController:
     # LIMPIEZA DE CONTENIDO
     # =================================================
     def limpiar_contenido(self):
-        """
-        Elimina todos los widgets del área dinámica.
-
-        Se ejecuta antes de cargar una nueva vista para
-        evitar que queden elementos visuales duplicados.
-        """
-
         try:
             if hasattr(self.app, "limpiar_proveedor_borrador_levantamiento"):
                 self.app.limpiar_proveedor_borrador_levantamiento()
@@ -181,15 +123,6 @@ class NavigationController:
     # ACTUALIZAR ENCABEZADO
     # =================================================
     def cambiar_titulo(self, titulo, subtitulo):
-        """
-        Cambia el título y subtítulo del encabezado.
-
-        Args:
-            titulo:
-                Texto principal de la pantalla activa.
-            subtitulo:
-                Texto descriptivo de la pantalla activa.
-        """
 
         self.title_label.configure(text=titulo)
         self.subtitle_label.configure(text=subtitulo)
@@ -198,9 +131,6 @@ class NavigationController:
     # VISTA: INICIO ACO
     # =================================================
     def mostrar_inicio_aco(self):
-        """
-        Carga la pantalla inicial del flujo operativo ACO.
-        """
 
         if not puede_entrar_inicio_aco(obtener_usuario_actual()):
             self.mostrar_selector_levantamiento()
@@ -224,7 +154,6 @@ class NavigationController:
 
 
     def mostrar_inicio_aco_validado(self, aco):
-        """Regresa a la pantalla de selección operativa manteniendo el ACO validado."""
 
         self._registrar_vista("mostrar_inicio_aco_validado", aco=aco)
         logger.info("Cargando vista: Inicio ACO con ACO validado")
@@ -247,9 +176,6 @@ class NavigationController:
     # VISTA: LEVANTAMIENTO
     # =================================================
     def mostrar_selector_levantamiento(self, aco=None):
-        """
-        Carga la pantalla previa para seleccionar el tipo de levantamiento.
-        """
 
         if not self._verificar_permiso(
             puede_generar_levantamiento,
@@ -275,17 +201,6 @@ class NavigationController:
         )
 
     def mostrar_levantamiento(self, aco=None, tipo_levantamiento=None, borrador=None):
-        """
-        Carga la vista para generar levantamientos.
-
-        Args:
-            aco:
-                Registro ACO opcional que se puede enviar
-                desde otra pantalla para continuar flujo.
-            tipo_levantamiento:
-                Tipo seleccionado en la pantalla previa. Ejemplo: Seguridad y Monitoreo.
-        """
-
         self._registrar_vista("mostrar_levantamiento", aco=aco, tipo_levantamiento=tipo_levantamiento)
         try:
             from ui.app_sidebar import actualizar_sidebar_especialidad
@@ -316,10 +231,6 @@ class NavigationController:
     # VISTA: ORDEN DE SERVICIO
     # =================================================
     def mostrar_orden_servicio(self, aco=None):
-        """
-        Carga la vista para generar órdenes de servicio.
-        """
-
         self._registrar_vista("mostrar_orden_servicio", aco=aco)
         logger.info("Cargando vista: Orden de Servicio")
         self.limpiar_contenido()
@@ -342,10 +253,6 @@ class NavigationController:
     # VISTA: ORDEN DE TRABAJO
     # =================================================
     def mostrar_orden_trabajo(self, aco=None):
-        """
-        Carga la vista para generar órdenes de trabajo.
-        """
-
         self._registrar_vista("mostrar_orden_trabajo", aco=aco)
         logger.info("Cargando vista: Orden de Trabajo")
         self.limpiar_contenido()
@@ -369,10 +276,6 @@ class NavigationController:
     # VISTA: OBRA CIVIL
     # =================================================
     def mostrar_obra_civil(self, aco=None, borrador=None):
-        """
-        Carga la vista para generar registros de obra civil / proyecto ejecutivo.
-        """
-
         self._registrar_vista("mostrar_obra_civil", aco=aco)
         logger.info("Cargando vista: Obra Civil")
         self.limpiar_contenido()
@@ -395,7 +298,6 @@ class NavigationController:
     # VISTAS ADMINISTRATIVAS DE PROCESOS
     # =================================================
     def mostrar_mis_documentos(self, tipo):
-        """Historial exclusivamente personal y de solo lectura para Operador 4."""
         from security.permissions import obtener_tipo_usuario, OPERADOR
         if obtener_tipo_usuario(obtener_usuario_actual()) != OPERADOR:
             messagebox.showerror("Acceso denegado", "Esta consulta personal está reservada al Operador.")
@@ -410,7 +312,6 @@ class NavigationController:
         from services.mis_documentos_service import consultar_mis_documentos
         from views.admin_procesos_view import mostrar_admin_procesos
         config = configuraciones[tipo]
-        # Capturar solo el tipo: el autor siempre se valida dentro del servicio.
         config["obtener_todos"] = lambda: consultar_mis_documentos(tipo)
         config["buscar"] = lambda termino: consultar_mis_documentos(tipo, termino)
         config["buscar_por_folio"] = config["buscar"]
@@ -420,11 +321,6 @@ class NavigationController:
         mostrar_admin_procesos(parent=self.content, app=self.app, configuracion=config)
 
     def mostrar_admin_levantamientos(self):
-        """
-        Carga la administración/consulta de levantamientos.
-        No genera registros nuevos; la creación del levantamiento se realiza desde su flujo de captura.
-        """
-
         if not self._verificar_permiso(
             puede_consultar_procesos,
             "Tu nivel de usuario no tiene permiso para consultar esta sección.",
@@ -470,7 +366,6 @@ class NavigationController:
         )
 
     def mostrar_cotizaciones(self):
-        """Muestra la etapa comercial de costeo de levantamientos preautorizados."""
         if not self._verificar_permiso(
             puede_cotizar_levantamientos,
             "Tu nivel de usuario no tiene permiso para cotizar levantamientos.",
@@ -487,7 +382,6 @@ class NavigationController:
         mostrar_cotizaciones(parent=self.content, app=self.app)
 
     def mostrar_almacen(self):
-        """Etapa 2: entradas/salidas de prueba y Kardex; servidor con bloqueo por aprobación."""
         if not self._verificar_permiso(
             puede_ver_almacen,
             "Tu nivel de usuario no tiene permiso para acceder al módulo de Almacén.",
@@ -500,7 +394,6 @@ class NavigationController:
         mostrar_almacen(parent=self.content, app=self.app)
 
     def mostrar_autorizacion_cotizaciones_dg(self):
-        """Bandeja de autorización de cotizaciones de DG / Calidad (tipo 9)."""
         if not self._verificar_permiso(
             puede_autorizar_cotizacion_dg,
             "Solo DG (9) o Administrador (1) puede autorizar cotizaciones.",
@@ -513,7 +406,6 @@ class NavigationController:
         mostrar_cotizaciones_dg(parent=self.content, app=self.app)
 
     def mostrar_compras(self):
-        """Muestra la bandeja de cotizaciones finalizadas pendientes de Compras."""
         if not self._verificar_permiso(
             puede_ver_compras,
     puede_autorizar_cotizacion_dg,
@@ -531,7 +423,6 @@ class NavigationController:
         mostrar_compras(parent=self.content, app=self.app)
 
     def mostrar_admin_ordenes_servicio(self):
-        """Administra Órdenes de Servicio y permite cerrar la OT de origen."""
         if not self._verificar_permiso(
             puede_consultar_procesos,
             "Tu nivel de usuario no tiene permiso para consultar esta sección.",
@@ -609,10 +500,6 @@ class NavigationController:
         )
 
     def mostrar_admin_ordenes_trabajo(self):
-        """
-        Carga la administración/consulta de órdenes de trabajo.
-        """
-
         if not self._verificar_permiso(
             puede_consultar_procesos,
             "Tu nivel de usuario no tiene permiso para consultar esta sección.",
@@ -680,10 +567,6 @@ class NavigationController:
         )
 
     def mostrar_admin_bitacoras(self):
-        """
-        Carga la administración/consulta de bitácoras operativas.
-        """
-
         if not self._verificar_permiso(
             puede_ver_bitacoras_operativas,
             "Tu nivel de usuario no tiene permiso para consultar Bitácoras Operativas.",
@@ -728,7 +611,6 @@ class NavigationController:
             if not candidatas:
                 messagebox.showwarning("OT no encontrada", f"No existe una Orden de Trabajo abierta para el ACO {numero_aco}.")
                 return
-            # La OT más reciente y abierta del mismo ACO es la relación operativa vigente.
             ot = candidatas[0]
             if not messagebox.askyesno("Asignar a OT", f"¿Ligar {record.get('bit_folio')} con {ot.get('ot_folio')}?"):
                 return
@@ -771,10 +653,6 @@ class NavigationController:
 
 
     def mostrar_admin_obras_civiles(self):
-        """
-        Carga la administración/consulta de obras civiles.
-        """
-
         if not self._verificar_permiso(
             puede_consultar_procesos,
             "Tu nivel de usuario no tiene permiso para consultar esta sección.",
@@ -830,7 +708,6 @@ class NavigationController:
     # VISTA: REPORTADOR FOTOGRÁFICO NATIVO (ROLES 1–4)
     # =================================================
     def mostrar_reportador_fotografico(self):
-        """Carga el Reportador en CustomTkinter; sin navegador ni segundo login."""
         if not self._verificar_permiso(
             puede_ver_reportador_fotografico,
             "El Reportador fotográfico solo está disponible para los roles 1, 2, 3 y 4.",
@@ -849,10 +726,6 @@ class NavigationController:
     # VISTA: REPORTES ADMINISTRATIVOS
     # =================================================
     def mostrar_reportes(self):
-        """
-        Carga la vista administrativa de reportes.
-        """
-
         if not self._verificar_permiso(
             puede_ver_reportes,
             "Tu nivel de usuario no tiene permiso para consultar reportes.",
@@ -881,10 +754,6 @@ class NavigationController:
     # VISTA: ADMINISTRACIÓN DE USUARIOS
     # =================================================
     def mostrar_usuarios(self):
-        """
-        Carga la vista administrativa para buscar, crear y editar usuarios.
-        """
-
         if not self._verificar_permiso(
             puede_ver_usuarios,
             "Tu nivel de usuario no tiene permiso para administrar usuarios.",
@@ -915,10 +784,6 @@ class NavigationController:
     # VISTA: ADMINISTRACIÓN DE CLIENTES
     # =================================================
     def mostrar_clientes(self):
-        """
-        Carga la vista administrativa para buscar, crear y editar clientes.
-        """
-
         if not self._verificar_permiso(
             puede_administrar_clientes,
             "Tu nivel de usuario no tiene permiso para administrar clientes.",
@@ -946,10 +811,6 @@ class NavigationController:
     # VISTA: BITÁCORA DE AVANCE
     # =================================================
     def mostrar_bitacora_avance(self, aco=None):
-        """
-        Carga el formulario operativo para registrar una Bitácora de Avance.
-        """
-
         if not self._verificar_permiso(
             puede_generar_bitacora,
             "Tu nivel de usuario no tiene permiso para registrar Bitácoras Operativas.",
@@ -979,8 +840,6 @@ class NavigationController:
     # VISTA: MI USUARIO
     # =================================================
     def mostrar_mi_usuario(self):
-        """Carga la vista personal del usuario en sesión."""
-
         self._registrar_vista("mostrar_mi_usuario")
         logger.info("Cargando vista: Mi Usuario")
         self.limpiar_contenido()
@@ -998,14 +857,12 @@ class NavigationController:
         )
 
     def mostrar_mi_bitacora(self):
-        """Compatibilidad temporal: redirige a Mi Usuario."""
         self.mostrar_mi_usuario()
 
     # =================================================
     # VISTA: AUDITORÍA ADMINISTRATIVA
     # =================================================
     def mostrar_admin_registros(self):
-        """Abre el mantenimiento protegido de ACO/LEV/OT/OS/bitácoras."""
         if not self._verificar_permiso(
             puede_administrar_registros,
             "La administración de registros es exclusiva del Administrador.",
@@ -1019,10 +876,6 @@ class NavigationController:
         mostrar_admin_registros(self.content, self.app)
 
     def mostrar_auditoria(self):
-        """
-        Carga la vista administrativa de auditoría.
-        """
-
         if not self._verificar_permiso(
             puede_ver_auditoria,
             "La auditoría de accesos y movimientos está reservada al Administrador.",
@@ -1050,13 +903,6 @@ class NavigationController:
     # VISTA TEMPORAL: EN CONSTRUCCIÓN
     # =================================================
     def mostrar_en_construccion(self):
-        """
-        Muestra una pantalla temporal para módulos pendientes.
-
-        Esta vista evita botones muertos y permite liberar
-        nuevas secciones de forma progresiva.
-        """
-
         self._registrar_vista("mostrar_en_construccion")
         logger.info("Cargando vista temporal: Módulo en construcción")
         self.limpiar_contenido()

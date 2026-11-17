@@ -1,9 +1,6 @@
 # =====================================================
 # IMPORTACIÓN DE LIBRERÍAS
 # =====================================================
-
-# Librería principal para interfaces gráficas modernas
-# basada en Tkinter.
 import customtkinter as ctk
 
 from ui.theme import aplicar_tema_global
@@ -14,76 +11,12 @@ from core.error_reporting import show_operation_error
 
 logger = configurar_logger(__name__)
 
-
-# =====================================================
-# IMPORTACIÓN DE MÓDULOS DEL SISTEMA
-# =====================================================
-
-# Función que abre la ventana Login
-# Importaciones pesadas se realizan bajo demanda dentro de main().
-
-
-# =====================================================
-# CONFIGURACIÓN VISUAL GLOBAL
-# =====================================================
-"""
-Estas configuraciones afectan TODA la aplicación.
-Se ejecutan antes de abrir cualquier ventana.
-"""
-
-# Usa automáticamente:
-# - modo claro
-# - modo oscuro
-# según el sistema operativo.
 aplicar_tema_global()
-
-
-# El tema global también fija colores, fuente y escala base.
-
 
 # =====================================================
 # FUNCIÓN PRINCIPAL DEL SISTEMA
 # =====================================================
 def main():
-
-    """
-    Función principal del programa.
-
-    Se encarga de:
-
-    1. Crear la tabla usuarios
-       si todavía no existe.
-
-    2. Crear el usuario administrador inicial.
-
-    3. Abrir la ventana Login.
-    """
-
-    # =============================================
-    # CREAR TABLA USUARIOS
-    # =============================================
-
-    """
-    Si la tabla ya existe,
-    SQLite simplemente la ignora.
-    """
-
-    # =============================================
-    # CREAR USUARIO ADMINISTRADOR
-    # =============================================
-
-    """
-    Usuario por defecto:
-
-    Usuario:
-        admin
-
-    Contraseña:
-        1234
-
-    Si ya existe,
-    no lo vuelve a crear.
-    """
 
     # =============================================
     # ABRIR LOGIN DEL SISTEMA
@@ -96,7 +29,6 @@ def main():
         validar_configuracion_cifrado,
     )
 
-    # La configuración se carga antes de importar servicios que dependan de ella.
     cargar_entorno()
     try:
         deployment = load_deployment_config()
@@ -141,7 +73,6 @@ def main():
     logger.info("Iniciando sistema AXIA.")
     mark("main: tema y bootstrap listos")
 
-    # El login se importa aquí para evitar cargar la aplicación principal antes de tiempo.
     with measure("importar login"):
         from login import abrir_login
 
@@ -150,13 +81,9 @@ def main():
             with measure("sesión de login"):
                 acceso_correcto = abrir_login()
 
-            # Si el usuario cerró el Login sin entrar, termina el programa.
             if not acceso_correcto:
                 break
 
-            # abrir_app() devuelve True cuando el usuario pulsa
-            # Cerrar sesión, y False cuando pulsa Salir/cierra AXIA.
-            # app.py y sus componentes se cargan únicamente después de autenticar.
             with measure("importar aplicación principal"):
                 from app import abrir_app
             with measure("sesión aplicación principal"):
@@ -173,20 +100,6 @@ def main():
 # =====================================================
 # PUNTO DE ENTRADA DEL PROGRAMA
 # =====================================================
-
-"""
-Esta validación verifica que:
-
-- el archivo se ejecutó directamente,
-- y no fue importado como módulo.
-
-Si se ejecuta directamente:
-    -> corre main()
-
-Si se importa desde otro archivo:
-    -> no ejecuta main()
-"""
-
 if __name__ == "__main__":
 
     main()

@@ -1,4 +1,3 @@
-"""Reporte centralizado de errores para soporte de AXIA."""
 from __future__ import annotations
 
 import re

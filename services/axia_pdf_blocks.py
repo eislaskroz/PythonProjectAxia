@@ -1,10 +1,3 @@
-"""Bloques reutilizables de AXIA PDF ENGINE Fase 4.
-
-El documento deja de depender de un generador distinto por formulario. Cada
-formulario declara bloques de contenido y el motor corporativo decide cómo
-renderizarlos. Los adaptadores heredados siguen disponibles para permitir una
-migración gradual sin romper pantallas existentes.
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -30,15 +23,11 @@ def _freeze_mapping(values: Mapping[str, Any] | None) -> Mapping[str, Any]:
 
 @dataclass(frozen=True)
 class AxiaPdfBlock:
-    """Bloque base de contenido AXIA."""
-
     kind: str
 
 
 @dataclass(frozen=True)
 class GeneralDataBlock(AxiaPdfBlock):
-    """Pares etiqueta/valor mostrados en la cabecera de datos generales."""
-
     values: Mapping[str, Any] = field(default_factory=dict)
 
     def __init__(self, values: Mapping[str, Any] | None = None):
@@ -48,8 +37,6 @@ class GeneralDataBlock(AxiaPdfBlock):
 
 @dataclass(frozen=True)
 class TechnicalDetailBlock(AxiaPdfBlock):
-    """Detalle técnico estructurado o texto heredado por secciones."""
-
     text: str = ""
 
     def __init__(self, text: str | None = None):
@@ -59,8 +46,6 @@ class TechnicalDetailBlock(AxiaPdfBlock):
 
 @dataclass(frozen=True)
 class DataTableBlock(AxiaPdfBlock):
-    """Tabla repetible con columnas y registros."""
-
     title: str = ""
     columns: tuple[str, ...] = ()
     rows: tuple[Mapping[str, Any], ...] = ()
@@ -83,7 +68,6 @@ class DataTableBlock(AxiaPdfBlock):
 
 @dataclass(frozen=True)
 class SignatureBlock(AxiaPdfBlock):
-    """Configuración de la zona de firmas del documento."""
 
     visible: bool | None = None
     client_signature_base64: str | None = None
@@ -104,7 +88,6 @@ class SignatureBlock(AxiaPdfBlock):
 
 @dataclass(frozen=True)
 class AxiaPdfDocument:
-    """Documento canónico compuesto por bloques reutilizables."""
 
     title: str
     blocks: tuple[AxiaPdfBlock, ...]
@@ -138,11 +121,6 @@ class AxiaPdfDocument:
         return cls(title=str(title or "Documento AXIA"), blocks=tuple(blocks))
 
     def to_legacy(self) -> dict[str, Any]:
-        """Adapta bloques al renderizador corporativo existente.
-
-        Esta frontera temporal permite migrar formularios uno por uno. El resto
-        de AXIA ya opera sobre bloques y no necesita conocer el formato heredado.
-        """
         data: dict[str, Any] = {}
         tables: list[tuple[str, tuple[str, ...], list[dict[str, Any]]]] = []
         client_signature = None

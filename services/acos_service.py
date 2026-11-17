@@ -1,20 +1,3 @@
-"""
-=========================================================
-SERVICIO DE ACOS - AXIA
-=========================================================
-
-Este archivo pertenece a la capa de servicios de AXIA.
-
-Responsabilidad principal:
-- Contener lógica de negocio.
-- Consultar y modificar datos en Supabase.
-- Devolver resultados limpios a las vistas.
-
-Regla de arquitectura:
-Las vistas en `views/` no deben hablar directamente con Supabase.
-Deben llamar funciones de esta capa `services/`.
-"""
-
 from datetime import datetime
 
 from core.logger import configurar_logger
@@ -29,21 +12,6 @@ from services.search_service import buscar_parcial_supabase
 # NORMALIZACIÓN DE FECHAS
 # =====================================================
 def normalizar_fecha_supabase(valor):
-    """
-    Convierte una fecha capturada por el usuario al formato ISO
-    que PostgreSQL/Supabase acepta de forma segura: YYYY-MM-DD.
-
-    Formatos aceptados:
-    - 28082026
-    - 28/08/2026
-    - 28-08-2026
-    - 2026-08-28
-
-    Si el campo viene vacío, retorna None para guardar NULL.
-    Si el formato no es válido, lanza ValueError para evitar
-    enviar una fecha incorrecta a Supabase.
-    """
-
     if valor is None:
         return None
 
@@ -72,14 +40,6 @@ def normalizar_fecha_supabase(valor):
 
 
 def normalizar_fechas_aco(datos_aco):
-    """
-    Normaliza todas las fechas conocidas del diccionario de ACO
-    antes de insertar o actualizar en Supabase.
-
-    Esta función trabaja sobre una copia para no modificar el
-    diccionario original recibido desde la vista.
-    """
-
     datos_normalizados = dict(datos_aco or {})
 
     campos_fecha = [
@@ -107,9 +67,6 @@ def normalizar_fechas_aco(datos_aco):
 
 from supabase_config import supabase, TABLA_ACOS
 
-
-# Columnas explícitas de db_acos usadas por la aplicación.
-# Mantener esta lista sincronizada con migrations/validar_esquema_beta_095.sql.
 COLUMNAS_ACOS = ",".join([
     "id_aco",
     "aco_numero",
@@ -129,12 +86,8 @@ COLUMNAS_ACOS = ",".join([
 
 
 class AcoServiceError(RuntimeError):
-    """Error de comunicación o consulta del servicio de ACOs."""
-
-
 
 def enriquecer_aco_con_sucursal_contacto(aco):
-    """Completa un ACO con datos operativos de sucursal/contacto si tiene IDs ligados."""
     if not aco:
         return aco
     aco = dict(aco)
@@ -155,7 +108,6 @@ def enriquecer_aco_con_sucursal_contacto(aco):
             aco.setdefault("aco_correo", sucursal.get("suc_correo", ""))
 
         if contacto:
-            # El contacto operativo tiene prioridad sobre el contacto fiscal del cliente.
             aco["aco_contacto"] = contacto.get("con_nombre", "") or aco.get("aco_contacto", "")
             aco["aco_telefono"] = contacto.get("con_telefono", "") or aco.get("aco_telefono", "")
             aco["aco_correo"] = contacto.get("con_correo", "") or aco.get("aco_correo", "")
@@ -170,15 +122,6 @@ def enriquecer_aco_con_sucursal_contacto(aco):
 # =====================================================
 @ttl_cache(ttl_seconds=90)
 def buscar_aco_por_numero(aco_numero):
-    """
-    Busca un ACO por su número interno.
-
-    RETORNA:
-        dict | None:
-            Diccionario con la información del ACO
-            si existe, o None si no se encuentra.
-    """
-
     try:
         respuesta = (
             supabase
@@ -215,7 +158,6 @@ def buscar_aco_por_numero(aco_numero):
 
 @ttl_cache(ttl_seconds=90)
 def buscar_aco_por_id(id_aco):
-    """Busca un ACO por su llave primaria y devuelve el registro enriquecido."""
     if id_aco in (None, ""):
         return None
     try:
@@ -238,7 +180,6 @@ def _marca_levantamiento_aco(folio_levantamiento):
 
 
 def buscar_aco_generado_por_levantamiento(folio_levantamiento):
-    """Recupera el ACO automático de un LEV para evitar duplicados en reintentos."""
     marca = _marca_levantamiento_aco(folio_levantamiento)
     if not marca:
         return None
@@ -258,7 +199,6 @@ def buscar_aco_generado_por_levantamiento(folio_levantamiento):
 
 
 def crear_aco_desde_levantamiento(levantamiento, usuario_activo=None):
-    """Crea el ACO que nace al autorizar un levantamiento para convertirse en OT."""
     lev = dict(levantamiento or {})
     folio = str(lev.get("lev_folio") or "").strip().upper()
     if not folio:
@@ -277,7 +217,6 @@ def crear_aco_desde_levantamiento(levantamiento, usuario_activo=None):
         or "Sistema AXIA"
     ).strip()
     datos = {
-        # aco_numero lo asigna el trigger vigente de Supabase.
         "aco_estatus": 1,
         "id_cliente": lev.get("id_cliente"),
         "id_sucursal": lev.get("id_sucursal"),
@@ -304,14 +243,6 @@ def crear_aco_desde_levantamiento(levantamiento, usuario_activo=None):
 # =====================================================
 @ttl_cache(ttl_seconds=60)
 def obtener_acos(page=1, page_size=100):
-    """
-    Consulta todos los ACOs registrados.
-
-    RETORNA:
-        list:
-            Lista de ACOs ordenados del más reciente al más antiguo.
-    """
-
     try:
         respuesta = (
             supabase
@@ -339,22 +270,7 @@ def obtener_acos(page=1, page_size=100):
 # FUNCIÓN: crear_aco()
 # =====================================================
 def crear_aco(datos_aco):
-    """
-    Crea un nuevo ACO en Supabase.
-
-    PARÁMETROS:
-        datos_aco:
-            Diccionario con los campos de db_acos.
-
-    RETORNA:
-        list | None:
-            Respuesta de Supabase si el registro fue exitoso.
-    """
-
     try:
-        # PostgreSQL requiere fechas en formato seguro ISO: YYYY-MM-DD.
-        # La vista puede recibir DD/MM/AAAA, DD-MM-AAAA o DDMMAAAA,
-        # por eso normalizamos aquí antes del insert.
         datos_aco = normalizar_fechas_aco(datos_aco)
 
         respuesta = (
@@ -384,21 +300,6 @@ def crear_aco(datos_aco):
 # FUNCIÓN: actualizar_aco()
 # =====================================================
 def actualizar_aco(id_aco, datos_aco):
-    """
-    Actualiza la información de un ACO existente.
-
-    PARÁMETROS:
-        id_aco:
-            Identificador principal del ACO.
-
-        datos_aco:
-            Diccionario con los campos a actualizar.
-
-    RETORNA:
-        list | None:
-            Respuesta de Supabase si la actualización fue exitosa.
-    """
-
     try:
         # También normalizamos fechas en actualizaciones para mantener
         # consistencia si después editamos fechas de un ACO existente.
@@ -429,18 +330,8 @@ def actualizar_aco(id_aco, datos_aco):
 # FUNCIÓN: validar_aco_existente()
 # =====================================================
 def validar_aco_existente(aco_numero):
-    """
-    Valida si un ACO existe dentro de la base de datos.
-
-    RETORNA:
-        bool:
-            True si existe.
-            False si no existe.
-    """
-
     return buscar_aco_por_numero(aco_numero) is not None
 
-# Búsqueda parcial unificada
 def buscar_acos(termino, limite=100):
     resultados = buscar_parcial_supabase(
         supabase=supabase, tabla=TABLA_ACOS, columnas=COLUMNAS_ACOS, termino=termino,

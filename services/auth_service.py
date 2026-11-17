@@ -5,20 +5,6 @@ logger = configurar_logger(__name__)
 # =====================================================
 # SERVICIO DE AUTENTICACIÓN - AXIA
 # =====================================================
-"""
-Este módulo concentra la lógica de negocio relacionada con autenticación.
-
-La interfaz gráfica NO debería consultar directamente Supabase ni decidir
-cómo se validan passwords. Ese trabajo pertenece a esta capa de servicios.
-
-Responsabilidades:
-- Validar credenciales.
-- Migrar passwords heredados a bcrypt.
-- Registrar bitácora de login.
-- Cambiar contraseñas.
-- Obtener información técnica del equipo para auditoría.
-"""
-
 import platform
 import os
 import socket
@@ -34,7 +20,6 @@ from security.passwords import verificar_password, requiere_migracion_a_bcrypt, 
 
 
 def formatear_coordenada_7_decimales(valor):
-    """Devuelve una coordenada con exactamente siete cifras decimales."""
     try:
         numero = Decimal(str(valor).strip())
         return format(numero.quantize(Decimal("0.0000001"), rounding=ROUND_HALF_UP), "f")
@@ -46,13 +31,6 @@ def formatear_coordenada_7_decimales(valor):
 # FUNCIÓN: obtener_geolocalizacion()
 # =====================================================
 def obtener_geolocalizacion():
-    """
-    Obtiene una ubicación aproximada por IP pública.
-
-    Retorna un diccionario con valores seguros aunque falle internet.
-    Esta función no debe detener el login si la consulta externa falla.
-    """
-
     if os.getenv("AXIA_ENABLE_IP_GEOLOCATION", "1").strip().lower() not in {"1", "true", "yes"}:
         return {"latitud": "No disponible", "longitud": "No disponible", "ciudad": "No disponible", "region": "No disponible", "pais": "No disponible"}
 
@@ -74,7 +52,6 @@ def obtener_geolocalizacion():
             }
 
     except Exception:
-        # No bloqueamos el inicio de sesión por error de geolocalización.
         logger.warning("No fue posible obtener geolocalización.", exc_info=True)
 
     return {
@@ -90,14 +67,6 @@ def obtener_geolocalizacion():
 # FUNCIÓN: obtener_contexto_login()
 # =====================================================
 def obtener_contexto_login():
-    """
-    Obtiene datos técnicos del equipo para la bitácora de login.
-
-    Retorna:
-        dict:
-            direccion_ip, nombre_equipo y ubicación aproximada.
-    """
-
     nombre_equipo = platform.node()
 
     try:
@@ -119,22 +88,6 @@ def obtener_contexto_login():
 # FUNCIÓN: validar_login()
 # =====================================================
 def validar_login(nickname, password):
-    """
-    Valida las credenciales del usuario contra Supabase.
-
-    Soporta:
-    - bcrypt actual.
-    - SHA-256 heredado.
-    - texto plano heredado, si existiera.
-
-    Si el password heredado coincide, lo migra automáticamente a bcrypt.
-
-    Retorna:
-        dict | None:
-            Datos del usuario si el acceso es correcto.
-            None si las credenciales son inválidas o hay error.
-    """
-
     try:
         nickname = nickname.strip()
         password = password.strip()
@@ -155,7 +108,6 @@ def validar_login(nickname, password):
             return None
 
         usuario = respuesta.data[0]
-        # Baja laboral o alta pendiente de habilitación administrativa.
         if usuario.get('usu_activo') is not True or usuario.get('usu_acceso_habilitado') is not True:
             return None
         password_guardado = usuario.get("usu_password", "")
@@ -210,12 +162,6 @@ def registrar_bitacora_login(
     region="",
     pais=""
 ):
-    """
-    Registra intentos de inicio de sesión en Supabase.
-
-    Esta función no lanza errores hacia la UI. Si falla la bitácora,
-    el sistema lo informa por consola y permite que la app continúe.
-    """
 
     try:
         datos = {
@@ -247,7 +193,6 @@ def registrar_bitacora_login(
 # FUNCIÓN: cambiar_password_usuario()
 # =====================================================
 def cambiar_password_usuario(nickname, rfc, nueva_password):
-    """Recuperación insegura retirada: nickname + RFC no acredita identidad."""
     logger.warning("Intento de recuperación heredada bloqueado para usuario %r", nickname)
     return False, (
         "Por seguridad, el cambio de contraseña sin sesión fue deshabilitado. "

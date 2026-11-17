@@ -1,14 +1,3 @@
-"""
-=========================================================
-MÓDULO: services/clientes_service.py
-DESCRIPCIÓN:
-Servicio administrativo para buscar, crear y actualizar clientes.
-
-Adaptado a la estructura real de db_clientes y con cifrado reversible
-para datos sensibles.
-=========================================================
-"""
-
 from core.logger import configurar_logger
 from core.cache import ttl_cache, clear_cache
 from supabase_config import supabase, TABLA_CLIENTES
@@ -21,8 +10,6 @@ from security.data_encryption import (
 logger = configurar_logger(__name__)
 from services.movimientos_service import registrar_movimiento_seguro
 
-
-# Campos reales detectados en db_clientes.
 COLUMNAS_CLIENTES = "id_cliente,cli_tipo,cli_estatus,cli_razonsocial,cli_rfc,cli_contacto,cli_telefono,cli_correo,cli_calle,cli_numero,cli_colonia,cli_municipio,cli_estado,cli_cp,cli_notas,fecha_registro"
 
 CAMPOS_CLIENTE = [
@@ -42,8 +29,6 @@ CAMPOS_CLIENTE = [
     "cli_notas",
 ]
 
-# Campos que sí conviene cifrar porque contienen datos personales,
-# fiscales, contacto o dirección.
 CAMPOS_SENSIBLES_CLIENTE = [
     "cli_rfc",
     "cli_contacto",
@@ -61,13 +46,6 @@ CAMPOS_SENSIBLES_CLIENTE = [
 
 
 def convertir_tipo_cliente_para_db(valor):
-    """
-    Convierte el tipo visual del formulario al smallint esperado por Supabase.
-
-    db_clientes.cli_tipo espera un entero pequeño, por eso valores como
-    "Cliente" deben transformarse antes de insertar/actualizar.
-    """
-
     if valor is None:
         return 1
 
@@ -95,8 +73,6 @@ def convertir_tipo_cliente_para_db(valor):
 
 
 def convertir_tipo_cliente_para_ui(valor):
-    """Convierte el smallint de Supabase a texto legible para el formulario."""
-
     if valor is None:
         return "Cliente"
 
@@ -116,13 +92,6 @@ def convertir_tipo_cliente_para_ui(valor):
     return mapa.get(texto, str(valor).strip() or "Cliente")
 
 def convertir_estatus_cliente_para_db(valor):
-    """
-    Convierte el estatus visual del formulario al tipo smallint de Supabase.
-
-    db_clientes.cli_estatus espera un entero pequeño, por eso valores como
-    "Activo" o "Inactivo" deben transformarse antes de insertar/actualizar.
-    """
-
     if valor is None:
         return 1
 
@@ -145,8 +114,6 @@ def convertir_estatus_cliente_para_db(valor):
 
 
 def convertir_estatus_cliente_para_ui(valor):
-    """Convierte el smallint de Supabase a texto legible para el formulario."""
-
     if valor is None:
         return "Activo"
 
@@ -165,8 +132,6 @@ def convertir_estatus_cliente_para_ui(valor):
 
 
 def normalizar_cliente_para_ui(cliente):
-    """Normaliza un registro leído de Supabase para mostrarlo en pantalla."""
-
     cliente = cliente or {}
     cliente["cli_tipo"] = convertir_tipo_cliente_para_ui(cliente.get("cli_tipo"))
     cliente["cli_estatus"] = convertir_estatus_cliente_para_ui(cliente.get("cli_estatus"))
@@ -174,16 +139,10 @@ def normalizar_cliente_para_ui(cliente):
 
 
 def normalizar_lista_clientes_para_ui(clientes):
-    """Normaliza una lista de clientes leídos de Supabase."""
-
     return [normalizar_cliente_para_ui(cliente) for cliente in (clientes or [])]
 
 
 def construir_direccion_cliente(cliente):
-    """
-    Construye una dirección legible usando columnas separadas reales.
-    """
-
     cliente = cliente or {}
     partes = []
 
@@ -205,10 +164,6 @@ def construir_direccion_cliente(cliente):
 
 
 def normalizar_cliente(datos):
-    """
-    Limpia y normaliza datos antes de enviar a Supabase.
-    """
-
     normalizados = {}
 
     for campo in CAMPOS_CLIENTE:
@@ -229,12 +184,6 @@ def normalizar_cliente(datos):
 
 
 def _coincide_cliente(cliente, termino):
-    """
-    Filtro local sobre registros ya descifrados.
-
-    Se usa porque los campos cifrados no se pueden buscar con ILIKE
-    directamente en Supabase.
-    """
     if not termino:
         return True
 
@@ -256,14 +205,6 @@ def _coincide_cliente(cliente, termino):
 
 @ttl_cache(ttl_seconds=120)
 def buscar_clientes(termino="", limite=100):
-    """
-    Busca clientes por razón social, RFC, contacto, teléfono, correo o municipio.
-
-    Nota técnica:
-    Se consulta una ventana de registros y se filtra localmente después de
-    descifrar, porque varios campos ya pueden estar cifrados.
-    """
-
     try:
         respuesta = (
             supabase
@@ -295,10 +236,6 @@ def buscar_clientes(termino="", limite=100):
 
 
 def crear_cliente(datos):
-    """
-    Crea un cliente nuevo en Supabase.
-    """
-
     try:
         datos_guardar = normalizar_cliente(datos)
 
@@ -335,10 +272,6 @@ def crear_cliente(datos):
 
 
 def actualizar_cliente(id_cliente, datos):
-    """
-    Actualiza un cliente existente en Supabase.
-    """
-
     try:
         if not id_cliente:
             return False, "Selecciona un cliente para modificar.", None

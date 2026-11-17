@@ -1,21 +1,3 @@
-"""
-=========================================================
-LOGGER CENTRAL - AXIA
-=========================================================
-
-Este módulo centraliza los logs del sistema.
-
-Objetivo:
-- Evitar prints sueltos en producción.
-- Guardar errores técnicos en archivos locales.
-- Mantener una salida clara para soporte y depuración.
-- No exponer detalles técnicos innecesarios al usuario final.
-
-Los logs se guardan en:
-    logs/axia.log
-    logs/axia_errors.log
-"""
-
 import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -45,21 +27,8 @@ FORMATO_FECHA = "%Y-%m-%d %H:%M:%S"
 # FUNCIÓN: configurar_logger()
 # =====================================================
 def configurar_logger(nombre="axia"):
-    """
-    Crea y configura un logger reutilizable.
-
-    PARÁMETROS:
-        nombre:
-            Nombre lógico del logger. Normalmente se usa __name__.
-
-    RETORNA:
-        logging.Logger:
-            Logger listo para registrar eventos.
-    """
-
     logger = logging.getLogger(nombre)
 
-    # Evita duplicar handlers cuando el módulo se importa varias veces.
     if logger.handlers:
         return logger
 
@@ -74,7 +43,6 @@ def configurar_logger(nombre="axia"):
     # =================================================
     # LOG GENERAL
     # =================================================
-    # Guarda eventos informativos, advertencias y errores.
     general_handler = RotatingFileHandler(
         LOG_FILE,
         maxBytes=2_000_000,
@@ -87,7 +55,6 @@ def configurar_logger(nombre="axia"):
     # =================================================
     # LOG DE ERRORES
     # =================================================
-    # Guarda únicamente errores y excepciones críticas.
     error_handler = RotatingFileHandler(
         ERROR_LOG_FILE,
         maxBytes=2_000_000,
@@ -111,11 +78,4 @@ logger = configurar_logger("axia")
 
 
 def get_logger(nombre="axia"):
-    """
-    Retorna un logger configurado para el módulo solicitado.
-
-    Este alias evita inconsistencias entre módulos que llaman
-    get_logger() y módulos que llaman configurar_logger().
-    """
-
     return configurar_logger(nombre)

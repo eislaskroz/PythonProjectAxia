@@ -1,5 +1,3 @@
-"""Contrato de persistencia de cotizaciones comerciales AXIA."""
-
 TABLA_COTIZACIONES = "db_cotizaciones"
 
 COLUMNAS_COTIZACIONES_TUPLE = (

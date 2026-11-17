@@ -1,4 +1,3 @@
-"""Servicios del módulo comercial de cotizaciones de levantamientos."""
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -35,7 +34,6 @@ def _esta_preautorizado_ventas(registro: dict) -> bool:
 
 
 def obtener_levantamientos_para_cotizar(limite: int = 200) -> list[dict]:
-    """Devuelve levantamientos preautorizados por Operaciones."""
     limite = max(1, int(limite))
     try:
         respuesta = execute_select_compatible(
@@ -47,10 +45,6 @@ def obtener_levantamientos_para_cotizar(limite: int = 200) -> list[dict]:
                        .limit(limite),
         )
         filas = list(respuesta.data or [])
-        # Las tres bandejas representan etapas exclusivas: el levantamiento
-        # preautorizado deja de aparecer aquí desde que existe una cotización
-        # (BORRADOR, EN COMPRA o CONVERTIDA). Los BORRADOR se reabren desde
-        # «Cotizaciones Realizadas» para continuar su edición.
         if filas:
             try:
                 ids = [r.get("id_levantamiento") for r in filas if r.get("id_levantamiento") not in (None, "")]
@@ -91,8 +85,6 @@ def obtener_levantamientos_para_cotizar(limite: int = 200) -> list[dict]:
             lambda q: q.order("fecha_registro", desc=True).limit(max(limite * 3, 300)),
         )
         recuperados = [r for r in list(respaldo.data or []) if _esta_preautorizado_ventas(r)]
-        # En el respaldo excluimos también los levantamientos que ya tienen
-        # cotización, incluidos los borradores editables.
         try:
             resp_cot = ejecutar_lectura_con_reintento(
                 lambda: supabase.table(TABLA_COTIZACIONES)
@@ -119,7 +111,6 @@ def obtener_levantamientos_para_cotizar(limite: int = 200) -> list[dict]:
 
 
 def partidas_cotizables(registro: dict) -> list[dict]:
-    """Normaliza materiales/equipos/consumibles del LEV para Ventas."""
     detalle = (registro or {}).get("lev_detalle_tecnico_json")
     rows = partidas_desde_detalle_levantamiento(detalle)
     resultado = []
@@ -145,12 +136,10 @@ def _json_dict(valor) -> dict:
 
 
 def cargar_cotizacion_legacy(registro: dict) -> dict:
-    """Lee el JSON de FIX10-FIX17 para utilizarlo como semilla de captura."""
     return _json_dict((registro or {}).get("lev_cotizacion_json"))
 
 
 def cargar_cotizacion(registro: dict) -> dict:
-    """Carga la cotización formal más reciente de un levantamiento."""
     id_levantamiento = (registro or {}).get("id_levantamiento")
     lev_folio = str((registro or {}).get("lev_folio") or "").strip()
     if not id_levantamiento and not lev_folio:
@@ -164,13 +153,11 @@ def cargar_cotizacion(registro: dict) -> dict:
         resp = query.order("fecha_actualizacion", desc=True).limit(1).execute()
         return dict((resp.data or [])[0]) if resp.data else {}
     except Exception as exc:
-        # La tabla nueva aún puede no existir antes de ejecutar la migración.
         logger.info("Cotización formal aún no disponible: %s", exc)
         return {}
 
 
 def datos_generales_cotizacion(registro: dict, usuario_actual: dict | None = None) -> dict:
-    """Compone datos generales ya disponibles en AXIA sin recapturarlos."""
     registro = registro or {}
     detalle = _json_dict(registro.get("lev_detalle_tecnico_json"))
     generales = detalle.get("datos_generales_axia") if isinstance(detalle.get("datos_generales_axia"), dict) else {}
@@ -217,7 +204,6 @@ def datos_generales_cotizacion(registro: dict, usuario_actual: dict | None = Non
 
 
 def construir_partidas_comerciales(registro: dict, cotizacion: dict | None = None) -> list[dict]:
-    """Genera partidas editables a partir del levantamiento y conserva valores ya guardados."""
     base = partidas_cotizables(registro)
     cotizacion = cotizacion or {}
     guardadas = cotizacion.get("cot_partidas_json") or []
@@ -289,7 +275,6 @@ def _numero(value, campo: str, *, minimo: float = 0.0) -> float:
 
 
 def guardar_cotizacion_comercial(datos: dict, partidas: list[dict], usuario: str) -> dict:
-    """Inserta o actualiza una cotización formal en ``db_cotizaciones``."""
     datos = dict(datos or {})
     if not datos.get("id_levantamiento") or not str(datos.get("lev_folio") or "").strip():
         raise ValueError("La cotización debe estar ligada a un levantamiento.")
@@ -358,8 +343,6 @@ def guardar_cotizacion_comercial(datos: dict, partidas: list[dict], usuario: str
         precio_lista = _numero(item.get("precio_lista"), f"Precio de lista, lote {i}", minimo=0.01)
         utilidad = _numero(item.get("utilidad_pct"), f"Utilidad, lote {i}")
 
-        # FIX25: los importes derivados se recalculan también en servicio para no
-        # confiar en valores manipulados desde la interfaz o integraciones futuras.
         costo = round(precio_lista * utilidad / 100.0, 2)
         precio_venta = round(precio_lista + costo, 2)
         precio_unitario = precio_venta
@@ -460,11 +443,6 @@ def guardar_cotizacion_comercial(datos: dict, partidas: list[dict], usuario: str
 
 
 def obtener_cotizaciones_pendientes_compras(limite: int = 200) -> list[dict]:
-    """Devuelve cotizaciones guardadas que todavía no han sido enviadas a Compras.
-
-    La bandeja de Ventas usa esta consulta para reabrir/modificar COT-XXXXX ya
-    generadas mientras permanezcan en estado BORRADOR.
-    """
     limite = max(1, int(limite))
     resp = (
         supabase.table(TABLA_COTIZACIONES)
@@ -478,7 +456,6 @@ def obtener_cotizaciones_pendientes_compras(limite: int = 200) -> list[dict]:
 
 
 def obtener_levantamiento_de_cotizacion(cotizacion: dict) -> dict:
-    """Recupera el levantamiento origen de una cotización guardada."""
     cotizacion = dict(cotizacion or {})
     id_levantamiento = cotizacion.get("id_levantamiento")
     lev_folio = str(cotizacion.get("lev_folio") or "").strip()
@@ -496,11 +473,6 @@ def obtener_levantamiento_de_cotizacion(cotizacion: dict) -> dict:
     return dict((resp.data or [])[0]) if resp.data else {}
 
 def obtener_cotizaciones_en_compra(limite: int = 200) -> list[dict]:
-    """Bandeja preparada para el futuro módulo de Compras.
-
-    No genera una Orden de Trabajo: únicamente devuelve cotizaciones que
-    Ventas ya finalizó y entregó al siguiente tramo comercial.
-    """
     limite = max(1, int(limite))
     resp = (
         supabase.table(TABLA_COTIZACIONES)
@@ -516,7 +488,6 @@ def obtener_cotizaciones_en_compra(limite: int = 200) -> list[dict]:
 def obtener_cotizacion_finalizada_de_levantamiento(
     id_levantamiento=None, lev_folio=None
 ) -> dict:
-    """Obtiene la COT finalizada que autoriza convertir un LEV en OT."""
     folio = str(lev_folio or "").strip().upper()
     if id_levantamiento in (None, "") and not folio:
         return {}
@@ -535,7 +506,6 @@ def obtener_cotizacion_finalizada_de_levantamiento(
 
 
 def finalizar_cotizacion_para_compras(cotizacion: dict, usuario: str) -> dict:
-    """Entrega una COT borrador a Dirección General para autorización."""
     cotizacion = dict(cotizacion or {})
     cot_id = cotizacion.get("id_cotizacion")
     folio = str(cotizacion.get("cot_folio") or "").strip().upper()
@@ -588,7 +558,6 @@ def obtener_cotizaciones_pendientes_dg(limite: int = 200) -> list[dict]:
 
 
 def autorizar_cotizacion_dg(cotizacion: dict, usuario_actual: dict) -> dict:
-    """Control de interfaz. La autorización segura requiere además política/RPC de servidor."""
     from security.permissions import puede_autorizar_cotizacion_dg
     if not puede_autorizar_cotizacion_dg(usuario_actual):
         raise PermissionError("Solo Dirección General (9) o Administrador (1) puede autorizar cotizaciones.")
@@ -610,7 +579,6 @@ def autorizar_cotizacion_dg(cotizacion: dict, usuario_actual: dict) -> dict:
         registro_afectado=str(registro.get("cot_folio") or ""))
     return registro
 
-# Compatibilidad temporal con llamadas de FIX10-FIX17.
 def guardar_cotizacion_levantamiento(registro: dict, partidas: list[dict], usuario: str, servicio: dict | None = None) -> dict:
     datos = datos_generales_cotizacion(registro, {})
     comerciales = []
@@ -635,12 +603,6 @@ def guardar_cotizacion_levantamiento(registro: dict, partidas: list[dict], usuar
 
 
 def marcar_cotizacion_convertida_a_ot(cotizacion: dict, usuario: str, folio_ot: str = "") -> dict:
-    """Marca una cotización finalizada como convertida a Orden de Trabajo.
-
-    La trazabilidad de la OT se conserva en ``db_ordenes_trabajo`` mediante el
-    levantamiento origen. No se agrega una columna nueva a ``db_cotizaciones``
-    para mantener compatibilidad con la migración actual.
-    """
     cotizacion = dict(cotizacion or {})
     cot_id = cotizacion.get("id_cotizacion")
     folio = str(cotizacion.get("cot_folio") or "").strip().upper()
@@ -673,7 +635,6 @@ def marcar_cotizacion_convertida_a_ot(cotizacion: dict, usuario: str, folio_ot: 
 
 
 def obtener_cotizaciones_seguimiento_dg(limite: int = 200) -> list[dict]:
-    """Consulta de Ventas: COT enviadas a DG, autorizadas y convertidas."""
     resp = (supabase.table(TABLA_COTIZACIONES).select(COLUMNAS_COTIZACIONES)
             .in_("cot_estatus", [ESTATUS_PENDIENTE_DG, ESTATUS_EN_COMPRA, ESTATUS_CONVERTIDA_OT])
             .order("fecha_actualizacion", desc=True).limit(max(1, int(limite))).execute())

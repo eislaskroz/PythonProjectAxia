@@ -1,8 +1,3 @@
-"""Almacén AXIA: simulador efímero y cliente seguro (laboratorio persistente).
-
-La simulación NO persiste datos y NO consume existencias de ELEVENTA.
-En producción únicamente la Edge Function es capaz de ordenar la transacción.
-"""
 from __future__ import annotations
 
 import json
@@ -43,7 +38,6 @@ def formatear_cantidad(value) -> str:
 
 
 def validar_producto(datos: dict) -> dict:
-    """Normaliza y valida datos maestros; nunca edita existencias por catálogo."""
     codigo = str(datos.get('codigo') or '').strip()
     nombre = str(datos.get('producto') or datos.get('nombre') or '').strip()
     departamento = str(datos.get('departamento') or 'SIN DEPARTAMENTO').strip()
@@ -64,8 +58,6 @@ def validar_producto(datos: dict) -> dict:
     return normalized
 
 
-# Catálogo maestro: todos los atributos editables, sin permitir modificar
-# el identificador AXIA ni el saldo operativo desde Altas/Modificaciones.
 CAMPOS_MAESTROS_TEXTO = {
     'producto': 500, 'departamento': 150, 'categoria_axia': 150,
     'familia_axia': 200, 'proveedor': 200, 'codigo_proveedor': 160,
@@ -79,7 +71,6 @@ CAMPOS_MAESTROS_NUM = {
 
 
 def validar_producto_maestro(datos: dict, *, codigo: str | None = None) -> dict:
-    """Valida datos de catálogo en DESKTOP, dejando el folio para el servidor."""
     if not isinstance(datos, dict):
         raise ValueError('Los datos de producto no son válidos.')
     normalized = {}
@@ -106,8 +97,6 @@ def validar_producto_maestro(datos: dict, *, codigo: str | None = None) -> dict:
 
 
 class AlmacenSimulador:
-    """Pruebas en memoria. Saldos empiezan siempre desde CERO; sin persistencia."""
-
     remoto = False
 
     def __init__(self, catalogo: list[dict] | None = None):
@@ -172,7 +161,6 @@ class AlmacenSimulador:
             return dict(p)
 
     def comprobante_kardex(self, movimiento_id: str) -> dict:
-        """Reconstruye un comprobante desde la memoria en modo simulador (sin cambios)."""
         movimiento = next((m for m in self._movimientos if m.get('id') == movimiento_id), None)
         if movimiento is None:
             raise ValueError('Movimiento no encontrado en el Kárdex.')
@@ -268,7 +256,6 @@ class AlmacenSimulador:
             return dict(mov)
 
     def consultar_ot(self, folio: str, usuario: dict) -> dict:
-        """En simulador, una OT se usa como referencia manual sin validación remota."""
         self._autorizar_catalogo(usuario)
         folio = str(folio or '').strip().upper()
         if not folio or len(folio) > 120:
@@ -285,7 +272,7 @@ class AlmacenSimulador:
             firma = (solicitud['folio'], solicitud['destinatario'], solicitud['motivo'],
                      tuple((p['codigo'],p['cantidad']) for p in solicitud['partidas']),
                      str(usuario['id_usuario']))
-            # Se guarda aparte para que los reintentos de OT no multipliquen los descuentos.
+
             if not hasattr(self, '_entregas_ot'):
                 self._entregas_ot = {}
             if key in self._entregas_ot:
@@ -304,7 +291,7 @@ class AlmacenSimulador:
                 if saldo < qty:
                     raise ValueError(f'Existencia insuficiente de {codigo}: {formatear_cantidad(saldo)}.')
                 previas[codigo] = (saldo, qty)
-            # Todas las cantidades se validaron ANTES de alterar un saldo.
+
             movimientos = []
             for item in solicitud['partidas']:
                 codigo = item['codigo']
@@ -332,11 +319,6 @@ class AlmacenSimulador:
 
 
 class AlmacenRemoto:
-    """Cliente de Edge Function. El escritorio no posee claves de servicio.
-
-    La sesión firmada sólo vive en memoria; debe iniciarse con la contraseña
-    del usuario AXIA, que se comprueba en servidor.
-    """
     remoto = True
 
     def __init__(self, laboratorio: bool = False):
@@ -345,9 +327,8 @@ class AlmacenRemoto:
         self.anon_key = SUPABASE_KEY
         self.token = None
         self._usuario_id = None
-        # El ambiente se define en el cliente y se codifica en acciones distintas.
-        # Las tablas de produccion NO son manipuladas por la modalidad laboratorio.
-        self.laboratorio = False  # El entorno único no habilita rutas paralelas.
+.
+        self.laboratorio = False
         self._sufijo = ''
 
     def _peticion(self, accion: str, payload: dict | None = None, *, autenticar=False):
@@ -386,7 +367,6 @@ class AlmacenRemoto:
                               {'codigo': codigo or None, 'pagina':int(pagina),'limite':int(limite)})
 
     def comprobante_kardex(self, movimiento_id: str) -> dict:
-        """Sólo lectura autenticada; nunca llama a las acciones de inventario."""
         uuid.UUID(str(movimiento_id))
         return self._peticion('comprobante_kardex', {'movimiento_id': str(movimiento_id)})
 
@@ -396,10 +376,10 @@ class AlmacenRemoto:
 
     def crear_producto(self, *, datos: dict, usuario: dict):
         self._comprobar_usuario(usuario)
-        # No se recibe un código AXIA desde DESKTOP: lo asigna Supabase.
+
         validado = validar_producto_maestro(datos)
         solicitud = str(datos.get('solicitud_id') or uuid.uuid4())
-        uuid.UUID(solicitud)  # Rechazar IDs no válidos antes de llegar a Supabase.
+        uuid.UUID(solicitud)
         return self._peticion('crear_producto' + self._sufijo,
                               {'producto': {**validado, 'solicitud_id': solicitud}})
 
@@ -442,8 +422,4 @@ class AlmacenRemoto:
 
 
 def crear_almacen():
-    """Una sola base operativa de Supabase desde python main.py.
-
-    La autenticación y los movimientos permanecen protegidos por la Edge Function.
-    """
     return AlmacenRemoto(laboratorio=False)

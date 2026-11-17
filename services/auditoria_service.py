@@ -1,13 +1,3 @@
-"""Consultas centralizadas para la auditoría administrativa de AXIA.
-
-Este módulo unifica dos fuentes distintas:
-- ``db_bitacora_mov``: operaciones realizadas dentro del sistema.
-- ``db_login``: intentos de acceso, correctos y fallidos.
-
-Las consultas se ejecutan bajo demanda y se normalizan para que la interfaz
-no dependa directamente de Supabase.
-"""
-
 from core.logger import configurar_logger
 from supabase_config import supabase, TABLA_BITACORA_LOGIN, TABLA_BITACORA_MOVIMIENTOS
 
@@ -26,7 +16,6 @@ def _coincide(registro, termino, campos):
 
 
 def buscar_movimientos_auditoria(termino="", limite=200):
-    """Obtiene movimientos recientes y aplica una búsqueda tolerante local."""
     try:
         ventana = max(int(limite or 200), 500)
         respuesta = (
@@ -50,7 +39,6 @@ def buscar_movimientos_auditoria(termino="", limite=200):
 
 
 def buscar_accesos_auditoria(termino="", limite=200):
-    """Obtiene intentos de acceso recientes, incluidos accesos fallidos."""
     try:
         ventana = max(int(limite or 200), 500)
         respuesta = (
@@ -74,7 +62,6 @@ def buscar_accesos_auditoria(termino="", limite=200):
 
 
 def resumen_registros(registros, tipo):
-    """Calcula métricas rápidas sin generar consultas adicionales."""
     registros = registros or []
     if tipo == "accesos":
         usuarios = len({_texto(r.get("usu_nickname")) for r in registros if r.get("usu_nickname")})

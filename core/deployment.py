@@ -1,4 +1,3 @@
-"""Validaciones de despliegue y separación de ambientes de AXIA."""
 from __future__ import annotations
 
 import os
@@ -11,7 +10,6 @@ _PROJECT_REF_RE = re.compile(r"^[a-z0-9]{20}$")
 
 
 class DeploymentConfigurationError(RuntimeError):
-    """Configuración de ambiente inválida o peligrosa."""
 
 
 @dataclass(frozen=True)

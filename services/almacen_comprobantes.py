@@ -1,9 +1,3 @@
-"""Comprobantes imprimibles del Almacén AXIA.
-
-Generación posterior a una transacción confirmada: este módulo no conecta con
-Supabase, no consulta ni modifica existencias y nunca repite un movimiento.
-Las etiquetas usan Code 128 auténtico y los tickets tienen ancho de 80 mm.
-"""
 from __future__ import annotations
 
 from datetime import datetime
@@ -50,7 +44,6 @@ def _fecha(valor=None) -> str:
 
 
 def _carpeta() -> Path:
-    """Preferir Documentos en Windows; no almacenar comprobantes en el ZIP."""
     candidates = [Path.home() / 'Documents' / 'AXIA' / 'Almacen' / 'Comprobantes']
     local = os.getenv('LOCALAPPDATA')
     if local:
@@ -75,7 +68,6 @@ def _ruta(tipo: str, codigo: str, identificador: str | None) -> Path:
 
 
 def abrir_comprobante(ruta: str | Path) -> None:
-    """Abre en el visor del SO; el usuario elige impresora y número de copias."""
     ruta = Path(ruta).resolve()
     if sys.platform == 'win32':
         os.startfile(str(ruta))  # type: ignore[attr-defined]
@@ -88,7 +80,6 @@ def abrir_comprobante(ruta: str | Path) -> None:
 def generar_etiqueta_entrada(*, codigo: str, producto: str, cantidad,
                             referencia: str = '', identificador: str | None = None,
                             fecha=None, ruta: str | Path | None = None) -> Path:
-    """Etiqueta autoadhesiva 100 x 60 mm con código Code128 del identificador AXIA."""
     codigo = _texto(codigo, 120)
     if not codigo or not all(32 <= ord(c) < 127 for c in codigo):
         raise ValueError('El código AXIA no puede convertirse a un Code 128 válido.')
@@ -107,8 +98,6 @@ def generar_etiqueta_entrada(*, codigo: str, producto: str, cantidad,
     c.drawString(6 * mm, h - 10.2 * mm, 'AXIA  /  ALMACEN')
     c.setFont('Helvetica', 7.2)
     c.drawRightString(w - 6 * mm, h - 10 * mm, 'ETIQUETA DE ENTRADA')
-    # Nombre completo en hasta 2 líneas: si es muy largo, truncar con elipsis
-    # únicamente en la etiqueta (la ficha del catálogo conserva el nombre).
     def wrap_label(texto, max_w, font='Helvetica-Bold', size=9.0, max_lines=2):
         words = _texto(texto, 500).split()
         lines, line = [], ''
@@ -121,7 +110,6 @@ def generar_etiqueta_entrada(*, codigo: str, producto: str, cantidad,
                     lines.append(line)
                     line = word
                 else:
-                    # Una palabra sin espacios puede ser extensa: abreviar.
                     while pdfmetrics.stringWidth(word, font, size) > max_w and len(word) > 1:
                         word = word[:-1]
                     lines.append(word)
@@ -171,7 +159,6 @@ def generar_ticket_salida(*, partidas: Sequence[Mapping], destinatario: str,
                           motivo: str, referencia: str = '', responsable: str = '',
                           identificador: str | None = None, fecha=None,
                           ruta: str | Path | None = None) -> Path:
-    """Ticket térmico de 80 mm. No contiene precios internos de AXIA."""
     if not partidas:
         raise ValueError('El ticket necesita al menos una partida confirmada.')
     referencia = _texto(referencia, 120)
@@ -213,8 +200,6 @@ def generar_ticket_salida(*, partidas: Sequence[Mapping], destinatario: str,
     story.extend([HRFlowable(width='90%', thickness=.5, color=GRIS),
                   p('RECIBE / FIRMA',subhead), Spacer(1,3*mm),
                   p('Documento interno - No es comprobante fiscal',subhead)])
-    # Página de largo variable para impresora térmica: evita una hoja de 280 mm
-    # con espacios vacíos. Se mide cada flowable antes de construir el PDF.
     def alto(elemento):
         if isinstance(elemento, KeepTogether):
             return sum(alto(parte) for parte in elemento._content)

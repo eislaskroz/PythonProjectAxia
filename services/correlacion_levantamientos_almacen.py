@@ -1,9 +1,3 @@
-"""Correlación no invasiva entre los catálogos históricos de LEV y Almacén.
-
-No altera categorías, tipos, especificaciones, unidades ni cantidades del técnico.
-Solo añade la identidad AXIA cuando hay coincidencia suficientemente inequívoca.
-Nunca realiza escrituras ni movimientos de inventario.
-"""
 from __future__ import annotations
 
 from difflib import SequenceMatcher
@@ -30,7 +24,6 @@ def normalizar(s: object) -> str:
 
 def familia_producto(nombre: str) -> str:
     n=normalizar(nombre)
-    # La clasificación interna del XLSX no siempre es exacta: el texto manda.
     if re.search(r'\b(ABRAZADERA|ABRAZDERA|ABRAZERA|ABRAZADERO)\b', n): return 'ABRAZADERA'
     if re.search(r'\b(COPLE|COPLES)\b', n) and not n.startswith('TUBO '): return 'COPLE'
     if re.search(r'\b(CONECTOR|CONECTORES)\b', n):
@@ -54,15 +47,12 @@ def familia_producto(nombre: str) -> str:
 def _medidas(s: str) -> frozenset[str]:
     n=normalizar(s)
     medidas=set()
-    # Convertir medidas comerciales de conduit de pulgadas a mm nominales.
     fracciones={'1/4':'6','3/8':'10','1/2':'13','3/4':'19','1':'25',
                  '1 1/4':'32','1 1/2':'38','2':'51','2 1/2':'63','3':'76','4':'101'}
     for x in re.findall(r'(?<!\d)(?:\d+\s+)?\d+/\d+(?!\d)',n):
         medidas.add(f'P{x.replace(" ", "")}' if x not in fracciones else f'M{fracciones[x]}')
     for mm in re.findall(r'(?<!\d)(\d+(?:[.,]\d+)?)\s*MM\b',n):
         medidas.add('M'+mm.replace(',','.'))
-    # Para pulgadas enteras solo cuando el valor se escribió explícitamente
-    # como dimensión, nunca números de modelo/cantidad.
     for inches in re.findall(r'(?<![\d/])(\d+)\s*(?:PULGADAS?|PULG|\")',str(s or '').upper()):
         if inches in fracciones: medidas.add('M'+fracciones[inches])
     return frozenset(medidas)
@@ -122,19 +112,18 @@ class CorrelacionadorAxia:
             if not medidas and prod_medidas and normalizar(especificacion) not in ('NO APLICA','POR DEFINIR',''):
                 continue
             if calibre and not all(x.replace(' ','') in normal.replace(' ','') for x in calibre): continue
-            # No puede atribuirse un calibre/categoría de cable distinto.
+
             tipos_cat={x for x in allquery if re.fullmatch(r'CAT(?:5E|6A|6|5|8)',x)}
             if tipos_cat and not tipos_cat.issubset(tokens): continue
             tipo_faltante=t-tokens
             if len(tipo_faltante) > (0 if len(t)<=2 else 1): continue
             base = .65*(len(t & tokens)/len(t)) + .20*(len(allquery&tokens)/max(len(allquery),1))
             base += .15 * SequenceMatcher(None,normalizar(tipo), normal).ratio()
-            # Evitar mapear una abrazadera al SKU mal clasificado de TUBO.
+
             prefijo=tipo_categoria.get(cat)
             if prefijo and str(p.get('codigo_axia') or '').startswith(prefijo+'-'):
                 base += .065
-            # La descripción corta/exacta es preferible a accesorios con
-            # calificadores adicionales que no fueron solicitados.
+
             base -= min(.13, max(0, len(tokens) - len(t) - 1)*.035)
             candidatos.append((base,p))
         return _coincidencia_unica(candidatos,.71,.035)

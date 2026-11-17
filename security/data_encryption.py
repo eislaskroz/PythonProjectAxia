@@ -1,4 +1,3 @@
-"""Cifrado reversible y obligatorio para datos sensibles de AXIA."""
 from __future__ import annotations
 
 import hashlib
@@ -17,8 +16,6 @@ PREFIX = "enc::"
 
 
 class EncryptionConfigurationError(RuntimeError):
-    """La aplicación no puede proteger datos sensibles de forma segura."""
-
 
 def _es_obligatorio() -> bool:
     cargar_entorno()
@@ -26,14 +23,12 @@ def _es_obligatorio() -> bool:
 
 
 def _ruta_env_aprovisionamiento() -> Path:
-    """Devuelve una ruta persistente fuera del ejecutable empaquetado."""
     if not is_frozen():
         return PROJECT_ROOT / ".env"
     return user_data_dir() / ".env"
 
 
 def _proteger_archivo(ruta: Path) -> None:
-    """Aplica permisos restrictivos cuando el sistema operativo lo permite."""
     try:
         os.chmod(ruta, 0o600)
     except OSError:
@@ -41,7 +36,6 @@ def _proteger_archivo(ruta: Path) -> None:
 
 
 def _guardar_variable_env(ruta: Path, nombre: str, valor: str) -> None:
-    """Agrega o reemplaza una variable sin imprimir su contenido en logs."""
     ruta.parent.mkdir(parents=True, exist_ok=True)
     lineas: list[str] = []
     if ruta.exists():
@@ -66,12 +60,6 @@ def _guardar_variable_env(ruta: Path, nombre: str, valor: str) -> None:
 
 
 def aprovisionar_clave_desarrollo() -> Path | None:
-    """Genera una llave persistente solo en desarrollo local.
-
-    En ejecutables/producción nunca se genera automáticamente: todas las
-    instalaciones que compartan una misma base deben recibir exactamente la
-    misma llave mediante un canal administrado y seguro.
-    """
     cargar_entorno()
     if os.getenv("AXIA_DATA_KEY", "").strip():
         return None
@@ -86,7 +74,6 @@ def aprovisionar_clave_desarrollo() -> Path | None:
     if not os.getenv("AXIA_REQUIRE_ENCRYPTION"):
         _guardar_variable_env(ruta, "AXIA_REQUIRE_ENCRYPTION", "1")
 
-    # Disponible inmediatamente en este proceso sin exponer la clave.
     os.environ["AXIA_DATA_KEY"] = clave
     os.environ.setdefault("AXIA_REQUIRE_ENCRYPTION", "1")
     invalidar_cache_entorno()
@@ -128,7 +115,6 @@ def _obtener_fernet() -> Fernet | None:
 
 
 def validar_configuracion_cifrado() -> Path | None:
-    """Carga la configuración, aprovisiona desarrollo y valida Fernet."""
     ruta_generada = aprovisionar_clave_desarrollo()
     _obtener_fernet()
     return ruta_generada

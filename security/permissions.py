@@ -1,23 +1,3 @@
-"""Control centralizado de roles y permisos del sistema AXIA.
-
-La base de datos almacena el nivel en ``db_usuarios.usu_tipo``:
-
-1 = Administrador
-2 = Jefe de Operaciones
-3 = Supervisor
-4 = Operador
-5 = Administrativo
-6 = Especial
-7 = Compras
-8 = Almacén
-9 = DG y Calidad
-10 = Recursos Humanos
-
-Los permisos se validan tanto al construir la navegación como al abrir cada
-vista sensible. Ocultar un botón no se considera una medida de seguridad por sí
-sola.
-"""
-
 from __future__ import annotations
 
 from typing import Any, Mapping
@@ -33,7 +13,6 @@ ALMACEN = 8
 DG_Y_CALIDAD = 9
 RECURSOS_HUMANOS = 10
 
-# Alias conservado para compatibilidad con módulos anteriores.
 ADMIN = ADMINISTRADOR
 
 NOMBRES_ROL = {
@@ -51,7 +30,6 @@ NOMBRES_ROL = {
 
 TIPOS_VALIDOS = frozenset(NOMBRES_ROL)
 
-# Roles 5 y 6 quedan temporalmente alineados con Supervisor.
 ROLES_SUPERVISION = frozenset({SUPERVISOR, ADMINISTRATIVO, ESPECIAL})
 ROLES_GESTION_OPERATIVA = frozenset(
     {ADMINISTRADOR, JEFE_OPERACIONES, SUPERVISOR, ADMINISTRATIVO, ESPECIAL}
@@ -61,7 +39,6 @@ ROLES_TODOS = ROLES_OPERATIVOS_LEGACY
 
 
 def obtener_tipo_usuario(usuario_activo: Mapping[str, Any] | None) -> int | None:
-    """Devuelve ``usu_tipo`` normalizado o ``None`` si es inválido."""
     if not usuario_activo:
         return None
     try:
@@ -72,7 +49,6 @@ def obtener_tipo_usuario(usuario_activo: Mapping[str, Any] | None) -> int | None
 
 
 def nombre_rol(tipo_o_usuario: int | Mapping[str, Any] | None) -> str:
-    """Obtiene el nombre legible de un rol sin asumir valores inválidos."""
     if isinstance(tipo_o_usuario, Mapping):
         tipo = obtener_tipo_usuario(tipo_o_usuario)
     else:
@@ -88,17 +64,14 @@ def _es_rol(usuario_activo, *roles: int) -> bool:
 
 
 def es_superadmin(usuario_activo) -> bool:
-    """Compatibilidad: el nivel máximo corresponde al Administrador."""
     return _es_rol(usuario_activo, ADMINISTRADOR)
 
 
 def es_admin(usuario_activo) -> bool:
-    """Indica si el usuario es Administrador (nivel 1)."""
     return _es_rol(usuario_activo, ADMINISTRADOR)
 
 
 def puede_entrar_inicio_aco(usuario_activo) -> bool:
-    """El Operador trabaja únicamente desde el flujo de levantamientos."""
     return obtener_tipo_usuario(usuario_activo) in ROLES_GESTION_OPERATIVA
 
 
@@ -107,7 +80,6 @@ def puede_crear_aco(usuario_activo) -> bool:
 
 
 def puede_ver_clientes(usuario_activo) -> bool:
-    """Administrador y Jefe de Operaciones administran clientes."""
     return _es_rol(usuario_activo, ADMINISTRADOR, JEFE_OPERACIONES)
 
 
@@ -120,37 +92,28 @@ def puede_ver_dashboard(usuario_activo) -> bool:
 
 
 def puede_ver_usuarios(usuario_activo) -> bool:
-    """Acceso a la pantalla: Admin/Jefe administran; RH solo expedientes."""
     return _es_rol(usuario_activo, ADMINISTRADOR, JEFE_OPERACIONES, RECURSOS_HUMANOS)
 
 
 def puede_editar_expedientes_rrhh(usuario_activo) -> bool:
-    """RH no administra cuentas ni contraseñas."""
     return _es_rol(usuario_activo, RECURSOS_HUMANOS)
 
 
 def puede_administrar_usuarios(usuario_activo) -> bool:
-    """Administrador y Jefe de Operaciones administran usuarios."""
     return _es_rol(usuario_activo, ADMINISTRADOR, JEFE_OPERACIONES)
 
 
 def puede_ver_reportador_fotografico(usuario_activo) -> bool:
-    """Permiso exclusivo al Reportador fotográfico, roles AXIA 1 a 4."""
     return _es_rol(usuario_activo, ADMINISTRADOR, JEFE_OPERACIONES, SUPERVISOR, OPERADOR)
 
 
 def puede_ver_reportes(usuario_activo) -> bool:
-    """Reportes operativos: todos salvo Operador."""
     return obtener_tipo_usuario(usuario_activo) in ROLES_GESTION_OPERATIVA
 
-
-# Usuarios concretos de DG/Calidad autorizados para consultar el panel ejecutivo.
-# id_usuario identifica la cuenta; usu_tipo identifica su rol (son campos distintos).
 USUARIOS_DIRECCION_GENERAL = frozenset({39, 42, 43})
 
 
 def puede_ver_direccion_general(usuario_activo) -> bool:
-    """Panel ejecutivo: administradores (tipo 1) y DG autorizados (tipo 9)."""
     tipo = obtener_tipo_usuario(usuario_activo)
     if tipo == ADMINISTRADOR:
         return True
@@ -164,12 +127,10 @@ def puede_ver_direccion_general(usuario_activo) -> bool:
 
 
 def puede_administrar_registros(usuario_activo) -> bool:
-    """Mantenimiento de documentos operativos: exclusivamente rol 1."""
     return es_admin(usuario_activo)
 
 
 def puede_ver_auditoria(usuario_activo) -> bool:
-    """Login y bitácora de movimientos: exclusivamente Administrador."""
     return _es_rol(usuario_activo, ADMINISTRADOR)
 
 
@@ -182,17 +143,14 @@ def puede_ver_bitacora_movimientos(usuario_activo) -> bool:
 
 
 def puede_consultar_procesos(usuario_activo) -> bool:
-    """Consulta administrativa de levantamientos, órdenes y bitácoras."""
     return obtener_tipo_usuario(usuario_activo) in ROLES_GESTION_OPERATIVA
 
 
 def puede_generar_levantamiento(usuario_activo) -> bool:
-    """Los roles operativos/comerciales 1-6 pueden agregar levantamientos."""
     return obtener_tipo_usuario(usuario_activo) in ROLES_TODOS
 
 
 def puede_modificar_levantamientos(usuario_activo) -> bool:
-    """Permite crear revisiones de LEV a Administración, Operaciones y Supervisión."""
     return _es_rol(
         usuario_activo,
         ADMINISTRADOR,
@@ -201,75 +159,53 @@ def puede_modificar_levantamientos(usuario_activo) -> bool:
         ADMINISTRATIVO,
     )
 
-
-
 def puede_convertir_levantamiento_a_orden(usuario_activo) -> bool:
-    """Administrador y Jefe de Operaciones pueden autorizar LEV -> OT."""
     return _es_rol(usuario_activo, ADMINISTRADOR, JEFE_OPERACIONES)
 
 
 def puede_validar_levantamiento_ventas(usuario_activo) -> bool:
-    """La preautorización operativa corresponde exclusivamente al rol 5."""
     return _es_rol(usuario_activo, ADMINISTRATIVO)
 
 
 def puede_cotizar_levantamientos(usuario_activo) -> bool:
-    """Cotización de levantamientos: Ventas (rol 6) y Administrador como superusuario."""
     return _es_rol(usuario_activo, ADMINISTRADOR, ESPECIAL)
 
-
-
-
 def puede_autorizar_cotizacion_dg(usuario_activo) -> bool:
-    """Dirección General/Calidad (9) y Administrador (1)."""
     return _es_rol(usuario_activo, ADMINISTRADOR, DG_Y_CALIDAD)
 
 
 def puede_ver_compras(usuario_activo) -> bool:
-    """Bandeja de Compras: rol 7 y Administrador como superusuario."""
     return _es_rol(usuario_activo, ADMINISTRADOR, COMPRAS)
-
 
 def puede_convertir_cotizacion_a_orden(usuario_activo) -> bool:
-    """Compras (rol 7) y Administrador pueden convertir una cotización finalizada en OT."""
     return _es_rol(usuario_activo, ADMINISTRADOR, COMPRAS)
 
-
 def puede_ver_almacen(usuario_activo) -> bool:
-    """Acceso al módulo inicial de Almacén (rol 8 y administrador)."""
     return _es_rol(usuario_activo, ADMINISTRADOR, ALMACEN)
 
 def puede_avanzar_flujo_operativo(usuario_activo) -> bool:
-    """Administrador y Administrativo controlan las transiciones LEV -> OT -> OS."""
     return _es_rol(usuario_activo, ADMINISTRADOR, ADMINISTRATIVO)
 
 def puede_generar_orden(usuario_activo) -> bool:
-    """Órdenes de Trabajo administrativas/operativas: todos salvo Operador."""
     return obtener_tipo_usuario(usuario_activo) in ROLES_GESTION_OPERATIVA
 
-
 def puede_generar_orden_servicio(usuario_activo) -> bool:
-    """La Orden de Servicio operativa también puede ser capturada por Operador (usu_tipo=4)."""
     return obtener_tipo_usuario(usuario_activo) in ROLES_TODOS
 
 
 def puede_ver_bitacoras_operativas(usuario_activo) -> bool:
-    """Las Bitácoras Operativas están disponibles también para Operador (usu_tipo=4)."""
     return obtener_tipo_usuario(usuario_activo) in ROLES_TODOS
 
 
 def puede_generar_bitacora(usuario_activo) -> bool:
-    """Los roles operativos/comerciales 1-6 pueden generar/registrar bitácoras operativas."""
     return puede_ver_bitacoras_operativas(usuario_activo)
 
 
 def puede_editar_datos_aco_relacionados(usuario_activo) -> bool:
-    """Edición de datos maestros: Administrador y Jefe de Operaciones."""
     return _es_rol(usuario_activo, ADMINISTRADOR, JEFE_OPERACIONES)
 
 
 def matriz_permisos() -> dict[int, dict[str, bool]]:
-    """Matriz serializable usada por documentación y pruebas."""
     return {
         tipo: {
             "inicio_aco": tipo in ROLES_GESTION_OPERATIVA,
