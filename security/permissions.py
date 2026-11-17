@@ -144,9 +144,23 @@ def puede_ver_reportes(usuario_activo) -> bool:
     return obtener_tipo_usuario(usuario_activo) in ROLES_GESTION_OPERATIVA
 
 
+# Usuarios concretos de DG/Calidad autorizados para consultar el panel ejecutivo.
+# id_usuario identifica la cuenta; usu_tipo identifica su rol (son campos distintos).
+USUARIOS_DIRECCION_GENERAL = frozenset({39, 42, 43})
+
+
 def puede_ver_direccion_general(usuario_activo) -> bool:
-    """Panel ejecutivo: reservado a Dirección General mediante rol Administrador."""
-    return _es_rol(usuario_activo, ADMINISTRADOR)
+    """Panel ejecutivo: administradores (tipo 1) y DG autorizados (tipo 9)."""
+    tipo = obtener_tipo_usuario(usuario_activo)
+    if tipo == ADMINISTRADOR:
+        return True
+    if tipo != DG_Y_CALIDAD or not usuario_activo:
+        return False
+    try:
+        identificador = int(usuario_activo.get("id_usuario"))
+    except (TypeError, ValueError):
+        return False
+    return identificador in USUARIOS_DIRECCION_GENERAL
 
 
 def puede_administrar_registros(usuario_activo) -> bool:
