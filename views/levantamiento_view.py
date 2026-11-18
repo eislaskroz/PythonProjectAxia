@@ -45,6 +45,87 @@ FORM_TABLE_HEADER_FONT = ("Montserrat", 11)
 FORM_CONTROL_HEIGHT = 30
 
 
+def _buscador_catalogo_independiente(parent, opciones, agregar, etiqueta, texto_boton, columnas, *, fila=2):
+    marco = ctk.CTkFrame(parent, fg_color="transparent")
+    marco.grid(row=fila, column=0, columnspan=columnas, sticky="ew", padx=5, pady=(3, 6))
+    marco.grid_columnconfigure(0, weight=1)
+    ctk.CTkLabel(marco, text=etiqueta, font=FORM_TABLE_HEADER_FONT, text_color=TEXT_PRIMARY).grid(row=0, column=0, sticky="w", pady=(0, 3))
+    variable = ctk.StringVar()
+    entrada = ctk.CTkEntry(marco, textvariable=variable, height=32, placeholder_text="Escribe para buscar en el catálogo...")
+    entrada.grid(row=1, column=0, sticky="ew", padx=(0, 10))
+    lista = tk.Listbox(marco, height=5, exportselection=False, font=("Montserrat", 10),
+                       activestyle="dotbox", selectmode=tk.SINGLE, relief="solid", borderwidth=1,
+                       bg="#FFFFFF", fg="#102A43", selectbackground="#DBEAFE", selectforeground="#102A43")
+    lista.grid(row=2, column=0, sticky="ew", pady=(3, 0))
+    lista.grid_remove()
+    visibles = []
+    elegido = [None]
+
+    def normalizar(texto):
+        valor = unicodedata.normalize("NFKD", str(texto or ""))
+        return "".join(c for c in valor if not unicodedata.combining(c)).casefold().strip()
+
+    def filtrar(*_):
+        elegido[0] = None
+        lista.delete(0, tk.END)
+        visibles.clear()
+        consulta = normalizar(variable.get())
+        if not consulta:
+            lista.grid_remove()
+            return
+        for opcion in opciones:
+            if consulta in normalizar(opcion[0]):
+                visibles.append(opcion)
+                lista.insert(tk.END, opcion[0])
+                if len(visibles) >= 40:
+                    break
+        if visibles:
+            lista.grid()
+        else:
+            lista.grid_remove()
+
+    def seleccionar(_event=None):
+        indices = lista.curselection()
+        if not indices or indices[0] >= len(visibles):
+            return
+        opcion = visibles[indices[0]]
+        variable.set(opcion[0])
+        elegido[0] = opcion
+        lista.grid_remove()
+        entrada.focus_set()
+
+    def primera(_event=None):
+        if visibles:
+            lista.selection_clear(0, tk.END)
+            lista.selection_set(0)
+            seleccionar()
+        return "break"
+
+    def confirmar():
+        opcion = elegido[0]
+        if opcion is None and variable.get().strip():
+            exactas = [x for x in opciones if normalizar(x[0]) == normalizar(variable.get())]
+            if len(exactas) == 1:
+                opcion = exactas[0]
+            elif len(visibles) == 1:
+                opcion = visibles[0]
+            else:
+                messagebox.showinfo("Selecciona una opción", "Selecciona un resultado existente del catálogo antes de agregar la partida.")
+                return
+        agregar(opcion[1] if opcion else None)
+        variable.set("")
+        lista.grid_remove()
+
+    ctk.CTkButton(marco, text=texto_boton, height=32, fg_color=PRIMARY, command=confirmar).grid(
+        row=1, column=1, sticky="w")
+    variable.trace_add("write", filtrar)
+    lista.bind("<Double-Button-1>", seleccionar)
+    lista.bind("<Return>", seleccionar)
+    entrada.bind("<Down>", lambda _e: lista.focus_set() if visibles else None)
+    entrada.bind("<Return>", primera)
+    return marco
+
+
 def _titulo_sin_numeracion(titulo: str) -> str:
     texto = str(titulo or "")
     return re.sub(r"^(\s*(?:[^\w\d]\s*)*)\d+\s*[.\-:]\s*", r"\1", texto).strip()
@@ -3221,16 +3302,16 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
     for col, encabezado in enumerate(("Familia", "Subfamilia", "Cantidad", "Marca", "Modelo", "Características técnicas", "Acción")):
         ctk.CTkLabel(seccion_equipos, text=encabezado, font=FORM_TABLE_HEADER_FONT, text_color=TEXT_PRIMARY).grid(
-            row=2, column=col, sticky="w", padx=4, pady=(0, 2)
+            row=3, column=col, sticky="w", padx=4, pady=(0, 2)
         )
 
-    def agregar_equipo_catalogo():
-        fila_eq = 3 + len(equipos_catalogo_items)
+    def agregar_equipo_catalogo(seleccion=None):
+        fila_eq = 4 + len(equipos_catalogo_items)
         familias = obtener_nombres_familias(tipo_levantamiento)
-        familia_inicial = familias[0] if familias else "Otro"
+        familia_inicial = seleccion[0] if seleccion else (familias[0] if familias else "Otro")
         subfamilias = obtener_subfamilias(tipo_levantamiento, familia_inicial)
         var_familia_eq = ctk.StringVar(value=familia_inicial)
-        var_subfamilia_eq = ctk.StringVar(value=subfamilias[0] if subfamilias else "Otro")
+        var_subfamilia_eq = ctk.StringVar(value=seleccion[1] if seleccion else (subfamilias[0] if subfamilias else "Otro"))
         var_cantidad_eq = ctk.StringVar(value="1")
         var_marca_eq = ctk.StringVar(value="Por definir")
         var_modelo_eq = ctk.StringVar()
@@ -3284,6 +3365,16 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             *[w for w in seccion_equipos.grid_slaves(row=fila_eq) if w not in (btn_eliminar, om_familia, om_subfamilia)]
         ])
         equipos_catalogo_items.append(item_equipo)
+
+    _opciones_equipos = [
+        (f"{familia}  ·  {subfamilia}", (familia, subfamilia))
+        for familia in obtener_nombres_familias(tipo_levantamiento)
+        for subfamilia in obtener_subfamilias(tipo_levantamiento, familia)
+    ]
+    _buscador_catalogo_independiente(
+        seccion_equipos, _opciones_equipos, agregar_equipo_catalogo,
+        "Buscar equipo del catálogo", "➕ Agregar equipo", 7
+    )
 
     ctk.CTkButton(
         seccion_equipos, text="➕ Agregar equipo", height=32, fg_color=PRIMARY,
@@ -3350,7 +3441,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
     for col, encabezado in enumerate(("Material", "Cantidad", "Unidad", "Especificación / medida", "Acción")):
         ctk.CTkLabel(seccion_misc, text=encabezado, font=FORM_TABLE_HEADER_FONT, text_color=TEXT_PRIMARY).grid(
-            row=2, column=col, sticky="w", padx=5, pady=(0, 2)
+            row=3, column=col, sticky="w", padx=5, pady=(0, 2)
         )
 
     def agregar_material_miscelaneo(material_catalogo=None):
@@ -3363,7 +3454,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         unidad_default = material_catalogo.get("unidad", "Pieza(s)")
         especificacion_sugerida = material_catalogo.get("especificacion_sugerida", "")
 
-        fila = 3 + len(materiales_miscelaneos_items)
+        fila = 4 + len(materiales_miscelaneos_items)
         var_material = ctk.StringVar(value=nombre_material)
         var_categoria = ctk.StringVar(value=categoria_material)
         var_cantidad = ctk.StringVar()
@@ -3417,52 +3508,15 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         item_material["widgets"].append(btn_eliminar)
         materiales_miscelaneos_items.append(item_material)
 
-    if tipo_levantamiento in ("Tecnología, Equipos y Periféricos", "General"):
-        _insumos_ti = sorted(
-            obtener_materiales_por_especialidad(tipo_levantamiento),
-            key=lambda x: str(x.get("nombre") or "").casefold(),
-        )
-        _insumos_por_nombre = {}
-        for _insumo in _insumos_ti:
-            _nombre = str(_insumo.get("nombre") or "").strip()
-            if not _nombre:
-                continue
-            _clave = _nombre
-            if _clave in _insumos_por_nombre:
-                _clave = f"{_nombre} · {_insumo.get('categoria', 'Otro')} · {_insumo.get('unidad', 'Pieza(s)')}"
-                _sufijo = 2
-                while _clave in _insumos_por_nombre:
-                    _clave = f"{_nombre} · {_insumo.get('categoria', 'Otro')} · {_insumo.get('unidad', 'Pieza(s)')} ({_sufijo})"
-                    _sufijo += 1
-            _insumos_por_nombre[_clave] = _insumo
-        _var_insumo_catalogo = ctk.StringVar(value=(next(iter(_insumos_por_nombre), "")))
-        _combo_insumo_catalogo = NativeComboBox(
-            seccion_misc, variable=_var_insumo_catalogo,
-            values=list(_insumos_por_nombre.keys()), height=31
-        )
-        _combo_insumo_catalogo.configure(width=360)
-        _combo_insumo_catalogo.grid(row=998, column=0, columnspan=2, sticky="w", padx=5, pady=(5, 2))
-
-        def _agregar_insumo_seleccionado():
-            insumo = _insumos_por_nombre.get(_var_insumo_catalogo.get())
-            if not insumo:
-                return
-            nombre = str(insumo.get("nombre") or "").strip().casefold()
-            categoria = str(insumo.get("categoria") or "Otro").strip().casefold()
-            unidad = str(insumo.get("unidad") or "Pieza(s)").strip().casefold()
-            for item in materiales_miscelaneos_items:
-                if (item["material"].get().strip().casefold() == nombre
-                        and item["categoria"].get().strip().casefold() == categoria
-                        and item["unidad"].get().strip().casefold() == unidad
-                        and not item["cantidad"].get().strip()):
-                    messagebox.showinfo("Material pendiente", "Este material ya está agregado y le falta la cantidad. Completa esa fila antes de volver a agregarlo.")
-                    return
-            agregar_material_miscelaneo(insumo)
-
-        ctk.CTkButton(
-            seccion_misc, text="➕ Agregar insumo del catálogo", height=31, fg_color=PRIMARY,
-            command=_agregar_insumo_seleccionado
-        ).grid(row=998, column=3, columnspan=2, sticky="ew", padx=5, pady=(5, 2))
+    _catalogo_misc = obtener_materiales_por_especialidad(tipo_levantamiento)
+    _opciones_misc = [
+        (f"{str(item.get('nombre') or '')}  ·  {str(item.get('categoria') or 'Otro')}  ·  {str(item.get('unidad') or 'Pieza(s)')}", item)
+        for item in _catalogo_misc if str(item.get("nombre") or "").strip()
+    ]
+    _buscador_catalogo_independiente(
+        seccion_misc, _opciones_misc, agregar_material_miscelaneo,
+        "Buscar material misceláneo o consumible", "➕ Agregar insumo", 5
+    )
 
     ctk.CTkButton(
         seccion_misc, text="➕ Agregar otro material", height=32, fg_color=PRIMARY,
@@ -3561,7 +3615,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     ).pack(side="left")
 
     epp_detalle_frame = ctk.CTkFrame(seccion_epp, fg_color="transparent")
-    epp_detalle_frame.grid(row=2, column=0, columnspan=4, sticky="ew", padx=2, pady=(0, 3))
+    epp_detalle_frame.grid(row=3, column=0, columnspan=4, sticky="ew", padx=2, pady=(0, 3))
     for _col, _weight in enumerate((2, 0, 3, 0)):
         epp_detalle_frame.grid_columnconfigure(_col, weight=_weight)
     for _col, _titulo in enumerate(("EPP requerido", "Cantidad", "Especificación / observaciones", "Acción")):
@@ -3625,6 +3679,15 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             programar_actualizacion_estado_preview()
         except NameError:
             pass
+
+    def _agregar_epp_buscado(valor):
+        var_requiere_epp.set("Sí")
+        agregar_epp({"epp": valor} if valor else None)
+
+    _buscador_catalogo_independiente(
+        seccion_epp, [(nombre, nombre) for nombre in CATALOGO_EPP], _agregar_epp_buscado,
+        "Buscar equipo de protección adicional", "➕ Agregar EPP", 4
+    )
 
     btn_agregar_epp = ctk.CTkButton(
         epp_detalle_frame, text="➕ Agregar EPP", height=32, fg_color=PRIMARY,
@@ -3711,7 +3774,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         ctk.CTkLabel(
             seccion_herramientas, text=_titulo, font=FORM_TABLE_HEADER_FONT,
             text_color=TEXT_PRIMARY
-        ).grid(row=2, column=_col, sticky="w", padx=5, pady=(0, 2))
+        ).grid(row=3, column=_col, sticky="w", padx=5, pady=(0, 2))
 
     def agregar_herramienta(datos=None):
         datos = dict(datos or {})
@@ -3723,7 +3786,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         if herramienta_inicial and herramienta_inicial not in opciones_iniciales:
             opciones_iniciales = opciones_iniciales + [herramienta_inicial]
 
-        fila_h = 3 + len(herramientas_items)
+        fila_h = 4 + len(herramientas_items)
         var_categoria_h = ctk.StringVar(value=categoria_inicial)
         var_herramienta_h = ctk.StringVar(value=herramienta_inicial or (opciones_iniciales[0] if opciones_iniciales else ""))
         var_cantidad_h = ctk.StringVar(value=str(datos.get("cantidad") or "1"))
@@ -3783,6 +3846,16 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         btn_eliminar_h.grid(row=fila_h, column=4, sticky="ew", padx=5, pady=2)
         item_h["widgets"].append(btn_eliminar_h)
         herramientas_items.append(item_h)
+
+    _opciones_herramientas = [
+        (f"{herramienta}  ·  {categoria}", {"categoria": categoria, "herramienta": herramienta})
+        for categoria in CATEGORIAS_HERRAMIENTAS
+        for herramienta in herramientas_por_categoria(categoria)
+    ]
+    _buscador_catalogo_independiente(
+        seccion_herramientas, _opciones_herramientas, agregar_herramienta,
+        "Buscar herramienta del catálogo", "➕ Agregar herramienta", 5
+    )
 
     ctk.CTkButton(
         seccion_herramientas, text="➕ Agregar herramienta", height=32, fg_color=PRIMARY,
