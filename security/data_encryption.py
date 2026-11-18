@@ -16,6 +16,7 @@ PREFIX = "enc::"
 
 
 class EncryptionConfigurationError(RuntimeError):
+    pass
 
 def _es_obligatorio() -> bool:
     cargar_entorno()

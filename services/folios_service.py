@@ -7,6 +7,7 @@ logger = configurar_logger(__name__)
 
 
 class FolioCentralError(RuntimeError):
+    pass
 
 def _extraer_valor_rpc(data):
     if isinstance(data, str):

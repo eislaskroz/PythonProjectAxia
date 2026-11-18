@@ -17,6 +17,7 @@ COMMON_TO_DESKTOP = {
 }
 
 class IntercambioNoSeguro(ValueError):
+    pass
 
 
 def _json_safe(data: dict[str, Any]) -> dict[str, Any]:

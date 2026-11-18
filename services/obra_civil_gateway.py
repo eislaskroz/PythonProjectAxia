@@ -10,6 +10,7 @@ ENDPOINT = SUPABASE_URL.rstrip('/') + '/functions/v1/axia-obras-civiles'
 
 
 class SesionObraCivilInvalida(PermissionError):
+    pass
 
 def peticion_obra_civil(accion: str, solicitud: str, *, usuario_id: object, datos: dict | None = None):
     if accion not in ('consultar', 'guardar'):

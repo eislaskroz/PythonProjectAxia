@@ -327,7 +327,6 @@ class AlmacenRemoto:
         self.anon_key = SUPABASE_KEY
         self.token = None
         self._usuario_id = None
-.
         self.laboratorio = False
         self._sufijo = ''
 

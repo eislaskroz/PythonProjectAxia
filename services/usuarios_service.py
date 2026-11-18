@@ -178,6 +178,7 @@ def _coincide_usuario(usuario, termino):
 
 
 class UsuarioServiceError(RuntimeError):
+    pass
 
 
 def _obtener_usuarios_paginados(limite=500):

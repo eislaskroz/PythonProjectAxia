@@ -10,6 +10,7 @@ _PROJECT_REF_RE = re.compile(r"^[a-z0-9]{20}$")
 
 
 class DeploymentConfigurationError(RuntimeError):
+    pass
 
 
 @dataclass(frozen=True)

@@ -39,6 +39,7 @@ class _EstiloCampo:
 
 
 class AxiaEntry(_EstiloCampo, ctk.CTkEntry):
+    pass
 
 
-class AxiaTextbox(_EstiloCampo, ctk.CTkTextbox):
+class AxiaTextbox(_EstiloCampo, ctk.CTkTextbox):    pass

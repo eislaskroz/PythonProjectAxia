@@ -86,6 +86,7 @@ COLUMNAS_ACOS = ",".join([
 
 
 class AcoServiceError(RuntimeError):
+    pass
 
 def enriquecer_aco_con_sucursal_contacto(aco):
     if not aco:
