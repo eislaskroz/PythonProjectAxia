@@ -3681,17 +3681,18 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             pass
 
     def _agregar_epp_buscado(valor):
-        var_requiere_epp.set("Sí")
+        if var_requiere_epp.get() != "Sí":
+            return
         agregar_epp({"epp": valor} if valor else None)
 
-    _buscador_catalogo_independiente(
+    buscador_epp = _buscador_catalogo_independiente(
         seccion_epp, [(nombre, nombre) for nombre in CATALOGO_EPP], _agregar_epp_buscado,
         "Buscar equipo de protección adicional", "➕ Agregar EPP", 4
     )
 
     btn_agregar_epp = ctk.CTkButton(
         epp_detalle_frame, text="➕ Agregar EPP", height=32, fg_color=PRIMARY,
-        command=lambda: agregar_epp(None)
+        command=lambda: agregar_epp(None) if var_requiere_epp.get() == "Sí" else None
     )
     btn_agregar_epp.grid(row=1000, column=0, columnspan=2, sticky="w", padx=5, pady=(4, 5))
 
@@ -3736,8 +3737,10 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             return
         if var_requiere_epp.get() == "Sí":
             epp_detalle_frame.grid()
+            buscador_epp.grid()
         else:
             epp_detalle_frame.grid_remove()
+            buscador_epp.grid_remove()
         try:
             actualizar_estado_preview()
         except Exception:
