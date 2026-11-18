@@ -6,6 +6,8 @@ logger = configurar_logger(__name__)
 
 import json
 import re
+import unicodedata
+import tkinter as tk
 from pathlib import Path
 from datetime import datetime
 
@@ -2865,11 +2867,73 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         ctk.CTkLabel(seccion_canalizacion_dinamica, text="¿Se requiere?", font=FORM_TABLE_HEADER_FONT).grid(row=2, column=0, sticky="w", padx=5)
         combo_requiere = NativeComboBox(seccion_canalizacion_dinamica, variable=var_requiere_canalizacion, values=["Sí", "No"], width=120, height=31)
         combo_requiere.grid(row=3, column=0, sticky="w", padx=5, pady=(0,4))
+        ctk.CTkLabel(seccion_canalizacion_dinamica, text="Buscar material del catálogo", font=FORM_TABLE_HEADER_FONT).grid(row=2, column=1, columnspan=2, sticky="w", padx=5)
+        variable_buscar_material = ctk.StringVar()
+        entrada_buscar_material = ctk.CTkEntry(seccion_canalizacion_dinamica, textvariable=variable_buscar_material,
+                                               width=370, height=32, placeholder_text="Escribe material o tipo...")
+        entrada_buscar_material.grid(row=3, column=1, columnspan=2, sticky="ew", padx=5, pady=(0, 4))
+        resultados_busqueda = tk.Listbox(seccion_canalizacion_dinamica, height=5, exportselection=False,
+                                         font=("Montserrat", 10), activestyle="dotbox", selectmode=tk.SINGLE,
+                                         relief="solid", borderwidth=1, bg="#FFFFFF", fg="#102A43",
+                                         selectbackground="#DBEAFE", selectforeground="#102A43")
+        indice_busqueda = []
+        seleccionado_busqueda = [None]
+        opciones_busqueda = []
+        for familia_busqueda in familias_materiales():
+            for material_busqueda in materiales_de_familia(familia_busqueda):
+                for tipo_busqueda in catalogo_tipos_por_categoria(material_busqueda):
+                    opciones_busqueda.append((familia_busqueda, material_busqueda, tipo_busqueda))
+        def normalizar_busqueda(texto):
+            valor = unicodedata.normalize("NFKD", str(texto or ""))
+            return "".join(c for c in valor if not unicodedata.combining(c)).casefold().strip()
+        def actualizar_resultados_busqueda(*_):
+            seleccionado_busqueda[0] = None
+            consulta = normalizar_busqueda(variable_buscar_material.get())
+            resultados_busqueda.delete(0, tk.END)
+            indice_busqueda.clear()
+            if not consulta:
+                resultados_busqueda.grid_remove()
+                return
+            coincidencias = []
+            for opcion in opciones_busqueda:
+                familia, material, tipo = opcion
+                if consulta in normalizar_busqueda(f"{familia} {material} {tipo}"):
+                    coincidencias.append(opcion)
+                if len(coincidencias) >= 40:
+                    break
+            indice_busqueda.extend(coincidencias)
+            for familia, material, tipo in coincidencias:
+                resultados_busqueda.insert(tk.END, f"{material}  ·  {tipo}  ({familia})")
+            if coincidencias:
+                resultados_busqueda.grid()
+            else:
+                resultados_busqueda.grid_remove()
+        def elegir_resultado_busqueda(_event=None):
+            indices = resultados_busqueda.curselection()
+            if not indices or indices[0] >= len(indice_busqueda):
+                return
+            opcion = indice_busqueda[indices[0]]
+            familia, material, tipo = opcion
+            variable_buscar_material.set(f"{material}  ·  {tipo}")
+            seleccionado_busqueda[0] = opcion
+            resultados_busqueda.grid_remove()
+        variable_buscar_material.trace_add("write", actualizar_resultados_busqueda)
+        resultados_busqueda.bind("<Double-Button-1>", elegir_resultado_busqueda)
+        resultados_busqueda.bind("<Return>", elegir_resultado_busqueda)
+        entrada_buscar_material.bind("<Down>", lambda _e: resultados_busqueda.focus_set() if indice_busqueda else None)
+        def confirmar_primer_resultado(_event=None):
+            if indice_busqueda:
+                resultados_busqueda.selection_clear(0, tk.END)
+                resultados_busqueda.selection_set(0)
+                elegir_resultado_busqueda()
+        entrada_buscar_material.bind("<Return>", confirmar_primer_resultado)
+        resultados_busqueda.grid(row=4, column=1, columnspan=3, sticky="ew", padx=5, pady=(0, 5))
+        resultados_busqueda.grid_remove()
         for col, encabezado in enumerate(("Categoría", "Material", "Tipo", "Tamaño/calibre", "Color/Modelo/Otros", "Cantidad", "Unidad", "Aprox.", "Acción")):
-            ctk.CTkLabel(seccion_canalizacion_dinamica, text=encabezado, font=FORM_TABLE_HEADER_FONT, text_color=TEXT_PRIMARY).grid(row=4, column=col, sticky="w", padx=5, pady=(0,2))
+            ctk.CTkLabel(seccion_canalizacion_dinamica, text=encabezado, font=FORM_TABLE_HEADER_FONT, text_color=TEXT_PRIMARY).grid(row=5, column=col, sticky="w", padx=5, pady=(0,2))
 
         def agregar_partida_canalizacion(categoria_inicial="Tubo", *, historico=False):
-            fila = 5 + len(canalizacion_materiales_items)
+            fila = 6 + len(canalizacion_materiales_items)
             material_inicial = normalizar_material(categoria_inicial)
             familia_inicial = familia_de_material(material_inicial)
             var_familia = ctk.StringVar(value=familia_inicial)
@@ -3020,9 +3084,34 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                     except Exception: pass
         var_requiere_canalizacion.trace_add("write", actualizar_requiere_canalizacion)
         var_requiere_canalizacion.trace_add("write", lambda *_: programar_actualizacion_estado_preview())
+        def agregar_partida_desde_busqueda():
+            consulta = normalizar_busqueda(variable_buscar_material.get())
+            opcion = seleccionado_busqueda[0]
+            if consulta and opcion is None:
+                indices = resultados_busqueda.curselection()
+                if indices and indices[0] < len(indice_busqueda):
+                    opcion = indice_busqueda[indices[0]]
+                elif len(indice_busqueda) == 1:
+                    opcion = indice_busqueda[0]
+                else:
+                    messagebox.showwarning("Buscar material", "Selecciona una coincidencia existente del catálogo antes de agregar la partida.", parent=seccion_canalizacion_dinamica.winfo_toplevel())
+                    return
+            if var_requiere_canalizacion.get() != "Sí":
+                var_requiere_canalizacion.set("Sí")
+            if opcion:
+                familia, material, tipo = opcion
+                agregar_partida_canalizacion(material)
+                item = canalizacion_materiales_items[-1]
+                item["familia"].set(familia)
+                item["categoria"].set(material)
+                item["tipo"].set(tipo)
+            else:
+                agregar_partida_canalizacion("Tubo")
+            variable_buscar_material.set("")
+            seleccionado_busqueda[0] = None
+            resultados_busqueda.grid_remove()
         ctk.CTkButton(seccion_canalizacion_dinamica, text="➕ Agregar partida", height=32, fg_color=PRIMARY,
-                      command=agregar_partida_canalizacion).grid(row=1000, column=0, columnspan=2, sticky="w", padx=5, pady=(4,5))
-        agregar_partida_canalizacion("Tubo")
+                      command=agregar_partida_desde_busqueda).grid(row=3, column=3, columnspan=2, sticky="w", padx=5, pady=(0,4))
         fila_textos += 1
 
     TIPOS_CON_CONDICIONES_SITIO = {

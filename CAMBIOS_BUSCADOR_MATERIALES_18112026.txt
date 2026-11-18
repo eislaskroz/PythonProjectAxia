@@ -1,0 +1,13 @@
+AXIA DESKTOP - Búsqueda independiente de materiales
+
+- Se restauró ui/native_combobox.py al código anterior a la búsqueda predictiva.
+- Se agregó un buscador de texto dentro de Canalización, cableado y materiales.
+- El buscador presenta coincidencias de familia, material y tipo de los catálogos existentes.
+- Para agregar, seleccione una coincidencia y presione Agregar partida.
+- Si la coincidencia es única, puede presionar Agregar partida sin seleccionarla.
+- Con el buscador vacío, Agregar partida crea una fila manual de Tubo, como antes.
+- Los ComboBox de todas las partidas conservan su funcionamiento anterior.
+- La acción Agregar partida activa Se requiere = Sí cuando corresponde.
+- No se modificaron las fuentes de catálogos, Supabase, los demás formularios ni el esquema.
+- Se evitó introducir nuevos comentarios en el código.
+- La sintaxis Python fue comprobada; es necesaria la prueba visual final en Windows.
