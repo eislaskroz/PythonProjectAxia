@@ -1,20 +1,3 @@
-"""
-=========================================================
-SERVICIO DE ÓRDENES DE SERVICIO - AXIA
-=========================================================
-
-Este archivo pertenece a la capa de servicios de AXIA.
-
-Responsabilidad principal:
-- Contener lógica de negocio.
-- Consultar y modificar datos en Supabase.
-- Devolver resultados limpios a las vistas.
-
-Regla de arquitectura:
-Las vistas en `views/` no deben hablar directamente con Supabase.
-Deben llamar funciones de esta capa `services/`.
-"""
-
 from core.logger import configurar_logger
 from core.error_reporting import register_error
 from core.date_utils import normalizar_campos_fecha
@@ -64,18 +47,6 @@ COLUMNAS_ORDENES = (
 # FUNCIÓN: crear_orden_servicio()
 # =====================================================
 def crear_orden_servicio(datos_orden):
-    """
-    Crea una nueva orden de servicio.
-
-    PARÁMETROS:
-        datos_orden:
-            Diccionario con los datos de la orden.
-
-    RETORNA:
-        list | None:
-            Datos insertados si el registro fue exitoso.
-    """
-
     try:
         datos_orden = asegurar_folio(datos_orden, "os_folio", "OS")
         datos_orden = normalizar_campos_fecha(datos_orden)
@@ -105,14 +76,6 @@ def crear_orden_servicio(datos_orden):
 # FUNCIÓN: obtener_ordenes_servicio()
 # =====================================================
 def obtener_ordenes_servicio(page=1, page_size=100):
-    """
-    Consulta todas las órdenes de servicio.
-
-    RETORNA:
-        list:
-            Lista de órdenes registradas.
-    """
-
     try:
         respuesta = execute_select_compatible(
             supabase,
@@ -140,18 +103,6 @@ def obtener_ordenes_servicio(page=1, page_size=100):
 # FUNCIÓN: obtener_ordenes_por_aco()
 # =====================================================
 def obtener_ordenes_por_aco(aco_numero, page=1, page_size=100):
-    """
-    Consulta órdenes relacionadas con un ACO.
-
-    PARÁMETROS:
-        aco_numero:
-            Número de ACO.
-
-    RETORNA:
-        list:
-            Lista de órdenes relacionadas.
-    """
-
     try:
         respuesta = execute_select_compatible(
             supabase,
@@ -180,18 +131,6 @@ def obtener_ordenes_por_aco(aco_numero, page=1, page_size=100):
 # FUNCIÓN: buscar_orden_por_folio()
 # =====================================================
 def buscar_orden_por_folio(folio):
-    """
-    Busca una orden por folio.
-
-    PARÁMETROS:
-        folio:
-            Folio único de la orden.
-
-    RETORNA:
-        dict | None:
-            Datos de la orden si existe.
-    """
-
     try:
         respuesta = execute_select_compatible(
             supabase,
@@ -227,21 +166,6 @@ def buscar_orden_por_folio(folio):
 # FUNCIÓN: actualizar_orden_servicio()
 # =====================================================
 def actualizar_orden_servicio(id_orden, datos_orden):
-    """
-    Actualiza una orden existente.
-
-    PARÁMETROS:
-        id_orden:
-            ID principal de la orden.
-
-        datos_orden:
-            Campos a actualizar.
-
-    RETORNA:
-        list | None:
-            Datos actualizados.
-    """
-
     try:
         datos_orden = normalizar_campos_fecha(datos_orden)
 
@@ -270,14 +194,6 @@ def actualizar_orden_servicio(id_orden, datos_orden):
 # FUNCIÓN: obtener_estadisticas_ordenes()
 # =====================================================
 def obtener_estadisticas_ordenes(page=1, page_size=100):
-    """
-    Obtiene estadísticas generales de órdenes.
-
-    RETORNA:
-        tuple:
-            Total, pendientes, proceso y finalizadas.
-    """
-
     try:
         ordenes = obtener_ordenes_servicio()
 
@@ -309,11 +225,6 @@ def buscar_ordenes_servicio(termino, limite=100):
 
 
 def obtener_contextos_aco_disponibles_cierre(limite=1000):
-    """ACOs con OT aún no finalizada, disponibles para captura/cierre de OS.
-
-    Si ya existe una OS abierta para la OT, se devuelve también para que el
-    formulario operativo la actualice en lugar de duplicarla.
-    """
     try:
         ots_resp = execute_select_compatible(
             supabase, "db_ordenes_trabajo",
@@ -363,12 +274,6 @@ def obtener_contextos_aco_disponibles_cierre(limite=1000):
 
 
 def buscar_orden_por_levantamiento(folio_levantamiento=None, id_levantamiento=None):
-    """Devuelve la OS vinculada a un levantamiento, si ya existe.
-
-    La relación oficial usa ``id_levantamiento`` y ``os_folio_levantamiento``.
-    Se conserva compatibilidad con órdenes antiguas buscando primero por ID y
-    después por folio.
-    """
     folio = str(folio_levantamiento or "").strip().upper()
     try:
         if id_levantamiento not in (None, ""):
@@ -399,7 +304,6 @@ def buscar_orden_por_levantamiento(folio_levantamiento=None, id_levantamiento=No
 
 
 def _texto_json(valor):
-    """Serializa estructuras para columnas TEXT sin perder acentos."""
     if valor in (None, ""):
         return ""
     if isinstance(valor, str):
@@ -419,7 +323,6 @@ def _extraer_usuario(usuario_activo):
 
 
 def _crear_orden_estricta(datos_orden):
-    """Inserta una OS y conserva el error técnico real de Supabase."""
     datos = asegurar_folio(datos_orden, "os_folio", "OS")
     datos = normalizar_campos_fecha(datos)
     try:
@@ -443,7 +346,6 @@ def _crear_orden_estricta(datos_orden):
 
 
 def _eliminar_orden_compensacion(id_orden):
-    """Revierte la OS si falla el segundo paso de la conversión."""
     if id_orden in (None, ""):
         return False
     try:
@@ -461,14 +363,6 @@ def _eliminar_orden_compensacion(id_orden):
 
 
 def _actualizar_levantamiento_conversion(id_levantamiento, folio_levantamiento, campos):
-    """Actualiza y verifica el levantamiento durante la conversión.
-
-    Supabase/PostgREST puede ejecutar correctamente un UPDATE y devolver una lista
-    vacía cuando la preferencia de retorno es ``minimal``. Por eso no se usa
-    ``bool(response.data)`` como única confirmación: después del UPDATE se consulta
-    el registro y se comprueba el estatus. También se intenta por folio si el ID
-    recibido no localiza una fila.
-    """
     datos = filtrar_payload_levantamiento(campos, campos_permitidos=CAMPOS_CONVERSION_EDITABLES | {"lev_estatus", "actualizado_por"})
     datos = normalizar_campos_fecha(datos)
     # Una fecha vacía debe almacenarse como NULL, no como cadena vacía.
@@ -528,7 +422,6 @@ def _actualizar_levantamiento_conversion(id_levantamiento, folio_levantamiento, 
         if filas:
             return filas
 
-        # UPDATE correcto con retorno minimal: verificar el estado persistido.
         registro = consultar_por(campo, valor)
         if registro and int(registro.get("lev_estatus") or 0) == int(datos.get("lev_estatus") or 0):
             return [registro]
@@ -539,15 +432,6 @@ def _actualizar_levantamiento_conversion(id_levantamiento, folio_levantamiento, 
     )
 
 def _resolver_contacto_conversion(levantamiento, correo_actual, telefono_actual):
-    """Completa correo/teléfono faltantes al convertir LEV -> OS.
-
-    El levantamiento conserva los datos que ya tenga capturados. Si falta
-    correo o teléfono, se consulta el ACO asociado y se reutiliza el servicio
-    central de ACOs, que ya resuelve la prioridad Contacto -> Sucursal.
-
-    Retorna:
-        tuple[str, str, bool, str]: correo, teléfono, hubo_recuperación, fuente.
-    """
     correo = str(correo_actual or "").strip()
     telefono = str(telefono_actual or "").strip()
     recuperado = False
@@ -586,16 +470,11 @@ def _resolver_contacto_conversion(levantamiento, correo_actual, telefono_actual)
                     recuperado = True
                     fuentes.append("ACO")
     except Exception:
-        # La conversión no debe bloquearse únicamente por una consulta de
-        # recuperación. Los datos que ya existan en el LEV siguen siendo válidos.
         logger.exception(
             "No fue posible recuperar datos de contacto del ACO al convertir el LEV %s.",
             levantamiento.get("lev_folio"),
         )
 
-    # Último respaldo: ficha maestra del cliente/empresa. Esto cubre el caso
-    # en que el contacto, la sucursal o incluso el ACO no tengan uno de los
-    # datos, pero la empresa sí los tenga registrados.
     if not correo or not telefono:
         id_cliente = levantamiento.get("id_cliente") or (aco or {}).get("id_cliente")
         if id_cliente not in (None, ""):
@@ -635,14 +514,6 @@ def _resolver_contacto_conversion(levantamiento, correo_actual, telefono_actual)
 
 
 def convertir_levantamiento_a_orden(levantamiento_original, cambios, usuario_activo=None):
-    """Transforma un levantamiento en una OS vinculada y evita duplicados.
-
-    Orden de operaciones:
-    1. Valida duplicidad por ``id_levantamiento``/folio.
-    2. Crea la OS usando únicamente columnas reales de Supabase.
-    3. Actualiza el levantamiento a estatus 2.
-    4. Si el paso 3 falla, elimina la OS recién creada como compensación.
-    """
     original = dict(levantamiento_original or {})
     editados = dict(cambios or {})
     folio_lev = str(original.get("lev_folio") or editados.get("lev_folio") or "").strip().upper()
@@ -667,8 +538,6 @@ def convertir_levantamiento_a_orden(levantamiento_original, cambios, usuario_act
     cliente = str(valor("lev_cliente", default="")).strip()
     descripcion = str(valor("lev_descripcion", default="")).strip()
 
-    # El LEV es la fuente principal, pero no debemos propagar vacíos a la OS
-    # cuando el ACO/contacto/sucursal sí tiene la información correcta.
     correo_levantamiento = str(valor("lev_correo", default="")).strip()
     telefono_levantamiento = str(valor("lev_telefono", default="")).strip()
     correo_resuelto, telefono_resuelto, contacto_recuperado, fuente_contacto = _resolver_contacto_conversion(
@@ -720,7 +589,6 @@ def convertir_levantamiento_a_orden(levantamiento_original, cambios, usuario_act
         "os_fecha_programada": valor("lev_fecha_programada"),
         "creado_por": usuario,
         "actualizado_por": usuario,
-        # Compatibilidad con la pantalla histórica de órdenes:
         "os_domicilio": valor("lev_direccion"),
         "os_encargado": valor("lev_contacto"),
         "os_solicitante": usuario,
@@ -736,17 +604,11 @@ def convertir_levantamiento_a_orden(levantamiento_original, cambios, usuario_act
     resultado_os = _crear_orden_estricta(datos_os)
     orden_creada = resultado_os[0]
 
-    # Persiste únicamente columnas reales y editables del levantamiento.
-    # La relación con la OS vive en db_ordenes_servicio; aquí solo se guardan
-    # las correcciones administrativas y el cambio de estatus.
     campos_lev = filtrar_payload_levantamiento(
         editados,
         campos_permitidos=CAMPOS_CONVERSION_EDITABLES,
     )
 
-    # Si durante la conversión recuperamos información faltante desde el ACO,
-    # la persistimos también en el LEV. Así corregimos el origen y evitamos que
-    # una conversión posterior vuelva a perder el correo/teléfono.
     if contacto_recuperado:
         if not correo_levantamiento and correo_resuelto:
             campos_lev["lev_correo"] = correo_resuelto
@@ -791,7 +653,6 @@ def convertir_levantamiento_a_orden(levantamiento_original, cambios, usuario_act
 # FLUJO VIGENTE: ORDEN DE TRABAJO -> ORDEN DE SERVICIO
 # =====================================================
 def buscar_orden_servicio_por_ot(folio_ot=None, ot_id=None):
-    """Devuelve la OS vinculada a una OT, si ya existe."""
     folio = str(folio_ot or "").strip().upper()
     try:
         if ot_id not in (None, ""):
@@ -815,7 +676,6 @@ def buscar_orden_servicio_por_ot(folio_ot=None, ot_id=None):
 
 
 def _numero_porcentaje(valor, nombre="Porcentaje"):
-    """Porcentajes exactos con dos decimales y sin NaN/Infinity."""
     from decimal import Decimal, InvalidOperation
     try:
         num = Decimal(str(valor).strip())
@@ -827,7 +687,6 @@ def _numero_porcentaje(valor, nombre="Porcentaje"):
 
 
 def avance_comprobado_para_cierre_os(orden_servicio):
-    """SUMA las jornadas de la OT consultadas en Supabase; nunca toma el máximo."""
     from decimal import Decimal
     os = dict(orden_servicio or {})
     ot_id = os.get("ot_id")
@@ -858,7 +717,6 @@ def avance_comprobado_para_cierre_os(orden_servicio):
 
 
 def exigir_avance_cien_para_cierre_os(orden_servicio):
-    """Sólo admite cierre con bitácoras + avance FINAL de OS = exactamente 100."""
     from decimal import Decimal
     os = dict(orden_servicio or {})
     nombre = str(os.get("os_firmante_nombre") or "").strip()
@@ -884,7 +742,6 @@ def exigir_avance_cien_para_cierre_os(orden_servicio):
 
 
 def _cerrar_ot_por_os_completa(orden_servicio, usuario_activo=None):
-    """Cierra la OT cuando la OS fue completada y guardada con todos sus requisitos."""
     os = dict(orden_servicio or {})
     folio_ot = str(os.get("os_folio_ot") or "").strip().upper()
     ot_id = os.get("ot_id")
@@ -904,8 +761,6 @@ def _cerrar_ot_por_os_completa(orden_servicio, usuario_activo=None):
         if not resultado and folio_ot:
             resp = supabase.table("db_ordenes_trabajo").update({"ot_estatus": 3}).eq("ot_folio", folio_ot).execute()
             resultado = list(getattr(resp, "data", None) or [])
-        # Sólo confirmamos el cierre si Supabase devolvió al menos una fila
-        # actualizada. Una lista vacía NO significa cierre exitoso.
         if resultado:
             registrar_movimiento_seguro(
                 modulo="ORDENES_TRABAJO", accion="CIERRE_AUTOMATICO_OS",
@@ -919,10 +774,6 @@ def _cerrar_ot_por_os_completa(orden_servicio, usuario_activo=None):
 
 
 def convertir_orden_trabajo_a_servicio(orden_trabajo, usuario_activo=None):
-    """No permite crear una OS desde administración sin firma y avance final.
-
-    Se debe abrir el formulario de OS, llenar todos los campos y completar 100%.
-    """
     raise ValueError(
         "La Orden de Servicio es el cierre definitivo, no un documento en proceso. "
         "Abre el formulario de OS, captura el avance restante y obtén la firma del cliente."
@@ -930,11 +781,6 @@ def convertir_orden_trabajo_a_servicio(orden_trabajo, usuario_activo=None):
 
 
 def guardar_os_definitiva(datos, usuario_activo=None, id_orden=None):
-    """Valida el cierre ANTES de escribir. No crea OS en proceso.
-
-    Nota: el cierre en dos tablas todavía no es transaccional a nivel DB;
-    se compensa una inserción nueva si falla el cierre de la OT.
-    """
     os = dict(datos or {})
     exigir_avance_cien_para_cierre_os(os)
     existente = buscar_orden_servicio_por_ot(os.get("os_folio_ot"), os.get("ot_id"))
@@ -945,10 +791,8 @@ def guardar_os_definitiva(datos, usuario_activo=None, id_orden=None):
     os["os_estatus"] = 3
     os["os_porcentaje_avance"] = float(_numero_porcentaje(os.get("os_porcentaje_avance"), "Avance final de OS"))
     if id_orden:
-        # No permitir que la vista altere una OS cerrada.
         if int(existente.get("os_estatus") or 0) == 3:
             raise ValueError("La Orden de Servicio ya está finalizada y no se puede modificar desde captura.")
-        # Registro legado: se permite concluirlo pero las escrituras no son atómicas.
         respuesta = actualizar_orden_servicio(id_orden, os)
     else:
         respuesta = crear_orden_servicio(os)
@@ -957,7 +801,6 @@ def guardar_os_definitiva(datos, usuario_activo=None, id_orden=None):
     registro = respuesta[0] if isinstance(respuesta, list) and respuesta else {}
     nuevo_id = id_orden or registro.get("id_orden")
     try:
-        # Evitar cerrar una OT si, entre validación y guardado, cambió el avance.
         exigir_avance_cien_para_cierre_os(os)
         cerrado = _cerrar_ot_por_os_completa(os, usuario_activo)
         if not cerrado:
@@ -978,12 +821,10 @@ def guardar_os_definitiva(datos, usuario_activo=None, id_orden=None):
 
 
 def finalizar_servicio_desde_os(orden_servicio, usuario_activo=None):
-    """Finaliza el servicio desde la OS. La Bitácora Operativa es opcional."""
     os = dict(orden_servicio or {})
     folio_os = str(os.get("os_folio") or "").strip().upper()
     folio_ot = str(os.get("os_folio_ot") or "").strip().upper()
     ot_id = os.get("ot_id")
-    # La OS firmada es el único cierre permitido: suma bitácoras + OS = 100%.
     exigir_avance_cien_para_cierre_os(os)
     usuario = str((usuario_activo or {}).get("usu_nickname") or (usuario_activo or {}).get("usuario") or "Administrativo")
     resultado_ot = None

@@ -1,4 +1,3 @@
-"""Validaciones de límite 50, fecha de interfaz, ACO y descripción, sin Supabase."""
 from pathlib import Path
 from uuid import uuid4
 import pytest

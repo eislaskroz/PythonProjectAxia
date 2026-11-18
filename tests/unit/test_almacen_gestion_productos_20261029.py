@@ -1,4 +1,3 @@
-"""CRUD seguro del catálogo AXIA; pruebas sin Supabase/GUI."""
 from decimal import Decimal
 import sys
 import types

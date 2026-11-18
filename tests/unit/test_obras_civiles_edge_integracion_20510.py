@@ -1,4 +1,3 @@
-"""Pruebas estructurales de seguridad y conservación de borradores."""
 from pathlib import Path
 import ast
 

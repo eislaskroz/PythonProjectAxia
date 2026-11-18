@@ -1,9 +1,3 @@
-"""Autoría de levantamientos AXIA DESKTOP.
-
-Los nombres se originan en db_usuarios.usu_nombre y usu_apellido, cargados al
-iniciar sesión, y se conservan como instantánea en el JSON técnico del LEV.
-Nunca se atribuye un registro histórico al usuario que esté consultándolo.
-"""
 from __future__ import annotations
 
 from collections.abc import Mapping, Callable
@@ -15,7 +9,6 @@ def _limpio(value: Any) -> str:
 
 
 def autoria_desde_usuario(usuario: Mapping[str, Any] | None) -> dict[str, str]:
-    """Instantánea del nombre y apellido autenticados para guardar en el LEV."""
     usuario = usuario or {}
     return {
         "usu_nombre": _limpio(usuario.get("nombre") or usuario.get("usu_nombre")),
@@ -28,11 +21,6 @@ def nombre_elaborador(
     detalle: Mapping[str, Any] | None,
     buscar_usuario: Callable[[str], Mapping[str, Any] | None] | None = None,
 ) -> str:
-    """Devuelve el autor original, no el usuario que abre el PDF.
-
-    Orden: instantánea persistida > consulta por nickname original en registros
-    históricos > técnico guardado en el levantamiento como último recurso.
-    """
     detalle = detalle or {}
     snapshot = detalle.get("elaborado_por")
     if isinstance(snapshot, Mapping):

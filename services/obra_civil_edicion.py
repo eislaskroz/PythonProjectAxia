@@ -1,13 +1,7 @@
-"""Adaptación del registro OBC al formulario real (sin inventar un editor JSON).
-
-La edición conserva las claves JSON desconocidas y compara contra el contenido
-que se pudo representar al abrir el formulario, no contra valores predeterminados.
-"""
 from __future__ import annotations
 
 import json
 
-# Solo columnas que la Edge Function acepta como editables.
 CAMPOS_EDITABLES = frozenset({
     'obc_fecha','obc_cliente','obc_contacto','obc_sucursal','obc_direccion',
     'obc_responsable_axia','obc_supervisor','obc_dias_trabajo','obc_personas_considerar',
@@ -18,7 +12,6 @@ CAMPOS_EDITABLES = frozenset({
     'obc_observaciones_finales','obc_anotacion_plano_json',
 })
 
-# Corresponde a las secciones REALES de views/obra_civil_view.py.
 CAMPOS_POR_SECCION = {
     'Datos generales': {'obc_ejecucion_json','obc_cliente','obc_contacto','obc_sucursal','obc_direccion','obc_responsable_axia','obc_supervisor'},
     'Recursos proyectados': {'obc_dias_trabajo','obc_personas_considerar','obc_fecha','obc_tipo_giro','obc_nombre_proyecto', 'obc_ejecucion_json'},
@@ -29,7 +22,7 @@ CAMPOS_POR_SECCION = {
     'Materiales misceláneos y consumibles': {'obc_ejecucion_json'},
     'Canalización, cableado y materiales': {'obc_ejecucion_json'},
     'Acceso, alturas y riesgos': {'obc_ejecucion_json'},
-    'Evidencia fotográfica': {'__adjuntos_nuevos_fotos'},  # Se cargan primero a Storage.
+    'Evidencia fotográfica': {'__adjuntos_nuevos_fotos'},
     'Anotaciones tipo plano': {'obc_anotacion_plano_json'},
     'Archivos PDF o planos': {'__adjuntos_nuevos_archivos'},
     'Observaciones finales': {'obc_observaciones_finales'},
@@ -46,7 +39,6 @@ JSON_POR_SECCION = {
     'Canalización, cableado y materiales': {'_canalizacion_materiales'},
     'Acceso, alturas y riesgos': {'_acceso_alturas_riesgos'},
 }
-# EPP pertenece a Recursos proyectados.
 JSON_POR_SECCION['Recursos proyectados'].add('_epp')
 
 
@@ -75,7 +67,6 @@ def _list_json(valor):
 
 
 def preparar_borrador_edicion(obra):
-    """Precarga TODOS los controles del formulario ya existente; no toca red/BD."""
     datos=_dict_json(obra.get('obc_ejecucion_json'))
     notas=datos.get('_notas_cliente') or {}
     axia=datos.get('_datos_generales_axia') or {}
@@ -126,7 +117,6 @@ def preparar_borrador_edicion(obra):
 
 
 def _fusionar_solo_modificados(original, base, nuevo):
-    """Conservar propiedades JSON no representadas por el formulario original."""
     if isinstance(base, dict) and isinstance(nuevo, dict):
         salida=dict(original) if isinstance(original,dict) else {}
         for clave in base.keys() | nuevo.keys():
@@ -137,7 +127,6 @@ def _fusionar_solo_modificados(original, base, nuevo):
                     salida[clave]=_fusionar_solo_modificados(salida.get(clave),base.get(clave),nuevo[clave])
         return salida
     if isinstance(base, list) and isinstance(nuevo, list) and isinstance(original, list):
-        # Al corregir una cantidad no borrar IDs/referencias de otros conceptos.
         if len(base)==len(nuevo)==len(original):
             return [_fusionar_solo_modificados(o,b,n) if b!=n else o
                     for o,b,n in zip(original,base,nuevo)]
@@ -145,7 +134,6 @@ def _fusionar_solo_modificados(original, base, nuevo):
 
 
 def cambios_secciones(obra, datos_base, datos_actuales, secciones_habilitadas):
-    """Envía únicamente campos modificados desde secciones desbloqueadas."""
     cambios={}
     base_json=_dict_json(datos_base.get('obc_ejecucion_json'))
     nuevo_json=_dict_json(datos_actuales.get('obc_ejecucion_json'))

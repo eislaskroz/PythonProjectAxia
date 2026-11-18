@@ -1,8 +1,3 @@
-"""Etapa 2C: cliente de transferencia verificada de evidencias AXIA.
-
-No modifica borradores locales ni los sube automáticamente. Una ruta del otro
-ordenador/teléfono jamás se considera portable. El token es el de la sesión AXIA.
-"""
 from __future__ import annotations
 
 import hashlib

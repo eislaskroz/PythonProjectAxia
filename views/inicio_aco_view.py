@@ -1,17 +1,4 @@
 from core.error_reporting import show_operation_error
-"""
-=========================================================
-MÓDULO: inicio_aco_view.py
-DESCRIPCIÓN:
-Vista dinámica inicial posterior al login.
-
-Permite:
-- Validar un ACO existente
-- Crear un nuevo ACO
-- Enviar al usuario al flujo operativo correspondiente
-=========================================================
-"""
-
 import customtkinter as ctk
 from ui.form_fields import AxiaEntry, AxiaTextbox
 from tkinter import messagebox
@@ -72,17 +59,11 @@ from security.permissions import (
 
 
 def limpiar_frame(frame):
-    """
-    Elimina todos los widgets dentro de un frame.
-    """
-
     for widget in frame.winfo_children():
         widget.destroy()
 
 
 def normalizar_aco_visual(variable):
-    """Mantiene el número de ACO en mayúsculas mientras se captura."""
-
     valor = variable.get()
     valor_mayusculas = valor.upper()
     if valor != valor_mayusculas:
@@ -90,14 +71,6 @@ def normalizar_aco_visual(variable):
 
 
 def mostrar_inicio_aco(parent, app, aco_validado=None):
-    """
-    Construye la vista principal del flujo ACO.
-
-    Args:
-        aco_validado:
-            Registro ACO opcional. Si llega informado, se muestra directamente
-            la pantalla de selección de formulario sin repetir la validación.
-    """
 
     registrar_movimiento(
         modulo="ACO",
@@ -105,8 +78,6 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
         descripcion="El usuario abrió la vista inicial de ACO"
     )
 
-    # El contenedor raíz debe expandirse verticalmente para que los bloques
-    # puedan llegar hasta la parte inferior de la pantalla sin afectar la lógica.
     parent.grid_rowconfigure(0, weight=0)
     parent.grid_rowconfigure(1, weight=1)
     parent.grid_columnconfigure(0, weight=1)
@@ -132,8 +103,6 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     panel_dinamico.grid_rowconfigure(0, weight=1)
     panel_dinamico.grid_columnconfigure(0, weight=1)
 
-    # Franja ACO compacta: ~50 % de la altura original (205 -> 103 px).
-    # Mantiene las tres tarjetas y todos los comandos/validaciones existentes.
     panel_superior = ctk.CTkFrame(
         parent,
         height=103,
@@ -148,9 +117,6 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     )
     panel_superior.grid_propagate(False)
 
-    # Tres zonas equilibradas en una sola franja superior.
-    # Se amplía la distribución para que cada tarjeta cubra mejor el ancho
-    # disponible sin alterar la lógica de validación ni navegación.
     panel_superior.grid_columnconfigure(0, weight=4)
     panel_superior.grid_columnconfigure(1, weight=4)
     panel_superior.grid_columnconfigure(2, weight=3)
@@ -188,13 +154,10 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     ).grid(row=1, column=0, sticky="ew", padx=18, pady=(0, 0))
 
     frame_botones = ctk.CTkFrame(panel_aco_opciones, fg_color="transparent")
-    # Botonera compacta centrada: no se extiende al ancho de la tarjeta.
     frame_botones.grid(row=2, column=0, sticky="s", padx=12, pady=(0, 6))
     frame_botones.grid_columnconfigure(0, weight=0)
     frame_botones.grid_columnconfigure(1, weight=0)
 
-    # Centro: validación del ACO siempre visible para evitar un segundo bloque
-    # vertical y aprovechar mejor el ancho disponible.
     panel_validar_aco = ctk.CTkFrame(
         panel_superior,
         fg_color="#f8fafc",
@@ -265,7 +228,6 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     )
     entry_aco_top.grid(row=0, column=1, sticky="ew", padx=(0, 10), pady=2)
 
-    # Placeholder integrado: sin etiquetas ni fondos superpuestos.
     entry_aco_top.configure(placeholder_text='Captura el número', placeholder_text_color="#64748B")
 
     btn_validar_aco_top = ctk.CTkButton(
@@ -281,7 +243,6 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     )
     btn_validar_aco_top.grid(row=2, column=0, padx=18, pady=(0, 3))
 
-    # Derecha: levantamiento independiente de permisos/estado del ACO.
     acceso_levantamiento = ctk.CTkFrame(
         panel_superior,
         fg_color="#f8fafc",
@@ -334,10 +295,6 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     # =================================================
 
     def mostrar_mensaje_inicial():
-        """
-        Muestra el mensaje inicial del panel dinámico.
-        """
-
         limpiar_frame(panel_dinamico)
 
         ctk.CTkLabel(
@@ -371,24 +328,12 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     # =================================================
 
     def mostrar_busqueda_aco():
-        """Conserva el flujo de ACO sin enfocar automáticamente el buscador."""
-        # El usuario puede seleccionar el campo directamente si lo necesita.
         return None
 
     # =================================================
     # OPCIONES CON ACO VALIDADO
     # =================================================
     def mostrar_opciones_con_aco(aco):
-        """
-        Muestra las opciones operativas disponibles
-        después de validar correctamente un ACO.
-
-        Las opciones se construyen con la matriz central de permisos:
-        Administrador, Jefe de Operaciones, Supervisor, Administrativo y
-        Especial pueden usar todos los flujos operativos. El Operador solo
-        puede generar levantamientos.
-        """
-
         limpiar_frame(panel_dinamico)
 
         # =================================================
@@ -444,9 +389,6 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
         # =================================================
         # LEVANTAMIENTOS
         # =================================================
-        # Tanto administrativos como técnicos pueden
-        # generar levantamientos operativos.
-
         opciones = []
 
         if puede_generar_levantamiento(usuario_activo):
@@ -481,8 +423,6 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
                 )
             )
 
-        # Habilitación manual de un ACO heredado sin OT.
-        # No crea documentos comerciales falsos y requiere confirmación explícita.
         if puede_generar_orden(usuario_activo):
             def regularizar_operacion():
                 confirmado = messagebox.askyesno(
@@ -541,13 +481,9 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     # =================================================
 
     def mostrar_formulario_crear_aco():
-        """Muestra el formulario de alta de ACO usando toda el área disponible."""
-
         limpiar_frame(panel_dinamico)
         usuario_activo = obtener_usuario_actual()
 
-        # El contenido desplazable ocupa toda el área útil que deja la barra lateral.
-        # La botonera queda fuera del scroll para permanecer visible en todo momento.
         contenedor_aco = ctk.CTkFrame(panel_dinamico, fg_color="transparent")
         contenedor_aco.pack(fill="both", expand=True, padx=12, pady=(12, 10))
         contenedor_aco.grid_rowconfigure(0, weight=1)
@@ -588,8 +524,6 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             "responsables_por_nombre": {},
         }
 
-        # Anchura responsiva: los controles se estiran con la ventana en vez de
-        # quedar limitados a 620 px. Se usa grid para que toda la zona derecha sea útil.
         form.grid_columnconfigure(0, weight=1)
 
         def crear_label(texto):
@@ -620,8 +554,6 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             )
             _grid_control(entry)
             if date and state != "disabled":
-                # Solo se abre con clic. El antiguo FocusIn provocaba que al cerrar
-                # el calendario se abriera de nuevo inmediatamente.
                 asociar_selector_fecha(entry, form, variable, abrir_con_foco=False)
             return entry
 
@@ -649,7 +581,6 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             return clientes_por_nombre
 
         def refrescar_clientes(seleccionar_nombre=None):
-            """Recarga el catálogo de clientes tras una alta o modificación."""
             clientes = buscar_clientes("", limite=500) or []
             clientes_por_nombre = {}
             for cliente_db in clientes:
@@ -672,7 +603,6 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             cargar_datos_cliente()
 
         def abrir_editor_cliente(modo="nuevo"):
-            """Abre un editor modal de cliente sin abandonar el ACO en captura."""
             cliente_actual = seleccion_operativa["clientes_por_nombre"].get(var_cliente.get())
             if modo == "editar" and not cliente_actual:
                 messagebox.showwarning(
@@ -729,9 +659,6 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
                 "cli_notas": ctk.StringVar(),
             }
 
-            # Solo el modo edición debe precargar datos.
-            # "Cliente nuevo" siempre abre un formulario limpio para evitar
-            # mezclar accidentalmente información del cliente seleccionado en el ACO.
             if modo == "editar" and cliente_actual:
                 for nombre_campo, variable in campos.items():
                     variable.set(str(cliente_actual.get(nombre_campo, "") or ""))
@@ -816,7 +743,6 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
                 command=guardar_cliente_modal,
             ).pack(side="right", padx=5)
 
-        # Mismo concepto de sucursal principal que en los demás levantamientos.
         OPCION_SUCURSAL_PRINCIPAL = "Principal / datos del cliente"
 
         def refrescar_sucursales(cliente_db):
@@ -829,8 +755,6 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             }
             seleccion_operativa["sucursales_por_nombre"] = sucursales_por_nombre
             nombres = ([OPCION_SUCURSAL_PRINCIPAL] + sorted(sucursales_por_nombre)) if cliente_db else ["Sin sucursales registradas"]
-            # No se asigna una sucursal aleatoria: se comienza por el contacto
-            # principal y el usuario elige una sucursal real si la necesita.
             var_sucursal.set(nombres[0])
             if seleccion_operativa.get("selector_sucursal"):
                 seleccion_operativa["selector_sucursal"].configure(values=nombres)
@@ -847,8 +771,6 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             }
             seleccion_operativa["contactos_por_nombre"] = contactos_por_nombre
             nombre_principal = str((cliente_db or {}).get("cli_contacto") or "").strip()
-            # Siempre se puede regresar al contacto maestro si la sucursal no
-            # tiene responsables o si los datos de contacto son incompletos.
             if sucursal_db and contactos_por_nombre:
                 nombres = sorted(contactos_por_nombre)
                 if nombre_principal and nombre_principal not in contactos_por_nombre:
@@ -976,8 +898,6 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
         crear_entry(var_cliente_correo, "Autollenado desde cliente", state="disabled")
 
         crear_label("Responsable")
-        # La asignación del ACO admite personal de TODAS las áreas AXIA,
-        # no solo responsables técnicos. Se consulta db_usuarios sin contraseñas.
         empleados = obtener_usuarios_por_tipos(TIPOS_VALIDOS, limite=3000)
         nombres_empleados = [usuario["etiqueta"] for usuario in empleados]
         seleccion_operativa["responsables_por_nombre"] = {
@@ -1006,7 +926,6 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
         _grid_control(txt_observaciones)
 
         def guardar_aco():
-            """Valida y guarda; Supabase asigna el folio ACO automáticamente."""
             cliente = var_cliente.get().strip()
             responsable = var_responsable.get().strip()
             fecha_inicio = var_fecha_inicio.get().strip()
@@ -1033,14 +952,11 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
             contacto_db = seleccion_operativa["contactos_por_nombre"].get(var_contacto_operativo.get())
 
             datos_aco = {
-                # aco_numero NO se envía: el trigger de Supabase lo asigna.
                 "aco_estatus": 1,
                 "id_cliente": cliente_db.get("id_cliente") if cliente_db else None,
                 "id_sucursal": sucursal_db.get("suc_id") if sucursal_db else None,
                 "id_contacto": contacto_db.get("con_id") if contacto_db else None,
                 "aco_cliente": cliente,
-                # Se conserva la columna histórica para compatibilidad con Supabase,
-                # pero la captura visible del ACO utiliza únicamente Observaciones.
                 "aco_descripcion": "",
                 "aco_observaciones": observaciones,
                 "aco_responsable": responsable,
@@ -1087,14 +1003,6 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     # FUNCIÓN: mostrar_solicitud_aco()
     # =================================================
     def mostrar_solicitud_aco():
-        """
-        Muestra aviso para usuarios no administrativos.
-
-        Los usuarios técnicos o de operación no pueden
-        crear ACO directamente; únicamente pueden solicitarlo
-        al área administrativa correspondiente.
-        """
-
         limpiar_frame(panel_dinamico)
 
         ctk.CTkLabel(
@@ -1133,7 +1041,6 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
         ).pack()
 
     def validar_aco_superior():
-        """Valida el ACO capturado en el panel superior."""
         numero_aco = var_aco_superior.get().strip().upper()
         var_aco_superior.set(numero_aco)
 
@@ -1216,5 +1123,4 @@ def mostrar_inicio_aco(parent, app, aco_validado=None):
     if aco_validado:
         mostrar_opciones_con_aco(aco_validado)
     else:
-        # El buscador ACO ya permanece visible en la franja superior.
         mostrar_mensaje_inicial()

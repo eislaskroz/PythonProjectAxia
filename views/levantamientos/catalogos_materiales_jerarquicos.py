@@ -1,18 +1,3 @@
-"""Catálogo maestro de canalización y materiales, noviembre 2026.
-
-Fuente: «Catálogo de Materiales Noviembre 2026.xlsx», hoja NOV2026,
-261 combinaciones explícitas Categoría/Material/Tipo. Las capturas nuevas
-utilizan este listado como lista cerrada; las opciones retiradas no reaparecen.
-
-El Excel NO contiene columnas de tamaño, unidad ni uso. Esas listas se
-conservan de las reglas anteriores donde existen; los materiales sin regla
-particular usan «Por definir» para especificación y Pieza(s) por defecto.
-Los registros históricos no se eliminan de Supabase.
-
-ATENCIÓN: se respeta la denominación literal «Específicos Aire Acondirionado»
-que figura en el Excel proporcionado; ajustar primero la fuente si se desea
-corregirla para una publicación posterior.
-"""
 from __future__ import annotations
 
 from views.levantamientos.catalogos_canalizacion import (
@@ -387,7 +372,6 @@ for _actual, _anterior in EQUIVALENCIA_UNIDAD_LEGADA.items():
 
 
 def normalizar_material(material):
-    """Normalizar identificadores legados del mismo material (sin reactivar bajas)."""
     valor = str(material or "").strip()
     return ALIAS_MATERIAL_HISTORICO.get(valor, valor)
 
@@ -400,21 +384,14 @@ def familia_de_material(material):
 
 
 def familias_materiales():
-    """Solo las familias vigentes del Excel."""
     return list(MATERIALES_POR_FAMILIA)
 
 
 def materiales_de_familia(familia):
-    """Solo materiales vigentes: no reintroduce los retirados en nuevos LEV."""
     return list(MATERIALES_POR_FAMILIA.get(familia, ()))
 
 
 def tipos_de_material(material, especialidad=""):
-    """Solo tipos expresamente incluidos en el Excel de noviembre 2026.
-
-    Los tipos históricos se agregan de forma local en el editor al abrir
-    registros antiguos; nunca se incluyen en el catálogo de nueva captura.
-    """
     material = normalizar_material(material)
     familia = FAMILIA_POR_MATERIAL.get(material)
     if familia:
@@ -423,7 +400,6 @@ def tipos_de_material(material, especialidad=""):
 
 
 def especificaciones_de_material(material, tipo=""):
-    """El Excel no incluye calibres: conservar medidas verificadas existentes."""
     material = normalizar_material(material)
     if material == "Cable Eléctrico":
         return list(CALIBRES_CABLE_ELECTRICO) + ["Por definir"]
@@ -434,7 +410,6 @@ def especificaciones_de_material(material, tipo=""):
 
 
 def normalizar_seleccion_material(material, tipo_actual, especificacion_actual, tipos_disponibles):
-    """Actualiza tipo/tamaño dependientes sin mezclar dimensiones de otros materiales."""
     tipos = list(tipos_disponibles)
     tipo = str(tipo_actual or "").strip()
     if tipo not in tipos:
@@ -481,7 +456,6 @@ def unidad_inicial_material(material, tipo=""):
 
 
 def familia_de_partida(partida):
-    """Mantener la familia original en registros legados, aunque ya no esté vigente."""
     material = normalizar_material(partida.get("material") or partida.get("categoria"))
     familia = str(partida.get("familia") or "").strip()
     if familia:

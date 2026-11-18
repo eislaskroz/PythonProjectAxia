@@ -1,4 +1,3 @@
-"""Regresiones del formulario de alta ACO: autollenado y responsables."""
 from pathlib import Path
 
 from services.aco_form_helpers import datos_contacto_aco

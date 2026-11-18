@@ -1,4 +1,3 @@
-"""La reimpresión histórica no ejecuta operaciones de inventario."""
 from pathlib import Path
 import fitz
 import pytest

@@ -1,4 +1,3 @@
-"""Regresiones del formulario de cotización y del PDF entregable al cliente."""
 from pathlib import Path
 
 from services.cotizacion_partidas import es_lote_servicio, importes_servicio
@@ -63,7 +62,6 @@ def test_guardar_lote_servicio_directo_sin_margen(monkeypatch):
     import importlib
     import sys
     import types
-    # La prueba no debe conectarse a Supabase ni necesitar credenciales reales.
     def modulo(nombre, **atributos):
         m = types.ModuleType(nombre)
         for clave, valor in atributos.items():

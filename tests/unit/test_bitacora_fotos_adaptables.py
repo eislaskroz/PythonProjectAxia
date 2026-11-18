@@ -1,4 +1,3 @@
-"""Regresiones del PDF de bitácoras con evidencias adaptables."""
 import io
 from PIL import Image as PILImage
 from reportlab.lib.styles import ParagraphStyle

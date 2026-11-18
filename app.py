@@ -1,28 +1,4 @@
-﻿"""
-=========================================================
-MÓDULO: app.py
-DESCRIPCIÓN:
-Ventana principal del sistema AXIA.
-
-OBJETIVO DEL PASO 6:
-Mantener este archivo ligero para evitar que se convierta
- en un archivo gigante difícil de mantener.
-
-Ahora app.py se encarga solamente de:
-- Crear la ventana principal.
-- Crear el layout base.
-- Crear encabezado y área de contenido.
-- Conectar sidebar con NavigationController.
-
-La navegación vive en:
-controllers/navigation_controller.py
-
-El sidebar vive en:
-ui/app_sidebar.py
-=========================================================
-"""
-
-# =====================================================
+﻿# =====================================================
 # IMPORTACIÓN DE LIBRERÍAS
 # =====================================================
 
@@ -98,30 +74,11 @@ logger = configurar_logger(__name__)
 # CLASE PRINCIPAL: AxiaApp
 # =====================================================
 class AxiaApp(ctk.CTk):
-    """
-    Clase principal del sistema AXIA.
-
-    Esta clase representa la ventana principal y delega
-    responsabilidades específicas a módulos especializados:
-
-    - Sidebar: ui/app_sidebar.py
-    - Navegación: controllers/navigation_controller.py
-    - Vistas: views/
-    - Servicios: services/
-    """
-
     def __init__(self):
-        """
-        Inicializa la aplicación principal.
-        """
-
         super().__init__()
         aplicar_estilo_ventana(self, min_width=1024, min_height=640)
 
         logger.info("Inicializando ventana principal AXIA.")
-
-        # Indica a login.py si la ventana se cerró por "Cerrar sesión"
-        # o por salida completa del sistema.
         self.logout_requested = False
 
         # =================================================
@@ -141,7 +98,6 @@ class AxiaApp(ctk.CTk):
         # =================================================
         self.usuario_activo = obtener_usuario_actual()
 
-        # Borradores temporales de levantamiento e inactividad.
         self._proveedor_borrador = None
         self._tipo_borrador = None
         self._ultimo_evento_usuario_ms = 0
@@ -175,30 +131,16 @@ class AxiaApp(ctk.CTk):
         # =================================================
         # VISTA INICIAL
         # =================================================
-        # Se difiere hasta que Tk haya dibujado la ventana y el sidebar. Así
-        # el usuario percibe respuesta inmediata aunque la primera vista tarde.
         mark("app: shell principal construido")
         self.after_idle(self._cargar_vista_inicial)
         self.protocol("WM_DELETE_WINDOW", self.salir_aplicacion)
         self._instalar_control_inactividad()
         self._instalar_autoguardado_borrador()
         self.after(900, self._ofrecer_borrador_pendiente)
-        # La consulta de actualización es diferida para no retrasar el arranque.
         self.after(1200, self._mostrar_estado_actualizacion_anterior)
         self.after(1800, self._comprobar_actualizacion_axia)
 
     def report_callback_exception(self, exc, value, traceback_obj):
-        """Muestra errores no controlados de callbacks con un código de soporte.
-
-        Tk/CustomTkinter puede dejar callbacks internos en cola justo cuando una
-        vista dinámica se destruye para construir la siguiente. En Windows esto
-        puede terminar como ``TclError: invalid command name .!ctk...`` aunque
-        la navegación haya sido correcta. Es un callback huérfano sobre un
-        widget que ya no existe, no un fallo funcional de AXIA.
-
-        Se ignora únicamente ese caso muy específico; cualquier otro TclError
-        o excepción continúa pasando por el manejador normal de incidencias.
-        """
         try:
             import tkinter as tk
 
@@ -237,14 +179,6 @@ class AxiaApp(ctk.CTk):
     # MÉTODO: maximizar_ventana()
     # =====================================================
     def maximizar_ventana(self):
-        """
-        Ejecuta la aplicación en pantalla maximizada.
-
-        Se intenta primero con state("zoomed"), que funciona en Windows.
-        Si el sistema operativo no lo soporta, se usa fullscreen como
-        respaldo controlado.
-        """
-
         try:
             self.state("zoomed")
         except Exception:
@@ -255,15 +189,6 @@ class AxiaApp(ctk.CTk):
     # MÉTODO: crear_layout_base()
     # =====================================================
     def crear_layout_base(self):
-        """
-        Crea el layout general de dos columnas:
-
-        columna 0:
-            Sidebar fijo.
-        columna 1:
-            Área principal dinámica.
-        """
-
         self.layout = ctk.CTkFrame(
             self,
             fg_color=CONTENT_BG,
@@ -282,14 +207,6 @@ class AxiaApp(ctk.CTk):
     # MÉTODO: crear_contenedor_principal()
     # =====================================================
     def crear_contenedor_principal(self):
-        """
-        Crea el área derecha de la aplicación.
-
-        Incluye:
-        - Encabezado superior (fila 0, peso 0, altura fija).
-        - Frame dinámico donde se cargan las vistas (fila 1, peso 1, expansible).
-        """
-
         self.main_area = ctk.CTkFrame(
             self.layout,
             fg_color=CONTENT_BG,
@@ -312,14 +229,6 @@ class AxiaApp(ctk.CTk):
     # MÉTODO: crear_header()
     # =====================================================
     def crear_header(self):
-        """
-        Crea el encabezado superior de la aplicación.
-
-        Versión visual mejorada: tarjeta blanca elevada, con título,
-        subtítulo, breadcrumb decorativo y separadores.
-        """
-
-        # Marco superior SIN altura fija → se ajusta al contenido (no corta)
         self.header_outer = ctk.CTkFrame(
             self.main_area,
             fg_color=CONTENT_BG,
@@ -327,7 +236,6 @@ class AxiaApp(ctk.CTk):
         )
         self.header_outer.grid(row=0, column=0, sticky="nsew", padx=14, pady=(8, 2))
 
-        # Tarjeta blanca interior con apariencia "elevada"  — SIN pack_propagate(False)
         self.header = ctk.CTkFrame(
             self.header_outer,
             corner_radius=16,
@@ -337,7 +245,6 @@ class AxiaApp(ctk.CTk):
         )
         self.header.pack(fill="both", expand=True, padx=0, pady=0)
 
-        # Banda de acento superior
         accent_strip = ctk.CTkFrame(
             self.header,
             height=3,
@@ -347,7 +254,6 @@ class AxiaApp(ctk.CTk):
         )
         accent_strip.pack(fill="x", padx=16, pady=(8, 0))
 
-        # Glifo decorativo central
         accent_dot = ctk.CTkFrame(
             accent_strip,
             width=4,
@@ -358,16 +264,11 @@ class AxiaApp(ctk.CTk):
         )
         accent_dot.place(relx=0.5, rely=0.5, anchor="center")
 
-        # Fila única: controles a la izquierda y breadcrumb+título a la derecha.
         header_body = ctk.CTkFrame(self.header, fg_color="transparent")
         header_body.pack(fill="x", padx=18, pady=(6, 6))
 
-        # Indicadores y menú a la izquierda; identificación de vista a la derecha.
         left_block = ctk.CTkFrame(header_body, fg_color="transparent")
         left_block.pack(side="right", fill="x", expand=True, padx=(14, 0))
-
-        # Se retira la leyenda decorativa «AXIA / Panel / Vista actual».
-        # El título real de la vista permanece visible y funcional.
 
         self.label_titulo = ctk.CTkLabel(
             left_block,
@@ -387,15 +288,10 @@ class AxiaApp(ctk.CTk):
             anchor="e",
             justify="right",
         )
-        # Subtítulo global oculto para compactar la cabecera
-        # self.label_subtitulo queda disponible para compatibilidad del NavigationController
-
-        # Bloque izquierdo: estado, fecha en español y control del menú.
         right_block = ctk.CTkFrame(header_body, fg_color="transparent")
         right_block.pack(side="left", fill="x")
         self.header_controls_host = right_block
 
-        # Tarjeta de estado superior
         status_card = ctk.CTkFrame(
             right_block,
             corner_radius=12,
@@ -404,7 +300,7 @@ class AxiaApp(ctk.CTk):
             border_color=RING,
         )
         status_card.pack(side="left", pady=0)
-        # Mantener la referencia para posicionar Mostrar/Ocultar menú a su izquierda.
+
         self.header_status_card = status_card
 
         status_row = ctk.CTkFrame(status_card, fg_color="transparent")
@@ -429,7 +325,6 @@ class AxiaApp(ctk.CTk):
         )
         status_label.pack(side="left", fill="x", expand=True)
 
-        # Tarjeta secundaria: hora / fecha
         fecha_texto = self._fecha_hora_es()
         info_card = ctk.CTkFrame(
             right_block,
@@ -463,7 +358,6 @@ class AxiaApp(ctk.CTk):
 
     @staticmethod
     def _fecha_hora_es():
-        """Fecha en español sin modificar el locale global del sistema."""
         from datetime import datetime
         now = datetime.now()
         dias = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
@@ -471,7 +365,6 @@ class AxiaApp(ctk.CTk):
         return f"{dias[now.weekday()].capitalize()}, {now.day} de {meses[now.month - 1]} de {now.year} · {now:%H:%M}"
 
     def _actualizar_reloj_header(self):
-        """Mantiene actualizada la hora mientras la ventana siga abierta."""
         try:
             if self.header_calendar_label.winfo_exists():
                 self.header_calendar_label.configure(text="📅  " + self._fecha_hora_es())
@@ -483,15 +376,6 @@ class AxiaApp(ctk.CTk):
     # MÉTODO: crear_area_contenido()
     # =====================================================
     def crear_area_contenido(self):
-        """
-        Crea el frame donde NavigationController cargará
-        las vistas dinámicas.
-
-        Versión visual mejorada: el contenido va envuelto en una
-        tarjeta exterior blanca con margen y corner radius, simulando
-        una "tarjeta de contenido" elegante.
-        """
-
         self.content_outer = ctk.CTkFrame(
             self.main_area,
             fg_color=CONTENT_BG,
@@ -518,7 +402,6 @@ class AxiaApp(ctk.CTk):
         self.content_card.grid_rowconfigure(0, weight=1)
         self.content_card.grid_columnconfigure(0, weight=1)
 
-        # Padding interior
         self.content_inner = ctk.CTkFrame(
             self.content_card,
             fg_color="transparent",
@@ -539,24 +422,14 @@ class AxiaApp(ctk.CTk):
     # MÉTODO: crear_sidebar_principal()
     # =====================================================
     def crear_sidebar_principal(self):
-        """
-        Crea el menú lateral y conecta sus botones con
-        el controlador de navegación.
-        """
-
         callbacks = {
             "inicio_aco": self.navigation.mostrar_inicio_aco,
 
-            # Flujo operativo real. Se usa desde Inicio ACO o para
-            # usuarios no administradores cuando deben levantar un caso nuevo.
             "levantamiento": self.navigation.mostrar_selector_levantamiento,
             "orden_servicio": self.navigation.mostrar_orden_servicio,
             "orden_trabajo": self.navigation.mostrar_orden_trabajo,
             "bitacora_avance": self.navigation.mostrar_bitacora_avance,
 
-            # Vistas administrativas/consulta. Para administradores, los
-            # botones laterales de procesos abren búsqueda y administración,
-            # no formularios de generación.
             "admin_levantamientos": self.navigation.mostrar_admin_levantamientos,
             "mis_levantamientos": lambda: self.navigation.mostrar_mis_documentos("levantamientos"),
             "mis_bitacoras": lambda: self.navigation.mostrar_mis_documentos("bitacoras"),
@@ -590,22 +463,18 @@ class AxiaApp(ctk.CTk):
             on_exit=self.salir_aplicacion,
             on_logout=self.cerrar_sesion
         )
-        # Ajusta el shell al área real disponible (incluye escalado DPI de Windows).
         install_responsive_shell(self, self.sidebar)
-        # Control del menú lateral sin reconstruir las vistas activas.
         self._sidebar_visible = True
         self._sidebar_toggle = ctk.CTkButton(
             self.header_controls_host, text="☰  Ocultar menú", width=150,
             command=self.alternar_sidebar, fg_color="#123C58",
             hover_color="#17648A", corner_radius=9,
         )
-        # Primera posición: botón de menú, seguido del estado y la fecha.
         self._sidebar_toggle.pack(
             side="left", before=self.header_status_card, padx=(0, 10), pady=0
         )
 
     def alternar_sidebar(self):
-        """Oculta/muestra el sidebar conservando navegación y formularios."""
         self._sidebar_visible = not self._sidebar_visible
         if self._sidebar_visible:
             self.sidebar.grid(row=0, column=0, sticky="ns")
@@ -619,10 +488,6 @@ class AxiaApp(ctk.CTk):
     # =====================================================
     # MÉTODOS DE COMPATIBILIDAD TEMPORAL
     # =====================================================
-    # Algunas vistas existentes todavía llaman métodos
-    # directamente sobre app. Estos wrappers mantienen
-    # compatibilidad mientras se migra todo al controlador.
-
     def _auditar_navegacion(self, destino):
         try:
             from services.movimientos_service import registrar_movimiento_seguro
@@ -656,7 +521,6 @@ class AxiaApp(ctk.CTk):
 
     def mostrar_vista_levantamiento(self, aco=None, tipo_levantamiento=None):
         self._auditar_navegacion(f"Levantamiento: {tipo_levantamiento or 'Selector'}")
-        # Si no llega tipo, primero se muestra el selector operativo.
         if tipo_levantamiento is None:
             self.navigation.mostrar_selector_levantamiento(aco=aco)
         else:
@@ -727,7 +591,6 @@ class AxiaApp(ctk.CTk):
         self.navigation.mostrar_mi_usuario()
 
     def registrar_proveedor_borrador_levantamiento(self, tipo_levantamiento, proveedor):
-        """Registra una función que devuelve el estado actual del levantamiento."""
         self._tipo_borrador = str(tipo_levantamiento or "")
         self._proveedor_borrador = proveedor if callable(proveedor) else None
 
@@ -740,7 +603,6 @@ class AxiaApp(ctk.CTk):
             return False
         try:
             datos = self._proveedor_borrador() or {}
-            # Un formulario apenas abierto no se considera trabajo pendiente.
             significativos = any(str(datos.get(k) or "").strip() for k in (
                 "lev_cliente", "lev_contacto", "lev_observaciones", "lev_descripcion",
                 "lev_telefono", "lev_correo", "lev_ubicacion"
@@ -758,7 +620,6 @@ class AxiaApp(ctk.CTk):
             return False
 
     def _instalar_autoguardado_borrador(self):
-        """Guarda periódicamente el formulario activo para sobrevivir a cierres inesperados."""
         def ciclo():
             try:
                 if self.winfo_exists():
@@ -769,7 +630,6 @@ class AxiaApp(ctk.CTk):
         self.after(45000, ciclo)
 
     def _instalar_control_inactividad(self):
-        """Cierra la sesión cuando no hay teclado/ratón durante el tiempo configurado."""
         import time
         self._ultimo_evento_usuario_ms = int(time.monotonic() * 1000)
 
@@ -803,7 +663,6 @@ class AxiaApp(ctk.CTk):
         self.after(15000, revisar)
 
     def _ofrecer_borrador_pendiente(self):
-        """Ofrece Continuar / Guardar para después / Borrar al iniciar sesión."""
         try:
             from services.levantamiento_borradores_service import cargar_borrador, eliminar_borrador
             borrador = cargar_borrador(self.usuario_activo)
@@ -859,7 +718,6 @@ class AxiaApp(ctk.CTk):
         dialogo.protocol("WM_DELETE_WINDOW", despues)
 
     def _mostrar_estado_actualizacion_anterior(self):
-        """Informa si la ejecución externa anterior de actualización falló."""
         try:
             from services.update_service import consumir_estado_actualizacion
             estado = consumir_estado_actualizacion()
@@ -880,7 +738,6 @@ class AxiaApp(ctk.CTk):
         )
 
     def _comprobar_actualizacion_axia(self):
-        """Consulta en segundo plano si existe una versión más reciente."""
         try:
             from core.background_tasks import run_async
             from services.update_service import obtener_actualizacion_disponible
@@ -903,7 +760,6 @@ class AxiaApp(ctk.CTk):
         )
 
     def _mostrar_dialogo_actualizacion(self, actualizacion):
-        """Muestra la versión disponible y permite instalarla o posponerla."""
         from core.version import APP_VERSION
 
         dialogo = ctk.CTkToplevel(self)
@@ -980,7 +836,6 @@ class AxiaApp(ctk.CTk):
                     dialogo.grab_release()
                 except Exception:
                     logger.debug("No fue necesario liberar el diálogo de actualización.", exc_info=True)
-                # Inno Setup ya quedó iniciado y elevado; cerramos AXIA para permitir el reemplazo.
                 self.after(350, self.salir_aplicacion)
 
             def error_descarga(error):
@@ -1033,18 +888,6 @@ class AxiaApp(ctk.CTk):
             dialogo.protocol("WM_DELETE_WINDOW", cerrar_dialogo)
 
     def cerrar_sesion(self, motivo="manual", mostrar_aviso=False):
-        """Cierra la sesión activa y solicita regresar al Login inicial.
-
-        La ventana principal NO debe intentar abrir directamente login.py.
-        Si lo hace desde un callback de Tkinter, puede destruir la ventana
-        actual y quedarse sin crear el Login nuevo.
-
-        Flujo correcto:
-        1. Marcar logout_requested = True.
-        2. Limpiar usuario activo.
-        3. Destruir la ventana principal.
-        4. login.py detecta la bandera y vuelve a abrir el Login.
-        """
         try:
             from services.reportador_fotografico_service import cerrar_sesion as rf_cerrar
             rf_cerrar()
@@ -1079,7 +922,6 @@ class AxiaApp(ctk.CTk):
             logger.exception("No fue posible cerrar la ventana principal al cerrar sesión.")
 
     def salir_aplicacion(self):
-        """Cierra por completo el sistema AXIA conservando un borrador si hay captura activa."""
         try:
             from services.reportador_fotografico_service import cerrar_sesion as rf_cerrar
             rf_cerrar()
@@ -1102,14 +944,6 @@ class AxiaApp(ctk.CTk):
 # FUNCIÓN: abrir_app()
 # =====================================================
 def abrir_app():
-    """
-    Ejecuta la aplicación principal AXIA.
-
-    Returns:
-        bool: True si el usuario presionó "Cerrar sesión" y se debe
-        volver al Login. False si eligió salir/cerrar la aplicación.
-    """
-
     app = AxiaApp()
     app.mainloop()
     return bool(getattr(app, "logout_requested", False))

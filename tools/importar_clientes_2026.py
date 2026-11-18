@@ -1,21 +1,3 @@
-"""Importador controlado de la Base de Clientes AXIA 2026.
-
-Diseñado para cargar el archivo normalizado incluido en:
-    data_importacion_clientes_2026/
-
-Flujo recomendado:
-    python tools/importar_clientes_2026.py --preparar
-    python tools/importar_clientes_2026.py --aplicar --confirmar CARGAR_CLIENTES_2026
-
-Características de seguridad:
-- no escribe nada en modo --preparar;
-- crea respaldo JSON de clientes, sucursales y contactos antes de aplicar;
-- usa services.clientes_service.crear_cliente(), conservando el cifrado AXIA;
-- usa services.sucursales_service para sucursales/contactos;
-- evita duplicados por RFC/razón social, nombre de sucursal y datos de contacto;
-- no importa contactos de pago automáticamente: quedan en un CSV pendiente;
-- genera un reporte detallado de INSERTADO / EXISTENTE / CONFLICTO / ERROR.
-"""
 from __future__ import annotations
 
 import argparse
@@ -42,12 +24,10 @@ def texto(v: Any) -> str:
 
 
 def texto_mayusculas(v: Any) -> str:
-    """Normaliza texto de negocio a MAYÚSCULAS antes de persistirlo."""
     return texto(v).upper()
 
 
 def correo_minusculas(v: Any) -> str:
-    """Normaliza correos a minúsculas; es la única excepción de capitalización."""
     return texto(v).lower()
 
 
@@ -62,7 +42,6 @@ def leer_csv(nombre: str) -> list[dict[str, str]]:
         raise FileNotFoundError(f"No se encontró {ruta}")
     with ruta.open("r", encoding="utf-8-sig", newline="") as f:
         return [dict(r) for r in csv.DictReader(f, delimiter=";")]
-
 
 def guardar_json(ruta: Path, contenido: Any) -> None:
     ruta.parent.mkdir(parents=True, exist_ok=True)
@@ -156,7 +135,6 @@ def aplicar(confirmacion: str) -> int:
     por_razon = {clave(x.get("cli_razonsocial")): x for x in existentes if texto(x.get("cli_razonsocial"))}
     client_ids: dict[str, Any] = {}
 
-    # 1) CLIENTES
     for c in clientes:
         ck = c["client_key"]
         rfc = texto(c.get("cli_rfc")).upper()
@@ -171,10 +149,6 @@ def aplicar(confirmacion: str) -> int:
             client_ids[ck] = existente.get("id_cliente")
             reporte.append({"tipo":"CLIENTE","clave":razon,"accion":"EXISTENTE","id":existente.get("id_cliente"),"detalle":"No se sobrescribió"})
             continue
-        # Regla AXIA de capitalización para altas masivas:
-        # - texto de negocio en MAYÚSCULAS;
-        # - correos electrónicos en minúsculas;
-        # - teléfonos, C.P. y otros identificadores numéricos se conservan sin alterar.
         payload = {
             "cli_tipo": texto_mayusculas(c.get("cli_tipo")),
             "cli_estatus": texto_mayusculas(c.get("cli_estatus")),
@@ -201,7 +175,6 @@ def aplicar(confirmacion: str) -> int:
         else:
             reporte.append({"tipo":"CLIENTE","clave":razon,"accion":"ERROR","detalle":msg})
 
-    # 2) SUCURSALES
     suc_ids: dict[tuple[str, str], Any] = {}
     suc_cache: dict[Any, list[dict[str, Any]]] = {}
     for s in sucursales:
@@ -241,7 +214,6 @@ def aplicar(confirmacion: str) -> int:
         else:
             reporte.append({"tipo":"SUCURSAL","clave":sn,"accion":"ERROR","detalle":msg})
 
-    # 3) CONTACTOS OPERATIVOS
     con_cache: dict[Any, list[dict[str, Any]]] = {}
     for c in contactos:
         ck = c["client_key"]

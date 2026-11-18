@@ -1,4 +1,3 @@
-"""El Reportador nativo debe reutilizar el fondo corporativo vertical de Desktop."""
 from pathlib import Path
 import sys
 from io import BytesIO
@@ -38,8 +37,7 @@ def test_dibuja_fondo_en_todas_las_paginas():
     raw=generar_pdf_bytes(detail,fetch)
     with fitz.open(stream=raw,filetype='pdf') as doc:
         assert doc.page_count >= 3
-        # Las páginas de actividades y las hojas adicionales de OS
-        # contienen el fondo además de las evidencias.
+
         assert all(len(page.get_images())>=2 for page in doc)
         for page in doc:
             matches=[info for info in page.get_images(full=True) if info[2] >= 800 and info[3]>=1000]

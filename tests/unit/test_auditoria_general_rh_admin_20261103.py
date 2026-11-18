@@ -1,4 +1,3 @@
-"""Pruebas estructurales del puente de auditoría (sin conexión a producción)."""
 from pathlib import Path
 import re
 
@@ -23,7 +22,6 @@ def test_historiales_y_movimientos_en_misma_transaccion():
 
 
 def test_no_expone_datos_sensibles_en_registro_general():
-    # Ninguno de los campos sensibles aparece en instrucciones VALUES/descripcion.
     assert 'NEW.anterior::text' not in SQL
     assert 'NEW.posterior::text' not in SQL
     assert 'NEW.motivo' not in SQL
@@ -47,7 +45,6 @@ def test_modulos_operativos_existentes_siguen_registrando_movimientos():
     for modulo in modulos:
         codigo = (ROOT/'services'/modulo).read_text(encoding='utf-8')
         assert 'registrar_movimiento_seguro' in codigo, modulo
-    # Evita crear triggers sobre esos módulos: generarían registros duplicados.
     for tabla in ('db_acos','db_levantamientos','db_ordenes_trabajo',
                   'db_ordenes_servicio','db_bitacoras'):
         assert f'AFTER INSERT ON public.{tabla}' not in SQL

@@ -1,7 +1,6 @@
 from utils import centrar_ventana
 from core.date_utils import formatear_fecha_visual
 
-"""Dashboard ejecutivo de Dirección General: resumen, etapas, alertas y trazabilidad."""
 from pathlib import Path
 from PIL import Image
 import customtkinter as ctk
@@ -26,7 +25,6 @@ PURPLE = '#7C3AED'
 MUTED = '#64748B'
 SOFT = '#EEF2F7'
 
-# Bordes de los contenedores principales.
 CONTAINER_BORDER = '#647B96'
 CONTAINER_BORDER_WIDTH = 2
 
@@ -67,7 +65,6 @@ def _etapa(r):
 
 
 def _icono_blanco(ruta):
-    """Convierte el icono a blanco y conserva su canal de transparencia."""
     with Image.open(ruta) as imagen:
         imagen_rgba = imagen.convert('RGBA')
 
@@ -93,7 +90,6 @@ def mostrar_direccion_general(parent, app):
     for w in parent.winfo_children():
         w.destroy()
 
-    # Página completa con desplazamiento vertical.
     root = ctk.CTkScrollableFrame(
         parent,
         fg_color='transparent',
@@ -102,7 +98,6 @@ def mostrar_direccion_general(parent, app):
     )
     root.pack(fill='both', expand=True, padx=14, pady=6)
 
-    # Encabezado.
     head = ctk.CTkFrame(
         root,
         fg_color=WHITE,
@@ -170,7 +165,6 @@ def mostrar_direccion_general(parent, app):
         text_color=TEXT_PRIMARY
     ).pack(anchor='w', padx=12, pady=(8, 2))
 
-    # Gráfica sin borde interior.
     chart = Canvas(
         chart_card,
         height=92,
@@ -181,7 +175,6 @@ def mostrar_direccion_general(parent, app):
     )
     chart.pack(fill='x', padx=12, pady=(0, 7))
 
-    # Contenedor de pestañas y buscador.
     controls = ctk.CTkFrame(
         root,
         fg_color=WHITE,
@@ -197,7 +190,6 @@ def mostrar_direccion_general(parent, app):
             self._active = self.values[0]
             self._command = None
 
-            # Contenedor sin borde para eliminar las líneas exteriores.
             self.frame = ctk.CTkFrame(
                 parent,
                 fg_color='transparent',
@@ -263,7 +255,6 @@ def mostrar_direccion_general(parent, app):
 
     search_var = ctk.StringVar()
 
-    # Buscador con borde más fuerte.
     search_wrap = ctk.CTkFrame(
         controls,
         fg_color='#F8FAFC',
@@ -304,8 +295,6 @@ def mostrar_direccion_general(parent, app):
     )
     search.grid(row=0, column=1, sticky='ew', padx=(0, 12), pady=6)
 
-    # Placeholder superpuesto del buscador.
-    # Texto de ayuda integrado al campo; no crea un rectángulo blanco sobre el gris.
     search.configure(placeholder_text='Buscar cliente, folio, servicio...', placeholder_text_color="#64748B")
 
     controls.grid_columnconfigure(0, weight=1)
@@ -319,7 +308,6 @@ def mostrar_direccion_general(parent, app):
     )
     status.pack(anchor='w', pady=(0, 4))
 
-    # Tabla con contorno reforzado y barras propias.
     table_shell = ctk.CTkFrame(
         root,
         fg_color=WHITE,
@@ -358,7 +346,6 @@ def mostrar_direccion_general(parent, app):
         'faltante': 175
     }
 
-    # Anchos manuales persistentes y barra horizontal real.
     gestor_columnas = TableColumnManager(tree, "direccion_general_seguimiento")
     gestor_columnas.configure_columns([(c, labels[c], widths[c]) for c in cols])
 
@@ -578,7 +565,6 @@ def mostrar_direccion_general(parent, app):
     tabs.configure(command=lambda _v: apply_filter())
     search_var.trace_add('write', apply_filter)
 
-    # Botones inferiores: iconos blancos y tipografía regular.
     imagen_detalle = _icono_blanco(carpeta_iconos / 'detalle.png')
     imagen_limpiar = _icono_blanco(carpeta_iconos / 'limpiar.png')
 
@@ -893,11 +879,9 @@ def mostrar_direccion_general(parent, app):
                     pady=9
                 )
 
-            # Más espacio vertical para los botones inferiores.
             actions.configure(height=58)
             actions.pack_propagate(False)
 
-            # Ajuste de ancho para ventanas pequeñas.
             if very_compact:
                 btn_detail.configure(width=160)
                 btn_refresh.configure(width=140)

@@ -1,24 +1,3 @@
-"""Prepara e importa usuarios a Supabase de forma segura.
-
-Uso recomendado desde la raíz del proyecto:
-  python tools/importar_usuarios_seguro.py listaoperadores.csv --preparar
-  python tools/importar_usuarios_seguro.py listaoperadores.csv --preparar --generar-passwords-temporales
-  python tools/importar_usuarios_seguro.py listaoperadores.csv --aplicar --generar-passwords-temporales
-
-La herramienta:
-- lee CSV separado por punto y coma;
-- valida roles 1..6;
-- normaliza fechas DD/MM/AAAA -> AAAA-MM-DD;
-- vuelve únicos los nicknames duplicados;
-- genera bcrypt para contraseñas;
-- cifra campos sensibles con la AXIA_DATA_KEY del .env;
-- crea respaldo antes de aplicar;
-- actualiza por id_usuario cuando el registro ya existe;
-- inserta usuarios nuevos dejando que PostgreSQL genere su identidad;
-- verifica el resultado sin intentar sobrescribir columnas GENERATED ALWAYS.
-
-Nunca imprime AXIA_DATA_KEY ni contraseñas en consola.
-"""
 from __future__ import annotations
 
 from core.logger import configurar_logger
@@ -89,7 +68,6 @@ def _normalizar_fecha(valor: str) -> str:
 
 
 def _password_temporal(longitud: int = 16) -> str:
-    # Garantiza la política mínima y mezcla el resultado.
     chars = string.ascii_letters + string.digits + "!@#$%&*_-+"
     base = [
         secrets.choice(string.ascii_uppercase),
@@ -185,7 +163,6 @@ def preparar(
             registro["usu_curp"] = registro["usu_curp"].upper()
             registro["usu_imss"] = registro["usu_imss"].replace("¨", "").strip()
 
-            # Deja que PostgreSQL use su default cuando created_at viene vacío.
             if not registro.get("created_at"):
                 registro.pop("created_at", None)
 
@@ -223,17 +200,6 @@ def guardar_json(ruta: Path, contenido: Any) -> None:
 
 
 def aplicar_supabase(preparados: list[dict[str, Any]], salida: Path) -> None:
-    """Aplica la importación respetando columnas IDENTITY GENERATED ALWAYS.
-
-    Estrategia:
-    - si el id_usuario del CSV ya existe, actualiza ese registro sin enviar el ID;
-    - si no existe, intenta localizarlo por nickname normalizado;
-    - si tampoco existe, inserta el registro sin id_usuario y deja que PostgreSQL
-      asigne la identidad automáticamente.
-
-    Esto evita el error PostgreSQL 428C9 y conserva la capacidad de actualizar
-    una tabla que ya contenga parte de los usuarios.
-    """
     from supabase_config import supabase, TABLA_USUARIOS
 
     print("Creando respaldo de db_usuarios...")

@@ -1,15 +1,3 @@
-"""
-=========================================================
-MÓDULO: reportes_view.py
-DESCRIPCIÓN:
-Vista administrativa para consultar reportes actuales del sistema AXIA.
-
-Esta vista es de solo lectura y está pensada para administradores.
-Incluye búsquedas rápidas siguiendo el flujo vigente: levantamiento, ACO,
-orden de trabajo, bitácora operativa y orden de servicio.
-=========================================================
-"""
-
 import customtkinter as ctk
 from ui.form_fields import AxiaEntry, AxiaTextbox
 from ui.iconos import cargar_icono
@@ -77,10 +65,6 @@ REPORTES = [
 
 
 def mostrar_reportes(parent, app):
-    """
-    Muestra reportes administrativos con botones/filtros de búsqueda.
-    """
-
     usuario_activo = obtener_usuario_actual()
 
     if not puede_ver_reportes(usuario_activo):
@@ -155,10 +139,6 @@ def mostrar_reportes(parent, app):
 
 
 def crear_bloque_reporte(parent, reporte):
-    """
-    Crea una tarjeta visual para un reporte con búsqueda individual.
-    """
-
     estado = {
         "registros": [],
     }
@@ -260,7 +240,6 @@ def crear_bloque_reporte(parent, reporte):
     )
     entry_busqueda.grid(row=0, column=1, sticky="ew", padx=(0, 12), pady=4)
 
-    # Texto de ayuda integrado al campo; no crea un rectángulo blanco sobre el gris.
     entry_busqueda.configure(placeholder_text='Realiza tu búsqueda', placeholder_text_color="#64748B")
 
     ctk.CTkButton(

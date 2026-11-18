@@ -1,10 +1,3 @@
-"""Máscaras visuales para cifras sin contaminar el valor persistido.
-
-El valor que ve el usuario puede incluir moneda y separadores de miles, pero
-``StringVar.get()`` siempre devuelve la representación numérica limpia. Así los
-servicios, validaciones y payloads existentes continúan trabajando con números.
-"""
-
 from decimal import Decimal, InvalidOperation
 import re
 from types import MethodType
@@ -48,7 +41,6 @@ def formatear_numero(value, kind=NUMBER):
 
 
 def aplicar_mascara_numerica(entry, variable, kind=NUMBER):
-    """Vincula una máscara; la UI se formatea y ``get`` entrega el dato limpio."""
     if getattr(variable, "_axia_numeric_mask", False):
         return entry
 
@@ -87,7 +79,6 @@ def aplicar_mascara_numerica(entry, variable, kind=NUMBER):
 
 
 def tipo_mascara_por_etiqueta(etiqueta):
-    """Clasificación conservadora: sólo campos inequívocamente numéricos."""
     texto = str(etiqueta or "").casefold()
     if any(x in texto for x in ("precio", "costo", "importe", "subtotal", "total $", "monto")):
         return MONEY

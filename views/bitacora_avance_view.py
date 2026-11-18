@@ -1,5 +1,4 @@
 from core.error_reporting import show_operation_error
-"""Formulario operativo para Bitácoras de Avance."""
 from datetime import datetime
 from pathlib import Path
 import customtkinter as ctk

@@ -1,4 +1,3 @@
-"""Regresiones de Obra Civil: captura manual sin depender del catálogo."""
 from __future__ import annotations
 
 import ast
@@ -26,7 +25,6 @@ class Var:
 
 
 def test_concepto_otros_serializa_una_partida_sin_catalogo():
-    # Se prueba el código real de serialización, no una copia de su algoritmo.
     node = next(n for n in FORM.body if isinstance(n, ast.FunctionDef) and n.name == 'obtener_conceptos_obra_seleccionados')
     globals_ = {
         'TIPO_CONCEPTO_OTROS': 'OTROS',

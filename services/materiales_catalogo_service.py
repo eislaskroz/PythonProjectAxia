@@ -1,10 +1,3 @@
-"""Catálogo maestro inicial de materiales AXIA.
-
-El catálogo está pensado como una base operativa para levantamientos, cotizaciones y
-órdenes de trabajo. No contiene precios: estos podrán incorporarse posteriormente
-sin modificar los formularios.
-"""
-
 UNIDADES_MATERIAL = [
     "Pieza(s)", "Paquete(s)", "Caja(s)", "Metro(s)", "Rollo(s)",
     "Juego(s)", "Litro(s)", "Kilogramo(s)", "Saco(s)", "Cubeta(s)",
@@ -228,9 +221,7 @@ CATALOGO_MATERIALES_POR_ESPECIALIDAD = {
 
 
 def obtener_materiales_por_especialidad(especialidad):
-    """Devuelve una copia del catálogo correspondiente a la especialidad."""
     if especialidad == "General":
-        # Reúne los catálogos completos; mantiene variantes de presentación.
         items = {}
         for origen, materiales in CATALOGO_MATERIALES_POR_ESPECIALIDAD.items():
             for material in materiales:

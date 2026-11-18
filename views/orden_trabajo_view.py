@@ -1,9 +1,4 @@
 from core.error_reporting import show_operation_error
-"""
-Formulario Orden de Trabajo AXIA.
-Actualizado: campos compactos, partidas dinámicas y preview PDF.
-"""
-
 from core.logger import configurar_logger
 
 logger = configurar_logger(__name__)
@@ -244,7 +239,6 @@ def mostrar_orden_trabajo(parent, app, aco=None):
 
 
     def volver_a_selector_aco():
-        """Regresa al selector de formularios manteniendo el ACO validado."""
         if aco:
             app.mostrar_vista_inicio_aco_validado(aco)
         else:

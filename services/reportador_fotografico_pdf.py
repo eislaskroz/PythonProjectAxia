@@ -1,16 +1,3 @@
-"""AXIA Reportador fotográfico: réplica nativa del esquema PDF de pdf_service.php.
-
-Referencia: módulo PHP original (noviembre 2026). Carta vertical 612x792 pt,
-coordenadas de texto, barras, actividades, fotografías por orientación y páginas
-individuales de OS. No necesita PHP ni un navegador.
-
-De forma predeterminada utiliza el mismo fondo vertical corporativo que los
-PDF de levantamientos, OS y bitácoras: assets/FormatoFondo.png.
-Si se incorpora el fondo exacto del Reportador PHP en
-assets/reportador/reporte_base.png, este tiene prioridad. La tipografía
-Montserrat se utiliza cuando están disponibles los tres archivos TTF
-originales; en su ausencia usa Helvetica, como los otros PDF de Desktop.
-"""
 from __future__ import annotations
 
 from io import BytesIO
@@ -37,7 +24,6 @@ GRAY = colors.HexColor('#526E80')
 
 
 def _font_names() -> dict[str, str]:
-    """No incluimos archivos de tipografía de terceros en el ZIP del usuario."""
     base = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent.parent))
     candidates = (
         base / 'assets' / 'reportador' / 'fonts',
@@ -59,7 +45,6 @@ def _font_names() -> dict[str, str]:
 
 
 def _wrap(value: object, font: str, size: float, max_width: float) -> list[str]:
-    """Separar a tamaño real por ancho, sin truncar nombres y descripciones."""
     text = str(value or '')
     result = []
     for paragraph in text.splitlines() or ['']:
@@ -75,7 +60,6 @@ def _wrap(value: object, font: str, size: float, max_width: float) -> list[str]:
             if line:
                 result.append(line)
                 line = ''
-            # Cortar palabras muy largas, correos y enlaces antes que desbordar.
             while word and pdfmetrics.stringWidth(word, font, size) > max_width:
                 take = 1
                 while take < len(word) and pdfmetrics.stringWidth(word[:take+1], font, size) <= max_width:
@@ -88,7 +72,6 @@ def _wrap(value: object, font: str, size: float, max_width: float) -> list[str]:
 
 
 def _validate_and_plan(detail: dict) -> tuple[dict, list, list, str]:
-    """Emula rf_pdf_valid() + rf_validate_for_finalization() del PHP."""
     report = detail['reporte']
     activities = detail.get('actividades') or []
     if not activities:
@@ -126,14 +109,12 @@ class _OriginalStylePDF:
     def __init__(self, output: BytesIO, report: dict, *, logo_path: str | None = None,
                  background_path: str | None = None):
         self.canvas = Canvas(output, pagesize=(W, H), pageCompression=1,
-                             invariant=1)  # salida determinista para pruebas
+                             invariant=1)
         self.canvas.setTitle('AXIA ' + str(report.get('aco') or 'REPORTE'))
         self.canvas.setAuthor('AXIA Comunicaciones')
         self.report = report
         self.fonts = _font_names()
         base = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent.parent))
-        # Unificar la papelería con el resto de documentos corporativos.
-        # Se mantiene la prioridad del fondo original PHP si se facilita después.
         original = base / 'assets' / 'reportador' / 'reporte_base.png'
         corporativo = base / 'assets' / 'FormatoFondo.png'
         provided = Path(background_path) if background_path else None
@@ -168,7 +149,6 @@ class _OriginalStylePDF:
             self.canvas.drawImage(ImageReader(str(self.background)), 0, 0, W, H,
                                   preserveAspectRatio=False, mask='auto')
         else:
-            # El PDF PHP cae a hoja blanca si no existe reporte_base.png.
             self.rect(0, 0, W, H, colors.white)
 
     def image_fit(self, raw: bytes, x: float, top: float, box_width: float,
@@ -194,9 +174,6 @@ class _OriginalStylePDF:
         r = self.report
         self.text(48, 82, 'REPORTE FOTOGRÁFICO', 18, 'bold', BLUE)
         self.text(48, 112, 'ACO: ' + str(r['aco']), 13, 'bold')
-        # Evitar que fechas especialmente largas superen el ancho del papel.
-        # FormatoFondo tiene el logotipo en la esquina superior derecha:
-        # evitar colocar la fecha encima de él.
         fecha_x = 340 if self.using_corporate_background else 438
         self.text(fecha_x, 114, 'Fecha: ' + service.fecha_para_mostrar(r['fecha_servicio']), 10)
         self.y = 140
@@ -292,7 +269,6 @@ class _OriginalStylePDF:
                 if row_index < len(rows)-1:
                     self.y += 12
             self.y += 18
-        # Autoría original: nunca usar el nombre del usuario que descarga.
         credit_lines = _wrap(author, self.fonts['semi'], 10, 500)
         if self.y + 18 + 15*len(credit_lines) + 14 > CONTENT_BOTTOM:
             self.page(new=True)
@@ -324,7 +300,6 @@ class _OriginalStylePDF:
 
 def generar_pdf_bytes(detalle: dict, obtener_imagen=None, logo_path: str | None = None,
                       background_path: str | None = None) -> bytes:
-    """Generar según las proporciones originales. Requiere evidencias completas."""
     report, activities, orders, author = _validate_and_plan(detalle)
     fetch = obtener_imagen or service.leer_imagen
     output = BytesIO()

@@ -5,7 +5,6 @@ from PIL import Image
 ICON_DIR = Path(__file__).resolve().parent.parent / "assets" / "iconos"
 
 def cargar_icono(nombre, size=(18,18), blanco=False, color=None):
-    """Carga un icono sin derribar la app si el recurso falta o está dañado."""
     try:
         ruta = ICON_DIR / nombre
         if not ruta.exists():

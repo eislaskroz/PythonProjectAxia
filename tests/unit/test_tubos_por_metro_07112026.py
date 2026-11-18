@@ -1,4 +1,3 @@
-"""Unidades y aproximados de tuberías flexibles, sin afectar las rígidas."""
 from views.levantamientos.catalogos_canalizacion import TIPOS_TUBOS
 from views.levantamientos.catalogos_materiales_jerarquicos import unidades_de_material
 from views.levantamientos.canalizacion_aproximado import (

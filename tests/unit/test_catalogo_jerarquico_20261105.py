@@ -1,4 +1,3 @@
-"""Regresión del catálogo jerárquico y compatibilidad de registros anteriores."""
 from pathlib import Path
 import pytest
 

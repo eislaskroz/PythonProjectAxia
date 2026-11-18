@@ -1,8 +1,3 @@
-"""Adaptador del listado universal: unifica visualmente LEV/OBC, nunca mezcla sus tablas.
-
-Las operaciones de Obra Civil se realizan exclusivamente por la Edge Function
-con verificación de sesión; ningún UPDATE directo de db_obras_civiles se ejecuta.
-"""
 from __future__ import annotations
 
 import json
@@ -23,7 +18,6 @@ def es_obra_civil(registro):
 
 
 def transformar_obra_civil(obra):
-    """Contrato visual de la ventana universal, sin fabricar ID de LEV."""
     original = dict(obra)
     ejecucion = _json(obra.get('obc_ejecucion_json'))
     general = ejecucion.get('_datos_generales_axia') or {}
@@ -55,7 +49,6 @@ def transformar_obra_civil(obra):
 
 
 def cambios_obra_civil_desde_formulario(registro, campos, descripcion, requerimientos, observaciones, detalle_texto):
-    """Permite editar campos OBC disponibles sin pisar anexos, folio o claves."""
     if not es_obra_civil(registro):
         raise ValueError('No es un registro de Obra Civil.')
     original = registro['_obc_original']
@@ -83,12 +76,10 @@ def cambios_obra_civil_desde_formulario(registro, campos, descripcion, requerimi
     }
     if not datos['obc_cliente'] or not datos['obc_nombre_proyecto']:
         raise ValueError('Cliente y Nombre del proyecto son obligatorios.')
-    # Los ID vinculados a catálogos, folio y anexos no se tocan aquí.
     return datos
 
 
 def generar_pdf_obra_civil_desde_registro(obra, *, ruta_salida=None, abrir=True):
-    """Recrea el PDF estructurado a partir del registro persistido de Obra Civil."""
     from views.formato_helpers import generar_pdf_preview
     from services.axia_pdf_engine import AxiaPdfEngine
     ejecucion = _json(obra.get('obc_ejecucion_json'))
@@ -125,8 +116,6 @@ def generar_pdf_obra_civil_desde_registro(obra, *, ruta_salida=None, abrir=True)
         'Materiales misceláneos': '; '.join(str(p.get('material') or '') for p in materiales if isinstance(p, dict)),
         'Archivos PDF / planos': '; '.join(str(p.get('nombre') or '') for p in (_json(obra.get('obc_archivos_adjuntos_json'), []) or []) if isinstance(p, dict)),
     }
-    # La evidencia ya subida permanece en Storage; no se simulan imágenes perdidas.
-    # Las referencias de archivo se pueden listar sin requerir permiso de descarga.
     evidencia = _json(obra.get('obc_evidencias_json'), [])
     if evidencia:
         datos['Evidencias registradas'] = '; '.join(str(e.get('nombre') or e.get('storage_path') or '') for e in evidencia if isinstance(e, dict))
@@ -143,8 +132,6 @@ def generar_pdf_obra_civil_desde_registro(obra, *, ruta_salida=None, abrir=True)
     plano = _json(obra.get('obc_anotacion_plano_json'))
     if isinstance(plano, dict):
         datos['__anotacion_plano_base64'] = str(plano.get('imagen_base64') or '')
-    # Recuperar imágenes desde el mismo bucket en que fueron subidas al guardar.
-    # Si no pueden recuperarse, NO emitir un PDF que silenciosamente pierda evidencias.
     from tempfile import TemporaryDirectory
     from supabase_config import supabase
     from services.bitacora_evidencias_service import BUCKET

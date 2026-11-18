@@ -1,5 +1,3 @@
-"""Regresiones visuales y de consultas de lectura; no requieren Supabase."""
-
 from pathlib import Path
 
 import pytest

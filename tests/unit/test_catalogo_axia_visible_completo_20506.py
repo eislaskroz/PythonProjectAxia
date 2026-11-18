@@ -1,4 +1,3 @@
-"""Cobertura de selector universal de Levantamientos 2.06.17."""
 from pathlib import Path
 from ui.catalogo_axia_inline import etiquetas_catalogo, etiqueta_producto, detalle_producto, normalizar
 from services.levantamiento_catalogo_axia import referencia_axia, especificacion_catalogo_axia
@@ -34,6 +33,6 @@ def test_selector_permite_todos_y_no_filtra_ciento_veinte():
     assert 'self._combo.configure(values=encontrados)' in fuente
     assert '"Tamaño / calibre / especificación"' in view
     assert 'selector_producto_axia' not in view
-    assert 'codigo_axia' in fuente  # Sólo búsqueda e identidad interna.
+    assert 'codigo_axia' in fuente
     assert 'correlacionador_almacen.canalizacion(' in view
     assert 'registrar_salida_ot(' not in view

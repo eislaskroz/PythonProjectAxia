@@ -1,8 +1,3 @@
-"""Puerta de calidad local para AXIA.
-
-Bloquea errores de sintaxis y problemas de empaquetado; reporta patrones de
-compatibilidad y manejo de errores como advertencias para revisión.
-"""
 from __future__ import annotations
 
 import ast

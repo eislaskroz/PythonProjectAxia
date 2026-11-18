@@ -1,10 +1,3 @@
-"""Plantilla maestra PDF para levantamientos AXIA.
-
-La plantilla trabaja directamente con el registro persistido en Supabase y
-renderiza cada tipo de levantamiento con bloques compactos y tablas dinámicas.
-Seguridad y Monitoreo / Instalación conserva su distribución validada; el resto
-de levantamientos reutiliza la misma lógica visual y de paginación.
-"""
 from __future__ import annotations
 
 import base64
@@ -83,7 +76,6 @@ def _first_text(*values: Any) -> str:
 
 
 def _signature_drawing_from_points(value: str, width: float, height: float):
-    """Convierte la firma vectorial de AXIA FIELD (x,y;|;x,y...) a Drawing."""
     tokens = [t.strip() for t in str(value or "").split(";")]
     strokes, current = [], []
     for token in tokens:
@@ -119,10 +111,6 @@ def _signature_drawing_from_points(value: str, width: float, height: float):
 
 
 def _append_vobo_cliente(story: list, registro: Mapping[str, Any], detail: Mapping[str, Any], width, normal, header) -> None:
-    """Añade al PDF el VoBo capturado por AXIA FIELD."""
-    # Versiones nuevas de FIELD guardan la firma en lev_firma_cliente.
-    # Compatibilidad: la versión que estrenó el resumen la enviaba por error
-    # como lev_firma_tecnico; sólo usamos ese fallback si proviene de FIELD.
     firma = _first_text(
         registro.get("lev_firma_cliente"), registro.get("lev_firma"),
         detail.get("firma_cliente"), detail.get("firma_cliente_base64"),
@@ -142,8 +130,6 @@ def _append_vobo_cliente(story: list, registro: Mapping[str, Any], detail: Mappi
     story.append(Spacer(1, 10))
     story.append(_section_title("VoBo del cliente", width, header))
     firma_obj = None
-    # FIELD actualmente almacena la firma como trazos vectoriales; DESKTOP
-    # también conserva soporte para firmas base64 de otras fuentes/versiones.
     if ";" in firma and "," in firma:
         firma_obj = _signature_drawing_from_points(firma, 1.85*inch, .72*inch)
     if firma_obj is None:
@@ -175,11 +161,6 @@ def _append_vobo_cliente(story: list, registro: Mapping[str, Any], detail: Mappi
 
 
 def _consultar_nombre_usuario_creador(nickname: str) -> Mapping[str, Any] | None:
-    """Compatibilidad con LEV históricos sin instantánea de autoría.
-
-    Busca únicamente el autor original indicado por creado_por, nunca usa el
-    usuario que actualmente está consultando o imprimiendo el documento.
-    """
     try:
         from supabase_config import supabase, TABLA_USUARIOS
 
@@ -203,10 +184,8 @@ def _append_elaborado_por(
     width: float,
     normal,
 ) -> None:
-    """Firma informativa al final de cada LEV (nunca suplanta el VoBo)."""
     nombre = nombre_elaborador(registro, detail, buscar_usuario=_consultar_nombre_usuario_creador)
     if not nombre:
-        # No atribuimos a un operador equivocado un LEV histórico sin autor.
         logger.warning("Sin autor identificable para el LEV %s", registro.get("lev_folio") or "sin folio")
         return
 
@@ -229,7 +208,6 @@ def _append_elaborado_por(
 
 
 def _anotacion_plano_base64(registro: Mapping[str, Any]) -> str:
-    """Extrae la imagen persistida de la anotación tipo plano, si existe."""
     payload = _json(registro.get("lev_anotacion_plano_json"), {})
     if not isinstance(payload, Mapping):
         return ""
@@ -243,7 +221,6 @@ def _anotacion_plano_base64(registro: Mapping[str, Any]) -> str:
 
 
 def _append_anotacion_plano(story: list, registro: Mapping[str, Any], width: float, header) -> None:
-    """Añade al PDF final el croquis/anotación gráfica conservando proporción."""
     encoded = _anotacion_plano_base64(registro)
     try:
         raw = base64.b64decode(encoded, validate=False) if encoded else None
@@ -266,18 +243,15 @@ def _append_anotacion_plano(story: list, registro: Mapping[str, Any], width: flo
         story.append(Spacer(1, 4))
         story.append(KeepTogether([title, Spacer(1, 4), image]))
     except Exception:
-        # Una anotación corrupta nunca debe impedir generar el levantamiento.
         return
 
 
 
 def _evidencias_levantamiento(registro: Mapping[str, Any]) -> list:
-    """Resuelve únicamente fotografías; planos y anotaciones se renderizan aparte."""
     return [item for item in _evidencias_todas(registro) if not _es_pdf(item) and not _es_anotacion_plano(item) and not _es_plano_adjunto(item)]
 
 
 def _evidencias_todas(registro: Mapping[str, Any]) -> list:
-    """Resuelve archivos FIELD y evidencias locales/persistidas sin perder su tipo."""
     locales = registro.get("__evidencias_locales") or []
     if locales:
         return list(locales) if isinstance(locales, (list, tuple)) else [locales]
@@ -316,7 +290,6 @@ def _es_plano_adjunto(item: Any) -> bool:
 
 
 def _archivos_adjuntos_levantamiento(registro: Mapping[str, Any]) -> list:
-    """Resuelve PDF/planos locales del preview o metadatos persistidos."""
     locales = registro.get("__archivos_adjuntos_locales") or []
     persistidos = _json(registro.get("lev_archivos_adjuntos_json"), [])
     resultado = []
@@ -376,7 +349,6 @@ def _append_archivos_adjuntos(story: list, registro: Mapping[str, Any], width: f
 
 
 def _cargar_archivo_evidencia(item):
-    """Devuelve bytes de un complemento desde ruta local, URL o Storage."""
     try:
         origen = ""
         storage_path = ""
@@ -404,8 +376,6 @@ def _cargar_archivo_evidencia(item):
                 if raw:
                     return raw
             except Exception:
-                # FIELD sube con Service Role; la sesión de DESKTOP puede no
-                # tener SELECT sobre Storage aunque el bucket sea público.
                 pass
             try:
                 public_url = str(storage.get_public_url(storage_path) or "").strip()
@@ -416,8 +386,6 @@ def _cargar_archivo_evidencia(item):
                     return response.content
             except Exception:
                 pass
-            # El bucket FIELD permanece privado. Una función con Service Role
-            # valida que la ruta esté registrada y devuelve una URL de 2 min.
             if bucket == "levantamientos-evidencias":
                 try:
                     from supabase_config import SUPABASE_KEY, SUPABASE_URL
@@ -456,7 +424,6 @@ def _cargar_imagen_evidencia(item):
 
 
 def _anexar_paginas_pdf(ruta_salida: str | Path, registro: Mapping[str, Any]) -> None:
-    """Anexa completos los PDF enviados por FIELD, preservando sus páginas y calidad."""
     pdf_items = [item for item in _archivos_adjuntos_levantamiento(registro) if _es_pdf(item)]
     if not pdf_items:
         return
@@ -487,7 +454,6 @@ def _anexar_paginas_pdf(ruta_salida: str | Path, registro: Mapping[str, Any]) ->
 
 
 def _append_evidencias_fotograficas(story: list, registro: Mapping[str, Any], width: float, header) -> None:
-    """Añade evidencias fotográficas en cuadrícula de dos columnas."""
     items = _evidencias_levantamiento(registro)
     if not items:
         return
@@ -541,13 +507,6 @@ def _append_evidencias_fotograficas(story: list, registro: Mapping[str, Any], wi
         return
 
 def _tipo_y_modalidad(registro: Mapping[str, Any], detail: Mapping[str, Any] | None = None) -> tuple[str, str]:
-    """Resuelve la especialidad/modalidad igual para registros en memoria y Supabase.
-
-    La tabla histórica conserva ``lev_tipo`` como código general, mientras la
-    especialidad real vive en ``lev_detalle_tecnico_json.tipo_levantamiento``.
-    Centralizar esta normalización evita PDFs distintos entre Operador y
-    Administrativo.
-    """
     detail = dict(detail or _detail(registro))
     tipo = str(
         registro.get("lev_tipo_levantamiento")
@@ -597,7 +556,6 @@ def _key_value_table(rows: Sequence[Sequence[Any]], widths: Sequence[float], nor
         ("TOPPADDING", (0, 0), (-1, -1), 2.6),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 2.6),
     ]))
-    # Suave diferenciación visual de columnas de etiqueta.
     for col in range(0, len(widths), 2):
         table.setStyle(TableStyle([("BACKGROUND", (col, 0), (col, -1), LIGHT_BLUE)]))
     return table
@@ -623,11 +581,6 @@ def _matrix_table(headers: Sequence[str], rows: Sequence[Sequence[Any]], widths:
 
 
 def _section_matrix_table(title: str, headers: Sequence[str], rows: Sequence[Sequence[Any]], widths: Sequence[float], normal, table_header) -> LongTable:
-    """Tabla dinámica cuyo título viaja con la propia tabla.
-
-    Evita títulos huérfanos al final de página y repite título + encabezados cuando
-    una tabla continúa en páginas posteriores.
-    """
     total_cols = len(headers)
     data = [[Paragraph(escape(str(title).upper()), table_header)] + [""] * (total_cols - 1)]
     data.append([Paragraph(escape(str(h)), table_header) for h in headers])
@@ -649,15 +602,8 @@ def _section_matrix_table(title: str, headers: Sequence[str], rows: Sequence[Seq
     return table
 
 def _description_table(text: str, width: float, normal, table_header) -> LongTable:
-    """Descripción con borde y paginación segura.
-
-    Se fragmenta por párrafos y tamaño máximo para que una sola celda nunca sea
-    más alta que el marco disponible de ReportLab.
-    """
     chunks: list[str] = []
     source = str(text or "").strip() or "Sin descripción capturada."
-    # Evita títulos duplicados cuando un registro histórico ya contiene la leyenda
-    # dentro del propio texto. El título visual lo aporta únicamente esta tabla.
     cleaned_lines = []
     for line in source.splitlines():
         normalized = line.strip().strip("- ").casefold()
@@ -702,7 +648,6 @@ def generar_pdf_seguridad_instalacion(
     ruta_salida: str | Path,
     abrir: bool = False,
 ) -> str:
-    """Genera el nuevo formato maestro de Seguridad y Monitoreo / Instalación."""
     import os
 
     ruta = Path(ruta_salida)
@@ -712,7 +657,6 @@ def generar_pdf_seguridad_instalacion(
     normal = styles["normal"]
     header = styles["table_header"]
     section_header = styles["table_header"]
-    # Etiqueta compacta, compatible con Paragraph.
     from reportlab.lib.styles import ParagraphStyle
     label = ParagraphStyle(
         "AxiaMasterLabel",
@@ -754,24 +698,17 @@ def generar_pdf_seguridad_instalacion(
     )
     story = []
 
-    # 1) Datos generales homologados para TODAS las especialidades.
     general_rows = _filas_generales_homologadas(registro, detail, tipo_master or "Seguridad y Monitoreo", modalidad)
     story.append(_key_value_table(general_rows, [1.35*inch, 2.75*inch, 1.18*inch, 1.62*inch], normal, label))
     story.append(Spacer(1, 4))
 
-    # En registros anteriores pueden existir datos de rack pese a haber marcado
-    # infraestructura reutilizable. El PDF debe respetar la selección actual.
     infra_reutilizable = str(infra.get("existe_infraestructura") or "").strip().casefold() in {"sí", "si", "yes", "true", "1"}
     if infra_reutilizable:
         rack = {}
         materiales_rack_tierra = []
 
-    # Evaluación técnica: resumen breve, no transcripción del formulario.
     _append_resumen_tecnico(story, registro, detail, width, normal, label, header)
 
-    # 5) Canalización dinámica agrupada por familia / categoría.
-    # La cabecera de categoría no se repite por cada partida; cada grupo lleva
-    # su propio encabezado de tabla, incluso si continúa en otra página.
     grupos_canal = agrupar_partidas_canalizacion(canalizacion)
     if grupos_canal:
         story.append(Spacer(1, 5))
@@ -784,7 +721,6 @@ def generar_pdf_seguridad_instalacion(
                 normal, header,
             ))
             story.append(Spacer(1, 4))
-    # 6) Equipos principales: aparece únicamente cuando hay registros.
     equipment_rows = []
     for item in equipos:
         if isinstance(item, Mapping):
@@ -801,7 +737,6 @@ def generar_pdf_seguridad_instalacion(
         ))
         story.append(Spacer(1, 4))
 
-    # 7) Materiales misceláneos: aparece únicamente cuando hay registros.
     material_rows = []
     for item in materiales:
         if isinstance(item, Mapping):
@@ -834,8 +769,6 @@ def generar_pdf_seguridad_instalacion(
             ))
         story.append(Spacer(1, 4))
 
-    # La descripción detallada se conserva en el registro, pero no se imprime:
-    # repite información ya presentada en las secciones estructuradas del PDF.
     _append_anotacion_plano(story, registro, width, header)
     _append_archivos_adjuntos(story, registro, width, normal, header)
     _append_evidencias_fotograficas(story, registro, width, header)
@@ -869,7 +802,6 @@ def generar_pdf_seguridad_instalacion(
 # ---------------------------------------------------------------------------
 # Plantilla maestra general para TODOS los levantamientos
 # ---------------------------------------------------------------------------
-
 SECTION_TITLES = {
     "necesidad_inicial": "Necesidad inicial y alcance",
     "necesidad_alcance": "Necesidad inicial y alcance",
@@ -959,7 +891,6 @@ SPECIAL_ROOT_KEYS = {
 
 
 def es_levantamiento(registro: Mapping[str, Any]) -> bool:
-    """True cuando el registro corresponde a un levantamiento AXIA."""
     return bool(
         str(registro.get("lev_tipo_levantamiento") or "").strip()
         or str(registro.get("lev_folio") or "").strip()
@@ -986,15 +917,7 @@ def _section_name(key: str) -> str:
 
 
 def _visible_declarative_sections(tipo: str, sections: Mapping[str, Any]) -> list[tuple[str, Mapping[str, Any]]]:
-    """Devuelve únicamente los bloques que corresponden al flujo seleccionado.
-
-    Los formularios declarativos guardan todos sus campos en ``lev_detalle_tecnico_json``
-    aunque algunos estén ocultos en la interfaz. El PDF debe reproducir lo que el usuario
-    vio/capturó, no imprimir bloques ocultos con valores por defecto como "No aplica".
-    """
     items = [(str(k), v) for k, v in sections.items() if isinstance(v, Mapping)]
-    # Bloques retirados de la interfaz: mantenerlos en JSON para compatibilidad,
-    # pero no volver a mostrarlos en documentos de registros históricos.
     legacy_hidden = {
         "redes voz y datos": {"equipo_activo"},
         "control de accesos": {
@@ -1005,11 +928,6 @@ def _visible_declarative_sections(tipo: str, sections: Mapping[str, Any]) -> lis
     hidden = legacy_hidden.get(tipo.casefold(), set())
     items = [(key, value) for key, value in items if key.casefold() not in hidden]
 
-
-    # Control de Accesos y Enlaces Inalámbricos migraron la canalización a la
-    # captura dinámica común. Los registros históricos pueden conservar el bloque
-    # declarativo antiguo con valores por defecto (UTP, canaleta, EMT, etc.). Ese
-    # bloque ya no forma parte de la interfaz y nunca debe reaparecer en el PDF.
     if tipo.casefold() in {"control de accesos", "enlaces inalámbricos", "enlaces inalambricos"}:
         items = [
             (key, value) for key, value in items
@@ -1023,7 +941,6 @@ def _visible_declarative_sections(tipo: str, sections: Mapping[str, Any]) -> lis
     if tipo.casefold() != "tecnología, equipos y periféricos".casefold():
         return items
 
-    # La acción detonante vive en la primera sección del formulario TI.
     accion = ""
     for key, value in items:
         if "tipo_de_solicitud_y_alcance" in key.casefold():
@@ -1031,9 +948,6 @@ def _visible_declarative_sections(tipo: str, sections: Mapping[str, Any]) -> lis
             break
     accion_cf = accion.casefold()
 
-    # Debe ser idéntico a la visibilidad de la interfaz (levantamiento_view.py).
-    # 0 Tipo solicitud, 1 Identificación, 2 Revisión, 3 Mant./Reparación,
-    # 4 Requerimientos suministro, 5 Instalación/configuración.
     if accion_cf == "suministro":
         allowed = {
             "tipo_de_solicitud_y_alcance",
@@ -1063,7 +977,6 @@ def _visible_declarative_sections(tipo: str, sections: Mapping[str, Any]) -> lis
             "instalación_configuración_pruebas_y_entrega",
         }
     else:
-        # Compatibilidad con registros antiguos: si no hay acción reconocible, no ocultamos datos.
         return items
 
     visible = [(key, value) for key, value in items if key.casefold() in {x.casefold() for x in allowed}]
@@ -1108,10 +1021,6 @@ def _is_resource_key(key: str) -> bool:
 
 
 def _filter_pdf_dependencies(mapping: Mapping[str, Any]) -> dict[str, Any]:
-    """No imprimir detalles de componentes expresamente rechazados.
-
-    Se aplica sobre una copia: no altera el JSON ni los datos históricos.
-    """
     data = dict(mapping)
     def denied(*names):
         return any(str(data.get(name, "")).strip().casefold() in {"no", "false", "0"} for name in names)
@@ -1136,11 +1045,6 @@ def _filter_pdf_dependencies(mapping: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _pdf_has_value(value: Any) -> bool:
-    """Un valor de respuesta negativa/vacía no se imprime en el PDF.
-
-    Cero numérico sí es información válida (p. ej. una medición); los
-    indicadores booleanos falsos y los marcadores textuales no lo son.
-    """
     if value is None or value is False:
         return False
     if isinstance(value, str):
@@ -1157,7 +1061,6 @@ def _pdf_has_value(value: Any) -> bool:
 
 
 def _pdf_filter_pairs(rows: Sequence[Sequence[Any]]) -> list[list[Any]]:
-    """Descarta pares etiqueta/valor sin respuesta y compacta las filas."""
     filtered = []
     for row in rows:
         pairs = [(row[i], row[i + 1]) for i in range(0, len(row) - 1, 2)
@@ -1171,7 +1074,6 @@ def _pdf_filter_pairs(rows: Sequence[Sequence[Any]]) -> list[list[Any]]:
 
 
 def _pdf_filter_table_rows(rows: Sequence[Sequence[Any]], *, identity_columns=(0,)) -> list[list[Any]]:
-    """Evita filas vacías o compuestas solo por respuestas negativas."""
     result = []
     for row in rows:
         if not any(_pdf_has_value(row[i]) for i in identity_columns if i < len(row)):
@@ -1181,7 +1083,6 @@ def _pdf_filter_table_rows(rows: Sequence[Sequence[Any]], *, identity_columns=(0
 
 
 def _mapping_rows(mapping: Mapping[str, Any]) -> list[list[Any]]:
-    """Convierte un bloque técnico en filas etiqueta/valor de dos pares por fila."""
     pairs: list[tuple[str, Any]] = []
     for key, value in _filter_pdf_dependencies(mapping).items():
         if _is_resource_key(key) or key in {"partidas"}:
@@ -1227,7 +1128,6 @@ def _material_rows(detail: Mapping[str, Any]) -> list[list[Any]]:
 
 
 def _civil_concept_rows(detail: Mapping[str, Any]) -> list[list[Any]]:
-    """Reconstruye conceptos de Obra Civil enviados por FIELD sin exponer claves técnicas."""
     sources = [detail]
     compat = detail.get("compatibilidad_axia_field")
     if isinstance(compat, Mapping):
@@ -1251,7 +1151,6 @@ def _civil_concept_rows(detail: Mapping[str, Any]) -> list[list[Any]]:
         type_value = merged.get(prefix + "type")
         quantity = merged.get(prefix + "quantity")
         unit = merged.get(prefix + "unit")
-        # El ID es interno y deliberadamente no se imprime.
         if any(v not in (None, "") for v in (label_value, type_value, quantity, unit)):
             rows.append([label_value, type_value, quantity, unit])
     return rows
@@ -1271,11 +1170,6 @@ EPP_BASICO_OBLIGATORIO = (
 
 
 def _epp_rows(detail: Mapping[str, Any]) -> tuple[str, list[list[Any]]]:
-    """El PDF incluye siempre cuatro EPP básicos y cualquier EPP adicional.
-
-    No modifica los datos persistidos. Evita repetir elementos básicos si ya
-    están capturados; preserva cantidad y observaciones de los registros reales.
-    """
     value = detail.get("epp") or {}
     if isinstance(value, str):
         value = _json(value, {})
@@ -1300,15 +1194,8 @@ def _epp_rows(detail: Mapping[str, Any]) -> tuple[str, list[list[Any]]]:
 
 
 def _fragmentos_resumen_pdf(texto: str, *, max_chars: int = 480) -> list[str]:
-    """Parte textos extensos en filas breves sin truncar su contenido.
-
-    ReportLab puede paginar un LongTable entre filas, pero no puede colocar
-    una fila que sea más alta que la página. Conservamos los saltos de línea
-    como filas separadas y dividimos también párrafos de miles de caracteres.
-    """
     fragmentos: list[str] = []
     for linea in str(texto).split("\n"):
-        # Los párrafos vacíos preservan la separación introducida por el técnico.
         if not linea.strip():
             fragmentos.append(" ")
             continue
@@ -1316,7 +1203,7 @@ def _fragmentos_resumen_pdf(texto: str, *, max_chars: int = 480) -> list[str]:
         while len(restante) > max_chars:
             corte = restante.rfind(" ", 0, max_chars + 1)
             if corte < max_chars // 3:
-                corte = max_chars  # Incluso las cadenas sin espacios son paginables.
+                corte = max_chars
             fragmentos.append(restante[:corte])
             restante = restante[corte:]
             if restante.startswith(" "):
@@ -1327,11 +1214,6 @@ def _fragmentos_resumen_pdf(texto: str, *, max_chars: int = 480) -> list[str]:
 
 
 def _tabla_resumen_extenso(etiqueta: str, texto: str, width: float, normal, label) -> LongTable:
-    """Tabla de una columna para descripciones multilínea de longitud libre.
-
-    La etiqueta se repite al cambiar de página. Cada fragmento ocupa una fila
-    con altura moderada, así que una descripción larga puede abarcar N páginas.
-    """
     data = [[_p(etiqueta, label, "")]]
     data.extend([[_p(fragmento, normal, " ")]] for fragmento in _fragmentos_resumen_pdf(texto))
     table = LongTable(data, colWidths=[width], repeatRows=1, splitByRow=1)
@@ -1348,12 +1230,6 @@ def _tabla_resumen_extenso(etiqueta: str, texto: str, width: float, normal, labe
 
 
 def _append_resumen_tecnico(story: list, registro: Mapping[str, Any], detail: Mapping[str, Any], width: float, normal, label, header):
-    """Síntesis operativa que permite descripciones largas sin LayoutError.
-
-    Los resúmenes cortos conservan la tabla compacta de cuatro columnas.
-    Los textos extensos se muestran como filas paginables, sin limitar la
-    cantidad de texto que el técnico puede capturar en el formulario.
-    """
     resumen = []
     for etiqueta, claves in (
         ("Alcance puntual", ("resumen_servicio", "alcance_resumido", "resumen_tecnico")),
@@ -1390,8 +1266,6 @@ def _append_resumen_tecnico(story: list, registro: Mapping[str, Any], detail: Ma
 
 
 def _canal_partidas(detail: Mapping[str, Any]) -> list[dict[str, Any]]:
-    # La decisión explícita NO tiene prioridad absoluta: nunca reconstruimos
-    # canalización desde datos históricos o desde otro bloque con `partidas`.
     for key in ("canalizacion_cableado_materiales", "cableado_canalizacion_consumibles"):
         cfg = detail.get(key)
         if isinstance(cfg, Mapping) and str(cfg.get("requiere") or "").strip().casefold() == "no":
@@ -1399,9 +1273,6 @@ def _canal_partidas(detail: Mapping[str, Any]) -> list[dict[str, Any]]:
 
     entries = _dynamic_rows(detail, "canalizacion_materiales")
     if not entries:
-        # Compatibilidad únicamente con bloques conocidos de canalización. Antes
-        # se tomaba cualquier mapping con `partidas`, lo que podía confundir EPP
-        # u otros catálogos con canalización y generar información ficticia.
         for key in ("canalizacion_cableado_materiales", "cableado_canalizacion_consumibles"):
             value = detail.get(key)
             if isinstance(value, Mapping) and isinstance(value.get("partidas"), (list, tuple)):
@@ -1412,7 +1283,6 @@ def _canal_partidas(detail: Mapping[str, Any]) -> list[dict[str, Any]]:
 
 
 def _canal_rows(detail: Mapping[str, Any]) -> list[list[Any]]:
-    """Proyección de cinco columnas conservada para llamadas anteriores."""
     entries = _canal_partidas(detail)
     return [[
         (f"{x.get('familia')} / {x.get('material') or x.get('categoria')}"
@@ -1434,7 +1304,6 @@ def _damaged_rows(registro: Mapping[str, Any], detail: Mapping[str, Any]) -> lis
 
 
 def _filas_generales_homologadas(registro: Mapping[str, Any], detail: Mapping[str, Any], tipo: str, modalidad: str) -> list[list[Any]]:
-    """Cabecera compacta de seis filas: aprovecha las cuatro columnas sin perder campos."""
     duracion = _text(registro.get("lev_duracion_proyecto"), "") or (
         "Un día" if str(registro.get("lev_dias_trabajo") or "") == "1" else "Varios días"
     )
@@ -1442,12 +1311,9 @@ def _filas_generales_homologadas(registro: Mapping[str, Any], detail: Mapping[st
     cctv = detail.get("datos_tecnicos_cctv") or {}
     if not isinstance(cctv, Mapping):
         cctv = {}
-    # El dato general es la fuente principal; los detalles son respaldo.
     personas = _first_text(registro.get("lev_personas_considerar"), personas_detalle, cctv.get("personas_considerar"))
     horas = _first_text(registro.get("lev_horas_estimadas"))
     dias = _first_text(registro.get("lev_dias_trabajo"), dias_detalle, cctv.get("dias_trabajo"))
-    # Para eliminar una fila, se conserva el recurso estimado en la celda DURACIÓN.
-    # Evitar repetir "1 día" si ya se indica "Un día".
     if duracion.casefold() == "un día" and horas:
         duracion = f"{duracion} · {horas} h estimadas"
     elif duracion.casefold() != "un día" and dias:
@@ -1473,7 +1339,6 @@ def _general_story(registro: Mapping[str, Any], detail: Mapping[str, Any], story
 
 
 def _description_for(registro: Mapping[str, Any], detail: Mapping[str, Any]) -> str:
-    # Reparación tiene una descripción propia; mantenimiento también.
     if _text(registro.get("lev_descripcion_fallas"), ""):
         return _text(registro.get("lev_descripcion_fallas"), "")
     maint = detail.get("mantenimiento")
@@ -1485,9 +1350,7 @@ def _description_for(registro: Mapping[str, Any], detail: Mapping[str, Any]) -> 
 def generar_pdf_levantamiento_maestro(
     registro: Mapping[str, Any], *, ruta_salida: str | Path, abrir: bool = False,
 ) -> str:
-    """Genera la estructura maestra para cualquier tipo de levantamiento AXIA."""
     registro = normalizar_registro_levantamiento(registro)
-    # Conserva 1:1 la plantilla ya aprobada para Seguridad / Instalación.
     if es_seguridad_instalacion(registro):
         return generar_pdf_seguridad_instalacion(registro, ruta_salida=ruta_salida, abrir=abrir)
 
@@ -1515,13 +1378,8 @@ def generar_pdf_levantamiento_maestro(
 
     tipo, modalidad = _tipo_y_modalidad(registro, detail)
 
-    # Evaluación técnica: solo puntos centrales del servicio y observaciones.
-    # El detalle estructurado permanece disponible en el registro original.
     _append_resumen_tecnico(story, registro, detail, width, normal, label, header)
 
-    # Partidas dinámicas comunes. En Seguridad y Monitoreo solo aplican
-    # a Instalación; Reparación/Mantenimiento deben ignorar incluso datos
-    # históricos que pudieran existir en registros anteriores.
     grupos_canal = agrupar_partidas_canalizacion(_canal_partidas(detail))
     if grupos_canal:
         story.append(_section_title(TITULO_CANALIZACION, width, header))
@@ -1582,9 +1440,6 @@ def generar_pdf_levantamiento_maestro(
             story.append(_key_value_table([["¿Se requiere EPP?", requiere_epp, "Detalle", "Pendiente de especificar"]], [1.55*inch,1.90*inch,1.55*inch,1.90*inch], normal, label))
         story.append(Spacer(1, 4))
 
-    # La descripción detallada se conserva en Supabase para compatibilidad y
-    # consulta interna, pero se omite del PDF en todos los tipos de levantamiento
-    # porque duplica la información estructurada de las secciones anteriores.
     _append_anotacion_plano(story, registro, width, header)
     _append_archivos_adjuntos(story, registro, width, normal, header)
     _append_evidencias_fotograficas(story, registro, width, header)

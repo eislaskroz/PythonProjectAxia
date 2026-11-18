@@ -1,7 +1,5 @@
 from uuid import uuid4
 from core.error_reporting import show_operation_error
-"""Formulario Obra Civil / Proyecto Ejecutivo AXIA."""
-
 from core.logger import configurar_logger
 
 logger = configurar_logger(__name__)
@@ -63,7 +61,6 @@ RESULTADOS = ["Aprobadas", "Reprobadas", "Pendiente"]
 
 
 def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=None, al_guardar=None):
-    """Mismo formulario para alta y edición; en edición no crea borradores ni INSERT."""
     modo_edicion = isinstance(obra_edicion, dict) and bool(obra_edicion.get('obc_id'))
     if modo_edicion:
         from services.obra_civil_edicion import preparar_borrador_edicion
@@ -96,7 +93,6 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
     btn_guardar = None
     lbl_faltantes = None
 
-    # El folio definitivo se asigna al registrar en Supabase (trigger atómico).
     var_folio = ctk.StringVar(value="Pendiente de asignación")
     guardado_servidor = {
         "id": None, "folio": "", "fotos": None, "archivos": None,
@@ -164,7 +160,6 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
     var_etapa_acabados = ctk.StringVar(value="Pendiente")
     var_obra_blanca = ctk.StringVar(value="Pendiente")
 
-    # En el flujo sin ACO, Obra Civil selecciona al cliente directamente de Supabase.
     clientes_disponibles = []
     clientes_por_nombre = {}
     try:
@@ -260,7 +255,6 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
         seleccion_catalogo["id_sucursal"] = _id_sucursal(sucursal) if sucursal else None
         seleccion_catalogo["id_contacto"] = None
         if sucursal:
-            # La sucursal fue elegida explícitamente: sus datos tienen prioridad.
             var_contacto.set("")
             var_telefono.set(str(sucursal.get("suc_telefono") or "").strip())
             var_correo.set(str(sucursal.get("suc_correo") or "").strip())
@@ -345,7 +339,6 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
             logger.debug("Excepción recuperable controlada.", exc_info=True)
 
     def programar_validacion_preview(delay_ms=110):
-        """Evita recalcular todo el formulario de Obra Civil en cada pulsación."""
         nonlocal _validar_preview_after_id
         try:
             if _validar_preview_after_id is not None:
@@ -419,7 +412,6 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
             selector.pack(fill="x")
 
     def activar_captura_manual(conservar_datos=False):
-        """Habilita datos generales independientes de db_clientes, sin tocar el folio."""
         if modo_manual_cliente["activo"] and not conservar_datos:
             return
         modo_manual_cliente["activo"] = True
@@ -528,7 +520,6 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
         validar_preview()
 
     def cargar_cliente(nombre=None):
-        """Selecciona cliente del catálogo o permite capturar todos sus datos en Otros."""
         nombre_cliente = str(nombre or var_cliente_selector.get() or "").strip()
         if nombre_cliente.casefold() == OPCION_CLIENTE_OTROS.casefold():
             activar_captura_manual()
@@ -585,7 +576,6 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
     entry("¿Cuántos días de trabajo se proyectan?", var_dias_trabajo, 5, 0, "Ej. 5", colspan=1)
     entry("¿Cuántas personas se consideran?", var_personas_considerar, 5, 1, "Ej. 4", colspan=1)
 
-    # EPP común para Obra Civil. Se conserva dentro de obc_ejecucion_json para evitar cambios de esquema.
     EPP_BASE = EPP_BASICO
     CATALOGO_EPP = [
         "Casco de seguridad", "Casco dieléctrico", "Lentes de seguridad", "Careta facial",
@@ -628,8 +618,6 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
         eo = AxiaEntry(epp_rows,textvariable=vo,height=ENTRY_H,corner_radius=0,placeholder_text="Talla, clase, norma o detalle especial")
         eo.grid(row=fila_e,column=2,sticky="ew",padx=3,pady=2)
         item={"epp":ve,"cantidad":vc,"observaciones":vo,"automatico":automatico,"widgets":[ce,ec,eo]}
-        # Los cuatro EPP de dotación básica no se eliminan ni editan a mano;
-        # la cantidad sigue el total de personas estimadas del proyecto.
         if automatico:
             ce.configure(state="disabled")
             ec.configure(state="disabled")
@@ -725,7 +713,6 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
 
     seccion("Conceptos de obra requeridos", 22)
     panel_conceptos = celda(23, 0, 5)
-    # Prioriza el concepto: ~25% más espacio que el layout anterior.
     panel_conceptos.grid_columnconfigure(0, weight=2)
     panel_conceptos.grid_columnconfigure(1, weight=8)
     panel_conceptos.grid_columnconfigure(2, weight=1, minsize=68)
@@ -741,11 +728,9 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
     def _etiqueta_concepto_obra(item):
         partida = str(item.get("obra_partida") or "").strip()
         concepto = " ".join(str(item.get("obra_concepto") or "").split())
-        # No truncar: el usuario debe poder identificar el concepto completo.
         return f"{partida} — {concepto}" if concepto else partida
 
     def agregar_concepto_obra():
-        # El identificador de fila se incrementa para evitar solapamientos tras eliminar.
         fila_concepto = 1 + max((x["fila"] for x in conceptos_obra_items), default=0)
         tipo_inicial = next((tipo for tipo in tipos_concepto_obra if tipo != TIPO_CONCEPTO_OTROS), TIPO_CONCEPTO_OTROS)
         conceptos_tipo = filtrar_conceptos_por_tipo(tipo_inicial, catalogo_conceptos_obra) if tipo_inicial != TIPO_CONCEPTO_OTROS else []
@@ -760,9 +745,6 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
 
         otipo = NativeComboBox(panel_conceptos, variable=vtipo, values=tipos_concepto_obra, height=30)
         otipo.grid(row=fila_concepto, column=0, sticky="ew", padx=3, pady=2)
-        # El Combobox nativo solo muestra una línea y recorta las partidas largas.
-        # Se conserva para elegir conceptos del catálogo, con una vista multilínea
-        # desplazable dentro de la misma celda (tres renglones visibles).
         cont_concepto = ctk.CTkFrame(panel_conceptos, fg_color="transparent")
         cont_concepto.grid(row=fila_concepto, column=1, sticky="ew", padx=3, pady=3)
         cont_concepto.grid_columnconfigure(0, weight=1)
@@ -770,7 +752,6 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
         oconcepto.grid(row=0, column=0, sticky="ew", pady=(0, 3))
         concepto_vista = AxiaTextbox(cont_concepto, height=66, wrap="word", state="disabled")
         concepto_vista.grid(row=1, column=0, sticky="ew")
-        # OTROS: tres renglones editables y desplazamiento cuando el texto es mayor.
         econcepto = AxiaTextbox(cont_concepto, height=99, wrap="word")
 
         def _sincronizar_vista_concepto(*_):
@@ -969,7 +950,6 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
         item_material["widgets"].append(btn)
         materiales_miscelaneos_items.append(item_material)
 
-    # Una sola fila inicial; el usuario agrega o elimina las necesarias.
     agregar_material_misc_obra(None)
 
     ctk.CTkButton(panel_misc, text="+ Agregar otro material", width=180, height=30, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=lambda: agregar_material_misc_obra(None)).grid(row=99, column=0, columnspan=2, sticky="w", padx=3, pady=(4, 2))
@@ -982,8 +962,6 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
             "unidad": i["unidad"].get().strip(), "especificacion": i["especificacion"].get().strip()
         } for i in materiales_miscelaneos_items if i["requerido"].get() == "Sí" and i["material"].get().strip()]
 
-    # Canalización, cableado y materiales. Se persiste dentro de obc_ejecucion_json
-    # para conservar compatibilidad con el esquema actual de Supabase.
     seccion("Canalización, cableado y materiales", 26)
     panel_canalizacion = celda(27, 0, 5)
     for col, peso in enumerate((60, 40, 60, 33, 32, 18, 25, 20, 0)):
@@ -1013,7 +991,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
             if not cantidad:
                 continue
             filas.append({
-                "categoria": material,  # Compatibilidad con datos históricos.
+                "categoria": material,
                 "familia": item["familia"].get().strip(),
                 "material": material,
                 "especialidad_uso": uso_de_material(material),
@@ -1106,7 +1084,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                 materiales = materiales_de_familia(familia)
                 material = normalizar_material(vcategoria.get())
                 if historico and material == material_inicial and material not in materiales and familia == familia_inicial:
-                    materiales.append(material)  # Solo esta partida antigua
+                    materiales.append(material)
                 if material not in materiales:
                     material = materiales[0] if materiales else ""
                 ocategoria.configure(values=materiales)
@@ -1345,12 +1323,11 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
             return
         registrado = estado.get("obra_guardada") or {}
         if isinstance(registrado, dict):
-            # El token se mantiene también si la red falló antes de confirmar.
             from uuid import UUID
             try:
                 guardado_servidor["solicitud"] = str(UUID(str(registrado.get("solicitud"))))
             except (TypeError, ValueError, AttributeError):
-                pass  # borrador creado con una versión anterior
+                pass
             guardado_servidor["fotos"] = registrado.get("fotos")
             guardado_servidor["archivos"] = registrado.get("archivos")
             if registrado.get("id") and registrado.get("folio"):
@@ -1376,7 +1353,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
         for clave, variable in mapa.items():
             if clave in estado:
                 if clave == "folio" and not guardado_servidor["id"]:
-                    continue  # Ignorar antiguos OBC provisionales de borradores.
+                    continue
                 variable.set(str(estado.get(clave) or ""))
         if estado.get("cliente_manual") or (estado.get("cliente") and
                 str(estado.get("cliente") or "").strip() not in clientes_por_nombre and not aco):
@@ -1392,7 +1369,6 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
             txt_finales.delete("1.0", "end"); txt_finales.insert("1.0", str(estado.get("observaciones_finales") or ""))
         except Exception:
             pass
-        # Recuperar las filas dinámicas SIN crear nuevos registros en Supabase.
         conceptos_guardados = estado.get("conceptos_obra")
         if isinstance(conceptos_guardados, list) and conceptos_guardados:
             while len(conceptos_obra_items) < len(conceptos_guardados):
@@ -1412,8 +1388,6 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                     or (str(r.get("obra_partida") or "") == str(fila.get("partida") or "")
                         and str(r.get("obra_concepto") or "") == str(fila.get("concepto") or ""))), None)
                 if not registro and fila.get("concepto"):
-                    # Un concepto histórico debe seguir viéndose aunque haya
-                    # sido retirado del catálogo; edición manual reversible.
                     item["tipo"].set(TIPO_CONCEPTO_OTROS)
                     item["cambiar_tipo"](TIPO_CONCEPTO_OTROS, restaurar=True)
                     item["concepto_label"].set(str(fila.get("concepto") or ""))
@@ -1440,8 +1414,6 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                 if isinstance(fila, dict):
                     datos_epp = dict(fila)
                     nombre_epp = str(datos_epp.get("epp") or "").strip()
-                    # Borradores de versiones anteriores no incluían la marca
-                    # 'automatico': reconocer solo las partidas base sin notas.
                     if ("automatico" not in datos_epp and nombre_epp in EPP_BASE
                             and not str(datos_epp.get("observaciones") or "").strip()
                             and nombre_epp not in basicos_restaurados):
@@ -1495,8 +1467,6 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
     _restaurar_borrador_obra()
     bloquear_autollenados()
     if modo_edicion:
-        # Los adjuntos guardados en Supabase no son rutas locales. Se muestran
-        # con su contador pero jamás se borran ni se suben al solo editar.
         existentes_fotos = guardado_servidor.get('fotos') or []
         existentes_archivos = guardado_servidor.get('archivos') or []
         evidencias_existentes[:] = list(existentes_fotos)
@@ -1537,7 +1507,6 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                 var_telefono, var_correo,
             )):
                 return False
-        # Cada concepto visible requiere datos completos, sea de catálogo o manual.
         if catalogo_conceptos_obra and not conceptos_obra_items:
             return False
         for item in conceptos_obra_items:
@@ -1730,8 +1699,6 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
         if var_desea_archivos_adjuntos.get() == "Sí" and total_archivos_obra() == 0 and not guardado_servidor["archivos"]:
             messagebox.showwarning("Archivos adjuntos", "Seleccionaste Sí. Agrega al menos un PDF o plano antes de guardar.")
             return
-        # Guardar un checkpoint cifrado ANTES de cualquier operación de red.
-        # Evita perder la captura si falla el INSERT, Storage o la conexión.
         def proteger_captura():
             try:
                 from services.levantamiento_borradores_service import guardar_borrador
@@ -1748,8 +1715,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                 "del formulario. Conserva esta ventana abierta y contacta a soporte."
             )
             return
-        # Autenticación y consulta previa ANTES de subir fotos o PDFs.
-        # El UUID proviene del borrador: no crear una solicitud nueva al reintentar.
+
         if not guardado_servidor["id"]:
             from services.obra_civil_gateway import peticion_obra_civil, SesionObraCivilInvalida
             from services.levantamiento_catalogo_axia import (
@@ -1813,10 +1779,6 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                     return
 
         datos = _capturar_datos_obra()
-        # Subir evidencias ANTES del INSERT evita necesitar un UPDATE en una
-        # tabla cuya RLS todavía está pendiente de migración a autenticación
-        # de usuarios con tokens del servidor. También preserva los archivos
-        # ya subidos entre reintentos y no duplica registros.
         if not guardado_servidor["id"]:
             try:
                 from pathlib import Path
@@ -1889,7 +1851,6 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
         evidencias_subidas = guardado_servidor["fotos"] or []
         archivos_subidos = guardado_servidor["archivos"] or []
 
-        # El PDF se genera DESPUÉS de confirmar el folio entregado por la BD.
         try:
             registrar_movimiento(modulo="Obra Civil", accion="CREAR", descripcion=f"El usuario creó la obra civil {folio}", registro_afectado=folio)
             datos_pdf_final = datos_pdf()
@@ -1917,8 +1878,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
         except Exception:
             logger.debug("No fue posible eliminar el borrador de Obra Civil ya guardado.", exc_info=True)
         messagebox.showinfo("Registro correcto", "La obra civil fue registrada correctamente como " + folio + "." + mensaje_pdf)
-        # Desregistrar el proveedor de autosave: de lo contrario el ciclo de
-        # 45 segundos podría recrear el borrador después de haberlo eliminado.
+
         try:
             if hasattr(app, "limpiar_proveedor_borrador_levantamiento"):
                 app.limpiar_proveedor_borrador_levantamiento()
@@ -1949,7 +1909,6 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
             "observaciones_iniciales": obtener_textbox(txt_observaciones_iniciales),
             "observaciones_finales": obtener_textbox(txt_finales),
             "ejecucion": {k: v.get() for k, v in ejecucion_vars.items()},
-            # Borrador completo: las filas dinámicas no se guardaban anteriormente.
             "conceptos_obra": obtener_conceptos_obra_seleccionados(),
             "epp_partidas": obtener_epp_obra(),
             "materiales_miscelaneos": [
@@ -1992,12 +1951,8 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
         from services.obra_civil_edicion import cambios_secciones, CAMPOS_POR_SECCION
         from services.obra_civil_gateway import gestionar_obra_civil
         from core.background_tasks import run_async
-        # Captura de referencia DESPUÉS de restaurar los widgets y sus filas.
-        # Así los valores originales de un formulario histórico no se sobreescriben
-        # porque algún selector predeterminado tenga valores distintos.
         datos_base_editor = _capturar_datos_obra()
         solicitud_edicion = str(uuid4())
-        # Reutilizar metadatos subidos si la red cae tras completar Storage.
         subidas_editor = {'fotos':None, 'archivos':None}
 
         def _recorrer_controles(widget):
@@ -2016,9 +1971,6 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                 if desde < fila < hasta:
                     yield from _recorrer_controles(widget)
 
-        # El formulario de captura se reutiliza íntegro (campos y catálogos,
-        # botones para filas dinámicas, mismos tamaños, mismas dependencias).
-        # Se bloquean controles de cada grupo y no el frame completo.
         for pos, (nombre, _fila) in enumerate(secciones_formulario):
             estado = bloqueos_editor[nombre]
             controles = list(_controles_seccion(pos))
@@ -2033,7 +1985,6 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                 estado['activo']=nuevo
                 for control in _controles_seccion(i):
                     try:
-                        # Los widgets dinámicos pueden crearse mientras está desbloqueado.
                         if control not in estado['originales'] and not nuevo:
                             estado['originales'][control]=control.cget('state')
                         original=estado['originales'].get(control, 'normal')
@@ -2056,7 +2007,6 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                 return
             nuevas_fotos = list(evidencias) if 'Evidencia fotográfica' in habilitadas else []
             nuevos_archivos = list(archivos_adjuntos) if 'Archivos PDF o planos' in habilitadas else []
-            # No se permite quitar referencias de Storage por accidente.
             if ('Evidencia fotográfica' in habilitadas and evidencias_existentes
                     and var_desea_evidencias.get() != 'Sí') or (
                 'Archivos PDF o planos' in habilitadas and archivos_adjuntos_existentes

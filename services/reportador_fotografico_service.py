@@ -1,9 +1,3 @@
-"""Módulo nativo del Reportador Fotográfico de AXIA DESKTOP.
-
-Las operaciones con información privada se realizan exclusivamente por Edge
-Function, mediante una sesión efímera emitida durante el login de AXIA.
-El proyecto Windows no almacena contraseñas ni incluye service_role.
-"""
 from __future__ import annotations
 
 import base64
@@ -58,7 +52,6 @@ def _api(payload: dict, *, token: str | None = None, timeout: int = 45) -> dict:
 
 
 def solicitar_sesion(usuario: str, contrasena: str, id_usuario: object, rol: object) -> str | None:
-    """Se llama UNA vez desde el login normal de AXIA, nunca solicita otro login."""
     if int(rol or 0) not in PERMITIDOS:
         return None
     result = _api({'accion': 'iniciar_sesion', 'usuario': usuario, 'contrasena': contrasena}, timeout=12)
@@ -85,21 +78,14 @@ def _accion(accion: str, **datos) -> dict:
 
 
 def consultar_acos(buscar: str = '') -> list[dict]:
-    """Lista ACOs del catálogo operativo mediante la sesión del Reportador.
-
-    La Edge Function consulta db_acos y las sucursales vinculadas; no expone
-    estas tablas directamente desde la app ni requiere otro inicio de sesión.
-    """
     return _accion('acos', buscar=buscar[:100]).get('acos', [])
 
 
 def consultar_aco(numero: str) -> dict:
-    """Obtiene los datos actualizados del ACO y sus órdenes vinculadas."""
     return _accion('aco_detalle', numero=numero[:60]).get('aco', {})
 
 
 def fecha_para_mostrar(valor: object) -> str:
-    """El formulario presenta DD-MM-AAAA; Supabase conserva ISO AAAA-MM-DD."""
     texto = str(valor or '').strip()
     if not texto:
         return ''
@@ -157,7 +143,6 @@ def preparar_jpeg(path: str | Path) -> bytes:
         if original.format not in ('JPEG', 'PNG', 'WEBP'):
             raise ErrorReportador('Formato no válido: usa JPG, PNG o WEBP.')
         w, h = original.size
-        # Mismos límites de archivo de entrada del Reportador PHP original.
         if w < 50 or h < 50 or w * h > 35_000_000:
             raise ErrorReportador('Fotografía demasiado pequeña, grande o incompatible.')
         img = ImageOps.exif_transpose(original).convert('RGB')

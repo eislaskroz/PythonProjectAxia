@@ -1,5 +1,3 @@
-"""Homologación de Canaleta: catálogo propio y limpieza de selecciones cruzadas."""
-
 from pathlib import Path
 
 import pytest
@@ -40,7 +38,7 @@ def test_tubo_a_canaleta_limpiar_tipo_emt_y_medidas():
         "Canaleta", "Pared delgada (EMT)", '3/4" (19mm)', TIPOS_CANALETA
     )
     assert tipo == "Canaleta PVC"
-    assert medida == "Por definir"  # Evitar asumir una medida al cambiar de categoría
+    assert medida == "Por definir"
     assert medida in opciones
 
 
@@ -49,7 +47,7 @@ def test_cambio_entre_tipos_de_canaleta_ajusta_medidas():
         "Canaleta", "Canaleta ranurada", "20 × 10 mm", TIPOS_CANALETA
     )
     assert tipo == "Canaleta ranurada"
-    assert medida == "Por definir"  # El técnico debe elegir la nueva medida
+    assert medida == "Por definir"
     assert medida in opciones
 
 

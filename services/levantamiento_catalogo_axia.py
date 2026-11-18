@@ -1,15 +1,9 @@
-"""Consulta de solo lectura del Catálogo Maestro AXIA para Levantamientos.
-
-Una sesión de alcance `levantamientos_lectura` NO permite acciones de Almacén.
-El nombre y el código del producto quedan congelados en el JSON del LEV.
-"""
 from __future__ import annotations
 
 import re
 
 from services.almacen_service import AlmacenRemoto
 
-# Token emitido durante el login normal de DESKTOP; nunca se guarda en disco.
 _token_lectura: str | None = None
 _id_lectura: str | None = None
 
@@ -20,7 +14,6 @@ def establecer_sesion_catalogo(token: str | None, id_usuario: object) -> None:
 
 
 def obtener_token_sesion_catalogo(id_usuario: object) -> str | None:
-    """Únicamente la sesión actual en memoria; jamás la contraseña ni el token en disco."""
     if _id_lectura != str(id_usuario):
         return None
     return _token_lectura
@@ -45,7 +38,6 @@ class CatalogoAxiaLevantamientos(AlmacenRemoto):
             self._usuario_id = _id_lectura
 
     def todos(self) -> list[dict]:
-        """Carga paginada de un único catálogo maestro; nunca escribe saldos."""
         if not self.token:
             raise PermissionError('No se pudo establecer la sesión de consulta al iniciar AXIA. Cierra sesión y vuelve a ingresar.')
         productos = []
@@ -67,7 +59,6 @@ class CatalogoAxiaLevantamientos(AlmacenRemoto):
 
 
 def referencia_axia(producto: dict) -> dict:
-    """Snapshot no comercial: sin proveedor ni costos, estable al editar catálogo."""
     return {
         'codigo_axia': str(producto.get('codigo_axia') or '').strip(),
         'producto_axia': str(producto.get('producto') or '').strip(),
@@ -78,7 +69,6 @@ def referencia_axia(producto: dict) -> dict:
 
 
 def categoria_canalizacion_axia(producto: dict) -> str:
-    """Mantiene las categorías históricas y sus conversiones de unidad."""
     t = ' '.join(str(producto.get(k) or '') for k in ('producto', 'familia_axia')).casefold()
     for palabra, categoria in (
         ('patch cord', 'Patch cord'), ('patchcord', 'Patch cord'),
@@ -104,11 +94,6 @@ def unidad_levantamiento_axia(producto: dict) -> str:
 
 
 def especificacion_catalogo_axia(producto: dict) -> str:
-    """Extrae solo medidas EXPLÍCITAS del nombre, sin inventar características.
-
-    Cuando el catálogo no declara medida/calibre, el técnico lo captura en
-    el campo libre visible del levantamiento. La familia nunca es una medida.
-    """
     nombre = str(producto.get('producto') or '').strip()
     medidas = re.findall(
         r'(?<!\w)(?:\d+\s+)?\d+/\d+(?:\s*(?:["″]|pulg(?:adas)?))?'

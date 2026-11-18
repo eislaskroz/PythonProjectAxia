@@ -1,4 +1,3 @@
-"""Pruebas offline de altas y bajas RH: nunca usar registros reales."""
 from __future__ import annotations
 
 from pathlib import Path

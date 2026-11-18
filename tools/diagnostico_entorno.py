@@ -1,4 +1,3 @@
-"""Diagnóstico local de dependencias y configuración para soporte AXIA."""
 from __future__ import annotations
 
 import importlib.util

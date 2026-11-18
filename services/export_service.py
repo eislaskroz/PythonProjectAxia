@@ -1,19 +1,4 @@
 
-"""
-=========================================================
-SERVICIO: services/export_service.py
-DESCRIPCIÓN:
-Exportación de registros seleccionados desde vistas administrativas.
-
-Soporta:
-- XLSX si openpyxl está instalado.
-- CSV.
-- JSON.
-- TXT.
-- PDF si reportlab está instalado.
-=========================================================
-"""
-
 from __future__ import annotations
 
 import csv
@@ -42,10 +27,6 @@ def _columnas(registros):
 
 
 def exportar_registros_dialogo(registros, nombre_sugerido="exportacion_axia"):
-    """
-    Exporta únicamente los registros que el usuario eligió/seleccionó.
-    """
-
     registros = _normalizar_registros(registros)
     if not registros:
         messagebox.showwarning("Exportar", "No hay información seleccionada para exportar.")
@@ -76,7 +57,6 @@ def exportar_registros_dialogo(registros, nombre_sugerido="exportacion_axia"):
                 from openpyxl.styles import Font, PatternFill, Alignment
                 from openpyxl.utils import get_column_letter
             except Exception:
-                # Fallback seguro si openpyxl no está instalado.
                 ruta = ruta.with_suffix(".csv")
 
         if ruta.suffix.lower() == ".xlsx":

@@ -1,8 +1,3 @@
-"""Borradores locales temporales de levantamientos.
-
-Los borradores se guardan por usuario en AppData/local del equipo. No se envían a
-Supabase hasta que el usuario pulsa Guardar en el formulario.
-"""
 from __future__ import annotations
 
 import json
@@ -78,17 +73,12 @@ def eliminar_borrador(usuario: dict | None) -> bool:
 
 
 def confirmar_sincronizacion(usuario: dict | None, clave_cliente: str, revision: int, guardado_en: str) -> bool:
-    """Confirma la revision remota solo si la captura local no cambió durante la petición."""
     actual = cargar_borrador(usuario)
     if not actual:
         return False
     cloud = actual.get("sincronizacion") or {}
     if cloud.get("clave_cliente") != clave_cliente:
         return False
-    # Se conserva la revisión devuelta por el servidor aun si el autoguardado
-    # local avanzó durante la petición. En ese caso queda pendiente de
-    # sincronizar la captura más reciente, evitando una colisión falsa en el
-    # próximo intento por reutilizar la revisión anterior.
     misma_captura = actual.get("guardado_en") == guardado_en
     cloud.update({"revision": int(revision), "estado": "sincronizado" if misma_captura else "pendiente"})
     actual["sincronizacion"] = cloud
@@ -100,11 +90,6 @@ def confirmar_sincronizacion(usuario: dict | None, clave_cliente: str, revision:
 
 
 def registrar_revision_parcial(usuario: dict | None, clave_cliente: str, revision: int) -> bool:
-    """Conserva el número de revisión tras guardar metadatos, aunque falle un anexo.
-
-    Evita que el siguiente intento choque contra la revisión creada en Supabase.
-    El estado continúa pendiente: los anexos aún no están confirmados.
-    """
     actual = cargar_borrador(usuario)
     if not actual:
         return False

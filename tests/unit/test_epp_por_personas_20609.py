@@ -1,4 +1,3 @@
-"""Regresiones: descripción del servicio y EPP automático por cuadrilla."""
 from __future__ import annotations
 
 import ast
@@ -33,7 +32,7 @@ def test_epp_basico_una_partida_por_equipo_y_persona():
     assert [p['cantidad'] for p in partidas_epp_basico('2')] == ['2'] * 4
     assert [p['cantidad'] for p in partidas_epp_basico('5')] == ['5'] * 4
     assert 'Lentes de seguridad' in [p['epp'] for p in partidas_epp_basico('2')]
-    assert personas_para_epp('0') == 1  # Valor provisional antes de validar formulario
+    assert personas_para_epp('0') == 1
     assert personas_para_epp('no ingresado') == 1
     assert personas_para_epp('-3') == 1
 
@@ -57,7 +56,7 @@ def test_levantamiento_epp_por_personas_incluye_extras_sin_cambiar_su_cantidad()
     assert [d['cantidad'] for d in fn()[:4]] == ['5'] * 4
     assert fn()[4]['cantidad'] == '7'
     requiere.set('No')
-    assert len(fn()) == 4  # EPP base siempre, extras condicionales
+    assert len(fn()) == 4
 
 
 def test_tecnologia_respeta_excepcion_de_epp_que_ya_existia():

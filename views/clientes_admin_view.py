@@ -1,17 +1,3 @@
-
-"""
-=========================================================
-MÓDULO: views/clientes_admin_view.py
-DESCRIPCIÓN:
-Vista administrativa para buscar, crear y modificar clientes.
-
-Adaptada a los campos reales de db_clientes:
-cli_tipo, cli_estatus, cli_razonsocial, cli_rfc, cli_contacto,
-cli_telefono, cli_calle, cli_numero, cli_colonia, cli_municipio,
-cli_estado, cli_cp, cli_correo y cli_notas.
-=========================================================
-"""
-
 import customtkinter as ctk
 from ui.form_fields import AxiaEntry, AxiaTextbox
 from ui.iconos import cargar_icono
@@ -68,10 +54,6 @@ CAMPOS_ANCHO_COMPLETO = {"cli_razonsocial", "cli_notas"}
 
 
 def mostrar_clientes_admin(parent, app):
-    """
-    Renderiza la administración de clientes.
-    """
-
     usuario_activo = obtener_usuario_actual()
     if not puede_administrar_clientes(usuario_activo):
         messagebox.showerror(
@@ -141,7 +123,6 @@ def mostrar_clientes_admin(parent, app):
         row=0, column=1, sticky="ew", padx=(0, 12), pady=6
     )
 
-    # Texto de ayuda integrado al campo; no crea un rectángulo blanco sobre el gris.
     entry_busqueda.configure(placeholder_text='Realiza tu búsqueda', placeholder_text_color="#64748B")
 
     ctk.CTkButton(
@@ -333,7 +314,6 @@ def mostrar_clientes_admin(parent, app):
     )
     acciones.pack(fill="x", padx=10, pady=(8, 12))
 
-    # Columnas laterales flexibles para centrar los botones.
     acciones.grid_columnconfigure(0, weight=1)
     acciones.grid_columnconfigure(1, weight=0)
     acciones.grid_columnconfigure(2, weight=0)
@@ -353,7 +333,6 @@ def mostrar_clientes_admin(parent, app):
 
         imagen = Image.open(ruta_icono).convert("RGBA")
 
-        # Convertir el icono a blanco conservando su transparencia.
         transparencia = imagen.getchannel("A")
 
         imagen_blanca = Image.new(
@@ -518,7 +497,6 @@ def mostrar_clientes_admin(parent, app):
         row=1, column=0, sticky="ew", pady=(0, 4)
     )
 
-    # Formulario compacto de sucursal.
     campos_suc = ctk.CTkFrame(
         panel_suc, fg_color="transparent"
     )
@@ -1013,7 +991,6 @@ def mostrar_clientes_admin(parent, app):
             sucursales_estado["contacto_edicion"] = None
             refrescar_contactos()
 
-    # Los botones de sucursales se conservan sin cambios.
     botones_suc = ctk.CTkFrame(
         panel_suc, fg_color="transparent"
     )
@@ -1046,7 +1023,6 @@ def mostrar_clientes_admin(parent, app):
         row=0, column=1, sticky="ew", padx=(3, 0)
     )
 
-    # Los botones de contactos se conservan sin cambios.
     botones_con = ctk.CTkFrame(
         panel_con, fg_color="transparent"
     )
@@ -1080,7 +1056,6 @@ def mostrar_clientes_admin(parent, app):
     )
 
     def bloquear_formulario():
-        """Bloquea todos los campos para evitar ediciones accidentales."""
         for entry in estado["entradas"].values():
             entry.configure(state="disabled")
 
@@ -1089,7 +1064,6 @@ def mostrar_clientes_admin(parent, app):
         btn_actualizar.configure(text="Actualizar seleccionado")
 
     def desbloquear_formulario(modo):
-        """Desbloquea campos únicamente cuando se va a crear o actualizar."""
         estado["modo"] = modo
 
         for entry in estado["entradas"].values():
@@ -1131,14 +1105,6 @@ def mostrar_clientes_admin(parent, app):
         refrescar_sucursales_contactos()
 
     def crear_item_resultado(cliente, texto):
-        """
-        Crea un resultado alineado a la izquierda.
-
-        Se usa un frame + label en lugar de un botón multilínea,
-        porque algunos temas de CustomTkinter centran el texto de
-        botones cuando el texto tiene saltos de línea.
-        """
-
         item = ctk.CTkFrame(
             panel_resultados,
             fg_color="transparent",

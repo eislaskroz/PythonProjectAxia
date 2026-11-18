@@ -1,4 +1,3 @@
-"""Catálogo ZAPA compartido por Levantamientos y Obra Civil."""
 from views.levantamientos.catalogos_canalizacion import (
     TIPOS_TUBOS, TIPOS_CONECTORES, TIPOS_CANALIZACION,
     especificaciones_por_categoria, normalizar_tipo_canalizacion, TAMANOS_TUBOS,

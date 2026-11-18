@@ -1,4 +1,3 @@
-"""Fase 1: Catálogo AXIA en LEV, sin tocar inventario."""
 from pathlib import Path
 from services.levantamiento_catalogo_axia import (
     referencia_axia, categoria_canalizacion_axia, unidad_levantamiento_axia,

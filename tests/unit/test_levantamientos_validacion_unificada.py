@@ -1,8 +1,3 @@
-"""Regresión sin interfaz gráfica para los nueve formularios de AXIA.
-
-Extrae la función realmente usada por la vista y la ejecuta con variables
-simuladas. No requiere pantalla Windows, Tk ni conexión Supabase.
-"""
 from __future__ import annotations
 import ast
 import re
@@ -68,7 +63,7 @@ def setup(tipo):
         'var_infra_existe': Var('No'),
         'var_modalidad_levantamiento': Var('Instalación'),
         'var_rvd_tipo_servicio': Var('Datos'),
-        'var_cctv_requiere_camaras': Var(''),  # Pregunta eliminada
+        'var_cctv_requiere_camaras': Var(''),
         'txt_observaciones': Text(),
         'txt_descripcion': Text(),
         'txt_rep_infraestructura': Text(),
@@ -86,7 +81,6 @@ def setup(tipo):
         'tipos_con_canalizacion': TIPOS_CON_CANAL,
     })
     env['vars_extra'] = {key: Var('Dato') for key in re.findall(r'vars_extra\["([^"]+)"\]',body)}
-    # Mapping includes keys in list tuples used by the dynamic form.
     env['vars_extra'].update({key: Var('Dato') for key in (
         'cantidad_accesos','ubicacion_accesos','flujo_personas',
         'cantidad_lectores','usuarios_iniciales',
@@ -109,7 +103,6 @@ def test_nueve_especialidades_pueden_validar_con_datos_visibles(tipo):
 
 
 def test_unidad_de_validacion_coincide_con_faltantes():
-    # No deben permanecer dos grupos de condiciones que se contradigan.
     fn = extract('formulario_preview_completo')
     fn.__globals__['campos_faltantes_preview'] = lambda: ['Nombre del servicio']
     assert not fn()

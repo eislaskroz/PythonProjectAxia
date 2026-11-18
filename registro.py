@@ -48,15 +48,10 @@ from ui.fonts import (
 # FUNCIÓN PRINCIPAL: abrir_registro_usuario()
 # =====================================================
 def abrir_registro_usuario(app):
-    """
-    Abre la ventana para registrar un nuevo colaborador
-    dentro del sistema AXIA.
-    """
 
     # =================================================
     # CREAR VENTANA SECUNDARIA
     # =================================================
-
     ventana = ctk.CTkToplevel(app)
     ventana.title("Registro de Usuario")
     configurar_icono_ventana(ventana)
@@ -209,10 +204,6 @@ def abrir_registro_usuario(app):
     # =================================================
 
     def crear_titulo_seccion(texto):
-        """
-        Crea un título de sección dentro del formulario.
-        """
-
         ctk.CTkLabel(
             card_formulario,
             text=texto,
@@ -225,10 +216,6 @@ def abrir_registro_usuario(app):
         )
 
     def crear_campo(clave, texto, ocultar=False):
-        """
-        Crea un campo de captura reutilizable.
-        """
-
         ctk.CTkLabel(
             card_formulario,
             text=texto,
@@ -293,19 +280,6 @@ def abrir_registro_usuario(app):
     # =================================================
 
     def guardar_usuario():
-        """
-        Captura los datos del formulario y solicita el registro
-        a la capa de servicios.
-
-        La UI solo:
-        - lee campos,
-        - muestra mensajes,
-        - registra movimiento visual/auditoría si el servicio confirma éxito.
-
-        La lógica de validación, duplicados, hash y Supabase está en:
-        services/usuarios_service.py
-        """
-
         datos = {}
 
         # =============================================
@@ -317,9 +291,6 @@ def abrir_registro_usuario(app):
         # =============================================
         # REGISTRAR USUARIO EN SEGUNDO PLANO
         # =============================================
-        # registrar_usuario() consulta Supabase. Si se ejecuta directamente
-        # desde el botón, la ventana puede congelarse si internet está lento.
-
         def tarea_registro_usuario():
             return registrar_usuario(datos)
 
@@ -370,7 +341,6 @@ def abrir_registro_usuario(app):
     # =================================================
     # BOTONES
     # =================================================
-
     frame_botones = ctk.CTkFrame(
         panel_derecho,
         fg_color="transparent"

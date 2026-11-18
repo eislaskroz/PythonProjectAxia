@@ -1,4 +1,3 @@
-"""Regresión: columnas ocupan ancho disponible sin alterar altos/barras."""
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -60,10 +59,10 @@ def test_ajuste_automatico_no_se_guarda_como_preferencia():
                                        ('nombre', 'Nombre completo', 210),
                                        ('tipo', 'Tipo', 70)])
             assert 990 <= sum(tree.widths.values()) <= 1000
-            assert not config.exists()  # Autoajuste nunca se persiste.
+            assert not config.exists()
             tree.viewport = 290
             tree.handlers['<Configure>']()
-            assert sum(tree.widths.values()) >= 400  # Scroll horizontal disponible.
+            assert sum(tree.widths.values()) >= 400
             assert not config.exists()
 
 

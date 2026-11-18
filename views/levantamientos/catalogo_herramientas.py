@@ -1,9 +1,3 @@
-"""Catálogo común de herramientas operativas AXIA para levantamientos.
-
-El catálogo es deliberadamente transversal: el técnico puede seleccionar
-herramientas de cualquier especialidad cuando el alcance real del servicio lo
-requiera. No representa inventario ni disponibilidad de almacén.
-"""
 from __future__ import annotations
 
 CATALOGO_HERRAMIENTAS = {

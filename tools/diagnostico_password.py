@@ -1,10 +1,3 @@
-"""Diagnóstico local para validar hashes bcrypt guardados en Supabase.
-
-Uso:
-    python tools/diagnostico_password.py
-
-No modifica datos. Solo imprime longitud/formato de usu_password por usuario.
-"""
 from supabase_config import supabase, TABLA_USUARIOS
 from security.passwords import es_hash_bcrypt
 

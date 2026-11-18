@@ -1,9 +1,3 @@
-"""Consultas Supabase tolerantes a diferencias controladas de esquema.
-
-Mantiene selecciones explícitas (nunca ``select('*')``) y, cuando PostgREST
-reporta que una columna opcional no existe, la retira, registra la diferencia
-y reintenta. Los demás errores se propagan.
-"""
 from __future__ import annotations
 
 import re
@@ -32,9 +26,6 @@ def _missing_column(error: Exception) -> str | None:
 
 
 def es_error_conexion_transitoria(error: Exception) -> bool:
-    """Solo errores de transporte recuperables, nunca errores SQL o de permisos."""
-    # Ejemplos: <ConnectionTerminated error_code:1 ...> (HTTP/2),
-    # RemoteProtocolError, desconexión remota y cortes temporales de red.
     tipo = type(error).__name__.lower()
     texto = str(error).lower()
     return any(
@@ -49,11 +40,6 @@ def es_error_conexion_transitoria(error: Exception) -> bool:
 
 
 def ejecutar_lectura_con_reintento(consulta, *, intentos: int = 3, espera: float = 0.35):
-    """Reintenta SOLO lecturas idempotentes, reconstruyendo cada consulta.
-
-    `consulta` debe ser una función sin argumentos que cree y ejecute
-    nuevamente el SELECT. No utilizar jamás para INSERT/UPDATE/DELETE.
-    """
     for intento in range(max(1, int(intentos))):
         try:
             return consulta()
@@ -76,11 +62,6 @@ def execute_select_compatible(
     *,
     max_schema_retries: int = 12,
 ):
-    """Ejecuta una consulta explícita y tolera columnas opcionales ausentes.
-
-    ``configure`` recibe el query builder después de ``select`` y debe devolver
-    el builder configurado con filtros, orden y paginación.
-    """
     active = [c.strip() for c in (columns.split(",") if isinstance(columns, str) else columns) if c.strip()]
     if not active:
         raise ValueError("La consulta requiere al menos una columna explícita.")

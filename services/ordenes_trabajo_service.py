@@ -1,12 +1,3 @@
-"""
-=========================================================
-SERVICIO DE ÓRDENES DE TRABAJO - AXIA
-=========================================================
-
-Nueva capa de negocio para el formato Orden de Trabajo.
-La vista no consulta Supabase directamente; todo pasa por este servicio.
-"""
-
 from core.logger import configurar_logger
 from core.error_reporting import register_error
 from core.date_utils import normalizar_campos_fecha
@@ -25,12 +16,6 @@ from services.search_service import buscar_parcial_supabase
 
 
 def partidas_desde_cotizacion_aprobada(cotizacion, detalle_levantamiento=None):
-    """Convierte las partidas comerciales aprobadas en filas operativas para la OT.
-
-    La cotización finalizada por Ventas es la fuente autorizada para Modelo/Marca.
-    El detalle técnico del LEV solo se usa para conservar la clasificación
-    Materiales / Equipos / Misceláneos.
-    """
     import json
     cot = dict(cotizacion or {})
     raw = cot.get("cot_partidas_json") or []
@@ -76,7 +61,6 @@ def partidas_desde_cotizacion_aprobada(cotizacion, detalle_levantamiento=None):
 
 
 def _detalle_error_supabase(error):
-    """Devuelve un mensaje legible sin perder la respuesta real de PostgREST."""
     if isinstance(error, dict):
         return str(error)
     partes = []
@@ -88,7 +72,6 @@ def _detalle_error_supabase(error):
 
 
 def _columna_inexistente(error):
-    """Extrae la columna reportada por PGRST204, cuando sea posible."""
     import re
     texto = _detalle_error_supabase(error)
     patrones = (
@@ -103,12 +86,6 @@ def _columna_inexistente(error):
 
 
 def crear_orden_trabajo(datos_orden):
-    """Crea una OT, confirma el INSERT y muestra el error real de Supabase.
-
-    El esquema de instalaciones antiguas puede no contener algunas columnas
-    opcionales. Si PostgREST reporta PGRST204, se elimina únicamente esa columna
-    opcional y se reintenta. Los campos esenciales nunca se descartan.
-    """
     datos_orden = asegurar_folio(datos_orden, "ot_folio", "OT")
     datos_orden = normalizar_campos_fecha(filter_payload(datos_orden))
     obligatorias = {"ot_folio", "ot_cliente"}
@@ -123,8 +100,6 @@ def crear_orden_trabajo(datos_orden):
             )
             registros = list(getattr(respuesta, "data", None) or [])
 
-            # Algunas configuraciones de PostgREST ejecutan el INSERT pero no
-            # devuelven representación. Confirmamos por folio antes de declarar fallo.
             if not registros:
                 confirmacion = (
                     supabase.table(TABLA_ORDENES_TRABAJO)
@@ -176,7 +151,6 @@ def crear_orden_trabajo(datos_orden):
 
 
 def actualizar_orden_trabajo(ot_id, datos_orden):
-    """Actualiza una Orden de Trabajo existente usando el contrato central."""
     try:
         payload = normalizar_campos_fecha(filter_payload(datos_orden))
         respuesta = (
@@ -198,10 +172,6 @@ def actualizar_orden_trabajo(ot_id, datos_orden):
 
 
 def obtener_ordenes_trabajo(page=1, page_size=100):
-    """
-    Consulta todas las órdenes de trabajo registradas.
-    """
-
     try:
         respuesta = execute_select_compatible(
             supabase,
@@ -226,10 +196,6 @@ def obtener_ordenes_trabajo(page=1, page_size=100):
 
 
 def obtener_ordenes_trabajo_por_aco(aco_numero, page=1, page_size=100):
-    """
-    Consulta órdenes de trabajo asociadas a un ACO.
-    """
-
     try:
         respuesta = execute_select_compatible(
             supabase,
@@ -255,10 +221,6 @@ def obtener_ordenes_trabajo_por_aco(aco_numero, page=1, page_size=100):
 
 
 def buscar_orden_trabajo_por_folio(folio):
-    """
-    Busca una orden de trabajo por folio.
-    """
-
     try:
         respuesta = execute_select_compatible(
             supabase,
@@ -291,10 +253,6 @@ def buscar_orden_trabajo_por_folio(folio):
 
 
 def obtener_estadisticas_ordenes_trabajo(page=1, page_size=100):
-    """
-    Estadísticas simples para reportes administrativos.
-    """
-
     try:
         ordenes = obtener_ordenes_trabajo()
         total = len(ordenes)
@@ -308,7 +266,6 @@ def obtener_estadisticas_ordenes_trabajo(page=1, page_size=100):
         return 0, 0, 0, 0
 
 
-# Búsqueda parcial unificada
 def buscar_ordenes_trabajo(termino, limite=100):
     resultados = buscar_parcial_supabase(
         supabase=supabase, tabla=TABLA_ORDENES_TRABAJO, columnas=COLUMNAS_ORDENES_TRABAJO, termino=termino,
@@ -323,11 +280,6 @@ def buscar_ordenes_trabajo(termino, limite=100):
 
 
 def buscar_orden_trabajo_por_orden_servicio(folio_os):
-    """Comprueba si una OS ya fue convertida sin depender de columnas opcionales.
-
-    La relación se conserva como metadato interno dentro de ``ot_partidas_json``;
-    así funciona con el esquema real existente sin requerir una migración.
-    """
     folio = str(folio_os or "").strip().upper()
     if not folio:
         return None
@@ -350,7 +302,6 @@ def buscar_orden_trabajo_por_orden_servicio(folio_os):
         ) from error
 
 def convertir_orden_servicio_a_trabajo(orden_original, cambios, usuario_activo=None):
-    """Transforma una Orden de Servicio en Orden de Trabajo y conserva trazabilidad."""
     original = dict(orden_original or {})
     editados = dict(cambios or {})
     folio_os = str(original.get("os_folio") or editados.get("os_folio") or "").strip().upper()
@@ -417,7 +368,6 @@ def convertir_orden_servicio_a_trabajo(orden_original, cambios, usuario_activo=N
     if not resultado:
         raise RuntimeError("Supabase no confirmó la creación de la Orden de Trabajo.")
 
-    # La OS queda marcada como convertida/en proceso. El UPDATE es mínimo.
     try:
         supabase.table("db_ordenes_servicio").update({"os_estatus": 2, "actualizado_por": usuario}).eq("os_folio", folio_os).execute()
     except Exception:
@@ -435,7 +385,6 @@ def convertir_orden_servicio_a_trabajo(orden_original, cambios, usuario_activo=N
 # FLUJO VIGENTE: LEVANTAMIENTO -> ORDEN DE TRABAJO
 # =====================================================
 def buscar_orden_trabajo_por_levantamiento(folio_levantamiento=None, id_levantamiento=None):
-    """Devuelve la OT vinculada al levantamiento, si ya existe."""
     folio = str(folio_levantamiento or "").strip().upper()
     try:
         if id_levantamiento not in (None, ""):
@@ -452,7 +401,6 @@ def buscar_orden_trabajo_por_levantamiento(folio_levantamiento=None, id_levantam
             )
             if respuesta.data:
                 return respuesta.data[0]
-            # Compatibilidad con OTs creadas antes de agregar las columnas de relación.
             respuesta = execute_select_compatible(
                 supabase, TABLA_ORDENES_TRABAJO, "ot_id,ot_folio,ot_partidas_json,fecha_registro",
                 lambda q: q.order("fecha_registro", desc=True).limit(1000),
@@ -467,15 +415,6 @@ def buscar_orden_trabajo_por_levantamiento(folio_levantamiento=None, id_levantam
 
 
 def convertir_levantamiento_a_trabajo(levantamiento_original, cambios, usuario_activo=None, permitir_compras=False):
-    """Convierte un levantamiento autorizado en OT y garantiza su ACO.
-
-    Flujo operativo vigente:
-        LEVANTAMIENTO -> ACO (automático si falta) -> ORDEN DE TRABAJO
-
-    El ACO nace exactamente al confirmar esta conversión, porque ese clic
-    representa la autorización del cliente. Si el levantamiento ya estaba
-    ligado a un ACO, se reutiliza y nunca se crea un duplicado.
-    """
     original = dict(levantamiento_original or {})
     editados = dict(cambios or {})
     from security.permissions import puede_convertir_levantamiento_a_orden, puede_convertir_cotizacion_a_orden
@@ -534,8 +473,6 @@ def convertir_levantamiento_a_trabajo(levantamiento_original, cambios, usuario_a
         aco = buscar_aco_por_id(id_aco_actual)
 
     if not aco:
-        # Defensa ante reintentos después de una falla parcial: si el ACO ya
-        # alcanzó a generarse para este LEV, lo recuperamos antes de crear otro.
         aco = buscar_aco_generado_por_levantamiento(folio_lev)
 
     if not aco:
@@ -549,8 +486,6 @@ def convertir_levantamiento_a_trabajo(levantamiento_original, cambios, usuario_a
     if not id_aco or not numero_aco:
         raise RuntimeError("El ACO asociado no contiene ID y folio válidos.")
 
-    # Persistimos la relación en el LEV antes de crear la OT. Si la OT fallara,
-    # el reintento reutiliza este mismo ACO y no genera duplicados.
     from services.levantamientos_service import actualizar_levantamiento
     relacion = actualizar_levantamiento(
         id_lev,
@@ -575,10 +510,6 @@ def convertir_levantamiento_a_trabajo(levantamiento_original, cambios, usuario_a
             detalle = json.loads(detalle) if detalle else {}
         except Exception:
             detalle = {}
-    # La OT conserva las partidas operativas reales del levantamiento para que
-    # su PDF pueda mostrar materiales, equipos y misceláneos en tabla. El texto
-    # descriptivo del LEV permanece en ot_asunto/ot_descripcion y no se duplica
-    # como una fila gigantesca dentro de la tabla.
     partidas = partidas_desde_cotizacion_aprobada(cotizacion_finalizada, detalle)
     if not partidas:
         partidas = partidas_desde_detalle_levantamiento(detalle)
@@ -614,13 +545,11 @@ def convertir_levantamiento_a_trabajo(levantamiento_original, cambios, usuario_a
     if not resultado:
         raise RuntimeError("Supabase no confirmó la creación de la Orden de Trabajo.")
 
-    # El levantamiento pasa a En proceso/conversión completada.
     try:
         actualizar_levantamiento(id_lev, {"lev_estatus": 2})
     except Exception:
         logger.exception("La OT fue creada, pero no se pudo actualizar el levantamiento %s", folio_lev)
 
-    # Metadatos locales para que la UI informe si el ACO nació en esta acción.
     if isinstance(resultado, list) and resultado and isinstance(resultado[0], dict):
         resultado[0]["_axia_aco_numero"] = numero_aco
         resultado[0]["_axia_aco_generado"] = aco_generado
@@ -631,8 +560,6 @@ def convertir_levantamiento_a_trabajo(levantamiento_original, cambios, usuario_a
         registro_afectado=(resultado[0].get("ot_folio") if resultado else folio_lev),
     )
 
-    # Conserva automáticamente la Orden de Trabajo en su carpeta dedicada:
-    # Documents/AXIA/ordenes_trabajo.
     try:
         from services.operational_document_pdf import guardar_pdf_orden_trabajo
         registro_ot = dict(payload)
@@ -640,15 +567,12 @@ def convertir_levantamiento_a_trabajo(levantamiento_original, cambios, usuario_a
             registro_ot.update(resultado[0])
         guardar_pdf_orden_trabajo(registro_ot)
     except Exception:
-        # El registro en Supabase ya fue confirmado; una incidencia local de PDF
-        # no debe revertir ni duplicar la conversión. Queda registrada en log.
         logger.exception("La OT fue creada, pero no se pudo guardar automáticamente su PDF local.")
 
     return resultado
 
 
 def buscar_ordenes_trabajo_por_aco(aco_numero):
-    """Obtiene OTs de un ACO, priorizando las que siguen abiertas."""
     numero = str(aco_numero or "").strip()
     if not numero:
         return []
@@ -660,12 +584,6 @@ def buscar_ordenes_trabajo_por_aco(aco_numero):
 
 
 def convertir_cotizacion_a_trabajo(cotizacion, usuario_activo=None):
-    """Convierte una cotización finalizada de Compras en OT reutilizando el flujo operativo vigente.
-
-    La cotización es la autorización comercial; el LEV origen aporta los datos
-    técnicos y operativos, y el flujo existente garantiza ACO, trazabilidad y
-    prevención de duplicados.
-    """
     from security.permissions import puede_convertir_cotizacion_a_orden
     from services.cotizaciones_service import (
         ESTATUS_EN_COMPRA,
@@ -689,10 +607,6 @@ def convertir_cotizacion_a_trabajo(cotizacion, usuario_activo=None):
     if not lev:
         raise ValueError(f"No fue posible localizar el levantamiento origen de {folio_cot}.")
 
-    # Idempotencia: puede existir una OT creada anteriormente para el LEV
-    # (por ejemplo, antes de habilitar este flujo desde Compras). En ese caso
-    # NO intentamos crear una segunda OT. Sincronizamos la cotización con la OT
-    # existente y la retiramos de Pendientes de compra.
     folio_lev = str(lev.get("lev_folio") or cot.get("lev_folio") or "").strip().upper()
     id_lev = lev.get("id_levantamiento")
     existente = buscar_orden_trabajo_por_levantamiento(folio_lev, id_lev)
@@ -710,8 +624,6 @@ def convertir_cotizacion_a_trabajo(cotizacion, usuario_activo=None):
                 existente.get("ot_folio"), folio_cot,
             )
             raise
-        # Si la OT ya existía, actualizamos también sus partidas con la cotización
-        # aprobada para que Modelo/Marca queden persistidos y no dependan solo del PDF.
         try:
             detalle_existente = lev.get("lev_detalle_tecnico_json")
             partidas_aprobadas = partidas_desde_cotizacion_aprobada(
@@ -738,9 +650,6 @@ def convertir_cotizacion_a_trabajo(cotizacion, usuario_activo=None):
     if not folio_ot:
         raise RuntimeError("La Orden de Trabajo fue creada, pero Supabase no devolvió su folio.")
 
-    # Se marca la COT únicamente después de confirmar la OT. Si este UPDATE
-    # secundario fallara, la OT ya existe y el control de duplicados del flujo
-    # impedirá crear una segunda OT para el mismo LEV.
     try:
         marcar_cotizacion_convertida_a_ot(cot, str((usuario_activo or {}).get("usu_nickname") or (usuario_activo or {}).get("usuario") or "Compras"), folio_ot)
     except Exception:
@@ -753,18 +662,11 @@ def convertir_cotizacion_a_trabajo(cotizacion, usuario_activo=None):
 # REGULARIZACIÓN OPERATIVA DE ACO EXISTENTE
 # =====================================================
 def habilitar_aco_manual_para_operacion(aco, usuario_activo=None):
-    """Genera una OT de seguimiento para un ACO preexistente sin OT.
-
-    No inventa levantamiento, cotización ni autorización de Compras. Solo se
-    invoca tras confirmar explícitamente una operación de regularización.
-    La OT es el vínculo requerido por Bitácoras y la OS de cierre.
-    """
     registro = dict(aco or {})
     numero = str(registro.get("aco_numero") or "").strip().upper()
     if not numero:
         raise ValueError("El ACO no tiene número válido.")
 
-    # Comprobación de permisos en la capa de servicio, además de la interfaz.
     from security.permissions import puede_generar_orden
     if not puede_generar_orden(usuario_activo or {}):
         raise PermissionError("No tienes permisos para habilitar operaciones manuales.")
@@ -783,7 +685,6 @@ def habilitar_aco_manual_para_operacion(aco, usuario_activo=None):
     if not usuario:
         raise ValueError("No se pudo identificar al usuario que solicita la regularización.")
 
-    # Metadato explícito de origen. No se crean LEV/COT ficticios.
     detalle = f"Seguimiento operativo de ACO existente {numero}, sin levantamiento/cotización registrados en AXIA."
     datos = {
         "id_aco": registro.get("id_aco") or registro.get("aco_id"),

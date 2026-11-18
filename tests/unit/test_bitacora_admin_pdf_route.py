@@ -1,4 +1,3 @@
-"""Evita que el PDF administrativo BIT regrese al render genérico."""
 from pathlib import Path
 
 

@@ -1,5 +1,3 @@
-"""Definiciones declarativas de formularios especializados."""
-
 from views.levantamientos.catalogos_canalizacion import (
     TIPOS_ABRAZADERAS, TIPOS_CABLE_DATOS_CONTROL, TIPOS_CABLE_EXTERIOR,
     TIPOS_CANALIZACION, TIPOS_CONECTORES, TIPOS_COPLES, TIPOS_REGISTROS,

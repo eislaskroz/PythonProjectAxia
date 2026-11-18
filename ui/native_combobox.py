@@ -1,8 +1,3 @@
-"""Combobox nativo ligero con API compatible con CTkOptionMenu.
-
-Se usa en formularios con muchos selectores para reducir el costo visual y de
-renderizado de CustomTkinter, manteniendo callbacks y estados existentes.
-"""
 from __future__ import annotations
 
 from tkinter import ttk
@@ -11,18 +6,15 @@ import unicodedata
 
 
 def _sort_key(value: Any) -> str:
-    """Clave alfabetica estable, ignorando acentos y mayusculas."""
     text = str(value or "").strip()
     normalized = unicodedata.normalize("NFKD", text)
     return "".join(ch for ch in normalized if not unicodedata.combining(ch)).casefold()
 
 
 def _sorted_values(values: Iterable[Any] | None) -> tuple[Any, ...]:
-    """Ordena catalogos sin perder placeholders operativos al inicio."""
     items = list(values or ())
     if len(items) < 2:
         return tuple(items)
-    # Los textos de seleccion no son elementos del catalogo y deben quedar arriba.
     leading = []
     while items and _sort_key(items[0]).startswith(("seleccion", "elige", "--")):
         leading.append(items.pop(0))
@@ -30,18 +22,6 @@ def _sorted_values(values: Iterable[Any] | None) -> tuple[Any, ...]:
 
 
 def _install_safe_customtkinter_mousewheel() -> None:
-    """Evita fallos de CTkScrollableFrame sobre popups nativos de ttk.
-
-    El desplegable de ``ttk.Combobox`` se crea internamente como una ventana
-    Tcl que Tkinter no siempre puede convertir a un objeto Widget. En ese caso
-    ``event.widget`` llega como una cadena (por ejemplo ``.!popdown.f.l``).
-    CustomTkinter 5.2.2 intenta recorrer ``event.widget.master`` desde su
-    manejador global de rueda y provoca ``AttributeError``.
-
-    La protección se instala antes de crear los formularios y únicamente omite
-    el desplazamiento del frame cuando el evento pertenece a un popup Tcl. El
-    scroll nativo de la lista desplegada continúa funcionando normalmente.
-    """
     try:
         from customtkinter.windows.widgets.ctk_scrollable_frame import CTkScrollableFrame
     except Exception:
@@ -66,7 +46,6 @@ def _install_safe_customtkinter_mousewheel() -> None:
         try:
             return original(self, event)
         except AttributeError as exc:
-            # Protección específica para widgets Tcl no materializados por Tkinter.
             if "master" in str(exc):
                 return None
             raise
@@ -80,13 +59,6 @@ _install_safe_customtkinter_mousewheel()
 
 
 class NativeComboBox(ttk.Combobox):
-    """Selector ttk de solo lectura compatible con el uso actual de AXIA.
-
-    Parámetros visuales propios de CustomTkinter (height, corner_radius, font,
-    fg_color, button_color, etc.) se aceptan y se ignoran intencionalmente.
-    El menú muestra hasta ocho opciones y agrega scroll automáticamente.
-    """
-
     _IGNORED_OPTIONS = {
         "height", "corner_radius", "fg_color", "button_color",
         "button_hover_color", "dropdown_fg_color", "dropdown_hover_color",
@@ -119,7 +91,6 @@ class NativeComboBox(ttk.Combobox):
             "height": self._axia_dropdown_rows,
         }
         if width is not None:
-            # CTk expresa width en píxeles; ttk lo hace en caracteres.
             ttk_kwargs["width"] = max(8, min(80, int(width / 9)))
         if font is None:
             font = ("Montserrat", 11)
@@ -147,7 +118,6 @@ class NativeComboBox(ttk.Combobox):
             self._axia_command(self.get())
 
     def _on_keypress(self, event=None):
-        """Selecciona la primera opcion que inicia con la tecla pulsada."""
         char = str(getattr(event, "char", "") or "").strip()
         if not char or not char.isprintable():
             return None
@@ -161,7 +131,6 @@ class NativeComboBox(ttk.Combobox):
         return None
 
     def _on_mousewheel(self, event=None):
-        """La rueda no debe mover listas ni cambiar opciones accidentalmente."""
         return "break"
 
     def configure(self, cnf=None, **kwargs):

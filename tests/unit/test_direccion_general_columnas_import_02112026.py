@@ -1,4 +1,3 @@
-"""Regresión: Dirección General resuelve el gestor de columnas antes de usarlo."""
 from __future__ import annotations
 
 import ast

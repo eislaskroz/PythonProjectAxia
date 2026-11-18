@@ -1,13 +1,3 @@
-"""Editor administrativo reutilizable para OT y Bitácoras Operativas.
-
-Replica el patrón de revisión segura usado en LEV -> OS:
-- Cargar seleccionado
-- PDF del documento
-- Editar
-- Guardar
-- Acción de avance/cierre
-Los botones permanecen fijos; solo el formulario se desplaza.
-"""
 from __future__ import annotations
 from ui.form_fields import AxiaEntry, AxiaTextbox
 
@@ -95,7 +85,6 @@ def mostrar_admin_operational_editor(parent, app, config):
     )
     ent_search.grid(row=0, column=1, sticky="ew", padx=(0, 12), pady=6)
 
-    # Texto de ayuda integrado al campo; no crea un rectángulo blanco sobre el gris.
     ent_search.configure(placeholder_text='Realiza tu búsqueda', placeholder_text_color="#64748B")
 
     body = ctk.CTkFrame(root, fg_color="transparent")
@@ -198,9 +187,6 @@ def mostrar_admin_operational_editor(parent, app, config):
             return False
 
     def render(records):
-        # Una consulta puede terminar después de que el usuario cambió de módulo.
-        # En ese caso CustomTkinter ya destruyó los labels/botones de esta vista y
-        # cualquier configure() provocaría TclError: invalid command name.
         if not _widget_alive(root) or not _widget_alive(lbl_results):
             return
         records = records or []
@@ -319,8 +305,6 @@ def mostrar_admin_operational_editor(parent, app, config):
         if not record:
             return
         pdf_config = config["pdf_config"]
-        # El panel administrativo BIT debe utilizar el mismo renderizador
-        # maestro que las Bitácoras de Avance, no el PDF genérico.
         if pdf_config.get("pdf_renderer") == "bitacora_avance":
             from services.pdf_registro_service import generar_pdf_registro
             generar_pdf_registro(record, pdf_config, abrir=True)

@@ -1,4 +1,3 @@
-"""Regresión: un resumen técnico muy extenso no debe impedir exportar PDF."""
 from pathlib import Path
 
 from services.levantamiento_seguridad_pdf import (

@@ -1,8 +1,3 @@
-"""Guardas de regresión para la jerarquía tipográfica de AXIA DESKTOP.
-
-Estas pruebas no crean ventanas ni requieren un servidor.
-"""
-
 import ast
 from pathlib import Path
 

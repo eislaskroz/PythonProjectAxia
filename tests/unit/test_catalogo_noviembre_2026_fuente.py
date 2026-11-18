@@ -1,4 +1,3 @@
-"""Verifica concordancia exacta del catálogo activo con la fuente de noviembre."""
 from pathlib import Path
 import json
 

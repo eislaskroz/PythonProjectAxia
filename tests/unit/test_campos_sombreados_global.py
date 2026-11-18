@@ -1,5 +1,3 @@
-"""Regresión del sombreado global de campos sin necesitar una pantalla real."""
-
 import importlib.util
 import sys
 import types

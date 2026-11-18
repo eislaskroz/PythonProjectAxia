@@ -1,4 +1,3 @@
-"""Regresiones: horas correctas al consultar el Kárdex de Supabase."""
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 

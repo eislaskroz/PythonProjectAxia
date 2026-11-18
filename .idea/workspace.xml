@@ -5,69 +5,202 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="04557334-8dd2-4c5c-9e71-68cbc1b3eae6" name="Changes" comment="Merge remote-tracking branch 'orign/main'">
+      <change beforePath="$PROJECT_DIR$/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/.env.example" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/controllers/navigation_controller.py" beforeDir="false" afterPath="$PROJECT_DIR$/controllers/navigation_controller.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/__init__.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/app_paths.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/app_paths.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/background_tasks.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/background_tasks.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/cache.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/cache.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/date_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/date_utils.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/deployment.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/deployment.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/environment.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/environment.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/error_reporting.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/error_reporting.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/logger.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/logger.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/pdf/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/pdf/__init__.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/pdf/base_pdf.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/pdf/base_pdf.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/performance.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/performance.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/search_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/search_utils.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/version.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/version.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/acos.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/acos.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/bitacoras.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/bitacoras.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/levantamientos.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/levantamientos.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/ordenes_servicio.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/ordenes_servicio.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/limpiar_proyecto.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/limpiar_proyecto.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/security/data_encryption.py" beforeDir="false" afterPath="$PROJECT_DIR$/security/data_encryption.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/security/login_guard.py" beforeDir="false" afterPath="$PROJECT_DIR$/security/login_guard.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/security/passwords.py" beforeDir="false" afterPath="$PROJECT_DIR$/security/passwords.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/security/permissions.py" beforeDir="false" afterPath="$PROJECT_DIR$/security/permissions.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/__init__.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/aco_context_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/aco_context_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/aco_form_helpers.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/aco_form_helpers.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/acos_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/acos_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/admin_registros_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/admin_registros_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/almacen_catalogo_maestro.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/almacen_catalogo_maestro.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/almacen_comprobantes.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/almacen_comprobantes.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/almacen_entregas_ot.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/almacen_entregas_ot.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/almacen_fechas.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/almacen_fechas.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/almacen_reimpresion.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/almacen_reimpresion.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/almacen_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/almacen_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/auditoria_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/auditoria_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/auth_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/auth_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/axia_pdf_artifacts.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/axia_pdf_artifacts.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/axia_pdf_blocks.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/axia_pdf_blocks.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/axia_pdf_engine.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/axia_pdf_engine.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/axia_pdf_profiles.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/axia_pdf_profiles.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/bitacora_evidencias_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/bitacora_evidencias_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/bitacoras_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/bitacoras_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/borradores_compartidos_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/borradores_compartidos_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/clientes_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/clientes_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/correlacion_levantamientos_almacen.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/correlacion_levantamientos_almacen.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/cotizacion_partidas.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/cotizacion_partidas.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/cotizacion_pdf.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/cotizacion_pdf.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/cotizaciones_schema.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/cotizaciones_schema.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/cotizaciones_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/cotizaciones_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/croquis_documento.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/croquis_documento.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/croquis_simbolos.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/croquis_simbolos.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app.py" beforeDir="false" afterPath="$PROJECT_DIR$/app.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_context.py" beforeDir="false" afterPath="$PROJECT_DIR$/app_context.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/login.py" beforeDir="false" afterPath="$PROJECT_DIR$/login.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/registro.py" beforeDir="false" afterPath="$PROJECT_DIR$/registro.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/direccion_general_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/direccion_general_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/equipos_catalogo_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/equipos_catalogo_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/export_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/export_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/folios_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/folios_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/levantamiento_autoria.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/levantamiento_autoria.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/levantamiento_borradores_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/levantamiento_borradores_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/levantamiento_catalogo_axia.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/levantamiento_catalogo_axia.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/levantamiento_compat.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/levantamiento_compat.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/levantamiento_evidencias_borrador.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/levantamiento_evidencias_borrador.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/levantamiento_intercambio_v1.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/levantamiento_intercambio_v1.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/levantamiento_medios_compartidos.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/levantamiento_medios_compartidos.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/levantamiento_seguridad_pdf.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/levantamiento_seguridad_pdf.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/levantamientos_schema.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/levantamientos_schema.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/levantamientos_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/levantamientos_service.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/services/mail_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/mail_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/materiales_catalogo_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/materiales_catalogo_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/mis_documentos_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/mis_documentos_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/movimientos_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/movimientos_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/obra_civil_edicion.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/obra_civil_edicion.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/obra_civil_gateway.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/obra_civil_gateway.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/obra_conceptos_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/obra_conceptos_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/obras_civiles_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/obras_civiles_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/obras_civiles_universal.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/obras_civiles_universal.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/operational_document_pdf.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/operational_document_pdf.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/ordenes_servicio_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/ordenes_servicio_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/ordenes_trabajo_schema.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/ordenes_trabajo_schema.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/ordenes_trabajo_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/ordenes_trabajo_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/pdf_canalizacion_agrupada.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/pdf_canalizacion_agrupada.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/pdf_fotos_inteligentes.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/pdf_fotos_inteligentes.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/pdf_registro_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/pdf_registro_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/query_compat.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/query_compat.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/recursos_epp.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/recursos_epp.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/reportador_fotografico_pdf.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/reportador_fotografico_pdf.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/reportador_fotografico_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/reportador_fotografico_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/rrhh_usuarios_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/rrhh_usuarios_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/search_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/search_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/sesion_axia_compartida.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/sesion_axia_compartida.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/sucursales_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/sucursales_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/update_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/update_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/usuarios_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/usuarios_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/supabase_config.py" beforeDir="false" afterPath="$PROJECT_DIR$/supabase_config.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/conftest.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/conftest.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/integration/test_supabase_placeholder.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/integration/test_supabase_placeholder.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_borrador_sync_metadata_20261113.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_borrador_sync_metadata_20261113.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_borradores_compartidos_etapa1.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_borradores_compartidos_etapa1.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_conversion_admin_modo_consulta_edicion.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_conversion_admin_modo_consulta_edicion.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_entrega_b_evidencias_borrador.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_entrega_b_evidencias_borrador.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_flujo_operativo_vigente_static.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_flujo_operativo_vigente_static.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_intercambio_levantamientos_v1.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_intercambio_levantamientos_v1.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_levantamiento_general_static.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_levantamiento_general_static.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_levantamiento_medios_compartidos.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_levantamiento_medios_compartidos.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_obras_universal_20511.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_obras_universal_20511.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_sesion_borradores_20261113.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_sesion_borradores_20261113.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_abrazadera_para_viga_20261103.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_abrazadera_para_viga_20261103.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_aco_autollenado_responsables_02112026.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_aco_autollenado_responsables_02112026.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_admin_registros_20261102.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_admin_registros_20261102.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_admin_registros_errores_eliminacion_20261102.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_admin_registros_errores_eliminacion_20261102.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_admin_registros_formularios_seccionados.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_admin_registros_formularios_seccionados.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_almacen_catalogo_limpio_20261029.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_almacen_catalogo_limpio_20261029.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_almacen_catalogo_maestro_piloto_20261029.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_almacen_catalogo_maestro_piloto_20261029.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_almacen_comprobantes_20413.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_almacen_comprobantes_20413.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_almacen_entregas_ot_20261029.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_almacen_entregas_ot_20261029.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_almacen_etapa2.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_almacen_etapa2.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_almacen_etapa3.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_almacen_etapa3.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_almacen_fechas_20412.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_almacen_fechas_20412.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_almacen_ficha_maestro_20411.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_almacen_ficha_maestro_20411.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_almacen_gestion_productos_20261029.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_almacen_gestion_productos_20261029.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_almacen_kardex_fila_unica_20502.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_almacen_kardex_fila_unica_20502.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_almacen_reimpresion_20501.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_almacen_reimpresion_20501.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_auditoria_general_rh_admin_20261103.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_auditoria_general_rh_admin_20261103.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_bitacora_admin_pdf_route.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_bitacora_admin_pdf_route.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_bitacora_fotos_adaptables.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_bitacora_fotos_adaptables.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_campos_sombreados_global.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_campos_sombreados_global.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_canaleta_tipos_medidas.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_canaleta_tipos_medidas.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_canalizacion_unidades_aproximado.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_canalizacion_unidades_aproximado.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_catalogo_axia_levantamientos_20503.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_catalogo_axia_levantamientos_20503.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_catalogo_axia_visible_completo_20506.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_catalogo_axia_visible_completo_20506.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_catalogo_jerarquico_20261105.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_catalogo_jerarquico_20261105.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_catalogo_noviembre_2026_fuente.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_catalogo_noviembre_2026_fuente.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_catalogo_zapa_20607.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_catalogo_zapa_20607.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_color_modelo_canalizacion_20609.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_color_modelo_canalizacion_20609.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_columnas_tablas_ajustables_20409.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_columnas_tablas_ajustables_20409.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_correlacion_silenciosa_axia_20507.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_correlacion_silenciosa_axia_20507.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_cotizaciones_compactas.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_cotizaciones_compactas.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_cotizaciones_dg_pdf_opciones.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_cotizaciones_dg_pdf_opciones.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_cotizaciones_roles_supervisor.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_cotizaciones_roles_supervisor.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_croquis_ajuste_espacio.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_croquis_ajuste_espacio.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_croquis_editor.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_croquis_editor.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_croquis_editor_etapa2.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_croquis_editor_etapa2.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_croquis_guardar_siempre_visible.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_croquis_guardar_siempre_visible.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_desplazamiento_manual_sin_rueda_20610.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_desplazamiento_manual_sin_rueda_20610.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_direccion_general_acceso_14112026.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_direccion_general_acceso_14112026.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_direccion_general_columnas_import_02112026.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_direccion_general_columnas_import_02112026.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_epp_por_personas_20609.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_epp_por_personas_20609.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_historial_operador_20261109.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_historial_operador_20261109.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_levantamiento_autoria.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_levantamiento_autoria.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_levantamiento_botones_layout.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_levantamiento_botones_layout.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tests/unit/test_levantamiento_form_body_inicializado_20505.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_levantamiento_form_body_inicializado_20505.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_levantamiento_preview_scope.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_levantamiento_preview_scope.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_levantamientos_validacion_unificada.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_levantamientos_validacion_unificada.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_mail_service_relay.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_mail_service_relay.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_obra_civil_edicion_integral_20513.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_obra_civil_edicion_integral_20513.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_obra_civil_otros_20509.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_obra_civil_otros_20509.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_obra_concepto_multiline_20509.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_obra_concepto_multiline_20509.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_obras_civiles_edge_integracion_20510.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_obras_civiles_edge_integracion_20510.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_obras_civiles_esquema_real.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_obras_civiles_esquema_real.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_obras_civiles_registro_seguro.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_obras_civiles_registro_seguro.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_pdf_canalizacion_agrupada.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_pdf_canalizacion_agrupada.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_pdf_condicionales_axia.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_pdf_condicionales_axia.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_pdf_resumen_largo.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_pdf_resumen_largo.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_pesos_enteros_canalizacion_20609.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_pesos_enteros_canalizacion_20609.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_reportador_50_aco_20261109.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_reportador_50_aco_20261109.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_reportador_eliminar_borrador_20261113.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_reportador_eliminar_borrador_20261113.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_reportador_fondo_compartido_20261109.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_reportador_fondo_compartido_20261109.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_reportador_foto_individual_20261113.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_reportador_foto_individual_20261113.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_reportador_pdf_original_20261109.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_reportador_pdf_original_20261109.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_rrhh_altas_bajas_20604.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_rrhh_altas_bajas_20604.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tests/unit/test_rrhh_integracion_20604.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_rrhh_integracion_20604.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_rrhh_rol10_20261103.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_rrhh_rol10_20261103.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_tablas_ancho_uniforme_20261103.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_tablas_ancho_uniforme_20261103.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_tipografia_jerarquia_visual.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_tipografia_jerarquia_visual.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_tubos_por_metro_07112026.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_tubos_por_metro_07112026.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_ui_oct2026_conexion_zebra.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_ui_oct2026_conexion_zebra.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/test_visibilidad_lev_fechas_ventanas_20261102.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/test_visibilidad_lev_fechas_ventanas_20261102.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/tools/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/auditar_proyecto.py" beforeDir="false" afterPath="$PROJECT_DIR$/tools/auditar_proyecto.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/backup_restore.py" beforeDir="false" afterPath="$PROJECT_DIR$/tools/backup_restore.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/benchmark_equipo_modesto.py" beforeDir="false" afterPath="$PROJECT_DIR$/tools/benchmark_equipo_modesto.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/diagnostico_entorno.py" beforeDir="false" afterPath="$PROJECT_DIR$/tools/diagnostico_entorno.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/diagnostico_password.py" beforeDir="false" afterPath="$PROJECT_DIR$/tools/diagnostico_password.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/importar_clientes_2026.py" beforeDir="false" afterPath="$PROJECT_DIR$/tools/importar_clientes_2026.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/importar_usuarios_seguro.py" beforeDir="false" afterPath="$PROJECT_DIR$/tools/importar_usuarios_seguro.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/perfil_rendimiento.py" beforeDir="false" afterPath="$PROJECT_DIR$/tools/perfil_rendimiento.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/preflight_produccion.py" beforeDir="false" afterPath="$PROJECT_DIR$/tools/preflight_produccion.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/validar_calidad.py" beforeDir="false" afterPath="$PROJECT_DIR$/tools/validar_calidad.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ui/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ui/app_sidebar.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/app_sidebar.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ui/assets.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/assets.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ui/catalogo_axia_inline.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/catalogo_axia_inline.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ui/colors.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/colors.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ui/date_picker.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/date_picker.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ui/detail_popup.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/detail_popup.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ui/fonts.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/fonts.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ui/form_fields.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/form_fields.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ui/iconos.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/iconos.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ui/keyboard_navigation.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/keyboard_navigation.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ui/manual_scroll_policy.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/manual_scroll_policy.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ui/native_combobox.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/native_combobox.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ui/native_table.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/native_table.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ui/numeric_masks.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/numeric_masks.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ui/responsive.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/responsive.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ui/selector_catalogo_axia.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/selector_catalogo_axia.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ui/table_columns.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/table_columns.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ui/theme.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/theme.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ui/theme_manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/ui/theme_manager.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/admin_operational_editor_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/admin_operational_editor_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/admin_procesos_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/admin_procesos_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/admin_registros_formularios.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/admin_registros_formularios.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/views/admin_registros_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/admin_registros_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/almacen_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/almacen_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/auditoria_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/auditoria_view.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/views/bitacora_avance_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/bitacora_avance_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/clientes_admin_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/clientes_admin_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/compras_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/compras_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/cotizacion_pdf_opciones.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/cotizacion_pdf_opciones.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/cotizaciones_dg_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/cotizaciones_dg_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/cotizaciones_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/cotizaciones_view.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/views/croquis_editor_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/croquis_editor_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/direccion_general_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/direccion_general_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/formato_helpers.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/formato_helpers.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/inicio_aco_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/inicio_aco_view.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/views/levantamiento_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/levantamiento_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/levantamientos/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/levantamientos/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/levantamientos/canalizacion_aproximado.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/levantamientos/canalizacion_aproximado.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/levantamientos/catalogo_herramientas.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/levantamientos/catalogo_herramientas.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/levantamientos/catalogos_canalizacion.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/levantamientos/catalogos_canalizacion.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/levantamientos/catalogos_materiales_jerarquicos.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/levantamientos/catalogos_materiales_jerarquicos.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/levantamientos/form_definitions.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/levantamientos/form_definitions.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/views/mi_bitacora_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/mi_bitacora_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/obra_civil_editor_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/obra_civil_editor_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/obra_civil_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/obra_civil_view.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/views/orden_servicio_conversion_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/orden_servicio_conversion_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/orden_servicio_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/orden_servicio_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/orden_trabajo_conversion_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/orden_trabajo_conversion_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/orden_trabajo_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/orden_trabajo_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/reportador_fotografico_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/reportador_fotografico_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/reportes_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/reportes_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/tipo_levantamiento_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/tipo_levantamiento_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/usuarios_admin_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/usuarios_admin_view.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -675,14 +808,6 @@
       <option name="presentableId" value="Default" />
       <updated>1787595329657</updated>
     </task>
-    <task id="LOCAL-00149" summary="Merge remote-tracking branch 'orign/main'">
-      <option name="closed" value="true" />
-      <created>1793905246249</created>
-      <option name="number" value="00149" />
-      <option name="presentableId" value="LOCAL-00149" />
-      <option name="project" value="LOCAL" />
-      <updated>1793905246250</updated>
-    </task>
     <task id="LOCAL-00150" summary="Merge remote-tracking branch 'orign/main'">
       <option name="closed" value="true" />
       <created>1793905716882</created>
@@ -1067,7 +1192,15 @@
       <option name="project" value="LOCAL" />
       <updated>1794930345405</updated>
     </task>
-    <option name="localTasksCounter" value="198" />
+    <task id="LOCAL-00198" summary="Merge remote-tracking branch 'orign/main'">
+      <option name="closed" value="true" />
+      <created>1794955526799</created>
+      <option name="number" value="00198" />
+      <option name="presentableId" value="LOCAL-00198" />
+      <option name="project" value="LOCAL" />
+      <updated>1794955526800</updated>
+    </task>
+    <option name="localTasksCounter" value="199" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

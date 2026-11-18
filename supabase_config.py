@@ -20,10 +20,6 @@ ENV_CARGADO = cargar_entorno()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-
-# Una service_role key jamás debe distribuirse en una app de escritorio.
-# JWT de service_role suele contener esta cadena en el payload; además se permite
-# una defensa explícita por nombre de variable.
 if os.getenv("SUPABASE_SERVICE_ROLE_KEY"):
     raise RuntimeError("No configures SUPABASE_SERVICE_ROLE_KEY en el cliente AXIA.")
 if SUPABASE_KEY and "service_role" in SUPABASE_KEY.lower():

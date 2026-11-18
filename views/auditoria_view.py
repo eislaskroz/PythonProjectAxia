@@ -1,11 +1,3 @@
-
-"""Vista administrativa unificada de auditoría AXIA.
-
-Permite consultar por separado:
-- Movimientos funcionales dentro del sistema.
-- Intentos de inicio de sesión correctos y fallidos.
-"""
-
 import customtkinter as ctk
 from ui.form_fields import AxiaEntry, AxiaTextbox
 from ui.iconos import cargar_icono
@@ -118,15 +110,12 @@ def mostrar_auditoria(parent, app):
         for clave in ("fecha", "usuario", "categoria", "equipo", "ip")
     }
     etiquetas_filtro = {}
-
-    # Carpeta de iconos de Auditoría
     carpeta_iconos = (
         Path(__file__).resolve().parent.parent
         / "assets"
         / "iconos"
     )
 
-    # Iconos de los filtros: conservan sus colores originales
     archivos_iconos = {
         "fecha": "fecha.png",
         "usuario": "usuario.png",
@@ -148,8 +137,6 @@ def mostrar_auditoria(parent, app):
                 size=(18, 18),
             )
 
-    # Iconos de los botones en color blanco.
-    # Los dos botones de exportación utilizan el mismo archivo.
     archivos_botones = {
         "buscar": "buscar.png",
         "limpiar": "limpiar.png",
@@ -166,8 +153,6 @@ def mostrar_auditoria(parent, app):
         if ruta_icono.exists():
             imagen = Image.open(ruta_icono).convert("RGBA")
 
-            # Cambia las partes visibles del icono a blanco,
-            # conservando la transparencia del PNG.
             transparencia = imagen.getchannel("A")
             imagen_blanca = Image.new(
                 "RGBA",

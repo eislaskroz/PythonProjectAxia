@@ -1,4 +1,3 @@
-"""Comprobar el contrato real de Obra Civil contra el esquema recibido en CSV."""
 from pathlib import Path
 import ast
 

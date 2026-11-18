@@ -1,4 +1,3 @@
-"""Controles nativos de alto rendimiento para tablas y listas de AXIA."""
 from __future__ import annotations
 
 import tkinter as tk
@@ -10,7 +9,6 @@ from typing import Any, Callable, Iterable, Sequence
 
 
 class NativeTreeTable(ttk.Frame):
-    """Tabla ttk.Treeview con scroll vertical/horizontal y payload por fila."""
 
     def __init__(
         self,
@@ -78,8 +76,6 @@ class NativeTreeTable(ttk.Frame):
         self.tree.bind("<<TreeviewSelect>>", self._selected, add="+")
         self.tree.bind("<Double-1>", self._opened, add="+")
         self.tree.bind("<Return>", self._opened, add="+")
-        # Si la pantalla es estrecha, el usuario puede consultar el valor
-        # completo de una celda truncada sin ensanchar todos los paneles.
         self.tree.bind("<Motion>", self._hover_moved, add="+")
         self.tree.bind("<Leave>", self._hide_hover, add="+")
         self.tree.bind("<ButtonPress>", self._hide_hover, add="+")
@@ -200,9 +196,6 @@ class NativeTreeTable(ttk.Frame):
             self.tree.item(iid, tags=("fila_azul",) if index % 2 else ("fila_blanca",))
         self.tree.tag_configure("fila_blanca", background="#FFFFFF", foreground="#0F172A")
         self.tree.tag_configure("fila_azul", background="#EAF3FF", foreground="#0F172A")
-        # Ajustar también el contenido real (fechas, folios y nombres) en
-        # lugar de limitarse al ancho inicial del encabezado. El máximo evita
-        # que una descripción de varios párrafos consuma toda la pantalla.
         if self._measure_font is None:
             self._measure_font = tkfont.Font(root=self.tree, family="Segoe UI", size=10)
         medidos: dict[str, int] = {}
@@ -232,7 +225,6 @@ class NativeTreeTable(ttk.Frame):
 
 
 class NativeLongList(ttk.Frame):
-    """Listbox nativo para catálogos/listas largas con scroll."""
 
     def __init__(self, master=None, *, on_select=None, height: int = 12, **kwargs: Any) -> None:
         super().__init__(master, **kwargs)

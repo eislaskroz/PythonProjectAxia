@@ -1,4 +1,3 @@
-"""Permisos del dashboard ejecutivo por tipo y cuenta específica."""
 from security.permissions import puede_ver_direccion_general
 
 

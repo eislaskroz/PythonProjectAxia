@@ -1,5 +1,3 @@
-"""Regresiones de unidades y conversiones visuales de canalización."""
-
 from views.levantamientos.canalizacion_aproximado import (
     texto_aproximado_canalizacion,
     unidad_fija_canalizacion,

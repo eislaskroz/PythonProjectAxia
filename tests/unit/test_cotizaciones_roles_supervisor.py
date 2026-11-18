@@ -1,4 +1,3 @@
-"""Regresión: roles de ESI, Supervisor y Jefe de Operaciones en Cotizaciones."""
 import ast
 from pathlib import Path
 

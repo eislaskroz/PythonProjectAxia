@@ -20,4 +20,4 @@ def test_borrador_reusa_identificador_y_revision(tmp_path, monkeypatch):
     assert storage.confirmar_sincronizacion(user, key, 2, first['guardado_en']) is False
     final = storage.cargar_borrador(user)
     assert final['sincronizacion']['revision'] == 2
-    assert final['sincronizacion']['estado'] == 'pendiente' 
+    assert final['sincronizacion']['estado'] == 'pendiente'

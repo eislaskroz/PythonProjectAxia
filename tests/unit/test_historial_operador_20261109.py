@@ -1,4 +1,3 @@
-"""Verificaciones locales del historial personal sin conexión a Supabase."""
 import ast
 from pathlib import Path
 from types import SimpleNamespace

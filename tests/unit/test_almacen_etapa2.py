@@ -1,4 +1,3 @@
-"""Pruebas de movimientos locales efímeros; no requieren Supabase."""
 import uuid
 from decimal import Decimal
 import pytest

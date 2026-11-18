@@ -1,12 +1,3 @@
-
-"""
-=========================================================
-MÓDULO: views/usuarios_admin_view.py
-DESCRIPCIÓN:
-Vista administrativa para buscar, crear y modificar usuarios.
-=========================================================
-"""
-
 import customtkinter as ctk
 from ui.form_fields import AxiaEntry, AxiaTextbox
 from ui.iconos import cargar_icono
@@ -60,10 +51,6 @@ CAMPOS_USUARIO = [
 
 
 def mostrar_usuarios_admin(parent, app):
-    """
-    Renderiza la administración de usuarios.
-    """
-
     usuario_activo = obtener_usuario_actual()
     if not puede_ver_usuarios(usuario_activo):
         messagebox.showerror(
@@ -96,8 +83,6 @@ def mostrar_usuarios_admin(parent, app):
     contenedor = ctk.CTkFrame(parent, fg_color="transparent")
     contenedor.pack(fill="both", expand=True, padx=14, pady=4)
 
-    # RH: búsqueda y resultados comparten una misma franja, 50/50.
-    # Los demás perfiles conservan su presentación y navegación existentes.
     franja_rrhh = None
     if solo_rrhh:
         franja_rrhh = ctk.CTkFrame(contenedor, fg_color="transparent")
@@ -172,7 +157,6 @@ def mostrar_usuarios_admin(parent, app):
     )
     entry_busqueda.grid(row=0, column=1, sticky="ew", padx=(0, 12), pady=6)
 
-    # Texto de ayuda integrado al campo; no crea un rectángulo blanco sobre el gris.
     entry_busqueda.configure(
         placeholder_text=(
             'Nombre, usuario o correo...' if solo_rrhh
@@ -210,7 +194,6 @@ def mostrar_usuarios_admin(parent, app):
     cuerpo.pack(fill="both", expand=True)
 
     if solo_rrhh:
-        # El expediente se expande a todo el ancho justo debajo de la franja.
         cuerpo.grid_columnconfigure(0, weight=1)
         cuerpo.grid_rowconfigure(0, weight=1)
     else:
@@ -256,8 +239,6 @@ def mostrar_usuarios_admin(parent, app):
         ),
         on_select=lambda usuario: cargar_en_formulario(usuario),
         on_open=lambda usuario: cargar_en_formulario(usuario),
-        # Dos filas visibles en RH reducen ~30% la altura del bloque superior;
-        # el desplazamiento de la tabla permite seguir consultando los resultados.
         height=2 if solo_rrhh else 18,
      table_id="usuarios_catalogo",)
     tabla_resultados.grid(
@@ -309,8 +290,6 @@ def mostrar_usuarios_admin(parent, app):
 
     total_columnas_formulario = 3
 
-    # RH puede identificar la cuenta, pero no tiene necesidad de ver ni de
-    # editar el control de contraseña. Para Admin y Jefe no cambia la pantalla.
     campos_visibles = [
         dato for dato in CAMPOS_USUARIO
         if not (solo_rrhh and dato[0] == "usu_password")
@@ -390,13 +369,11 @@ def mostrar_usuarios_admin(parent, app):
     )
     acciones.pack(fill="x", padx=10, pady=(8, 12))
 
-    # Columnas laterales flexibles para centrar los botones
     acciones.grid_columnconfigure(0, weight=1)
     acciones.grid_columnconfigure(1, weight=0)
     acciones.grid_columnconfigure(2, weight=0)
     acciones.grid_columnconfigure(3, weight=1)
 
-    # Cargar iconos desde assets/iconos
     carpeta_iconos = (
         Path(__file__).resolve().parent.parent
         / "assets"
@@ -411,7 +388,6 @@ def mostrar_usuarios_admin(parent, app):
 
         imagen = Image.open(ruta_icono).convert("RGBA")
 
-        # Convertir el icono a blanco conservando su transparencia
         transparencia = imagen.getchannel("A")
         imagen_blanca = Image.new(
             "RGBA",
@@ -426,13 +402,10 @@ def mostrar_usuarios_admin(parent, app):
             size=(18, 18),
         )
 
-    # Icono de Guardar nuevo
     icono_guardar = cargar_icono_blanco("guardar.png")
 
-    # Icono de Actualizar seleccionado
     icono_actualizar = cargar_icono_blanco("limpiar.png")
 
-    # Botón 1: Guardar nuevo
     btn_guardar = ctk.CTkButton(
         acciones,
         text="Guardar nuevo",
@@ -453,7 +426,6 @@ def mostrar_usuarios_admin(parent, app):
     if solo_rrhh:
         btn_guardar.configure(text='Registrar alta')
 
-    # Botón 2: Actualizar seleccionado
     btn_actualizar = ctk.CTkButton(
         acciones,
         text="Actualizar seleccionado",
@@ -506,7 +478,6 @@ def mostrar_usuarios_admin(parent, app):
         return 'ACTIVO' if usuario.get('usu_acceso_habilitado') is True else 'ALTA PENDIENTE'
 
     def bloquear_formulario():
-        """Bloquea todos los campos para evitar ediciones accidentales."""
         for entry in estado["entradas"].values():
             entry.configure(state="disabled")
 
@@ -518,7 +489,6 @@ def mostrar_usuarios_admin(parent, app):
 
 
     def desbloquear_formulario(modo):
-        """Desbloquea campos únicamente cuando se va a crear o actualizar."""
         estado["modo"] = modo
 
         for campo, entry in estado["entradas"].items():
@@ -568,10 +538,6 @@ def mostrar_usuarios_admin(parent, app):
             estado_laboral.configure(text=f"Estado laboral: {estado_empleado_label(usuario)}")
 
     def crear_item_resultado(usuario, texto):
-        """
-        Crea un resultado alineado a la izquierda.
-        """
-
         item = ctk.CTkFrame(
             panel_resultados,
             fg_color="transparent",

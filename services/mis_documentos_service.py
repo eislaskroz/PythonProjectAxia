@@ -1,8 +1,3 @@
-"""Historial personal de documentos operativos (rol Operador 4).
-
-El filtro de autor se ejecuta en Supabase ANTES de paginar.
-Nunca se consulta la tabla completa para filtrar después en la interfaz.
-"""
 from app_context import obtener_usuario_actual
 from security.permissions import obtener_tipo_usuario, OPERADOR
 from supabase_config import supabase
@@ -32,16 +27,12 @@ def consultar_mis_documentos(tipo, termino="", limite=100):
     if tipo not in CONFIG:
         raise ValueError("Tipo de documento no permitido")
     tabla, columnas, campos_busqueda = CONFIG[tipo]
-    # 'creado_por' es OBLIGATORIO. No usamos la capa de compatibilidad que
-    # podría omitir columnas ausentes: en ese caso se debe mostrar un error,
-    # nunca relajar el filtro de acceso.
     seleccion = list(dict.fromkeys([*(x.strip() for x in columnas.split(",")), "creado_por"]))
     limite = max(1, min(int(limite), 200))
     termino = str(termino or "").strip().casefold()
     encontrados = []
     pagina = 0
     tamano = 100
-    # Cota de lectura para no sobrecargar equipos modestos.
     while pagina < 20 and len(encontrados) < limite:
         inicio = pagina * tamano
         respuesta = (supabase.table(tabla).select(",".join(seleccion))

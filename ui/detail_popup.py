@@ -1,6 +1,3 @@
-
-"""Ventana emergente para vista rápida de registros seleccionados."""
-
 import customtkinter as ctk
 from utils import centrar_ventana
 from core.date_utils import fecha_para_vista

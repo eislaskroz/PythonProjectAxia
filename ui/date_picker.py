@@ -1,4 +1,3 @@
-"""Selector de fecha ligero basado en controles ttk/tkcalendar."""
 from __future__ import annotations
 
 import calendar
@@ -14,7 +13,7 @@ _calendario_activo = None
 
 try:
     from tkcalendar import Calendar as TkCalendar
-except Exception:  # dependencia opcional durante desarrollo
+except Exception:
     TkCalendar = None
 
 
@@ -26,7 +25,6 @@ def _ventana_existe(ventana) -> bool:
 
 
 def abrir_selector_fecha(parent, variable, *, formato_salida="iso"):
-    """Abre un calendario ttk. Por defecto guarda YYYY-MM-DD; opcionalmente DD/MM/YYYY."""
     global _calendario_activo
     if _ventana_existe(_calendario_activo):
         _calendario_activo.lift()
@@ -86,7 +84,6 @@ def abrir_selector_fecha(parent, variable, *, formato_salida="iso"):
         ttk.Button(botones, text="Aceptar", command=aceptar).pack(side="right", padx=(0, 6))
         calendario_widget.bind("<Double-1>", lambda _e: aceptar())
     else:
-        # Respaldo sin dependencia externa: calendario mensual construido solo con ttk.
         estado = {"year": inicial.year, "month": inicial.month}
         header = ttk.Frame(contenedor)
         header.pack(fill="x")
@@ -127,7 +124,6 @@ def abrir_selector_fecha(parent, variable, *, formato_salida="iso"):
     ventana.focus_force()
 
 def asociar_selector_fecha(entry, parent, variable, *, abrir_con_foco=False, formato_salida="iso"):
-    """Homologa campos fecha. El formato por defecto sigue siendo ISO para compatibilidad."""
     if entry is None:
         return entry
 
@@ -145,4 +141,3 @@ def asociar_selector_fecha(entry, parent, variable, *, abrir_con_foco=False, for
     if abrir_con_foco:
         entry.bind("<FocusIn>", _abrir, add="+")
     return entry
-

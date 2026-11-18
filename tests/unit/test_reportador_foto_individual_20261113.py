@@ -1,9 +1,7 @@
-"""Regresiones de borrado individual de fotos del Reportador Fotográfico."""
 from unittest.mock import MagicMock
 from pathlib import Path
 import ast
 
-# Aislar la lógica sin cargar CustomTkinter (no disponible en CI sin UI).
 SOURCE = Path(__file__).resolve().parents[2] / 'views' / 'reportador_fotografico_view.py'
 module = ast.parse(SOURCE.read_text(encoding='utf-8'))
 cls = next(n for n in module.body if isinstance(n, ast.ClassDef) and n.name == 'ReportadorFotografico')

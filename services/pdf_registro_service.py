@@ -1,4 +1,3 @@
-"""PDF corporativo y legible para registros recuperados de Supabase."""
 from __future__ import annotations
 
 import json
@@ -113,9 +112,6 @@ OCULTAR = {
     "lev_firma", "lev_firma_tecnico", "detalle_tecnico", "requerimientos",
 }
 
-# Listas capturadas en formularios que deben presentarse como tablas, no como
-# texto corrido. Las columnas conocidas mantienen un orden estable; cualquier
-# catálogo nuevo de materiales/equipos/insumos se adapta dinámicamente.
 TABLAS_CONOCIDAS = {
     "equipos_principales": (
         "Equipos principales requeridos",
@@ -187,7 +183,6 @@ def _es_vacio(valor) -> bool:
 
 
 def _quitar_resumenes_tabulares(texto: str) -> str:
-    """Evita duplicar en texto los registros que ya se muestran como tabla."""
     resultado = str(texto or "")
     patrones = (
         r"(?ims)\n*EQUIPOS PRINCIPALES REQUERIDOS:\s*\n(?:-.*(?:\n|$))*",
@@ -255,7 +250,6 @@ def _filas_lista(lista):
 
 
 def _secciones_desde_dict(diccionario: dict, titulo_raiz: str | None = None, tablas: list | None = None):
-    """Convierte JSON anidado en secciones y pares legibles, sin exponer sintaxis JSON."""
     secciones = []
     pares_raiz = []
 
@@ -326,18 +320,15 @@ def _construir_datos(registro: dict, configuracion: dict | None = None) -> tuple
     secciones = []
     tablas_pdf = []
 
-    # Datos generales: solo valores simples. JSON y listas se convierten después.
     for campo, valor in (registro or {}).items():
         clave = _limpiar_clave(campo)
         normalizado = _normalizar(valor)
         if clave in OCULTAR or _es_vacio(normalizado) or isinstance(normalizado, (dict, list)):
             continue
-        # Evitar columnas técnicas repetidas o sin valor para el usuario.
         if clave.endswith("_id") and clave != "id":
             continue
         datos[_etiqueta(campo)] = _texto(normalizado)
 
-    # Procesar cada JSON como secciones humanas.
     for campo, valor in (registro or {}).items():
         normalizado = _normalizar(valor)
         if isinstance(normalizado, dict):
@@ -357,11 +348,9 @@ def _construir_datos(registro: dict, configuracion: dict | None = None) -> tuple
             if isinstance(valor_dato, str):
                 datos[etiqueta_dato] = _quitar_resumenes_tabulares(valor_dato)
 
-    # Eliminar duplicados frecuentes generados por columnas resumen.
     for repetido in ("Detalle técnico", "Requerimientos"):
         datos.pop(repetido, None)
 
-    # Folio y fecha normalizados para encabezado.
     folios = {
         "lev_folio": "Folio LEV", "os_folio": "Folio OS", "ot_folio": "Folio OT",
         "bit_folio": "Folio BIT", "obc_folio": "Folio OBC", "aco_numero": "Número de ACO",
@@ -376,8 +365,6 @@ def _construir_datos(registro: dict, configuracion: dict | None = None) -> tuple
             break
 
     if secciones:
-        # El mismo bloque puede existir dentro del JSON técnico y en una columna
-        # auxiliar (por ejemplo equipos dañados). Se conserva una sola copia.
         unicas = []
         firmas = set()
         for titulo_seccion, lineas in secciones:
@@ -390,8 +377,6 @@ def _construir_datos(registro: dict, configuracion: dict | None = None) -> tuple
             [f"--- {titulo.upper()} ---\n" + "\n".join(lineas) for titulo, lineas in unicas]
         )
 
-    # Se adjuntan como metadato interno para que el perfil genérico cree
-    # DataTableBlock. No se muestran como un campo de datos generales.
     if tablas_pdf:
         unicas_tabla = []
         firmas_tabla = set()
@@ -427,18 +412,10 @@ def generar_pdf_registro(
     ruta_salida: str | Path | None = None,
     abrir: bool = True,
 ):
-    """Genera un registro con el formato definitivo de AXIA.
-
-    Es el punto común para preview, descarga administrativa y PDF local
-    posterior al guardado.
-    """
     if not registro:
         return False
     titulo, folio = _titulo_y_folio(registro, configuracion)
 
-    # Plantilla maestra de levantamientos: todos los tipos y modalidades pasan
-    # por el mismo generador estructurado. Preview, PDF definitivo y descarga
-    # administrativa comparten exactamente la misma lógica visual.
     if es_levantamiento(registro):
         registro = normalizar_registro_levantamiento(registro)
         if ruta_salida is None:
@@ -451,14 +428,9 @@ def generar_pdf_registro(
             AxiaPdfArtifactStore.register(folio, resultado)
         return resultado
 
-    # Las Bitácoras Operativas deben usar siempre el renderer maestro de
-    # Bitácora de Avance. La vista administrativa históricamente enviaba el
-    # título "Bitácoras Operativas" y caía en el perfil genérico, mostrando
-    # fotos como URLs y firmas que no pertenecen a este formato.
     if (configuracion or {}).get("pdf_renderer") == "bitacora_avance" or _clasificar_registro(registro, configuracion) == "bitacora":
         from views.formato_helpers import generar_pdf_preview
 
-        # Enriquecer la trazabilidad LEV <- OT cuando la bitácora ya está ligada.
         levantamiento = str(registro.get("bit_lev_folio") or registro.get("lev_folio") or "").strip()
         ot_folio = str(registro.get("bit_ot_folio") or registro.get("ot_folio") or "").strip()
         if not levantamiento and ot_folio:
@@ -503,7 +475,6 @@ def generar_pdf_registro(
             AxiaPdfArtifactStore.register(folio, resultado)
         return resultado
 
-    # Las Órdenes de Servicio usan siempre su renderer operativo oficial.
     if _clasificar_registro(registro, configuracion) == "orden_servicio":
         from services.operational_document_pdf import contrato_orden_servicio
         from views.formato_helpers import generar_pdf_preview
@@ -519,10 +490,6 @@ def generar_pdf_registro(
             AxiaPdfArtifactStore.register(folio, resultado)
         return resultado
 
-    # Las Órdenes de Trabajo NO deben pasar por el perfil genérico. El formato
-    # operativo oficial tiene una estructura fija distinta y una tabla dinámica
-    # de partidas/materiales/equipos. Esta ruta también evita reutilizar un PDF
-    # genérico antiguo que pudiera existir en el almacén local de artefactos.
     if _clasificar_registro(registro, configuracion) == "orden_trabajo":
         from services.operational_document_pdf import contrato_orden_trabajo
         from views.formato_helpers import generar_pdf_preview

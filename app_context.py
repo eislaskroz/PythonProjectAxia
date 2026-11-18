@@ -1,5 +1,3 @@
-"""Contexto temporal del usuario autenticado en AXIA."""
-
 from security.permissions import NOMBRES_ROL, SUPERVISOR
 
 usuario_actual = {
@@ -14,7 +12,6 @@ usuario_actual = {
 
 
 def obtener_rol_por_tipo(usu_tipo):
-    """Convierte el nivel numérico en su nombre oficial."""
     try:
         tipo = int(usu_tipo)
     except (TypeError, ValueError):
@@ -30,13 +27,11 @@ def establecer_usuario_actual(
     usu_tipo=SUPERVISOR,
     ubicacion=None,
 ):
-    """Guarda en memoria los datos del usuario autenticado."""
     try:
         tipo = int(usu_tipo)
     except (TypeError, ValueError):
         tipo = 0
 
-    # Los roles inválidos no deben heredarse como Supervisor.
     if tipo not in NOMBRES_ROL:
         tipo = 0
 

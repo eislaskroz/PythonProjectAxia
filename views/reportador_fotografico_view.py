@@ -1,9 +1,3 @@
-"""Reportador Fotográfico 100% nativo CustomTkinter, sin navegador ni login propio.
-
-Replica los flujos de captura, 50 actividades, 1-5 fotos, OS 1-4,
-historial, borradores recuperables, PDF, finalización y reapertura.
-Los usuarios se administran en el módulo común AXIA Usuarios.
-"""
 from __future__ import annotations
 
 from datetime import date
@@ -133,7 +127,6 @@ class ReportadorFotografico:
                              kind='red', width=100).pack(side='right', padx=(2, 0), pady=5)
 
     def eliminar_borrador(self, draft: dict):
-        """Quita un único autoguardado; no borra el reporte formal ni sus fotos."""
         clave = str(draft.get('clave') or '').strip()
         if not clave:
             self._error('El borrador no tiene identificador válido para eliminarlo.')
@@ -152,9 +145,6 @@ class ReportadorFotografico:
         except Exception as exc:
             self._error(f'No se pudo eliminar el borrador: {exc}')
             return
-        # Al refrescar se cancela cualquier autoguardado pendiente de esta vista.
-        # Si se elimina el borrador que estaba abierto, se reinicia su identidad
-        # para que no vuelva a crearse con la misma clave por accidente.
         if self.draft_key == clave:
             self.draft_key = str(uuid4())
         self.panel()
@@ -211,7 +201,6 @@ class ReportadorFotografico:
             self._error(exc)
 
     def _aplicar_aco(self, aco: dict) -> None:
-        """Completa datos de db_acos sin sobrescribir al autor ni la fecha."""
         if self.estado == 'FINALIZADO':
             return
         equivalencias = {
@@ -224,8 +213,6 @@ class ReportadorFotografico:
             campo = self.fields.get(destino)
             if campo is None:
                 continue
-            # El ACO solo se selecciona del catálogo; los otros campos pueden
-            # corregirse si el maestro aún no tiene el dato disponible.
             if destino == 'aco':
                 campo.configure(state='normal')
             campo.delete(0, 'end')
@@ -239,7 +226,6 @@ class ReportadorFotografico:
                 'Completa únicamente los campos faltantes antes de guardar.')
 
     def _abrir_selector_aco(self) -> None:
-        """Buscador autenticado de ACOs sin navegar fuera de AXIA."""
         if self.estado == 'FINALIZADO':
             return
         dialog = ctk.CTkToplevel(self.contenedor)
@@ -386,7 +372,6 @@ class ReportadorFotografico:
             if self.fields and self.estado != 'FINALIZADO':
                 rf.guardar_autoguardado(self.draft_key, self.report_id, self._snapshot())
         except Exception:
-            # Fallo de red temporal; no bloquear al técnico mientras escribe.
             pass
 
     def _add_activity(self, data: dict | None = None):
@@ -525,7 +510,6 @@ class ReportadorFotografico:
         self._changed()
 
     def _cambiar_foto(self, act: dict, slot: int):
-        """Reemplaza solo la fotografía indicada, sin tocar los demás espacios."""
         if self.estado == 'FINALIZADO':
             return
         path = filedialog.askopenfilename(
@@ -545,11 +529,6 @@ class ReportadorFotografico:
         self._changed()
 
     def _eliminar_foto(self, act: dict, slot: int):
-        """Elimina exclusivamente un espacio de evidencia del borrador.
-
-        Una foto ya subida se elimina inmediatamente de Supabase mediante la
-        operación existente 'quitar_imagen'; las demás no se modifican.
-        """
         if self.estado == 'FINALIZADO':
             return
         pendiente = slot in act['pendientes']
@@ -567,7 +546,6 @@ class ReportadorFotografico:
             parent=self.contenedor.winfo_toplevel(),
         ):
             return
-        # No modificar la pantalla si Supabase rechaza la eliminación.
         if guardada:
             try:
                 rf.quitar_imagen(self.report_id, slot, act['clave'])
@@ -608,8 +586,6 @@ class ReportadorFotografico:
                 self._button(box, 'Ver', lambda n=slot,a=act: self._preview_foto(self.report_id,n,a['clave']),
                              width=60, kind='grey').pack(pady=(0, 3))
             if self.estado != 'FINALIZADO':
-                # Cada recuadro controla únicamente su propio número de foto.
-                # Incluso un espacio vacío admite cargar una sola imagen.
                 self._button(box, 'Cambiar' if (local or saved) else 'Agregar',
                              lambda n=slot,a=act: self._cambiar_foto(a, n),
                              width=72, kind='blue').pack(padx=5, pady=(1, 3))

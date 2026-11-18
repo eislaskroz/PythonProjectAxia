@@ -1,8 +1,3 @@
-"""Pasarela de Obra Civil con sesión de empleado verificada por Edge Function.
-
-Nunca se envía una service_role key desde DESKTOP. Todos los reintentos
-conservan el obc_request_id del borrador original.
-"""
 from __future__ import annotations
 
 import uuid
@@ -15,11 +10,8 @@ ENDPOINT = SUPABASE_URL.rstrip('/') + '/functions/v1/axia-obras-civiles'
 
 
 class SesionObraCivilInvalida(PermissionError):
-    """Se necesita renovar la sesión del empleado antes de guardar."""
-
 
 def peticion_obra_civil(accion: str, solicitud: str, *, usuario_id: object, datos: dict | None = None):
-    """Consultar o guardar; no se permite ninguna acción que modifique obras existentes."""
     if accion not in ('consultar', 'guardar'):
         raise ValueError('Acción de Obra Civil no autorizada.')
     token = obtener_token_sesion_catalogo(usuario_id)
@@ -55,11 +47,6 @@ def peticion_obra_civil(accion: str, solicitud: str, *, usuario_id: object, dato
 def gestionar_obra_civil(accion: str, *, usuario_id: object, folio: str = '',
                         busqueda: str = '', cambios: dict | None = None,
                         solicitud: str = ''):
-    """Listado, modificación y validación de OBC por servidor, sin RLS público.
-
-    La identidad y el permiso de cada acción se verifican nuevamente en Edge.
-    Nunca se incluye una service_role key en DESKTOP.
-    """
     if accion not in ('listar', 'detalle', 'actualizar', 'validar'):
         raise ValueError('Operación administrativa de Obra Civil desconocida.')
     token = obtener_token_sesion_catalogo(usuario_id)

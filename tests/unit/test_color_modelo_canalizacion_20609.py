@@ -1,4 +1,3 @@
-"""Regresión: Color/Modelo/Otros en LEV y OBC, controles y PDF de canalización."""
 from pathlib import Path
 from services.pdf_canalizacion_agrupada import agrupar_partidas_canalizacion, ENCABEZADOS_CANALIZACION
 

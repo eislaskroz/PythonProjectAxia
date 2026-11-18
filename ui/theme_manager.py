@@ -1,17 +1,6 @@
 # =====================================================
 # THEME MANAGER AXIA
 # =====================================================
-"""Administrador visual centralizado para AXIA.
-
-Objetivo:
-- Mantener la misma paleta de colores entre Windows 10/11 y equipos distintos.
-- Forzar modo claro para evitar variaciones por tema del sistema.
-- Usar Montserrat desde ui/fonts.py como fuente base.
-- Centralizar colores, radios, escalas y estilos nativos de Tk/ttk.
-"""
-
-
-
 from __future__ import annotations
 
 from core.logger import configurar_logger
@@ -28,12 +17,8 @@ from ui.fonts import FONT_FAMILY
 
 
 class ThemeManager:
-    """Punto único para aplicar la identidad visual de AXIA."""
-
     APP_NAME = "AXIA"
 
-    # Paleta fija. Usar estos valores evita que Windows cambie colores
-    # por modo oscuro, tema de accesibilidad o configuración del sistema.
     PRIMARY = "#000A8B"
     PRIMARY_DARK = "#0F2337"
     SECONDARY = "#0369F8"
@@ -63,7 +48,6 @@ class ThemeManager:
 
     @classmethod
     def resource_path(cls, relative_path: str) -> str:
-        """Devuelve una ruta compatible con desarrollo y PyInstaller."""
         base_path = getattr(sys, "_MEIPASS", None)
         if base_path:
             return str(Path(base_path) / relative_path)
@@ -75,10 +59,6 @@ class ThemeManager:
 
     @classmethod
     def apply_global_theme(cls) -> None:
-        """Aplica tema global antes de crear ventanas.
-
-        Debe ejecutarse al inicio del programa, antes de abrir Login/App.
-        """
         try:
             ctk.set_appearance_mode("Light")
             theme_path = cls.theme_json_path()
@@ -89,7 +69,6 @@ class ThemeManager:
             ctk.set_widget_scaling(cls.WIDGET_SCALING)
             ctk.set_window_scaling(cls.WINDOW_SCALING)
         except Exception:
-            # Si por alguna razón falla el tema personalizado, la app no debe detenerse.
             try:
                 ctk.set_appearance_mode("Light")
                 ctk.set_default_color_theme("blue")
@@ -98,18 +77,11 @@ class ThemeManager:
 
     @classmethod
     def apply_native_tk_theme(cls, root=None) -> None:
-        """Fuerza fuente y colores en widgets nativos Tk/ttk.
-
-        CustomTkinter toma la mayoría del estilo desde axia_theme.json,
-        pero algunos diálogos, menús, Treeview o widgets Tk siguen usando
-        configuraciones nativas. Este método reduce esas diferencias.
-        """
         try:
             import tkinter as tk
             import tkinter.font as tkfont
             from tkinter import ttk
 
-            # Fuentes nativas Tk.
             for name in (
                 "TkDefaultFont",
                 "TkTextFont",
@@ -127,7 +99,6 @@ class ThemeManager:
                 except Exception:
                     logger.debug("Excepción recuperable controlada.", exc_info=True)
 
-            # Estilo ttk uniforme para tablas/combos nativos.
             try:
                 style = ttk.Style(root)
                 style.theme_use("clam")
@@ -162,7 +133,6 @@ class ThemeManager:
                 )
                 style.map("Treeview", background=[("selected", cls.PRIMARY)], foreground=[("selected", "#FFFFFF")])
                 style.map("Treeview.Heading", background=[("active", cls.PRIMARY_700)])
-                # Zebra striping: filas pares con fondo suave para mejorar lectura.
                 try:
                     root.option_add("*TCombobox*Listbox*Background", cls.SURFACE)
                     root.option_add("*TCombobox*Listbox*Foreground", cls.TEXT_PRIMARY)
@@ -171,8 +141,7 @@ class ThemeManager:
                     root.option_add("*TCombobox*Listbox*selectForeground", "#FFFFFF")
                 except Exception:
                     pass
-                # La misma señal visual que usan AxiaEntry y AxiaTextbox:
-                # gris suave al estar disponible; pálido al bloquearse.
+
                 style.configure(
                     "TCombobox", fieldbackground="#E1E0DD",
                     background="#E1E0DD", padding=4,
@@ -187,7 +156,6 @@ class ThemeManager:
             except Exception:
                 logger.debug("Excepción recuperable controlada.", exc_info=True)
 
-            # Fondo base de la ventana raíz.
             if root is not None:
                 try:
                     root.configure(bg=cls.BACKGROUND)
@@ -198,7 +166,6 @@ class ThemeManager:
 
     @classmethod
     def apply_window_defaults(cls, window, min_width: int | None = None, min_height: int | None = None) -> None:
-        """Aplica ajustes comunes a una ventana concreta."""
         cls.apply_native_tk_theme(window)
         try:
             window.configure(fg_color=cls.BACKGROUND)
@@ -212,5 +179,4 @@ class ThemeManager:
 
     @classmethod
     def style_preview_metadata_name(cls) -> str:
-        """Nombre genérico para metadata de PDFs/vistas previas."""
         return "Sistema AXIA"

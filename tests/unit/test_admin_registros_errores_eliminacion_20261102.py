@@ -1,4 +1,3 @@
-"""Validaciones locales: describir errores de eliminación sin modificar datos reales."""
 from pathlib import Path
 import ast
 

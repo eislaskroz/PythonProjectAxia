@@ -1,9 +1,3 @@
-"""Formularios de mantenimiento administrativo AXIA.
-
-Se reproducen las secciones y los controles habituales de captura, sin reutilizar
-las rutinas de alta (que generan folios). Los cambios se aplican únicamente por
-el RPC auditado, con controles bloqueados por sección de forma predeterminada.
-"""
 from __future__ import annotations
 
 import copy
@@ -22,10 +16,6 @@ from core.date_utils import es_campo_fecha, formatear_fecha_visual, fecha_desde_
 from core.background_tasks import run_async
 from services.admin_registros_service import EDITABLES
 
-
-# Las secciones reflejan la organización de los formularios originales de
-# captura. La lista blanca EDITABLES, mantenida en la función de servidor, es la
-# única fuente de verdad para permitir modificaciones.
 SECCIONES = {
     'db_acos': (
         ('Datos generales del ACO', 'aco_cliente aco_responsable aco_estatus'),
@@ -96,9 +86,6 @@ NOMBRES = {
     'bit_descripcion': 'Descripción', 'bit_observaciones': 'Observaciones',
 }
 
-# Solo los catálogos cuyo mapeo numérico está confirmado por los formularios
-# originales. Otros estados históricos se muestran con su código, sin suponer
-# equivalencias que puedan alterar registros existentes.
 ENUMS = {
     'lev_tipo': {'Técnico': 1, 'Comercial': 2, 'Infraestructura': 3, 'Seguridad': 4, 'Energía': 5, 'Otro': 6},
     'lev_estatus': {'Pendiente': 1, 'En proceso': 2, 'Realizado': 3, 'Cancelado': 4},
@@ -120,9 +107,7 @@ CATALOGOS_PERSONAL = {
     'bit_tecnico': (4,), 'bit_tecnico_sitio': (4,), 'bit_encargado_proyecto_axia': (3, 4),
 }
 CAMPOS_CLIENTE = {'aco_cliente', 'lev_cliente', 'ot_cliente', 'os_cliente', 'bit_cliente'}
-# Un cambio de nombre sin actualizar la llave foránea deja una relación
-# inconsistente. Reasignar clientes/sucursales/contactos requiere un flujo
-# transaccional específico, no una simple modificación de texto.
+
 RELACIONES_PROTEGIDAS = {
     'aco_cliente': 'id_cliente', 'lev_cliente': 'id_cliente',
     'ot_cliente': 'id_cliente', 'os_cliente': 'id_cliente', 'bit_cliente': 'id_cliente',
@@ -137,7 +122,6 @@ LARGOS = {'aco_descripcion', 'aco_observaciones', 'lev_descripcion', 'lev_requer
 
 
 def secciones_efectivas(tabla: str, original: dict) -> tuple[tuple[str, tuple[str, ...]], ...]:
-    """Incluye solo columnas existentes y autorizadas en el esquema real."""
     autorizadas = set(EDITABLES[tabla]); usadas = set(); resultado = []
     for titulo, campos in SECCIONES[tabla]:
         presentes = tuple(c for c in campos.split() if c in original and c in autorizadas)
@@ -155,7 +139,6 @@ def _nombre_clave(clave: str) -> str:
 
 
 def _analizar_json(valor):
-    """Los esquemas de AXIA pueden guardar objetos JSON o cadenas JSON."""
     if isinstance(valor, (dict, list)):
         return copy.deepcopy(valor), False
     if isinstance(valor, str):
@@ -202,7 +185,6 @@ class ControlAdmin:
 
 
 class FormularioSeccionado:
-    """Vista de mantenimiento sin llamadas a funciones de ALTA ni folios nuevos."""
 
     def __init__(self, parent, tabla: str, original: dict, *, root=None):
         self.parent = parent
@@ -217,7 +199,6 @@ class FormularioSeccionado:
             self._seccion(titulo, campos)
 
     def _cargar_catalogos_en_segundo_plano(self):
-        """Prepara opciones sin bloquear la ventana ni modificar el registro."""
         def tarea():
             nombres = {}
             try:
@@ -243,8 +224,6 @@ class FormularioSeccionado:
                 if not self.parent.winfo_exists():
                     return
                 for campo, combo, valor_original in self._catalogo_control:
-                    # Nunca sobrescribir una selección hecha mientras llegaban
-                    # los datos de la consulta asíncrona.
                     seleccionado = combo.get()
                     disponibles = nombres.get('clientes' if campo in CAMPOS_CLIENTE else campo, [])
                     valores = list(dict.fromkeys([valor_original, seleccionado] + [n for n in disponibles if n]))
@@ -254,7 +233,6 @@ class FormularioSeccionado:
             except Exception:
                 return
 
-        # Ejecutar después de construir los controles y mostrar la ventana.
         self.parent.after(200, lambda: run_async(root=self.root, task=tarea, on_success=completar,
                                                 on_error=lambda _err: None))
 
@@ -318,7 +296,6 @@ class FormularioSeccionado:
             obj, es_cadena = _analizar_json(valor)
             if isinstance(obj, (dict, list)):
                 return self._control_json(padre, campo, seccion, obj, es_cadena, valor)
-            # Dato histórico no JSON: se presenta protegido, nunca se reinterpreta.
             cuadro = AxiaTextbox(padre, height=70)
             cuadro.insert('1.0', str(valor or ''))
             cuadro.configure(state='disabled')
@@ -345,8 +322,6 @@ class FormularioSeccionado:
                 return opciones[actual]
             return ControlAdmin(campo,seccion,leer,lambda activo: cb.configure(state='readonly' if activo else 'disabled'))
 
-        # Estados/prioridades históricos sin equivalencia publicada: selector
-        # de códigos, sin inventar etiquetas para no cambiar su significado.
         if (campo.endswith('_estatus') or campo.endswith('_prioridad') or campo == 'os_tipo') and isinstance(valor, (int, type(None))):
             actual = '' if valor is None else str(valor)
             codigos = list(dict.fromkeys([actual] + [str(i) for i in range(1, 5)]))
@@ -360,8 +335,6 @@ class FormularioSeccionado:
 
         opciones = TEXTO_OPCIONES.get(campo)
         es_catalogo = campo in CATALOGOS_PERSONAL or campo in CAMPOS_CLIENTE
-        # No forzamos a que un dato histórico deje de ser seleccionable por no
-        # estar hoy en el catálogo; conservarlo es esencial para el historial.
         if opciones or es_catalogo:
             actual = str(valor) if valor is not None else ''
             lista = list(dict.fromkeys([actual] + list(opciones or [])))
@@ -409,7 +382,6 @@ class FormularioSeccionado:
                             lambda activo:entrada.configure(state='normal' if activo else 'disabled'))
 
     def _control_tecnicos(self, padre, campo, seccion, valor):
-        """Mismo esquema Agregar/Quitar utilizado en OS y Bitácoras de captura."""
         original = str(valor or '')
         seleccionados = [n.strip() for n in original.split(' | ') if n.strip()]
         modificado = [False]
@@ -454,11 +426,6 @@ class FormularioSeccionado:
         return ControlAdmin(campo,seccion,leer,activar)
 
     def _control_json(self, padre, campo, seccion, datos, es_cadena, original):
-        """Muestra JSON técnico como preguntas editables, nunca como texto crudo.
-
-        Se conserva estructura/tipos y claves desconocidas. En el caso de las
-        partidas OT, el editor usa las columnas originales de la orden.
-        """
         base = copy.deepcopy(datos)
         if campo == 'ot_partidas_json' and isinstance(base,list):
             return self._control_partidas(padre,campo,seccion,base,es_cadena,original)
@@ -513,11 +480,6 @@ class FormularioSeccionado:
         return ControlAdmin(campo,seccion,leer,activar)
 
     def _control_partidas(self,padre,campo,seccion,datos,es_cadena,original):
-        """Tabla editable de conceptos como la orden de trabajo de captura.
-
-        Conserva cada dict original con campos extra y su tipo; no borra
-        registros sin que el administrador desbloquee esta sección.
-        """
         columnas = ('parte','unidad','cantidad','modelo','marca','concepto','dia','adicional','total')
         encabezados = ('Parte','Unidad','Cantidad','Modelo','Marca','Concepto','Día','Adicional','Total')
         contenedor=ctk.CTkFrame(padre,fg_color='transparent')
@@ -562,7 +524,6 @@ class FormularioSeccionado:
             if isinstance(partida, dict):
                 agregar(partida)
         if len(filas)<len(datos):
-            # Formatos antiguos no tabulares: no se altera su estructura.
             return self._control_json_legacy(padre,campo,seccion,original)
         def leer():
             resultado=[]
@@ -589,15 +550,12 @@ class FormularioSeccionado:
         return ControlAdmin(campo,seccion,lambda:valor,lambda activo:None)
 
     def cambios(self):
-        """Devuelve exclusivamente campos pertenecientes a secciones desbloqueadas."""
         cambios={}
         for campo,control in self.controles.items():
             if not self.desbloqueadas.get(control.seccion,False):
                 continue
             actual=control.leer()
             previo=self.original.get(campo)
-            # El JSON histórico se compara por contenido para evitar guardados
-            # sin modificación debidos solo a espacios o formato de serialización.
             if campo.endswith('_json') and isinstance(previo,str) and isinstance(actual,str):
                 try:
                     if json.loads(previo)==json.loads(actual):

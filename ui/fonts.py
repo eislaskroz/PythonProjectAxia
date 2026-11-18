@@ -1,8 +1,6 @@
 # =====================================================
 # FUENTES GLOBALES AXIA
 # =====================================================
-# Escala tipográfica homologada para todas las pantallas.
-# Montserrat se conserva como familia oficial del sistema.
 FONT_FAMILY = "Montserrat"
 
 # =====================================================
@@ -18,10 +16,10 @@ TITLE_SM = (FONT_FAMILY, 15, "bold")
 # SECCIONES Y ETIQUETAS
 # =====================================================
 SECTION_FONT = (FONT_FAMILY, 14, "bold")
-LABEL_BOLD = (FONT_FAMILY, 13)  # Alias heredado: etiquetas ordinarias sin negritas
+LABEL_BOLD = (FONT_FAMILY, 13)
 LABEL_MD = (FONT_FAMILY, 13)
 FIELD_LABEL_FONT = (FONT_FAMILY, 12)
-FIELD_LABEL_BOLD = (FONT_FAMILY, 12)  # Alias heredado: etiquetas ordinarias sin negritas
+FIELD_LABEL_BOLD = (FONT_FAMILY, 12)
 
 # =====================================================
 # TEXTO GENERAL, AYUDAS Y PIES

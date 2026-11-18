@@ -1,20 +1,3 @@
-"""
-=========================================================
-SERVICIO DE LEVANTAMIENTOS - AXIA
-=========================================================
-
-Este archivo pertenece a la capa de servicios de AXIA.
-
-Responsabilidad principal:
-- Contener lógica de negocio.
-- Consultar y modificar datos en Supabase.
-- Devolver resultados limpios a las vistas.
-
-Regla de arquitectura:
-Las vistas en `views/` no deben hablar directamente con Supabase.
-Deben llamar funciones de esta capa `services/`.
-"""
-
 from core.logger import configurar_logger
 import re
 from core.error_reporting import register_error
@@ -52,7 +35,6 @@ from services.levantamientos_schema import (
 # FUNCIÓN: crear_levantamiento()
 # =====================================================
 def _es_colision_folio(error):
-    """Detecta la restricción única de lev_folio reportada por PostgreSQL/PostgREST."""
     contenido = str(getattr(error, "args", "")) + " " + str(error)
     code = getattr(error, "code", None)
     if isinstance(getattr(error, "args", None), tuple) and error.args and isinstance(error.args[0], dict):
@@ -62,7 +44,6 @@ def _es_colision_folio(error):
 
 
 def crear_levantamiento(datos_levantamiento):
-    """Crea un levantamiento usando exclusivamente el folio central de Supabase."""
     datos = filtrar_payload_levantamiento(datos_levantamiento)
 
     try:
@@ -103,10 +84,6 @@ def crear_levantamiento(datos_levantamiento):
         logger.exception("Error al crear levantamiento.")
         return None
 
-# Visibilidad de las consultas operativas: Administrador, Jefe de Operaciones,
-# Supervisor y Administrativo (valida LEV para Ventas) consultan todos. Los demas usuarios
-# autenticados solo consultan los propios.
-# NOTA: esta comprobación de aplicación NO sustituye RLS con identidad real.
 def _filtro_autor_levantamiento(usuario=None):
     usuario = obtener_usuario_actual() if usuario is None else usuario
     nickname = str((usuario or {}).get("usuario") or "").strip()
@@ -125,15 +102,6 @@ def _aplicar_filtro_autor(query, autor):
 # FUNCIÓN: obtener_levantamientos()
 # =====================================================
 def obtener_levantamientos(page=1, page_size=100):
-    """
-    Consulta todos los levantamientos registrados.
-
-    RETORNA:
-        list:
-            Lista de levantamientos ordenados del más reciente
-            al más antiguo.
-    """
-
     try:
         autor, autorizado = _filtro_autor_levantamiento()
         if not autorizado:
@@ -164,18 +132,6 @@ def obtener_levantamientos(page=1, page_size=100):
 # FUNCIÓN: obtener_levantamientos_por_aco()
 # =====================================================
 def obtener_levantamientos_por_aco(aco_numero, page=1, page_size=100):
-    """
-    Consulta los levantamientos relacionados con un ACO.
-
-    PARÁMETROS:
-        aco_numero:
-            Número de ACO relacionado.
-
-    RETORNA:
-        list:
-            Lista de levantamientos asociados al ACO.
-    """
-
     try:
         autor, autorizado = _filtro_autor_levantamiento()
         if not autorizado:
@@ -207,7 +163,6 @@ def obtener_levantamientos_por_aco(aco_numero, page=1, page_size=100):
 # FUNCIÓN: buscar_levantamientos()
 # =====================================================
 def buscar_levantamientos(termino, limite=100):
-    """Búsqueda con restricción por autor ANTES de aplicar el límite."""
     autor, autorizado = _filtro_autor_levantamiento()
     if not autorizado:
         return []
@@ -231,19 +186,6 @@ def buscar_levantamientos(termino, limite=100):
 # FUNCIÓN: buscar_levantamiento_por_folio()
 # =====================================================
 def buscar_levantamiento_por_folio(folio):
-    """
-    Busca un levantamiento por folio.
-
-    PARÁMETROS:
-        folio:
-            Folio único del levantamiento.
-
-    RETORNA:
-        dict | None:
-            Diccionario con la información del levantamiento
-            si existe, o None si no se encuentra.
-    """
-
     try:
         autor, autorizado = _filtro_autor_levantamiento()
         if not autorizado:
@@ -282,21 +224,6 @@ def buscar_levantamiento_por_folio(folio):
 # FUNCIÓN: actualizar_levantamiento()
 # =====================================================
 def actualizar_levantamiento(id_levantamiento, datos_levantamiento):
-    """
-    Actualiza un levantamiento existente.
-
-    PARÁMETROS:
-        id_levantamiento:
-            ID principal del levantamiento.
-
-        datos_levantamiento:
-            Diccionario con los campos a actualizar.
-
-    RETORNA:
-        list | None:
-            Datos actualizados si la operación fue exitosa.
-    """
-
     try:
         datos_levantamiento = filtrar_payload_levantamiento(datos_levantamiento)
         datos_levantamiento = normalizar_campos_fecha(datos_levantamiento)
@@ -328,14 +255,6 @@ def actualizar_levantamiento(id_levantamiento, datos_levantamiento):
 # FUNCIÓN: obtener_estadisticas_levantamientos()
 # =====================================================
 def obtener_estadisticas_levantamientos(page=1, page_size=100):
-    """
-    Obtiene estadísticas generales de levantamientos.
-
-    RETORNA:
-        tuple:
-            Total, pendientes, en proceso y realizados.
-    """
-
     try:
         levantamientos = obtener_levantamientos()
 
@@ -351,7 +270,6 @@ def obtener_estadisticas_levantamientos(page=1, page_size=100):
         return 0, 0, 0, 0
 
 def actualizar_evidencias_levantamiento(id_levantamiento, evidencias) -> list | None:
-    """Actualiza únicamente las evidencias fotográficas del levantamiento recién creado."""
     try:
         import json
         respuesta = (
@@ -373,7 +291,6 @@ def actualizar_evidencias_levantamiento(id_levantamiento, evidencias) -> list | 
 
 
 def actualizar_archivos_levantamiento(id_levantamiento, archivos) -> list | None:
-    """Asocia metadatos de PDF/planos de Supabase Storage al levantamiento."""
     try:
         import json
         respuesta = (

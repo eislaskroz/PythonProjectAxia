@@ -1,4 +1,3 @@
-"""Consola ejecutiva de trazabilidad del ciclo operativo AXIA."""
 from __future__ import annotations
 from datetime import datetime, timezone, timedelta
 from supabase_config import supabase

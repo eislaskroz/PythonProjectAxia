@@ -1,4 +1,3 @@
-"""Regresiones de catálogo real. No se requieren conexión ni servicios externos."""
 from pathlib import Path
 from uuid import UUID
 import sys

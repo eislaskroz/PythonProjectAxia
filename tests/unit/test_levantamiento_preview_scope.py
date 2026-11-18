@@ -1,9 +1,3 @@
-"""Regresión: abrir o editar un levantamiento no puede disparar NameError.
-
-Prueba el código real de los callbacks extraído por AST, sin crear una
-ventana Tk ni conectarse a Supabase. Simula restauración de StringVar y
-varios cambios rápidos después de construir el formulario.
-"""
 from __future__ import annotations
 import ast
 from pathlib import Path
@@ -51,8 +45,7 @@ def test_planificador_no_se_ejecuta_durante_restauracion_y_tiene_debounce():
     frame = Frame()
     class Logger:
         def debug(self, *args, **kwargs): pass
-    # Cuerpo extraído literalmente del módulo de producción.
-    # Las funciones comparten el cierre local igual que en mostrar_levantamiento.
+
     body = '\n'.join('    ' + line for n in callbacks
                      for line in ast.get_source_segment(TEXT, n).splitlines())
     source = '''def harness():

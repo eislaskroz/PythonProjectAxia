@@ -1,5 +1,3 @@
-"""Servicio para módulo Obra Civil / Proyecto Ejecutivo AXIA."""
-
 from core.logger import configurar_logger
 from core.error_reporting import register_error
 from core.date_utils import normalizar_campos_fecha
@@ -15,18 +13,12 @@ COLUMNAS_OBRAS_CIVILES = "obc_id,obc_aco_numero,obc_anotacion_plano_json,obc_cli
 
 
 def crear_obra_civil(datos_obra, *, usuario_id):
-    """Guardado autenticado e idempotente; no depende de políticas públicas RLS.
-
-    Un corte después de confirmar puede dejar la respuesta pendiente; el mismo
-    UUID se recupera desde el servidor, sin crear una segunda Obra Civil.
-    """
     from uuid import UUID
     from services.obra_civil_gateway import peticion_obra_civil, SesionObraCivilInvalida
 
     datos = normalizar_campos_fecha(dict(datos_obra or {}))
     solicitud = str(UUID(str(datos.pop("obc_request_id"))))
     datos.pop("obc_folio", None)
-    # El servidor asigna creado_por, estatus e identidad: nunca confiar en el cliente.
     datos.pop("creado_por", None)
     datos.pop("obc_estatus", None)
     try:
@@ -46,7 +38,6 @@ def crear_obra_civil(datos_obra, *, usuario_id):
             raise
         except Exception:
             logger.warning('Respuesta de Obra Civil no confirmada: consultando UUID.', exc_info=True)
-        # Si se insertó antes de perder Internet, devolvemos el folio ya asignado.
         recuperado = peticion_obra_civil('consultar', solicitud, usuario_id=usuario_id)
         return [recuperado] if recuperado else None
     except SesionObraCivilInvalida:
@@ -101,7 +92,6 @@ def buscar_obra_civil_por_folio(folio):
         raise RuntimeError("No fue posible consultar la obra civil en Supabase.") from error
 
 
-# Búsqueda parcial unificada
 def buscar_obras_civiles(termino, limite=100):
     resultados = buscar_parcial_supabase(
         supabase=supabase, tabla=TABLA_OBRAS_CIVILES, columnas=COLUMNAS_OBRAS_CIVILES, termino=termino,
@@ -116,7 +106,6 @@ def buscar_obras_civiles(termino, limite=100):
 
 
 def actualizar_evidencias_obra_civil(obc_id, evidencias) -> list | None:
-    """Asocia metadatos de fotografías de Supabase Storage a la obra civil."""
     try:
         import json
         respuesta = (
@@ -138,7 +127,6 @@ def actualizar_evidencias_obra_civil(obc_id, evidencias) -> list | None:
 
 
 def actualizar_archivos_obra_civil(obc_id, archivos) -> list | None:
-    """Asocia metadatos de PDF/planos de Supabase Storage a la obra civil."""
     try:
         import json
         respuesta = (

@@ -1,8 +1,3 @@
-"""PDFs corporativos para Órdenes de Servicio y Órdenes de Trabajo.
-
-Ambos documentos usan la plantilla fija de AXIA mediante ``formato_helpers``.
-La vista previa y el archivo definitivo reciben exactamente el mismo contrato.
-"""
 from __future__ import annotations
 
 import json
@@ -26,12 +21,6 @@ def _json_list(value):
 
 
 def _dividir_texto_largo(valor, limite=180):
-    """Divide textos largos sin cortar palabras para que una fila pueda paginarse.
-
-    ReportLab no puede partir una sola fila de tabla entre páginas. Al dividir el
-    concepto en filas de continuación, cada fragmento cabe dentro del marco y la
-    tabla puede continuar normalmente en la página siguiente.
-    """
     texto = str(valor or "").strip()
     if not texto:
         return [""]
@@ -60,8 +49,6 @@ def contrato_orden_servicio(registro):
         "Domicilio": r.get("os_domicilio") or r.get("os_direccion", ""),
         "Encargado": r.get("os_encargado") or r.get("os_contacto", ""),
         "Solicitante": r.get("os_solicitante", ""),
-        # os_correo y os_celular ahora son datos de la persona firmante.
-        # No sustituir automáticamente con el contacto general os_telefono.
         "Correo": r.get("os_correo", ""),
         "Celular": r.get("os_celular", ""),
         "Tipo de Servicio": r.get("os_tipo_servicio", ""),
@@ -139,10 +126,6 @@ def contrato_orden_trabajo(registro):
         "Asunto": r.get("ot_asunto") or r.get("ot_descripcion", ""),
         "Descripción": r.get("ot_descripcion", ""),
     }
-    # Para OTs creadas desde un levantamiento, la tabla del PDF debe contener
-    # materiales/equipos/consumibles reales, no el texto narrativo completo del LEV.
-    # Las OTs antiguas pueden traer solo uno o dos renglones gigantes en
-    # ot_partidas_json; intentamos reconstruir sus partidas desde el LEV origen.
     origen_rows = []
     folio_lev = str(r.get("ot_folio_levantamiento") or extract_origin(r.get("ot_partidas_json"), "lev") or "").strip().upper()
     if folio_lev:
@@ -151,12 +134,8 @@ def contrato_orden_trabajo(registro):
             lev = buscar_levantamiento_por_folio(folio_lev) or {}
             origen_rows = partidas_desde_detalle_levantamiento(lev.get("lev_detalle_tecnico_json"))
         except Exception:
-            # El PDF debe seguir siendo generable aunque Supabase no esté disponible
-            # temporalmente; en ese caso se usa la información ya guardada en la OT.
             origen_rows = []
 
-    # La cotización finalizada es la fuente autorizada para Modelo/Marca.
-    # Si existe, sustituye esos valores en la tabla de OT sin depender del LEV.
     source_rows = []
     try:
         from services.cotizaciones_service import cargar_cotizacion
@@ -170,10 +149,6 @@ def contrato_orden_trabajo(registro):
         source_rows = []
     source_rows = source_rows or origen_rows or visible_partidas(r.get("ot_partidas_json"))
 
-    # Compatibilidad con OTs antiguas: versiones previas podían guardar el
-    # resumen completo del levantamiento como una fila ``Servicio``. Esa fila
-    # nunca debe aparecer en PARTIDAS / MATERIALES / EQUIPOS. Solo conservamos
-    # renglones con forma de material/equipo/misceláneo real.
     def _es_partida_operativa(item):
         if not isinstance(item, dict):
             return False
@@ -208,8 +183,6 @@ def contrato_orden_trabajo(registro):
             fila = dict(base) if indice == 0 else {clave: "" for clave in base}
             fila["Concepto"] = fragmento
             partidas.append(fila)
-    # El PDF de OT presenta tres tablas independientes para lectura operativa:
-    # MATERIALES, EQUIPOS y MISCELÁNEOS / CONSUMIBLES.
     grupos = {"Materiales": [], "Equipos": [], "Misceláneos": []}
     for fila in partidas:
         grupo = str(fila.pop("_Grupo", "Materiales") or "Materiales").strip().casefold()

@@ -1,4 +1,3 @@
-"""Regresión: las tablas deben respetar los anchos y el scroll horizontal."""
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
@@ -28,7 +27,6 @@ def test_archivo_malformado_no_bloquea_lectura():
 
 
 def test_redimensionar_y_recargar_no_restablece_anchos():
-    # Mocks de Treeview: comprueba el contrato sin pantalla ni CustomTkinter.
     class MockTree:
         def __init__(self):
             self._cols=('codigo','producto')

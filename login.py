@@ -44,10 +44,6 @@ from ui.fonts import (
 )
 from core.version import APP_VERSION
 
-
-
-# Servicios de autenticación cargados bajo demanda. Esto permite mostrar el
-# Login antes de inicializar Supabase, Pydantic y el cliente HTTP.
 _AUTH_SERVICES = None
 
 def _cargar_servicios_auth():
@@ -73,7 +69,6 @@ CARD_WIDTH = 440
 
 
 def _crear_logo(parent, size=(110, 110), pady=(10, 4)):
-    """Crea el logotipo corporativo y conserva su referencia visual."""
     logo = cargar_logo_axia(size=size)
     label = ctk.CTkLabel(parent, image=logo, text="")
     label.pack(pady=pady)
@@ -82,12 +77,7 @@ def _crear_logo(parent, size=(110, 110), pady=(10, 4)):
 
 
 def _dibujar_icono_ojo(color, tamano=160):
-    """Dibuja un icono de ojo (mostrar contraseña) con fondo transparente.
-
-    No depende de ningún archivo PNG, así que siempre se ve.
-    Se dibuja a 4 veces la resolución y se reduce para que quede suave.
-    """
-    if isinstance(color, (tuple, list)):  # CustomTkinter permite (claro, oscuro)
+    if isinstance(color, (tuple, list)):
         color = color[0]
     rojo, verde, azul = ImageColor.getrgb(color)[:3]
     tinta = (rojo, verde, azul, 255)
@@ -97,7 +87,6 @@ def _dibujar_icono_ojo(color, tamano=160):
     grosor = n * 0.075
 
     def almendra(medio_ancho, medio_alto):
-        """Contorno cerrado del ojo: dos curvas (Bézier cuadráticas) unidas en las puntas."""
         arriba = []
         for i in range(81):
             t = i / 80
@@ -107,13 +96,11 @@ def _dibujar_icono_ojo(color, tamano=160):
         abajo = [(x, 2 * cy - y) for x, y in reversed(arriba)]
         return arriba + abajo
 
-    # Se pinta el ojo completo y se vacía su interior: queda un borde limpio.
     mascara = Image.new("L", (n, n), 0)
     dibujo = ImageDraw.Draw(mascara)
     dibujo.polygon(almendra(n * 0.46, n * 0.30), fill=255)
     dibujo.polygon(almendra(n * 0.46 - grosor * 1.7, n * 0.30 - grosor), fill=0)
 
-    # Pupila
     rp = n * 0.14
     dibujo.ellipse((cx - rp, cy - rp, cx + rp, cy + rp), fill=255)
 
@@ -123,11 +110,6 @@ def _dibujar_icono_ojo(color, tamano=160):
 
 
 def _teñir_icono(ruta, color):
-    """Carga un PNG y lo pinta de un solo color, conservando su forma.
-
-    Sirve tanto para PNG con fondo transparente como para PNG con fondo sólido.
-    Devuelve None si el archivo no existe o no tiene nada visible.
-    """
     try:
         with Image.open(ruta) as img:
             img = img.convert("RGBA").copy()
@@ -136,24 +118,21 @@ def _teñir_icono(ruta, color):
 
     alfa = img.getchannel("A")
 
-    # PNG sin transparencia (fondo sólido): la forma se saca de la luminosidad.
     if alfa.getextrema()[0] == 255:
         gris = img.convert("L")
         fondo_claro = gris.getpixel((0, 0)) > 127
         alfa = ImageOps.invert(gris) if fondo_claro else gris
 
-    if alfa.getextrema()[1] < 40:  # imagen vacía / transparente
+    if alfa.getextrema()[1] < 40:
         return None
 
-    if isinstance(color, (tuple, list)):  # CustomTkinter permite (claro, oscuro)
+    if isinstance(color, (tuple, list)):
         color = color[0]
     rojo, verde, azul = ImageColor.getrgb(color)[:3]
 
     resultado = Image.new("RGBA", img.size, (rojo, verde, azul, 255))
     resultado.putalpha(alfa)
 
-    # Recorta el margen vacío del PNG y lo centra en un cuadrado, para que el
-    # dibujo ocupe el botón en lugar de verse diminuto.
     caja = alfa.point(lambda v: 255 if v > 40 else 0).getbbox()
     if caja:
         resultado = resultado.crop(caja)
@@ -168,17 +147,11 @@ def _teñir_icono(ruta, color):
 
 
 def _cargar_imagen_ver(color):
-    """Imagen para el botón de mostrar contraseña.
-
-    Usa assets/iconos/ver.png (teñido con `color`). Si el archivo no está o
-    está vacío, dibuja un ojo por código para que el botón nunca quede en blanco.
-    """
     ruta = Path(__file__).resolve().parent.parent / "assets" / "iconos" / "ver.png"
     return _teñir_icono(ruta, color) or _dibujar_icono_ojo(color)
 
 
 def abrir_login():
-    """Abre una pantalla de acceso compacta y consistente con el tema AXIA."""
     app = ctk.CTk()
     aplicar_estilo_ventana(app)
     configurar_icono_app(app)
@@ -211,21 +184,14 @@ def abrir_login():
 
     app.protocol("WM_DELETE_WINDOW", cerrar_login_sin_acceso)
 
-    # Precalienta dependencias de red después de mostrar la ventana.
-    # Si el usuario empieza a escribir, la carga ocurre en paralelo y el clic
-    # de INGRESAR no paga todo el costo de importación.
     app.after(250, lambda: run_async(root=app, task=_cargar_servicios_auth))
 
-    # Fondo principal: gradiente simulado con frame base + acentos
     root = ctk.CTkFrame(app, fg_color=WHITE, corner_radius=0)
     root.pack(fill="both", expand=True)
 
     # =================================================
     # CONTENEDOR PRINCIPAL DEL LOGIN
     # =================================================
-    # Sin tarjeta exterior, sin franja azul/lila y sin
-    # borde alrededor de todo el formulario.
-
     outer_card = ctk.CTkFrame(
         root,
         fg_color="transparent",
@@ -264,7 +230,6 @@ def abrir_login():
     )
     accent_bar.pack(fill="x", padx=28, pady=(16, 0))
 
-    # Punto brillante decorativo en el centro
     accent_dot = ctk.CTkFrame(
         accent_bar,
         width=5,
@@ -277,7 +242,6 @@ def abrir_login():
 
     _crear_logo(card, size=(115, 115), pady=(6, 0))
 
-    # Título SIN pack_propagate(False) SIN tamaño fijo → no aparecerá cuadro.
     ctk.CTkLabel(
         card,
         text="Inicio de sesión",
@@ -285,7 +249,6 @@ def abrir_login():
         text_color=TEXT_PRIMARY,
     ).pack(pady=(6, 2))
 
-    # Barra inferior decorativa debajo del título
     deco_line = ctk.CTkFrame(
         card,
         width=68,
@@ -306,7 +269,6 @@ def abrir_login():
     icono_usuario = cargar_icono("usuario.png", (20, 20), color=PRIMARY)
     icono_cerrar = cargar_icono("cerrar.png", (20, 20), color=PRIMARY)
 
-    # Icono de ver.png teñido con PRIMARY (con ojo dibujado como respaldo).
     imagen_ver = _cargar_imagen_ver(PRIMARY)
     icono_ver = ctk.CTkImage(
         light_image=imagen_ver,
@@ -361,7 +323,6 @@ def abrir_login():
     entry_usuario.pack(side="left", fill="both", expand=True, padx=(0, 10))
     entry_usuario.focus()
 
-    # Focus ring visual para entry_usuario
     def _usuario_focus_in(_e=None):
         usuario_row.configure(
             fg_color=PRIMARY_50
@@ -440,7 +401,6 @@ def abrir_login():
     )
     entry_password.pack(side="left", fill="both", expand=True, padx=(0, 6))
 
-    # Focus ring visual para entry_password
     def _pass_focus_in(_e=None):
         password_row.configure(
             fg_color=PRIMARY_50
@@ -489,8 +449,6 @@ def abrir_login():
                     region=ubicacion["region"],
                     pais=ubicacion["pais"],
                 )
-                # Misma contraseña del inicio normal: sesión de solo lectura para
-                # el catálogo maestro. Nunca se conserva ni se pide otra vez.
                 token_catalogo = None
                 try:
                     if int(usuario.get('usu_tipo') or 0) in (1, 2, 3, 4, 5, 6):
@@ -499,8 +457,6 @@ def abrir_login():
                         lectura.iniciar_lectura(nickname, password, usuario.get("id_usuario"))
                         token_catalogo = lectura.token
                 except Exception:
-                    # Si el catálogo falla, no se impide acceder a AXIA.
-                    # Al abrir un levantamiento se verá el error de consulta.
                     from core.logger import configurar_logger
                     configurar_logger(__name__).warning("Catálogo AXIA de solo lectura no disponible en login.", exc_info=True)
                 token_reportador = None
@@ -511,14 +467,11 @@ def abrir_login():
                             nickname, password, usuario.get('id_usuario'), usuario.get('usu_tipo')
                         )
                 except Exception:
-                    # No bloquea AXIA si no se ha desplegado la nueva función.
                     from core.logger import configurar_logger
                     configurar_logger(__name__).warning(
                         "Reportador fotográfico no habilitado en Supabase; no hay sesión nativa.",
                         exc_info=True,
                     )
-                # Token AXIA común a DESKTOP/FIELD: se solicita con las mismas
-                # credenciales de este login; nunca se conserva en disco.
                 token_borradores, expira_borradores = None, 0
                 try:
                     from services.sesion_axia_compartida import solicitar_sesion
@@ -623,9 +576,6 @@ def abrir_login():
     # =================================================
     # BOTÓN INGRESAR
     # =================================================
-    # El botón queda directamente sobre la tarjeta,
-    # sin fondo/rectángulo permanente detrás.
-
     btn_ingresar = ctk.CTkButton(
         card,
         text="INGRESAR",
@@ -648,7 +598,6 @@ def abrir_login():
     # =================================================
     separator_wrap = ctk.CTkFrame(card, fg_color="transparent")
     separator_wrap.pack(padx=42, pady=(18, 4), fill="x")
-    # Línea + glifo central decorativo
     sep_container = ctk.CTkFrame(separator_wrap, fg_color="transparent")
     sep_container.pack(fill="x", pady=6)
     sep_left = ctk.CTkFrame(

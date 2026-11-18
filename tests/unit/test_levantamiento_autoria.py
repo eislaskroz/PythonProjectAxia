@@ -1,4 +1,3 @@
-"""Regresiones: autoría original en PDF de todos los tipos de LEV."""
 import json
 
 import pytest

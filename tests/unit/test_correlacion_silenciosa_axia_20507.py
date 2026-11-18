@@ -1,4 +1,3 @@
-"""Preservar el formulario original y relacionar artículos sin modificar inventario."""
 from pathlib import Path
 from services.correlacion_levantamientos_almacen import CorrelacionadorAxia
 
@@ -42,7 +41,7 @@ def test_material_por_nombre_y_equipo_no_ambiguo():
     c=CorrelacionadorAxia(PRODUCTOS)
     assert c.material('ABRAZADERA DE CLIP 1')['codigo_axia']=='ABR-CAN-00001'
     assert c.equipo('Redes','CISCO SYSTEMS SWITCH')['codigo_axia']=='SWT-RED-00004'
-    assert not c.equipo('Redes','SWITCH')  # Descripción genérica no basta.
+    assert not c.equipo('Redes','SWITCH')
 
 
 def test_nombres_duplicados_no_tienen_match_inventado():

@@ -1,4 +1,3 @@
-"""Pruebas puras: la edición desbloqueada no afecta otras secciones ni JSON oculto."""
 import json
 from services.obra_civil_edicion import preparar_borrador_edicion, cambios_secciones, CAMPOS_POR_SECCION
 

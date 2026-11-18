@@ -1,9 +1,4 @@
 from core.error_reporting import show_operation_error
-"""
-Formulario Orden de Servicio AXIA.
-Actualizado: campos compactos, renglones dinámicos, firma del cliente y preview PDF.
-"""
-
 from core.logger import configurar_logger
 
 logger = configurar_logger(__name__)
@@ -69,8 +64,8 @@ def mostrar_orden_servicio(parent, app, aco=None):
     var_domicilio = ctk.StringVar(value=datos_aco.get("direccion", ""))
     var_encargado_general = ctk.StringVar(value=datos_aco.get("contacto", ""))
     var_solicitante = ctk.StringVar(value=datos_aco.get("contacto", ""))
-    var_correo = ctk.StringVar()  # Correo del cliente firmante, capturado manualmente
-    var_celular = ctk.StringVar()  # Celular del cliente firmante, capturado manualmente
+    var_correo = ctk.StringVar()
+    var_celular = ctk.StringVar()
     var_hora_llegada = ctk.StringVar()
     var_hora_salida = ctk.StringVar()
     var_aco = ctk.StringVar(value=datos_aco.get("aco_numero", ""))
@@ -91,8 +86,7 @@ def mostrar_orden_servicio(parent, app, aco=None):
     var_porcentaje_os = ctk.StringVar()
     var_firma_cliente = ctk.StringVar()
     var_estado_firma = ctk.StringVar(value="Sin firma")
-    # Los datos del cliente firmante se capturan manualmente en sitio.
-    # Pueden ser distintos del encargado y del solicitante del ACO.
+
     var_firmante_nombre = ctk.StringVar()
     var_firmante_puesto = ctk.StringVar()
 
@@ -113,7 +107,7 @@ def mostrar_orden_servicio(parent, app, aco=None):
     card.grid(row=0, column=0, sticky="nsew", pady=(0, 4))
     form = ctk.CTkFrame(card, fg_color="transparent")
     form.pack(fill="x", expand=True, padx=12, pady=(9, 4))
-    # Cinco columnas permiten una distribución más compacta de los datos generales.
+
     for col in range(5):
         form.grid_columnconfigure(col, weight=1, uniform="cols")
 
@@ -182,7 +176,6 @@ def mostrar_orden_servicio(parent, app, aco=None):
         var_tecnicos.set(" | ".join(tecnicos_seleccionados))
 
     def cargar_datos_firmante():
-        """No heredar datos del ACO: recuperar solo lo guardado en la OS."""
         var_firmante_nombre.set(str(os_existente.get("os_firmante_nombre") or "").strip())
         var_firmante_puesto.set(str(os_existente.get("os_firmante_puesto") or "").strip())
 
@@ -206,9 +199,7 @@ def mostrar_orden_servicio(parent, app, aco=None):
         contacto = datos_aco.get("contacto", "") or ot.get("ot_contacto", "")
         var_encargado_general.set(contacto)
         var_solicitante.set(contacto)
-        # Los datos de contacto corresponden a quien firma la OS, no al ACO.
-        # Al abrir una orden guardada recuperamos sus valores; una orden nueva
-        # empieza con ambos campos libres para capturarlos en sitio.
+
         var_correo.set(str(os_existente.get("os_correo") or "").strip())
         var_celular.set(str(os_existente.get("os_celular") or "").strip())
         cargar_datos_firmante()
@@ -221,10 +212,7 @@ def mostrar_orden_servicio(parent, app, aco=None):
             var_supervisor.set(str(os_existente.get("os_supervisor") or datos_aco.get("supervisor", "")))
             var_encargado_servicio.set(str(os_existente.get("os_encargado_servicio") or ""))
             _cargar_tecnicos_desde_texto(os_existente.get("os_tecnicos") or os_existente.get("os_tecnico"))
-            # Las horas deben cargarse desde la OS existente. Si la OS antigua
-            # quedó vacía pero ya existe una Bitácora Operativa con horarios,
-            # usamos esa información como respaldo para no obligar al usuario
-            # a recapturarla manualmente.
+
             var_hora_llegada.set(str(os_existente.get("os_hora_llegada") or ""))
             var_hora_salida.set(str(os_existente.get("os_hora_salida") or ""))
             if not var_hora_llegada.get().strip() or not var_hora_salida.get().strip():
@@ -256,19 +244,16 @@ def mostrar_orden_servicio(parent, app, aco=None):
             logger.debug("Excepción recuperable controlada.", exc_info=True)
 
     seccion("Información General", 0)
-    # Fila 1: exactamente cinco bloques, como el diseño operativo de referencia.
     entry("Folio OS", var_folio, "Automático", 1, 0, state="disabled", required=False, width=115)
     entry("Fecha", var_fecha, "DD/MM/AAAA", 1, 1, state="disabled", required=False, width=210)
     option("ACO", var_aco, acos_disponibles or ["Sin ACOs disponibles"], 1, 2, command=cargar_aco, state="normal" if acos_disponibles else "disabled", width=365)
     entry("Cliente", var_cliente, "Autollenado", 1, 3, lock=True, width=355)
     entry("Sucursal", var_sucursal, "Autollenado", 1, 4, lock=True, width=275)
 
-    # Fila 2: datos generales. El contacto de quien firma se captura al final.
     entry("Domicilio", var_domicilio, "Autollenado", 2, 0, lock=True, width=370)
     entry("Encargado", var_encargado_general, "Autollenado", 2, 1, lock=True, width=300)
     entry("Solicitante", var_solicitante, "Autollenado", 2, 2, lock=True, width=175)
 
-    # Fila 3: horarios y tipo de servicio, compactos y alineados a la izquierda.
     entry("Hora de Llegada", var_hora_llegada, "HH:MM", 3, 0, width=200)
     entry("Hora de Salida", var_hora_salida, "HH:MM", 3, 1, width=200)
     option("Tipo de Servicio", var_tipo_servicio, TIPOS_SERVICIO, 3, 2, width=365)
@@ -334,8 +319,6 @@ def mostrar_orden_servicio(parent, app, aco=None):
     equipos = []
     acciones_equipos = celda(10, 0, 5)
     equipos_frame = celda(11, 0, 5)
-    # Un CTkFrame vacío conserva altura propia; ocultarlo evita el gran espacio en blanco
-    # entre Entrada/Salida de Equipos y Evaluación del Servicio.
     equipos_frame.grid_remove()
     headers = ["Equipo", "Número de Serie", "Movimiento", "Diagnóstico de la Falla"]
 
@@ -366,7 +349,6 @@ def mostrar_orden_servicio(parent, app, aco=None):
         validar_preview()
 
     ctk.CTkButton(acciones_equipos, text="+ Nuevo equipo", width=150, height=30, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=agregar_equipo).pack(anchor="w")
-    # Sección opcional: no se crea ningún renglón hasta que el usuario pulse "+ Nuevo equipo".
 
     seccion("Evaluación del Servicio", 12)
     eval_frame = celda(13, 0, 5)
@@ -395,8 +377,6 @@ def mostrar_orden_servicio(parent, app, aco=None):
     seccion("Firma del Cliente", 17)
     entry("Nombre del encargado", var_firmante_nombre, fila=18, col=0, required=True)
     entry("Puesto", var_firmante_puesto, fila=18, col=1, required=True)
-    # Datos del firmante: editables, sin autollenar desde el ACO.
-    # Se conservan las columnas os_correo y os_celular existentes en Supabase.
     entry("Correo del firmante", var_correo, "Correo electrónico", fila=18, col=2, required=False)
     entry("Celular del firmante", var_celular, "Número de celular", fila=18, col=3, required=False)
     c_firma = celda(19, 0, 5)
@@ -416,7 +396,6 @@ def mostrar_orden_servicio(parent, app, aco=None):
         return salida
 
     def campos_faltantes():
-        """Lista visible de todos los requisitos no completados de la OS."""
         faltantes = []
         for variable in campos_validables:
             valor = str(variable.get() or "").strip()
@@ -505,12 +484,10 @@ def mostrar_orden_servicio(parent, app, aco=None):
             "os_hora_llegada": var_hora_llegada.get().strip(), "os_hora_salida": var_hora_salida.get().strip(), "os_tipos_servicio_json": json.dumps([var_tipo_servicio.get().strip()], ensure_ascii=False),
             "os_tipo_servicio": var_tipo_servicio.get().strip(), "os_supervisor": var_supervisor.get().strip(), "os_encargado_servicio": var_encargado_servicio.get().strip(),
             "os_tecnicos": var_tecnicos.get().strip(), "os_tecnico": var_tecnicos.get().strip(), "os_descripcion": obtener_textbox(txt_descripcion), "os_observaciones": "",
-            # No eliminar evidencias anteriores al actualizar una OS sin fotos nuevas.
             "os_fotos": list(os_existente.get("os_fotos") or []),
             "os_firmante_nombre": var_firmante_nombre.get().strip(), "os_firmante_puesto": var_firmante_puesto.get().strip(),
             "os_porcentaje_avance": float(_numero_porcentaje(var_porcentaje_os.get(), "Avance de OS")),
             "os_equipos_json": json.dumps(equipos_db, ensure_ascii=False), "os_eval_trato": var_eval_trato.get(), "os_eval_habilidades": var_eval_habilidades.get(),
-            # La OS nace FINALIZADA: nunca se guarda como documento en proceso.
             "os_eval_velocidad": var_eval_velocidad.get(), "os_eval_otro": var_eval_otro.get(), "os_firma_cliente": var_firma_cliente.get(), "os_estatus": 3, "os_prioridad": 2,
             "creado_por": usuario_activo.get("usuario")
         }
@@ -549,7 +526,6 @@ def mostrar_orden_servicio(parent, app, aco=None):
 
 
     def volver_a_selector_aco():
-        """Regresa al selector de formularios manteniendo el ACO validado."""
         if aco:
             app.mostrar_vista_inicio_aco_validado(aco)
         else:

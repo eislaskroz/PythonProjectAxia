@@ -1,7 +1,3 @@
-"""Acceso de RRHH a expedientes mediante una Edge Function con control de rol 10.
-
-La UI nunca envía una clave service_role ni puede administrar cuentas desde esta API.
-"""
 from __future__ import annotations
 
 import requests
@@ -60,7 +56,6 @@ def buscar_usuarios_rrhh(termino: str, contrasena: str) -> list[dict]:
     for bruto in datos.get('registros', []):
         if not isinstance(bruto, dict):
             continue
-        # Se conserva el valor original cifrado SOLO para la comparación optimista.
         descifrado = descifrar_diccionario(bruto, CAMPOS_CIFRADOS_RRHH)
         descifrado['_axia_original_cifrado'] = {k: bruto.get(k) for k in CAMPOS_RRHH}
         resultado.append(descifrado)
@@ -69,7 +64,6 @@ def buscar_usuarios_rrhh(termino: str, contrasena: str) -> list[dict]:
 
 def actualizar_usuario_rrhh(id_usuario, datos: dict, seleccionado: dict,
                             contrasena: str, motivo: str):
-    """Envía únicamente campos modificados, nunca rol, nickname ni password."""
     try:
         if not isinstance(seleccionado, dict) or not seleccionado.get('id_usuario'):
             return False, 'Selecciona un empleado existente.', None
@@ -80,8 +74,6 @@ def actualizar_usuario_rrhh(id_usuario, datos: dict, seleccionado: dict,
         originales = seleccionado.get('_axia_original_cifrado')
         if not isinstance(originales, dict):
             return False, 'Vuelve a consultar al empleado antes de actualizar.', None
-        # No permitir borrar los campos identificadores requeridos del
-        # expediente; el resto de datos opcionales sí pueden corregirse.
         for requerido in ('usu_nombre', 'usu_apellido'):
             if not str(datos.get(requerido) or '').strip():
                 return False, 'Nombre y apellido son obligatorios para el expediente.', None
@@ -114,7 +106,6 @@ def actualizar_usuario_rrhh(id_usuario, datos: dict, seleccionado: dict,
 
 
 def alta_usuario_rrhh(datos: dict, contrasena: str, motivo: str):
-    """Alta laboral. No asigna contraseñas ni roles privilegiados desde Desktop."""
     try:
         nickname = str(datos.get('usu_nickname') or '').strip()
         nombre = str(datos.get('usu_nombre') or '').strip()
@@ -144,7 +135,6 @@ def alta_usuario_rrhh(datos: dict, contrasena: str, motivo: str):
 
 
 def baja_usuario_rrhh(seleccionado: dict, contrasena: str, motivo: str):
-    """Baja lógica y revocación del password, sin borrar historial ni registros."""
     try:
         if not isinstance(seleccionado,dict) or not seleccionado.get('id_usuario'):
             return False, 'Selecciona un empleado existente.', None

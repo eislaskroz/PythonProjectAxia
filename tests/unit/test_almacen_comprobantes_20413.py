@@ -1,4 +1,3 @@
-"""Pruebas de etiquetas y tickets posteriores al guardado de Almacén."""
 from decimal import Decimal
 import fitz
 import pytest
@@ -18,8 +17,7 @@ def test_etiqueta_code128_y_datos(tmp_path):
     assert 'ABR-CAN-00001' in texto
     assert '12.5' in texto
     assert '29/10/2026 12:14:16' in texto
-    assert len(doc[0].get_drawings()) > 20  # barras de Code128 reales
-
+    assert len(doc[0].get_drawings()) > 20
 
 def test_etiqueta_rechaza_codigo_no_imprimible(tmp_path):
     with pytest.raises(ValueError):
@@ -37,7 +35,7 @@ def test_ticket_salida_sin_precios(tmp_path):
     doc = fitz.open(pdf)
     assert len(doc) == 1
     assert 79 < doc[0].rect.width / 2.834645669 < 81
-    assert doc[0].rect.height < 650  # ticket sin márgenes enormes
+    assert doc[0].rect.height < 650
     contenido = ''.join(p.get_text() for p in doc)
     for x in ('TUB-CAN-00001', 'RTR-RED-00002', 'OT-00024', 'Encargado de red',
               '29/10/2026 12:14:16', 'Cantidad entregada: 2', 'No es comprobante fiscal'):
@@ -57,7 +55,7 @@ def test_ticket_ot_largo_se_completo(tmp_path):
     assert 'CAB-RED-00000' in contenido
     assert 'CAB-RED-00039' in contenido
     assert 'ARTICULOS: 40' in contenido
-    assert len(doc) >= 1  # El rollo puede paginarse con entregas extensas
+    assert len(doc) >= 1
 
 
 def test_no_se_incluye_acceso_a_supabase():

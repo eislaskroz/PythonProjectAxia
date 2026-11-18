@@ -1,4 +1,3 @@
-"""Evitar que reaparezca el panel gris sin utilidad del Catálogo AXIA."""
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]

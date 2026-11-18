@@ -1,4 +1,3 @@
-"""Regresiones del acceso a Guardar croquis cuando el pie se recorta en Windows."""
 import ast
 from pathlib import Path
 
@@ -9,7 +8,7 @@ def _save_function():
     tree = ast.parse(SOURCE.read_text(encoding='utf-8'))
     popup = next(n for n in tree.body if isinstance(n, ast.FunctionDef)
                  and n.name == 'anotacion_plano_popup')
-    # Buscar dentro de la función exterior la función compartida de guardado.
+
     save_nodes = [n for n in ast.walk(popup) if isinstance(n, ast.FunctionDef)
                   and n.name == 'save']
     assert len(save_nodes) == 1

@@ -1,4 +1,3 @@
-"""Regresión Tk: grid_columnconfigure exige pesos enteros para cada columna."""
 from pathlib import Path
 import ast
 import pytest
@@ -30,7 +29,6 @@ def test_distribucion_canalizacion_no_envia_pesos_decimales_a_tk(archivo):
 
 
 def test_tk_real_acepta_pesos_enteros():
-    """Prueba real con Tk ejecutada con Xvfb en Linux/Windows con GUI."""
     import tkinter as tk
     root = tk.Tk()
     root.withdraw()

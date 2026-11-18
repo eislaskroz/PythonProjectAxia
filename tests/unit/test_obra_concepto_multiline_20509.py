@@ -1,4 +1,3 @@
-"""Regresión visual estática: conceptos largos de Obra Civil sin truncar."""
 from pathlib import Path
 
 FUENTE = (Path(__file__).resolve().parents[2] / "views" / "obra_civil_view.py").read_text(encoding="utf-8")

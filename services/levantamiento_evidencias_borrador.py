@@ -1,8 +1,3 @@
-"""Transferencia privada de adjuntos de un borrador DESKTOP a AXIA FIELD.
-
-El archivo original queda en la PC. Se transfieren únicamente archivos cuyo formato,
-contenido, tamaño y hash hayan sido confirmados por la Edge Function.
-"""
 from __future__ import annotations
 
 import base64
@@ -29,7 +24,6 @@ def _json_object(data):
 
 
 def sanear_json_remoto(datos: dict) -> dict:
-    """Elimina rutas de PC y anotaciones base64 del JSON transferible."""
     transportable = copy.deepcopy(datos)
     for key in ("__evidencias_locales", "__archivos_adjuntos_locales"):
         transportable[key] = []
@@ -44,11 +38,6 @@ def sanear_json_remoto(datos: dict) -> dict:
 
 
 def preparar_medios_borrador(datos: dict, clave: str, cliente: MediosCompartidos) -> dict:
-    """Devuelve un manifiesto y una copia transportable, sin tocar el respaldo local.
-
-    Si algún archivo no se puede subir, falla explícitamente y no anuncia
-    transferencia completa. No se aceptan rutas como referencias remotas.
-    """
     UUID(str(clave))
     if not isinstance(datos, dict):
         raise ValueError("Borrador inválido")
@@ -88,7 +77,6 @@ def preparar_medios_borrador(datos: dict, clave: str, cliente: MediosCompartidos
         manifest.append({"kind": "anotacion", "name": f"anotacion{suffix}", "reference": vars(ref)})
         plano["imagen_base64"] = ""
         transportable["lev_anotacion_plano_json"] = json.dumps(plano, ensure_ascii=False)
-    # No se publican datos base64 ni rutas de la PC en el JSON remoto.
     for k, v in list(transportable.items()):
         if k.startswith("__") and ("base64" in k or "locales" in k):
             transportable[k] = [] if isinstance(v, list) else ""

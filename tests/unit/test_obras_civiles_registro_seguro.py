@@ -1,4 +1,3 @@
-"""Contrato de guardado nuevo: Edge Function, seguridad e idempotencia."""
 import ast
 import sys
 from pathlib import Path

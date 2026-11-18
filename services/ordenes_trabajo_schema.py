@@ -1,8 +1,3 @@
-"""Contrato central de la tabla ``db_ordenes_trabajo``.
-
-El contrato corresponde a la migración beta_095_sync_supabase_v2.sql. Mantener
-los nombres aquí evita que vistas y servicios consulten columnas inexistentes.
-"""
 from __future__ import annotations
 
 TABLE = "db_ordenes_trabajo"
@@ -22,19 +17,16 @@ WRITABLE_COLUMNS = frozenset(COLUMNS) - {"ot_id", "fecha_registro", "created_at"
 
 
 def filter_payload(payload: dict | None) -> dict:
-    """Devuelve solo columnas válidas y editables para INSERT/UPDATE."""
     return {k: v for k, v in dict(payload or {}).items() if k in WRITABLE_COLUMNS}
 
 
 def metadata_item(folio: str, tipo: str = "os") -> dict:
-    """Crea metadato interno de trazabilidad sin exponerlo en PDF/UI."""
     tipo = str(tipo or "os").strip().lower()
     clave = "origen_lev" if tipo in {"lev", "levantamiento"} else "origen_os"
     return {"_axia_meta": {clave: str(folio or "").strip().upper()}}
 
 
 def extract_origin(value, tipo: str = "os") -> str:
-    """Obtiene el folio de origen guardado dentro de ``ot_partidas_json``."""
     import json
     data = value
     if isinstance(data, str):
@@ -56,7 +48,6 @@ def extract_origin(value, tipo: str = "os") -> str:
 
 
 def visible_partidas(value) -> list:
-    """Elimina elementos internos de metadatos antes de mostrarlos en PDF/UI."""
     import json
     data = value
     if isinstance(data, str):
@@ -71,12 +62,6 @@ def visible_partidas(value) -> list:
 
 
 def partidas_desde_detalle_levantamiento(detalle) -> list[dict]:
-    """Extrae partidas operativas reales desde el JSON técnico de un LEV.
-
-    Solo toma colecciones de MATERIALES, EQUIPOS y MISCELÁNEOS/CONSUMIBLES.
-    Nunca convierte resúmenes narrativos, diagnóstico, alcance, servicio ni
-    conceptos generales del levantamiento en partidas del PDF de OT.
-    """
     import json
     from collections.abc import Mapping
 
@@ -148,14 +133,9 @@ def partidas_desde_detalle_levantamiento(detalle) -> list[dict]:
                         concepto = material + (f" - {spec}" if spec and spec.casefold() not in {"n/a", "no aplica"} else "")
                         add(unidad=item.get("unidad"), cantidad=item.get("cantidad"), modelo=item.get("modelo"), marca=item.get("marca"), concepto=concepto, grupo="Misceláneos")
                     continue
-                # Cualquier otra lista (diagnóstico, alcance, actividades, conceptos
-                # generales, etc.) se ignora deliberadamente para la tabla de OT.
                 for item in value:
                     walk(item)
             elif isinstance(value, Mapping):
-                # Algunas variantes guardan materiales/canalización dentro de un
-                # objeto con una colección ``partidas``. Solo se acepta cuando el
-                # nombre de la sección identifica inequívocamente materiales.
                 nested = value.get("partidas")
                 es_materiales = (
                     "canalizacion" in key_norm or "material" in key_norm or

@@ -1,16 +1,3 @@
-"""
-=========================================================
-MÓDULO: tipo_levantamiento_view.py
-DESCRIPCIÓN:
-Selector inicial para definir el tipo de levantamiento.
-
-Regla operativa:
-Antes de mostrar el formulario de levantamiento, el técnico
-primero debe indicar qué tipo de levantamiento realizará.
-Esto permite que AXIA cargue formularios dedicados por área.
-=========================================================
-"""
-
 import customtkinter as ctk
 from ui.iconos import cargar_icono
 from tkinter import messagebox
@@ -33,24 +20,11 @@ TIPOS_LEVANTAMIENTO = [
     {"nombre": "Paneles Solares", "habilitado": True, "icono_archivo": "6.png"},
     {"nombre": "Plantas de Energía", "habilitado": True, "icono_archivo": "7.png"},
     {"nombre": "Obra Civil", "habilitado": True, "icono_archivo": "8.png"},
-    # Se conserva el módulo ya implementado para no perder funcionalidad.
     {"nombre": "Aires Acondicionados", "habilitado": True, "icono_archivo": "9.png", "icono": "❄️"},
 ]
 
 
 def mostrar_selector_tipo_levantamiento(parent, app, aco=None):
-    """
-    Muestra una pantalla previa al formulario de levantamiento.
-
-    Args:
-        parent:
-            Contenedor dinámico principal.
-        app:
-            Instancia principal de AXIA.
-        aco:
-            ACO opcional previamente validado desde Inicio ACO.
-    """
-
     for widget in parent.winfo_children():
         widget.destroy()
 
@@ -81,9 +55,6 @@ def mostrar_selector_tipo_levantamiento(parent, app, aco=None):
     grid = ctk.CTkFrame(card, fg_color="transparent")
     grid.pack(fill="both", expand=True, padx=18, pady=(0, 10))
 
-    # Seis columnas lógicas: cada tarjeta ocupa dos. Esto permite
-    # centrar las dos tarjetas finales conservando exactamente el ancho
-    # de las tarjetas de las tres primeras filas.
     for col in range(6):
         grid.grid_columnconfigure(col, weight=1, uniform="tipos_lev")
 
@@ -110,8 +81,6 @@ def mostrar_selector_tipo_levantamiento(parent, app, aco=None):
     for indice, tipo in enumerate(TIPOS_LEVANTAMIENTO):
         fila = indice // 3
         columna = (indice % 3) * 2
-        # Si sobran dos tarjetas, distribuirlas simétricamente en el centro.
-        # Con 11 opciones ocuparán las columnas 1-2 y 3-4 (sobre seis).
         if total_tipos % 3 == 2 and indice >= total_tipos - 2:
             columna += 1
 
@@ -125,8 +94,6 @@ def mostrar_selector_tipo_levantamiento(parent, app, aco=None):
         item.grid(row=fila, column=columna, columnspan=2, sticky="nsew", padx=5, pady=5)
         item.grid_columnconfigure(0, weight=1)
 
-        # Separar ícono y nombre en widgets independientes garantiza una
-        # separación uniforme también cuando se usa un ícono de respaldo.
         encabezado = ctk.CTkFrame(item, fg_color="transparent")
         encabezado.pack(fill="x", padx=9, pady=(10, 8))
         icono_tipo = cargar_icono(tipo.get("icono_archivo", ""), (24, 24)) if tipo.get("icono_archivo") else None

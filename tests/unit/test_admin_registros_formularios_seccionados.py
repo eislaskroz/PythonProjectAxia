@@ -1,4 +1,3 @@
-"""Pruebas puras para los formularios de edición; no requieren servidor ni Tk."""
 import ast
 import copy
 import json
@@ -12,7 +11,6 @@ SERVICIO = ROOT / 'services' / 'admin_registros_service.py'
 
 
 def importar_logica_pura():
-    # Extraer las funciones/métodos puros sin construir ventanas Tk en CI.
     arbol = ast.parse(ARCHIVO.read_text(encoding='utf8'))
     servicio = ast.parse(SERVICIO.read_text(encoding='utf8'))
     asignaciones = [n for n in servicio.body if isinstance(n, ast.Assign)
@@ -26,7 +24,6 @@ def importar_logica_pura():
         if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id in nombres for t in n.targets):
             nodos.append(n)
         elif isinstance(n,ast.FunctionDef) and n.name in funciones:
-            # Retirar anotaciones solo en prueba, sin alterar fuente real.
             n.returns=None
             for arg in n.args.args:
                 arg.annotation=None

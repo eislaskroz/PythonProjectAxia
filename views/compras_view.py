@@ -1,4 +1,3 @@
-"""Bandeja de Compras AXIA."""
 from __future__ import annotations
 
 import customtkinter as ctk
@@ -241,8 +240,6 @@ def mostrar_compras(parent, app=None):
         hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=cargar,
     ).grid(row=0, column=3, padx=(8, 0))
 
-    # NativeTreeTable expone callback de selección; lo conectamos aquí para
-    # habilitar/deshabilitar las acciones en tiempo real.
     tabla._on_select = lambda _payload: actualizar_botones()
 
     cargar()

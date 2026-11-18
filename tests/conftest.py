@@ -1,4 +1,3 @@
-"""Configuración compartida de pruebas AXIA."""
 import os
 import sys
 from pathlib import Path

@@ -1,4 +1,3 @@
-"""Comprobaciones previas a staging/producción sin modificar datos."""
 from __future__ import annotations
 
 import os

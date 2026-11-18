@@ -1,12 +1,3 @@
-"""Catálogo maestro escalable de equipos para levantamientos AXIA.
-
-La clasificación estable (familia/subfamilia/características) vive en código.
-La marca y el modelo se capturan de forma dinámica para evitar que AXIA dependa
-cada vez que los fabricantes renuevan sus líneas de producto.
-"""
-
-# Catálogo visible homologado. Las marcas reales se presentan en orden alfabético;
-# las opciones de control permanecen en los extremos para facilitar la captura.
 _MARCAS_BASE = [
     "Hikvision", "Dahua", "Axis", "Hanwha", "Bosch", "ZKTeco", "Ruijie",
     "Ubiquiti", "MikroTik", "Cisco", "Aruba", "TP-Link", "Panduit", "Tripp Lite",
@@ -110,8 +101,6 @@ CATALOGO_EQUIPOS = {
 
 def obtener_familias_por_especialidad(especialidad):
     if especialidad == "General":
-        # Unión real de todas las familias/subfamilias, no un catálogo reducido.
-        # Las familias homónimas combinan sus alternativas sin duplicarlas.
         fusion = {}
         for origen, registros in CATALOGO_EQUIPOS.items():
             if origen == "General":

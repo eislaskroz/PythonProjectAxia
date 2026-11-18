@@ -1,8 +1,3 @@
-"""Modal de edición que reutiliza la interfaz ORIGINAL de Obra Civil.
-
-No contiene una copia simplificada ni editores JSON. El folio versionado se
-asigna exclusivamente en Supabase al confirmar una modificación real.
-"""
 from utils import centrar_ventana
 import customtkinter as ctk
 from tkinter import messagebox
@@ -22,7 +17,6 @@ def abrir_editor_obra_civil(padre, obra, al_guardar):
     host.pack(fill='both',expand=True)
     try:
         from views.obra_civil_view import mostrar_obra_civil
-        # app no se utiliza para navegar ni autoguardar durante la edición.
         mostrar_obra_civil(host, app=None, obra_edicion=obra, al_guardar=al_guardar)
     except Exception:
         ventana.destroy()

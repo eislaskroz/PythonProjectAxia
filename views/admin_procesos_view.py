@@ -1,16 +1,3 @@
-"""
-=========================================================
-MÓDULO: views/admin_procesos_view.py
-DESCRIPCIÓN:
-Vistas administrativas/consulta para procesos operativos.
-
-Regla de negocio:
-- El sidebar administrativo NO debe abrir formularios de generación.
-- La generación de procesos debe iniciar desde Inicio ACO.
-- Estas vistas sirven para buscar, consultar y revisar registros existentes.
-=========================================================
-"""
-
 import customtkinter as ctk
 from ui.form_fields import AxiaEntry, AxiaTextbox
 from tkinter import messagebox
@@ -32,11 +19,6 @@ def _previsualizar_documento(registro, configuracion):
 
 
 def _valor(registro, campos, default="No registrado"):
-    """
-    Obtiene el primer valor disponible dentro de una lista de posibles campos.
-    Esto permite tolerar pequeñas diferencias entre tablas sin romper la vista.
-    """
-
     for campo in campos:
         valor = registro.get(campo)
         if valor not in (None, ""):
@@ -45,10 +27,6 @@ def _valor(registro, campos, default="No registrado"):
 
 
 def _crear_card_resultado(parent, registro, configuracion):
-    """
-    Renderiza una tarjeta simple con la información principal del registro.
-    """
-
     card = ctk.CTkFrame(
         parent,
         fg_color="#f8fafc",
@@ -117,15 +95,6 @@ def _crear_card_resultado(parent, registro, configuracion):
 
 
 def mostrar_admin_procesos(parent, app, configuracion):
-    """
-    Construye una vista administrativa genérica para procesos.
-
-    Args:
-        parent: Contenedor principal.
-        app: Instancia de la aplicación.
-        configuracion: Diccionario con nombre de proceso, funciones y campos.
-    """
-
     contenedor = ctk.CTkFrame(parent, fg_color="transparent")
     contenedor.pack(fill="both", expand=True, padx=15, pady=(2, 12))
     contenedor.grid_columnconfigure(0, weight=1)

@@ -1,4 +1,3 @@
-"""Pruebas sin red de la réplica de pdf_service.php; no usa entorno Windows."""
 import sys
 from io import BytesIO
 from pathlib import Path
@@ -65,7 +64,6 @@ def test_formato_y_autor_original():
         assert 'Pendiente' not in text
         assert sum(len(page.get_images()) for page in doc) >= 7
         assert all(len(doc[-i].get_images())>=1 for i in (1,2))
-        # Imagen de orden de servicio por página, siempre después de actividades.
         assert 'ORDEN DE SERVICIO 1' in doc[-2].get_text()
         assert 'ORDEN DE SERVICIO 2' in doc[-1].get_text()
 

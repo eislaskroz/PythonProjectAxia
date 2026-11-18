@@ -1,9 +1,3 @@
-"""Navegación global por teclado para AXIA.
-
-CustomTkinter no incorpora todos sus controles personalizados al recorrido
-nativo de TAB. Este módulo crea un recorrido lógico dinámico que incluye
-campos de texto, selectores, casillas, interruptores y botones.
-"""
 from __future__ import annotations
 
 from core.logger import configurar_logger
@@ -59,7 +53,6 @@ def _visible(widget) -> bool:
 
 
 def _walk(widget):
-    """Recorre en orden de creación, equivalente al flujo visual usual."""
     try:
         children = widget.winfo_children()
     except Exception:
@@ -81,15 +74,7 @@ def _contains(parent, child) -> bool:
             break
     return False
 
-
-# Compatibilidad prueba FIX23: canvas.yview_moveto(target_top / content_height)
 def _scroll_into_view(widget) -> None:
-    """Mantiene visible el control enfocado dentro de CTkScrollableFrame.
-
-    Se calcula la posición absoluta del control respecto del canvas y se mueve
-    el viewport usando el ``scrollregion`` real. Esto evita depender de la
-    geometría interna de CustomTkinter, que cambia entre versiones.
-    """
     current = widget
     while current is not None:
         canvas = getattr(current, "_parent_canvas", None)
@@ -110,12 +95,10 @@ def _scroll_into_view(widget) -> None:
                 top_frac, _ = canvas.yview()
                 view_top = y0 + float(top_frac) * total
 
-                # Posición del widget dentro del contenido virtual, no sólo
-                # dentro del viewport actualmente visible.
                 rel_y = float(widget.winfo_rooty() - canvas.winfo_rooty())
                 item_top = view_top + rel_y
                 item_bottom = item_top + max(1.0, float(widget.winfo_height()))
-                widget_bottom_view = item_bottom - view_top  # compatibilidad/diagnóstico FIX23
+                widget_bottom_view = item_bottom - view_top
                 margin = 28.0
                 target = view_top
                 if item_top < view_top + margin:
@@ -138,8 +121,6 @@ def _scroll_into_view(widget) -> None:
 def _focus(widget) -> None:
     try:
         widget.focus_set()
-        # Esperamos a que Tk aplique el foco y recalcule la geometría; de lo
-        # contrario CustomTkinter puede reportar aún la posición anterior.
         root = widget.winfo_toplevel()
         root.after_idle(lambda w=widget: _scroll_into_view(w))
         root.after(20, lambda w=widget: _scroll_into_view(w))
@@ -170,7 +151,6 @@ def _selector_step(widget, delta: int) -> bool:
 
 
 def install_keyboard_navigation(root) -> None:
-    """Instala una sola vez la navegación global TAB/Shift+TAB."""
     if getattr(root, "_axia_keyboard_navigation", False):
         return
     root._axia_keyboard_navigation = True
@@ -179,12 +159,6 @@ def install_keyboard_navigation(root) -> None:
         return list(_walk(root))
 
     def current_wrapper(items):
-        # ttk.Combobox crea el desplegable como una ventana Tcl interna
-        # (``...popdown...``). Mientras esa lista tiene el foco,
-        # ``root.focus_get()`` intenta resolverla como un widget Tkinter y
-        # puede lanzar ``KeyError: 'popdown'``. Es un foco temporal válido,
-        # no un error de la interfaz; simplemente dejamos que ttk gestione
-        # el teclado hasta que el desplegable se cierre.
         try:
             focused = root.focus_get()
         except Exception as exc:

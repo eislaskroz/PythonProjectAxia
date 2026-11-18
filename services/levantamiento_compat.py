@@ -1,9 +1,3 @@
-"""Compatibilidad de levantamientos entre AXIA Desktop y AXIA FIELD.
-
-Normaliza registros históricos/móviles sin modificar Supabase. La salida conserva
-las claves originales y agrega únicamente metadatos/aliases necesarios para que
-Desktop pueda identificar el formulario, restaurar campos y usar AXIA PDF Engine.
-"""
 from __future__ import annotations
 
 import json
@@ -123,8 +117,6 @@ def _build_declarative_sections(tipo: str, detail: dict[str, Any]) -> None:
             candidates = (key,) + tuple(f"{prefix}{key}" for prefix in TYPE_PREFIXES.get(tipo, ()))
             source_key = next((candidate for candidate in candidates if detail.get(candidate) not in (None, "")), None)
             if source_key:
-                # Usar la etiqueta oficial como clave evita que el PDF tenga que
-                # adivinar textos a partir de identificadores técnicos.
                 values[label] = detail.get(source_key)
         if values:
             sections[_slug_title(title)] = values
@@ -133,10 +125,6 @@ def _build_declarative_sections(tipo: str, detail: dict[str, Any]) -> None:
 
 
 def _build_classic_sections(tipo: str, detail: dict[str, Any]) -> None:
-    """Crea secciones legibles para PDF a partir del payload plano de FIELD.
-
-    No reemplaza estructuras Desktop existentes; solo actúa si FIELD guardó un mapa plano.
-    """
     if isinstance(detail.get("secciones"), dict):
         return
     flat = {k: v for k, v in detail.items() if not isinstance(v, (dict, list, tuple)) and v not in (None, "")}
@@ -182,7 +170,6 @@ def _build_classic_sections(tipo: str, detail: dict[str, Any]) -> None:
 
 
 def _indexed_rows(detail: Mapping[str, Any], prefix: str, fields: tuple[str, ...]) -> list[dict[str, Any]]:
-    """Reconstruye las filas repetibles que FIELD persiste como claves planas."""
     count_value = detail.get(f"{prefix}_count")
     if prefix == "common_tool":
         count_value = count_value or detail.get("common_tools_count")
@@ -264,7 +251,6 @@ def _build_mobile_dynamic_rows(detail: dict[str, Any]) -> None:
 
 
 def _build_security_sections(detail: dict[str, Any]) -> None:
-    """Convierte las claves `sec_*` al contrato histórico del PDF Desktop."""
     def block(mapping: Mapping[str, str]) -> dict[str, Any]:
         return {target: detail.get(source) for source, target in mapping.items() if detail.get(source) not in (None, "")}
 
@@ -339,12 +325,9 @@ def normalizar_registro_levantamiento(registro: Mapping[str, Any] | None) -> dic
         out["lev_tipo_levantamiento"] = tipo
         detail.setdefault("tipo_levantamiento", tipo)
 
-    # AXIA FIELD guarda modalidad como `modalidad` en algunos formularios.
     stored_modalidad = str(out.get("lev_modalidad_operativa") or "").strip()
     if stored_modalidad in {"NEW_CLIENT", "EXISTING_CLIENT", "EXISTING_ACO"}:
         stored_modalidad = ""
-    # La selección del formulario especializado tiene prioridad sobre el valor
-    # histórico de la columna, que en versiones anteriores podía ser fijo.
     acciones = {
         "Seguridad y Monitoreo": ("sec_work_type",),
         "Tecnología, Equipos y Periféricos": ("accion_ti", "necesidad"),

@@ -1,8 +1,3 @@
-"""Regresiones estáticas y de permisos para la consola administrativa AXIA.
-
-No requieren acceso a la base real ni credenciales; las operaciones de escritura
-solo pueden verificarse extremo a extremo después de desplegar SQL y Edge.
-"""
 from pathlib import Path
 import ast
 import re

@@ -1,8 +1,3 @@
-"""Contrato conservador para intercambio de levantamientos AXIA.
-
-No conecta los formularios ni traslada archivos de evidencia. Nunca interpreta un
-borrador de FIELD como si fuera automáticamente un formulario completo DESKTOP.
-"""
 from __future__ import annotations
 
 import json
@@ -22,11 +17,9 @@ COMMON_TO_DESKTOP = {
 }
 
 class IntercambioNoSeguro(ValueError):
-    """Se necesita el conversor especializado o la transferencia de archivos."""
 
 
 def _json_safe(data: dict[str, Any]) -> dict[str, Any]:
-    # Copia profunda y comprueba que realmente podría viajar en JSON.
     return json.loads(json.dumps(data, ensure_ascii=False, allow_nan=False))
 
 
@@ -34,7 +27,6 @@ def desktop_a_sobre(tipo: str, datos: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(datos, dict):
         raise TypeError('Borrador DESKTOP inválido')
     clean = _json_safe(datos)
-    # Las rutas locales no pueden utilizarse en el otro dispositivo.
     if clean.get('__evidencias_locales') or clean.get('__archivos_adjuntos_locales'):
         raise IntercambioNoSeguro('Primero se deben transferir las evidencias locales')
     if any(clean.get(k) for k in ('lev_anotacion_plano_json', 'lev_archivos_adjuntos_json', 'lev_evidencias_json')):
@@ -56,11 +48,6 @@ def desktop_a_sobre(tipo: str, datos: dict[str, Any]) -> dict[str, Any]:
 
 
 def field_a_vista_desktop(sobre: dict[str, Any]) -> dict[str, str]:
-    """Vista de campos compartidos, NO restauración del formulario entero.
-
-    Rechaza expresamente respuestas técnicas, evidencias y firmas hasta que sus
-    transformaciones hayan sido validadas. No se descartan silenciosamente.
-    """
     if not isinstance(sobre, dict) or sobre.get('schema') != SCHEMA or sobre.get('module') != MODULE:
         raise IntercambioNoSeguro('Esquema de borrador desconocido')
     if sobre.get('source') != 'FIELD':

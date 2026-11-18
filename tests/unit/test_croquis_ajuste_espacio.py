@@ -1,7 +1,3 @@
-"""Regresión aislada de ajuste responsive del editor de croquis.
-
-Se extrae la función pura por AST: los test corren en CI Linux sin CTk/Windows.
-"""
 import ast
 from pathlib import Path
 
@@ -19,7 +15,7 @@ def _layout_function():
 def test_ventana_amplia_aprovecha_lienzo_sobre_100_por_ciento():
     fit = _layout_function()
     zoom = fit(1290, 655)
-    assert 1.25 < zoom < 1.35  # Ya no está limitado a 1.0.
+    assert 1.25 < zoom < 1.35
     assert 980 * zoom <= 1290 - 12
     assert 460 * zoom <= 655 - 12
     assert 980 * zoom >= (1290 - 12) * .99

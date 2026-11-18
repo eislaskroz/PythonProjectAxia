@@ -1,24 +1,3 @@
-"""
-=========================================================
-SERVICIO DE FOLIOS AUTOMÁTICOS - AXIA
-=========================================================
-
-Genera folios consecutivos por módulo sin pedir captura manual.
-
-Formatos actuales:
-- LEV-00001 Levantamientos (generado centralmente por Supabase RPC)
-- OS-00001  Órdenes de servicio
-- OT-00001  Órdenes de trabajo
-- BIT-00001 Bitácoras operativas
-- OBC-0001  Obras civiles / Proyecto ejecutivo
-- COT-00001 Cotizaciones comerciales
-
-IMPORTANTE:
-Los folios LEV se generan exclusivamente mediante la función RPC
-public.generar_folio_levantamiento() de Supabase. Los demás módulos
-conservan temporalmente el mecanismo heredado hasta su homologación.
-"""
-
 import re
 
 from core.logger import configurar_logger
@@ -28,11 +7,8 @@ logger = configurar_logger(__name__)
 
 
 class FolioCentralError(RuntimeError):
-    """Error al solicitar o validar un folio centralizado en Supabase."""
-
 
 def _extraer_valor_rpc(data):
-    """Normaliza la respuesta de supabase-py para una RPC escalar."""
     if isinstance(data, str):
         return data
     if isinstance(data, list) and data:
@@ -51,7 +27,6 @@ def _extraer_valor_rpc(data):
 
 
 def solicitar_folio_levantamiento():
-    """Solicita a Supabase el siguiente folio único con formato LEV-XXXXX."""
     try:
         respuesta = supabase.rpc("generar_folio_levantamiento").execute()
     except Exception as error:
@@ -71,7 +46,6 @@ def solicitar_folio_levantamiento():
 
 
 def solicitar_folio_cotizacion():
-    """Solicita a Supabase el siguiente folio único con formato COT-XXXXX."""
     try:
         respuesta = supabase.rpc("generar_folio_cotizacion").execute()
     except Exception as error:
@@ -119,11 +93,6 @@ CONFIG_FOLIOS = {
 
 
 def extraer_consecutivo(folio, prefijo):
-    """
-    Extrae el número final de un folio tipo LEV-0001.
-    Si el formato no coincide, retorna 0.
-    """
-
     if not folio:
         return 0
 
@@ -140,22 +109,12 @@ def extraer_consecutivo(folio, prefijo):
 
 
 def formatear_folio(prefijo, consecutivo):
-    """Construye el folio con el ancho definido para cada módulo.
-
-    OS, OT y BIT usan cinco dígitos. OBC conserva cuatro.
-    LEV se genera por RPC y ya utiliza cinco dígitos.
-    """
     prefijo = prefijo.upper().strip()
     ancho = 5 if prefijo in {"LEV", "OS", "OT", "BIT", "COT"} else 4
     return f"{prefijo}-{int(consecutivo):0{ancho}d}"
 
 
 def obtener_ultimo_folio(prefijo):
-    """
-    Consulta Supabase para obtener el último folio registrado
-    de acuerdo con la configuración del prefijo.
-    """
-
     config = CONFIG_FOLIOS.get(prefijo.upper())
 
     if not config:
@@ -181,18 +140,9 @@ def obtener_ultimo_folio(prefijo):
 
 
 def generar_siguiente_folio(prefijo):
-    """
-    Genera el siguiente folio disponible para el módulo indicado.
-
-    Retorna:
-        str: Folio generado, por ejemplo LEV-0001.
-    """
-
     prefijo = prefijo.upper().strip()
 
     if prefijo == "OBC":
-        # El folio de Obra Civil se asigna en la transacción INSERT del servidor.
-        # Nunca consultar el último folio ni reutilizar OBC-0001 ante un error RLS.
         return "Pendiente de asignación"
     if prefijo == "LEV":
         return solicitar_folio_levantamiento()
@@ -206,16 +156,10 @@ def generar_siguiente_folio(prefijo):
 
     except Exception:
         logger.exception("Error al generar folio automático para %s.", prefijo)
-        # Fallback seguro para no bloquear la UI si la tabla está vacía o hay error puntual.
         return formatear_folio(prefijo, 1)
 
 
 def asegurar_folio(datos, campo, prefijo):
-    """
-    Garantiza que un diccionario tenga folio.
-    Si el campo viene vacío, genera uno automáticamente.
-    """
-
     datos = dict(datos or {})
 
     if not datos.get(campo):

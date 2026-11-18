@@ -1,5 +1,3 @@
-"""Catálogo Supabase de conceptos de Obra Civil AXIA."""
-
 from core.logger import configurar_logger
 from supabase_config import supabase
 from services.query_compat import execute_select_compatible
@@ -14,11 +12,6 @@ COLUMNAS_OBRA_CONCEPTOS = (
 
 
 def obtener_conceptos_obra(activos=True):
-    """Devuelve el catálogo de conceptos ordenado por tipo, partida e id.
-
-    Si la migración aún no fue ejecutada, devuelve una lista vacía para no romper
-    el formulario de levantamiento.
-    """
     try:
         def aplicar(query):
             if activos:

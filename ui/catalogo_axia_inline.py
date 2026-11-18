@@ -1,9 +1,3 @@
-"""Selector en línea del Catálogo Maestro AXIA para Levantamientos.
-
-Presenta la DESCRIPCIÓN en primer término (no el folio interno), ofrece
-búsqueda sobre el catálogo COMPLETO y muestra su clasificación y existencia.
-La selección conserva internamente el codigo_axia y nunca registra movimientos.
-"""
 from __future__ import annotations
 
 from collections import Counter, defaultdict
@@ -18,17 +12,10 @@ def normalizar(texto):
 
 
 def etiqueta_producto(producto):
-    """Texto que reconoce el técnico; el código universal queda oculto."""
     return str(producto.get('producto') or 'Producto sin descripción').strip()
 
 
 def etiquetas_catalogo(productos):
-    """Etiquetas distintas para referencias que comparten la misma descripción.
-
-    No se fusionan artículos que tengan códigos AXIA diferentes. Si todos los
-    atributos visibles coinciden, el ordinal evita que una entrada reemplace a
-    otra en el Combobox; el código continúa siendo la identidad interna.
-    """
     nombres = [etiqueta_producto(p) for p in productos]
     repetidos = Counter(nombres)
     generados = defaultdict(int)
@@ -51,7 +38,6 @@ def etiquetas_catalogo(productos):
 
 
 def detalle_producto(producto):
-    """Datos relevantes para el técnico, sin proveedores ni precios internos."""
     if not producto:
         return ''
     items = [(k, producto.get(v)) for k, v in (
@@ -64,12 +50,6 @@ def detalle_producto(producto):
 
 
 class SelectorProductoAxia(ttk.Frame):
-    """Búsqueda por nombre, medidas, familia, categoría y departamento.
-
-    La lista NO está limitada a los primeros 120 elementos. Las 1,886 referencias
-    quedan disponibles con desplazamiento; teclear reduce las coincidencias.
-    El campo secundario presenta la información descriptiva del artículo.
-    """
     def __init__(self, parent, *, on_select, on_clear=None, productos=None, **kw):
         super().__init__(parent)
         self._on_select = on_select
@@ -103,7 +83,6 @@ class SelectorProductoAxia(ttk.Frame):
         self._combo.set(value)
 
     def configure(self, cnf=None, **kw):
-        # La vista habilita o bloquea el selector completo mediante state.
         state = kw.pop('state', None)
         if state is not None:
             self._combo.configure(state=state)
@@ -152,7 +131,6 @@ class SelectorProductoAxia(ttk.Frame):
             self._informacion.configure(text=(
                 f'{len(encontrados)} de {len(self._productos)} productos disponibles · '
                 'Busca por nombre, medida, categoría o familia.'))
-        # Sin tope artificial: todos los artículos cargados están disponibles.
         self._combo.configure(values=encontrados)
 
     def _elegir(self, event=None):
@@ -166,7 +144,6 @@ class SelectorProductoAxia(ttk.Frame):
         return None
 
     def _validar(self, event=None):
-        # No conviertas texto escrito libremente en una referencia de catálogo.
         if self.get().strip() in self._indice:
             if self._ultimo_codigo != str(self._indice[self.get().strip()].get('codigo_axia') or ''):
                 self._elegir()
@@ -188,7 +165,6 @@ class SelectorProductoAxia(ttk.Frame):
             self._ultima_etiqueta = coincidencia[0]
             self._informacion.configure(text=detalle_producto(coincidencia[1]))
         else:
-            # La referencia histórica sigue visible aunque esté desactivada en catálogo.
             self.set(self._pendiente_descripcion)
             self._informacion.configure(text=(
                 'Referencia histórica conservada; el artículo ya no está disponible en el catálogo activo.'

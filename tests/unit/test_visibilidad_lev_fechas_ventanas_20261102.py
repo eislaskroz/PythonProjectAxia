@@ -1,4 +1,3 @@
-"""Regresiones: visibilidad de LEV, representación de fechas y ventanas AXIA."""
 from __future__ import annotations
 import ast
 from pathlib import Path

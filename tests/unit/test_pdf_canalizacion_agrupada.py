@@ -1,4 +1,3 @@
-"""Agrupación de PDF: LEV ordinarios, especiales y Obra Civil."""
 from pathlib import Path
 
 from services.pdf_canalizacion_agrupada import (

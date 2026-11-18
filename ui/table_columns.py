@@ -1,7 +1,3 @@
-"""Anchos persistentes y scroll horizontal para las tablas de AXIA DESKTOP.
-
-Solo guarda preferencias visuales (identificador de tabla y anchos), nunca filas.
-"""
 from __future__ import annotations
 
 import json
@@ -15,7 +11,6 @@ _MAX_WIDTH = 1800
 
 
 def preferences_path() -> Path:
-    """Ruta fuera de la instalación, válida también tras actualizar con Inno Setup."""
     app_data = os.environ.get("LOCALAPPDATA")
     if app_data:
         return Path(app_data) / "AXIA" / "preferencias_tablas.json"
@@ -69,16 +64,10 @@ def write_preferences(table_id: str, widths: dict[str, int], path: Path | None =
 
 
 def distribuir_anchos(minimos: Sequence[int], espacio: int) -> list[int]:
-    """Llena el ancho de una tabla sin comprimir columnas ni su contenido.
-
-    En pantallas estrechas mantiene los mínimos y deja disponible el scroll
-    horizontal; el alto del Treeview y sus scrollbars no se alteran.
-    """
     result = [max(_MIN_WIDTH, int(width)) for width in minimos]
     extra = max(0, int(espacio) - sum(result))
     if not result or not extra:
         return result
-    # El contenido descriptivo gana más espacio que folios/estados cortos.
     pesos = [max(20, width - 55) for width in result]
     total = sum(pesos)
     repartido = 0
@@ -91,12 +80,6 @@ def distribuir_anchos(minimos: Sequence[int], espacio: int) -> list[int]:
 
 
 class TableColumnManager:
-    """Anchos persistentes, autoajuste horizontal y scroll cuando sea necesario.
-
-    Los anchos automáticos NO se guardan como preferencias del usuario.
-    El redimensionado manual sí se conserva entre pantallas y sesiones.
-    """
-
     def __init__(self, tree: ttk.Treeview, table_id: str):
         if not table_id:
             raise ValueError("Cada tabla necesita un identificador persistente")
@@ -122,7 +105,6 @@ class TableColumnManager:
         for key in old_ids:
             if key in self.defaults:
                 old = int(self.tree.column(key, "width"))
-                # No confundir el autoajuste visual con una decisión manual.
                 if key not in self._last_applied or old != self._last_applied[key]:
                     self._current_widths[key] = old
         new_ids = tuple(key for key, _, _ in columns)
@@ -135,14 +117,12 @@ class TableColumnManager:
             width = (self._current_widths.get(key) or self.saved.get(key)
                      or self.defaults[key])
             self.tree.heading(key, text=title, anchor="w")
-            # Evita que ttk comprima los datos; cuando falte espacio hay scroll.
             self.tree.column(key, width=width, minwidth=_MIN_WIDTH,
                              anchor="w", stretch=False)
             self._last_applied[key] = width
         self._schedule_layout()
 
     def set_content_widths(self, widths: dict[str, int]) -> None:
-        """Recibe medidas de contenido ya mostrado, nunca datos de la BD."""
         self._content_widths = {
             key: min(520, max(_MIN_WIDTH, int(width)))
             for key, width in widths.items() if key in self.tree["columns"]
@@ -175,8 +155,6 @@ class TableColumnManager:
         keys = tuple(self.tree['columns'])
         if not keys:
             return
-        # Mantener las elecciones manuales. En ausencia de una preferencia,
-        # mostrar completo encabezado y una longitud razonable de cada dato.
         base = []
         for key in keys:
             preference = self._current_widths.get(key) or self.saved.get(key)
@@ -200,7 +178,6 @@ class TableColumnManager:
         self._last_available = viewport
 
     def _on_release(self, _event=None) -> None:
-        # El resize de ttk puede completarse tras el callback del widget.
         self.tree.after_idle(self.capture_changed_widths)
 
     def capture_changed_widths(self) -> None:
@@ -231,5 +208,4 @@ class TableColumnManager:
         self._schedule_layout()
 
     def _wheel_horizontal(self, event) -> str:
-        # No desplazar con Shift+rueda: permanece la barra horizontal.
         return "break"

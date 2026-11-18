@@ -1,9 +1,6 @@
 # =====================================================
 # COLORES CORPORATIVOS AXIA
 # =====================================================
-# Paleta centralizada y fija para reducir variaciones visuales
-# entre equipos, versiones de Windows y temas del sistema.
-
 PRIMARY = "#000A8B"
 PRIMARY_DARK = "#0F2337"
 SECONDARY = "#0369F8"
@@ -12,7 +9,6 @@ BLACK = "#000000"
 LIGHT_GRAY = "#F4F6F8"
 BLUE_SHADOW = "#3B82F699"
 
-# Estados
 SUCCESS = "#16A34A"
 WARNING = "#F59E0B"
 DANGER = "#DC2626"

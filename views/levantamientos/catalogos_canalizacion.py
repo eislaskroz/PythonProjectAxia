@@ -1,8 +1,3 @@
-"""Catálogos homologados para canalización, infraestructura y cableado.
-
-Los valores se conservan con la nomenclatura operativa proporcionada por AXIA.
-"""
-
 TIPOS_COPLES = [
     "Opresor", "Compresión", "Roscado", "Combinación", "PVC Rígido",
     "Polietileno", "Ducto Polietileno Alta Densidad",
@@ -26,13 +21,10 @@ TAMANOS_TUBOS = [
     '1 1/2" (38mm)', '2" (51mm)', '2" 1/2" (63mm)',
 ]
 
-# Compatibilidad con registros/versiones anteriores. Los formularios nuevos usan
-# selectores independientes para tipo y tamaño.
 TIPOS_TUBOS_CON_TAMANO = [
     f"{tipo} — {tamano}" for tipo in TIPOS_TUBOS for tamano in TAMANOS_TUBOS
 ]
 
-# Cajas para canalización: mismo catálogo de medidas que tubos y conectores.
 TIPOS_CAJAS = [
     "FS", "FSC", "FSS", "FSL", "FSR", "FST", "FSCC", "FSCD",
     "FD", "Tipo C", "Tipo L", "Tipo X",
@@ -58,9 +50,6 @@ TIPOS_ABRAZADERAS = [
     "Para Viga",
 ]
 
-# La abrazadera para viga se ofrece únicamente en las dos medidas solicitadas.
-# Se reutilizan las etiquetas del catálogo general para mantener consistencia
-# con los levantamientos anteriores y los formatos PDF.
 MEDIDAS_ABRAZADERA_PARA_VIGA = ['1" (25mm)', '3/4" (19mm)']
 
 TIPOS_CABLE_ELECTRICO = [
@@ -74,9 +63,6 @@ CALIBRES_CABLE_ELECTRICO = [
     "3/0 AWG", "4/0 AWG", "250 AWG", "350 AWG",
 ]
 
-# Catálogo propio de CANALETA. No mezclar sus tipos con los de tubería o
-# infraestructura (charola, escalerilla, EMT, etc.). Las medidas son opciones
-# operativas comunes; "Por definir" contempla casos fuera de catálogo.
 TIPOS_CANALETA = [
     "Canaleta PVC",
     "Canaleta PVC autoadherible",
@@ -95,7 +81,6 @@ MEDIDAS_CANALETA_POR_TIPO = {
 
 
 def tipos_canaleta() -> list[str]:
-    """Tipos ofrecidos en la categoría Canaleta, sin opciones de tubo."""
     return list(TIPOS_CANALETA)
 
 
@@ -103,7 +88,6 @@ CATEGORIAS_CON_MEDIDA_TUBO = {"Tubo", "Cople", "Registro", "Conector", "Conector
 
 
 def especificaciones_por_categoria(categoria, tipo=""):
-    """Devuelve las medidas/calibres válidos para la partida de canalización."""
     categoria = str(categoria or "").strip()
     tipo = str(tipo or "").strip()
     if categoria == "Abrazadera" and tipo == "Para Viga":
@@ -113,8 +97,6 @@ def especificaciones_por_categoria(categoria, tipo=""):
     if categoria == "Canaleta":
         return list(MEDIDAS_CANALETA_POR_TIPO.get(tipo, ())) + ["Por definir"]
     if categoria == "Cable":
-        # Mantiene opciones abiertas para cableado de datos/control, pero expone
-        # todos los calibres eléctricos disponibles cuando el levantamiento lo requiere.
         return list(CALIBRES_CABLE_ELECTRICO) + ["No aplica", "Por definir"]
     if categoria == "Canalización" and tipo in TIPOS_TUBOS:
         return list(TAMANOS_TUBOS)
@@ -122,11 +104,6 @@ def especificaciones_por_categoria(categoria, tipo=""):
 
 
 def normalizar_opciones_canalizacion(categoria, tipo_actual, especificacion_actual, tipos_disponibles):
-    """Selecciona un tipo válido ANTES de calcular la lista de medidas.
-
-    Evita que, al cambiar Tubo -> Canaleta, aparezcan tipos EMT o que un
-    refresco anidado vuelva a escribir la medida anterior.
-    """
     tipos = list(tipos_disponibles)
     tipo = str(tipo_actual or "").strip()
     if tipo not in tipos:
@@ -134,15 +111,12 @@ def normalizar_opciones_canalizacion(categoria, tipo_actual, especificacion_actu
     especificaciones = especificaciones_por_categoria(categoria, tipo)
     especificacion = str(especificacion_actual or "").strip()
     if especificacion not in especificaciones:
-        # No suponer que todas las canaletas son de la primera medida del
-        # catálogo: el técnico debe confirmar la dimensión real.
         especificacion = ("Por definir" if categoria == "Canaleta" and "Por definir" in especificaciones
                          else (especificaciones[0] if especificaciones else ""))
     return tipo, especificacion, especificaciones
 
 
 def normalizar_tipo_canalizacion(tipo):
-    """Compatibilidad de lectura con levantamientos guardados con nombres anteriores."""
     aliases = {
         "Policloruro de Vinilo (PVC)": "PVC Pesado",
         "Liquidtight": "Liquidtight /Licuatite",

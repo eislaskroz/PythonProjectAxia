@@ -1,9 +1,3 @@
-"""Respaldo cifrado y restauración controlada de datos operativos AXIA.
-
-Usa la clave Fernet de AXIA para proteger el archivo local. No sustituye los
-backups administrados de PostgreSQL/Supabase, pero ofrece un respaldo portable
-de aplicación para contingencias y migraciones controladas.
-"""
 from __future__ import annotations
 
 import argparse

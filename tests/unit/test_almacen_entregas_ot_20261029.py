@@ -1,4 +1,3 @@
-"""OT: lote atómico, reintentos y seguridad para Almacén (sin Supabase)."""
 from decimal import Decimal
 from pathlib import Path
 import pytest

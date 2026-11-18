@@ -1,4 +1,3 @@
-"""Selector por campo de lo visible en el PDF comercial; no modifica la COT guardada."""
 import customtkinter as ctk
 from ui.colors import TEXT_PRIMARY
 from tkinter import messagebox
@@ -24,13 +23,11 @@ TODOS_CAMPOS_PDF = frozenset(k for _, items in CAMPOS_PDF for k, _ in items)
 
 
 def solicitar_campos_pdf(parent):
-    """Retorna conjunto de claves o None si se cancela."""
     raiz = parent.winfo_toplevel()
     ventana = ctk.CTkToplevel(raiz)
-    ventana.withdraw()  # Evita mostrar la ventana antes de colocarla en el centro.
+    ventana.withdraw()
     ventana.title("AXIA · Seleccionar campos del PDF de cotización")
     ventana.transient(raiz)
-    # Se adapta a pantallas pequeñas y evita que los botones queden fuera.
     alto = max(420, min(660, int(ventana.winfo_screenheight() * 0.82)))
     ventana.minsize(480, min(420, alto))
     resultado = {"valor": None}

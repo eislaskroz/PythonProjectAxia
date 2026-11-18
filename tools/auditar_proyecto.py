@@ -1,16 +1,3 @@
-"""Auditoría estática y no destructiva del proyecto AXIA.
-
-Uso:
-    python tools/auditar_proyecto.py
-
-Genera ``docs/AUDITORIA_CONSOLIDACION.md`` con hallazgos verificables sobre:
-- sintaxis Python;
-- tablas y campos enviados a Supabase;
-- formularios con vista previa y guardado automático de PDF;
-- columnas JSON utilizadas;
-- funciones duplicadas dentro de un mismo archivo;
-- dependencias declaradas e importadas.
-"""
 from __future__ import annotations
 
 import ast

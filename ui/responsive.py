@@ -1,10 +1,3 @@
-"""Responsive layout helpers for AXIA Desktop.
-
-The application is desktop-first. These helpers preserve the existing visual
-identity while adapting spacing/sidebar width to the *actual* window area,
-which also accounts for Windows DPI/display scaling.
-"""
-
 def install_responsive_shell(app, sidebar=None):
     state = {"after": None, "mode": None}
 

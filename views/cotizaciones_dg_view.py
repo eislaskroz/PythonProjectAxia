@@ -1,4 +1,3 @@
-"""Dirección General (rol 9): bandeja de aprobación de cotizaciones."""
 from __future__ import annotations
 
 import customtkinter as ctk

@@ -1,10 +1,3 @@
-"""Perfil rápido de importaciones AXIA.
-
-Uso en PowerShell, desde el entorno virtual:
-    python tools/perfil_rendimiento.py
-
-No abre la interfaz. Mide los bloques principales que influyen en el arranque.
-"""
 from __future__ import annotations
 
 import importlib
@@ -27,7 +20,7 @@ for module_name in MODULES:
     try:
         importlib.import_module(module_name)
         status = "OK"
-    except Exception as exc:  # diagnóstico, no oculta el error
+    except Exception as exc:
         status = f"ERROR: {exc}"
     elapsed = (time.perf_counter() - start) * 1000
     print(f"{module_name:<38} {elapsed:>9.1f} ms  {status}")

@@ -1,4 +1,3 @@
-"""Benchmark sintético y reproducible; no sustituye una prueba física."""
 from __future__ import annotations
 import json, platform, statistics, time
 from pathlib import Path

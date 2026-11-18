@@ -1,15 +1,3 @@
-"""
-=========================================================
-SERVICIO: sucursales_service.py
-DESCRIPCIÓN:
-Catálogo operativo de sucursales y contactos por cliente.
-
-Estructura real usada en Supabase:
-- db_clientes_sucursales.suc_id
-- db_clientes_sucursal_contactos.con_id
-=========================================================
-"""
-
 from core.logger import configurar_logger
 from core.cache import ttl_cache, clear_cache
 from core.performance import page_range
@@ -23,20 +11,18 @@ COLUMNAS_SUCURSALES = "suc_id,id_cliente,suc_nombre,suc_calle_numero,suc_colonia
 COLUMNAS_CONTACTOS = "con_id,suc_id,con_nombre,con_puesto,con_correo,con_telefono,con_estatus,fecha_registro"
 
 def _suc_id(sucursal):
-    """Devuelve el ID real de sucursal aceptando alias antiguos."""
     sucursal = sucursal or {}
     return sucursal.get("suc_id") or sucursal.get("id_sucursal")
 
 
 def _con_id(contacto):
-    """Devuelve el ID real de contacto aceptando alias antiguos."""
     contacto = contacto or {}
     return contacto.get("con_id") or contacto.get("id_contacto")
 
 
 @ttl_cache(ttl_seconds=180)
 def obtener_sucursales_por_cliente(id_cliente, page=1, page_size=100):
-    """Devuelve las sucursales activas ligadas a un cliente."""
+
     if not id_cliente:
         return []
     try:
@@ -52,11 +38,6 @@ def obtener_sucursales_por_cliente(id_cliente, page=1, page_size=100):
         )
         return respuesta.data or []
     except Exception as error:
-        # Compatibilidad con esquemas históricos: algunas instalaciones de AXIA
-        # tienen variaciones de columnas en db_clientes_sucursales. Un SELECT
-        # explícito con una columna inexistente hacía que la vista interpretara
-        # erróneamente que el cliente no tenía sucursales. Reintentamos leyendo
-        # la fila completa y, como último recurso, sin filtrar suc_estatus.
         logger.warning("Consulta principal de sucursales falló; se intentará fallback: %s", error)
         try:
             respuesta = (
@@ -69,8 +50,6 @@ def obtener_sucursales_por_cliente(id_cliente, page=1, page_size=100):
                 .execute()
             )
             filas = respuesta.data or []
-            # Si existe suc_estatus, conserva solo registros activos; si no,
-            # acepta la fila para compatibilidad con esquemas anteriores.
             return [
                 fila for fila in filas
                 if "suc_estatus" not in fila or str(fila.get("suc_estatus")) in {"1", "True", "true"}
@@ -82,7 +61,6 @@ def obtener_sucursales_por_cliente(id_cliente, page=1, page_size=100):
 
 @ttl_cache(ttl_seconds=180)
 def obtener_sucursal_por_id(id_sucursal):
-    """Devuelve una sucursal por su ID real: suc_id."""
     if not id_sucursal:
         return None
     try:
@@ -102,15 +80,6 @@ def obtener_sucursal_por_id(id_sucursal):
 
 @ttl_cache(ttl_seconds=180)
 def obtener_contactos_por_sucursal(id_sucursal, page=1, page_size=100):
-    """Devuelve contactos ligados a una sucursal usando suc_id.
-
-    Algunas instalaciones históricas de AXIA manejan ``con_estatus`` como
-    entero, booleano, texto o incluso no lo tienen. Un filtro rígido
-    ``con_estatus = 1`` podía devolver cero filas aunque el contacto existiera.
-    Por eso primero intentamos la consulta normal y, si no devuelve resultados
-    (o falla por esquema), hacemos una lectura completa por ``suc_id`` y
-    filtramos el estatus en Python de forma tolerante.
-    """
     if not id_sucursal:
         return []
 
@@ -160,7 +129,6 @@ def obtener_contactos_por_sucursal(id_sucursal, page=1, page_size=100):
 
 @ttl_cache(ttl_seconds=180)
 def obtener_contacto_por_id(id_contacto):
-    """Devuelve un contacto por su ID real: con_id."""
     if not id_contacto:
         return None
     try:
@@ -179,11 +147,6 @@ def obtener_contacto_por_id(id_contacto):
 
 
 def construir_domicilio_sucursal(sucursal):
-    """Construye una dirección operativa legible con el esquema 2026 de sucursales.
-
-    ``suc_domicilio`` se conserva como fallback para registros históricos, pero
-    las nuevas altas usan calle/número, colonia, municipio, estado y C.P.
-    """
     sucursal = sucursal or {}
     partes = [
         str(sucursal.get("suc_calle_numero", "") or "").strip(),
@@ -199,7 +162,6 @@ def construir_domicilio_sucursal(sucursal):
 
 
 def normalizar_sucursal(datos):
-    """Limpia los datos de una sucursal antes de enviarlos a Supabase."""
     datos = datos or {}
     calle_numero = str(
         datos.get("suc_calle_numero", "") or datos.get("suc_domicilio", "") or ""
@@ -209,7 +171,6 @@ def normalizar_sucursal(datos):
     estado = str(datos.get("suc_estado", "") or "").strip()
     codigo_postal = str(datos.get("suc_codigo_postal", "") or "").strip()
 
-    # Campo legado: se mantiene sincronizado para módulos/versiones anteriores.
     domicilio_legacy = ", ".join(
         parte for parte in (calle_numero, colonia, municipio, estado, f"C.P. {codigo_postal}" if codigo_postal else "")
         if parte
@@ -231,7 +192,6 @@ def normalizar_sucursal(datos):
 
 
 def normalizar_contacto(datos):
-    """Limpia los datos de un contacto operativo antes de enviarlos a Supabase."""
     datos = datos or {}
     return {
         "suc_id": datos.get("suc_id") or datos.get("id_sucursal"),
@@ -244,7 +204,6 @@ def normalizar_contacto(datos):
 
 
 def crear_sucursal(datos):
-    """Crea una sucursal operativa ligada a un cliente."""
     try:
         datos_guardar = normalizar_sucursal(datos)
         if not datos_guardar.get("id_cliente"):
@@ -269,7 +228,6 @@ def crear_sucursal(datos):
 
 
 def crear_contacto_sucursal(datos):
-    """Crea un contacto operativo ligado a una sucursal."""
     try:
         datos_guardar = normalizar_contacto(datos)
         if not datos_guardar.get("suc_id"):
@@ -295,7 +253,6 @@ def crear_contacto_sucursal(datos):
 
 
 def actualizar_sucursal(id_sucursal, datos):
-    """Actualiza una sucursal operativa existente."""
     try:
         if not id_sucursal:
             return False, "Selecciona una sucursal válida.", None
@@ -321,7 +278,6 @@ def actualizar_sucursal(id_sucursal, datos):
 
 
 def actualizar_contacto_sucursal(id_contacto, datos):
-    """Actualiza un contacto operativo existente."""
     try:
         if not id_contacto:
             return False, "Selecciona un contacto válido.", None

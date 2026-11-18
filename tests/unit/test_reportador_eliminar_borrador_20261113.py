@@ -1,4 +1,3 @@
-"""Comprobaciones estructurales del borrado individual de autoguardados."""
 from pathlib import Path
 import ast
 

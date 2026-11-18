@@ -1,9 +1,3 @@
-"""Servicio de actualización de AXIA.
-
-La aplicación consulta metadatos de versión en Supabase y descarga un
-instalador firmado/publicado por AXIA. El instalador Inno conserva el mismo
-AppId, por lo que actualiza la instalación existente sin desinstalarla.
-"""
 from __future__ import annotations
 
 import hashlib
@@ -49,21 +43,12 @@ def canal_actualizaciones() -> str:
 
 
 def normalizar_url_actualizacion(valor: str) -> str:
-    """Normaliza y valida la URL pública del instalador.
-
-    Tolera errores de captura comunes en Supabase, por ejemplo
-    ``https://http://servidor/...`` o dobles diagonales en la ruta. La URL
-    resultante siempre debe ser HTTP/HTTPS y contener un host real.
-    """
     url = str(valor or "").strip().strip('"\'')
     if not url:
         raise ValueError("La actualización no tiene una URL de descarga configurada.")
 
-    # Normaliza separadores copiados desde Windows y espacios accidentales.
     url = url.replace("\\", "/").replace(" ", "%20")
 
-    # Si se capturó el protocolo dos veces, conserva el primero. Ej.:
-    # https://http://www.ejemplo.com/app.exe -> https://www.ejemplo.com/app.exe
     url = re.sub(r"^(https?://)(?:https?://)+", r"\1", url, flags=re.IGNORECASE)
 
     if url.lower().startswith("www."):
@@ -75,18 +60,12 @@ def normalizar_url_actualizacion(valor: str) -> str:
     if not partes.hostname or partes.hostname.lower() in {"http", "https"}:
         raise ValueError("La URL de actualización no contiene un servidor válido.")
 
-    # Conserva el // inicial sólo para el protocolo; en la ruta no es necesario.
     ruta = re.sub(r"/{2,}", "/", partes.path or "/")
     normalizada = urlunsplit((partes.scheme.lower(), partes.netloc, ruta, partes.query, partes.fragment))
     return normalizada
 
 
 def obtener_actualizacion_disponible() -> ActualizacionDisponible | None:
-    """Devuelve la versión activa más reciente si supera la instalada.
-
-    Cualquier fallo de red/esquema se considera no crítico: AXIA sigue
-    funcionando y deja el detalle en logs.
-    """
     if not actualizaciones_habilitadas():
         return None
 
@@ -113,8 +92,7 @@ def obtener_actualizacion_disponible() -> ActualizacionDisponible | None:
         ]
         if not candidatas:
             return None
-        # La consulta viene ordenada por fecha de publicación; tomamos la más
-        # reciente que sea superior a la versión instalada.
+
         fila = candidatas[0]
         version = str(fila.get("act_version") or "").strip()
         try:
@@ -152,7 +130,6 @@ def _sha256(path: Path) -> str:
 
 
 def descargar_actualizacion(actualizacion: ActualizacionDisponible) -> Path:
-    """Descarga y valida el instalador de una actualización."""
     destino = _ruta_instalador(actualizacion.version)
     temporal = destino.with_suffix(".download")
     try:
@@ -208,7 +185,6 @@ def descargar_actualizacion(actualizacion: ActualizacionDisponible) -> Path:
 
 
 def consumir_estado_actualizacion() -> dict | None:
-    """Lee y consume el resultado dejado por el actualizador externo."""
     path = user_data_dir() / "updates" / "actualizacion_estado.json"
     if not path.is_file():
         return None
@@ -225,14 +201,6 @@ def consumir_estado_actualizacion() -> dict | None:
             logger.debug("No fue posible limpiar el estado de actualización.", exc_info=True)
 
 def programar_instalacion(instalador: Path) -> Path:
-    """Inicia Inno Setup elevado y deja que el instalador gestione el reemplazo.
-
-    A partir de FIX18 no se usa PowerShell como intermediario. En Windows se
-    invoca directamente el instalador mediante ``ShellExecute(..., runas, ...)``.
-    El instalador se genera especialmente para actualización: en modo silencioso
-    vuelve a abrir AXIA al terminar. Esto evita que un script externo sea cerrado
-    por políticas de PowerShell, antivirus o el ciclo de vida del proceso padre.
-    """
     instalador = Path(instalador).resolve()
     if not instalador.is_file():
         raise FileNotFoundError(f"No existe el instalador: {instalador}")
@@ -243,8 +211,6 @@ def programar_instalacion(instalador: Path) -> Path:
     carpeta.mkdir(parents=True, exist_ok=True)
     log_path = carpeta / "inno_actualizacion.log"
 
-    # /SILENT mantiene visible el progreso de Inno sin pedir decisiones al usuario.
-    # El UAC sí puede aparecer: es necesario porque AXIA se instala en Program Files.
     parametros = (
         f'/SILENT /SP- /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS '
         f'/LOG="{log_path}"'
@@ -257,7 +223,7 @@ def programar_instalacion(instalador: Path) -> Path:
             str(instalador),
             parametros,
             str(instalador.parent),
-            1,  # SW_SHOWNORMAL: muestra el progreso del instalador, no una consola.
+            1,
         )
     except Exception as exc:
         logger.exception("No fue posible iniciar el instalador elevado.")
@@ -265,7 +231,6 @@ def programar_instalacion(instalador: Path) -> Path:
             "Windows no pudo iniciar el instalador de la actualización con permisos de administrador."
         ) from exc
 
-    # ShellExecute devuelve valores <= 32 cuando no pudo crear el proceso.
     if int(resultado) <= 32:
         codigos = {
             2: "No se encontró el instalador descargado.",
@@ -281,4 +246,3 @@ def programar_instalacion(instalador: Path) -> Path:
         instalador, log_path,
     )
     return instalador
-

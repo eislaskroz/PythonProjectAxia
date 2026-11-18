@@ -1,4 +1,3 @@
-"""Regresiones de campos visibles y flujo comercial DG."""
 from pathlib import Path
 from pypdf import PdfReader
 from services.cotizacion_pdf import generar_pdf_cotizacion

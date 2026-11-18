@@ -1,4 +1,3 @@
-"""Módulo comercial de cotizaciones formales para Ventas."""
 from __future__ import annotations
 from ui.form_fields import AxiaEntry, AxiaTextbox
 
@@ -69,8 +68,6 @@ def mostrar_cotizaciones(parent, app=None):
     root.grid_columnconfigure(0, weight=1)
     root.grid_rowconfigure(2, weight=1)
 
-    # La barra de control permanece visible; las bandejas se pueden plegar sin
-    # reconstruir el formulario ni perder valores de la cotización activa.
     barra_bandejas = ctk.CTkFrame(root, fg_color="transparent")
     barra_bandejas.grid(row=0, column=0, sticky="ew", pady=(0, 4))
     barra_bandejas.grid_columnconfigure(0, weight=1)
@@ -100,7 +97,6 @@ def mostrar_cotizaciones(parent, app=None):
         command=mostrar_bandejas,
     )
     btn_bandejas.grid(row=0, column=1, sticky="e", padx=(8, 0))
-    # Tres bandejas: flujo LEV -> COT editable (BORRADOR) -> COT autorizada (EN COMPRA).
     for indice in range(3):
         superior.grid_columnconfigure(indice, weight=1, uniform="top")
 
@@ -239,8 +235,6 @@ def mostrar_cotizaciones(parent, app=None):
         opciones = [str(x).strip() for x in (values or []) if str(x).strip()]
         hay_personal = bool(opciones)
         if placeholder:
-            # Supervisor: no asignar automáticamente a la primera persona del
-            # catálogo si el levantamiento carece de supervisor válido.
             opciones.insert(0, placeholder if hay_personal else "SIN SUPERVISORES REGISTRADOS")
         actual = str(value or "").strip()
         coincidencia = next((op for op in opciones if op.casefold() == actual.casefold()), None)
@@ -256,7 +250,6 @@ def mostrar_cotizaciones(parent, app=None):
         return var
 
     def validar_captura_completa():
-        """Valida que Preview/Guardar nunca operen sobre una cotización incompleta."""
         if not estado.get("registro"):
             return False, "Selecciona y carga un levantamiento."
 
@@ -283,9 +276,6 @@ def mostrar_cotizaciones(parent, app=None):
             if not valor or valor in {"*", "-"}:
                 return False, f"Falta completar correctamente: {etiqueta}."
 
-        # Nunca permitir que el valor de ayuda se guarde como supervisor.
-        # Las cotizaciones ya finalizadas conservan su responsable histórico,
-        # aunque haya sido dado de baja o renombrado en el catálogo.
         supervisor = str(estado["vars"]["cot_supervisor"].get()).strip()
         supervisores_validos = estado.get("supervisores_validos", frozenset())
         cot_previa = estado.get("cotizacion") or {}
@@ -364,10 +354,6 @@ def mostrar_cotizaciones(parent, app=None):
         base = datos_generales_cotizacion(registro, usuario)
         if cot:
             base.update({k:v for k,v in cot.items() if v is not None})
-        # El título de la cotización representa el NOMBRE DEL SERVICIO del
-        # levantamiento (lev_descripcion), no su categoría/tipo técnico.
-        # Conservamos la referencia del levantamiento aun en cotizaciones
-        # previamente guardadas con el título anterior.
         nombre_servicio = str(registro.get("lev_descripcion") or "").strip()
         if nombre_servicio:
             base["cot_asunto"] = nombre_servicio
@@ -376,7 +362,6 @@ def mostrar_cotizaciones(parent, app=None):
         finalizada = bool(cot) and estatus != ESTATUS_BORRADOR
         estado["modo_edicion"] = (not bool(cot) or bool(forzar_edicion)) and not finalizada
 
-        # Fecha de Supabase -> DD/MM/AAAA.
         fecha = str(base.get("cot_fecha") or "")
         if len(fecha) >= 10 and "-" in fecha:
             try:
@@ -388,8 +373,6 @@ def mostrar_cotizaciones(parent, app=None):
             row=0, column=0, columnspan=4, sticky="ew", padx=6, pady=(4,2))
         general = ctk.CTkFrame(scroll, fg_color=WHITE, corner_radius=10)
         general.grid(row=1, column=0, columnspan=4, sticky="ew", padx=4, pady=(0,8))
-        # 7 columnas y 3 filas compactas: el encabezado ocupa considerablemente
-        # menos altura sin perder los datos ni sus claves de almacenamiento.
         for c in range(7):
             general.grid_columnconfigure(c, weight=1, uniform="generales")
 
@@ -400,14 +383,10 @@ def mostrar_cotizaciones(parent, app=None):
         add_field(general,0,4,"Contacto","cot_contacto",base.get("cot_contacto"),True)
         add_field(general,0,5,"Sucursal","cot_sucursal",base.get("cot_sucursal"),True,2)
         add_field(general,1,0,"Asunto","cot_asunto",base.get("cot_asunto"),True,2)
-        # La ESI se obtiene del usuario autenticado (tipo 6), sin permitir
-        # reasignarla manualmente. Si la cotización ya existía, se conserva
-        # su ESI original para evitar alterar la autoría al consultarla.
         add_field(general,1,2,"ESI / Ejecutiva de Ventas","cot_esi",base.get("cot_esi"),True)
         add_field(general,1,3,"Correo ESI","cot_esi_correo",base.get("cot_esi_correo"),True)
         add_field(general,1,4,"Teléfono ESI","cot_esi_telefono",base.get("cot_esi_telefono"),True)
 
-        # Los puestos no se infieren por usu_puesto: se filtran por db_usuarios.usu_tipo.
         jefes_operaciones = obtener_nombres_usuarios_por_tipos([2])
         add_select(general,1,5,"Jefe de Operaciones","cot_jefe_operaciones",jefes_operaciones,base.get("cot_jefe_operaciones"),2)
 
@@ -415,7 +394,6 @@ def mostrar_cotizaciones(parent, app=None):
         estado["supervisores_validos"] = frozenset(supervisores)
         supervisor_anterior = str(base.get("cot_supervisor") or "").strip()
         if finalizada and supervisor_anterior not in estado["supervisores_validos"]:
-            # Histórico autorizado: solo consulta, sin forzar una nueva asignación.
             add_field(general,2,0,"Supervisor","cot_supervisor",supervisor_anterior,True)
         else:
             add_select(general,2,0,"Supervisor","cot_supervisor",supervisores,supervisor_anterior,
@@ -442,12 +420,9 @@ def mostrar_cotizaciones(parent, app=None):
             servicio = es_lote_servicio(item, i, len(partidas))
             card = ctk.CTkFrame(cont, fg_color=WHITE, corner_radius=10)
             card.grid(row=i, column=0, sticky="ew", padx=4, pady=2)
-            # 24 columnas: anchos proporcionales al contenido, no cajas uniformes gigantes.
             for c in range(24):
                 card.grid_columnconfigure(c, weight=1, uniform="partida_compacta")
 
-            # Todas las variables originales siguen vivas incluso con el panel plegado:
-            # los cálculos, el guardado, el PDF y los permisos usan estas variables.
             vars_item = {
                 key: ctk.StringVar(value=str(value) if value is not None else "")
                 for key, value in item.items()
@@ -472,8 +447,6 @@ def mostrar_cotizaciones(parent, app=None):
                 header.configure(text=f"Lote {lote} · {pv['concepto'].get()}")
             )
 
-            # Retícula compacta: el campo y su etiqueta viven en la misma celda.
-            # Evita filas vacías producidas por etiquetas y entradas separadas.
             def campo_partida(contenedor, etiqueta, clave, fila, columna, ancho):
                 celda = ctk.CTkFrame(contenedor, fg_color="transparent")
                 celda.grid(row=fila, column=columna, columnspan=ancho,
@@ -490,7 +463,7 @@ def mostrar_cotizaciones(parent, app=None):
                     aplicar_mascara_numerica(ent, variable, MONEY)
                 elif clave in {"cantidad", "utilidad_pct"}:
                     aplicar_mascara_numerica(ent, variable, NUMBER)
-                # Se mantienen las mismas reglas de solo lectura anteriores.
+
                 if clave in {"unidad_tipo", "cantidad", "concepto", "costo", "precio_venta", "precio_unitario", "importe"} and not (servicio and clave == "importe"):
                     ent.configure(state="disabled")
                 else:
@@ -551,8 +524,6 @@ def mostrar_cotizaciones(parent, app=None):
                                                      uniform="detalle_partida")
             for etiqueta, clave, fila, col, span in secundarios:
                 campo_partida(zona_detalles, etiqueta, clave, fila, col, span)
-
-            # El ocultamiento no elimina widgets ni variables, solo la retícula.
             zona_detalles.grid_remove()
             detalles_abiertos = {"valor": False}
 
@@ -581,9 +552,6 @@ def mostrar_cotizaciones(parent, app=None):
                                 padx=4, pady=(15, 2))
 
             if servicio:
-                # El importe lo introduce Ventas sin porcentajes ni costos.
-                # Sincronizamos campos internos para que el Preview muestre
-                # un precio unitario coherente incluso antes de guardar.
                 lock_servicio = {"x": False}
                 def calc_servicio(*_, pv=vars_item, lk=lock_servicio):
                     if lk["x"]:
@@ -605,8 +573,6 @@ def mostrar_cotizaciones(parent, app=None):
                 calc_servicio()
 
             if not servicio:
-                # Costo = P.Lista * Utilidad%; P.Venta = Lista + Costo;
-                # P.Unitario = P.Venta; Importe = P.Unitario * Cantidad.
                 lock = {"x": False}
                 def calc_comercial(*_, pv=vars_item, lk=lock):
                     if lk["x"]:
@@ -640,9 +606,6 @@ def mostrar_cotizaciones(parent, app=None):
                 _var.trace_add("write", lambda *_: actualizar_estado_botones())
             estado["partida_vars"].append(vars_item)
 
-        # Estado visual y permisos de edición. Una cotización guardada se abre en
-        # consulta; "Modificar" recarga desde Supabase y habilita sólo los campos
-        # que Ventas podía editar durante la generación original.
         for widget in estado["editables"]:
             try:
                 widget.configure(state="normal" if estado["modo_edicion"] else "disabled")
@@ -705,8 +668,6 @@ def mostrar_cotizaciones(parent, app=None):
         if str(cot.get("cot_estatus") or ESTATUS_BORRADOR).strip().upper() != ESTATUS_BORRADOR:
             messagebox.showwarning("Cotización bloqueada", "Esta cotización fue enviada a Dirección General o Compras; no puede modificarse desde Ventas.")
             return
-        # Se vuelve a consultar la cotización desde Supabase mediante render() y
-        # sólo entonces se habilitan los mismos campos disponibles al generarla.
         render(reg, forzar_edicion=True)
         lbl_detalle.configure(text=f"{estado['cotizacion'].get('cot_folio')} · Modo modificación activo. Guarda los cambios antes de finalizar.", text_color=TEXT_SECONDARY)
 
@@ -762,8 +723,6 @@ def mostrar_cotizaciones(parent, app=None):
             actualizar_estado_botones()
             return
 
-        # El Preview trabaja con lo que está actualmente capturado en pantalla;
-        # no obliga a guardar ni consume un folio COT-XXXXX.
         datos, parts = collect()
         preview = dict(datos)
         preview["cot_folio"] = str((estado.get("cotizacion") or {}).get("cot_folio") or "").strip()

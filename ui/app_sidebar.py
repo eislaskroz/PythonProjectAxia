@@ -1,24 +1,3 @@
-"""
-=========================================================
-MÓDULO: ui/app_sidebar.py
-DESCRIPCIÓN:
-Componente visual del menú lateral principal de AXIA.
-
-OBJETIVO:
-Sacar la construcción del sidebar fuera de app.py.
-
-Este archivo se encarga únicamente de UI:
-- Logo.
-- Datos del usuario activo.
-- Botones de navegación.
-- Botón salir.
-
-IMPORTANTE:
-No debe tener lógica de negocio ni consultas a Supabase.
-Recibe callbacks ya preparados desde app.py/controladores.
-=========================================================
-"""
-
 from core.logger import configurar_logger
 
 logger = configurar_logger(__name__)
@@ -97,15 +76,6 @@ def _ruta_recurso_sidebar(nombre):
     return base / "assets" / nombre
 
 def _imagen_fondo_sidebar(tipo, size=(230, 900)):
-    """Crea un wallpaper que cubre TODO el sidebar sin deformar la imagen.
-
-    Se usa recorte tipo cover y un velo azul oscuro para que textos/botones
-    mantengan contraste. La imagen no se limita al área del logotipo.
-    """
-    # El sidebar siempre tiene fondo. Cuando no hay un levantamiento activo
-    # (o el tipo no tiene imagen específica), se usa la imagen GENERAL.
-    # Al abrir una especialidad, esa imagen sustituye temporalmente al fondo
-    # general; Obra Civil ya cuenta también con su wallpaper dedicado.
     nombre = _FONDOS_SIDEBAR.get(str(tipo or "").strip(), _FONDO_SIDEBAR_GENERAL)
     ruta = _ruta_recurso_sidebar(nombre)
     if not ruta.exists():
@@ -116,7 +86,6 @@ def _imagen_fondo_sidebar(tipo, size=(230, 900)):
     with Image.open(ruta) as src:
         base = ImageOps.fit(src.convert("RGB"), (ancho, alto), method=Image.Resampling.LANCZOS)
     base = ImageEnhance.Brightness(base).enhance(0.28).convert("RGBA")
-    # Velo corporativo para conservar contraste de menú y botones.
     velo = Image.new("RGBA", (ancho, alto), (15, 35, 55, 105))
     base = Image.alpha_composite(base, velo)
     return base
@@ -144,18 +113,13 @@ def _redibujar_fondo_sidebar(sidebar):
         label.image = imagen
         sidebar._axia_background_image = imagen
         label.place(x=0, y=0, relwidth=1, relheight=1)
-        # IMPORTANTE: no bajar el label sin referencia. En CustomTkinter
-        # eso puede mandar la imagen por debajo del canvas/fondo interno del
-        # CTkFrame y volverla invisible. La dejamos por encima del fondo del
-        # sidebar, pero justo por debajo del primer control real; los demás
-        # controles fueron creados después y permanecen encima.
         hijos = [w for w in sidebar.winfo_children() if w is not label]
         if hijos:
             try:
                 label.lower(hijos[0])
             except Exception:
                 pass
-        # El menú usa la misma imagen; actualizarlo al cambiar especialidad.
+
         refrescar_menu = getattr(sidebar, "_axia_menu_redibujar", None)
         if callable(refrescar_menu):
             refrescar_menu()
@@ -163,24 +127,16 @@ def _redibujar_fondo_sidebar(sidebar):
         logger.debug("No se pudo redibujar fondo temático del sidebar.", exc_info=True)
 
 def actualizar_sidebar_especialidad(sidebar, tipo_levantamiento=None):
-    """Muestra el wallpaper de especialidad o restaura el fondo GENERAL."""
+
     if sidebar is None:
         return
     sidebar._axia_sidebar_tipo = str(tipo_levantamiento or "").strip() or None
-    # El logo corporativo permanece como capa superior; el wallpaper cubre
-    # desde el borde superior hasta las acciones de sesión. Si tipo es None,
-    # se mantiene el fondo GENERAL en lugar de ocultar la imagen.
     _redibujar_fondo_sidebar(sidebar)
 
 # =====================================================
 # FUNCIÓN: crear_boton_sidebar()
 # =====================================================
 def crear_boton_sidebar(parent, texto, comando=None, habilitado=True):
-    """Acción inferior con la misma pastilla oscura del menú de secciones.
-
-    Canvas evita los contornos blancos que CustomTkinter dibuja cuando el
-    botón transparente se superpone al wallpaper del menú lateral.
-    """
     partes = texto.split(" ", 1)
     simbolo = partes[0] if len(partes) > 1 else ""
     etiqueta = partes[1] if len(partes) > 1 else texto
@@ -212,7 +168,6 @@ def crear_boton_sidebar(parent, texto, comando=None, habilitado=True):
         color = "#F3FAFF" if habilitado else "#9AABBC"
         boton.create_text(17, 22, text=simbolo, fill=color,
                           font=("Segoe UI Symbol", 15), anchor="w")
-        # Texto normal (sin negritas) como las opciones del acordeón.
         boton.create_text(47, 22, text=etiqueta, fill=color,
                           font=("Segoe UI", 11, "normal"), anchor="w")
 
@@ -239,11 +194,6 @@ def crear_boton_sidebar(parent, texto, comando=None, habilitado=True):
 # ORGANIZACIÓN VISUAL DEL MENÚ (SIN MODIFICAR PERMISOS)
 # =====================================================
 def _opciones_menu_por_rol(usuario_activo, callbacks):
-    """Agrupa las mismas opciones, permisos y callbacks del menú original.
-
-    La agrupación es solo presentación. El controlador de navegación continúa
-    validando los permisos cuando se abre cada módulo.
-    """
     puede_consulta = puede_consultar_procesos(usuario_activo)
     tipo_usuario = obtener_tipo_usuario(usuario_activo)
     opciones = {
@@ -348,13 +298,6 @@ def _opciones_menu_por_rol(usuario_activo, callbacks):
 
 
 def _crear_menu_acordeon(sidebar, menu_host, opciones, direccion):
-    """Acordeón sobre lienzo ilustrado.
-
-    Tk/CustomTkinter no ofrece transparencia alfa real en CTkScrollableFrame:
-    "transparent" puede heredar un blanco del contenedor superior. Este menú
-    dibuja el wallpaper directamente sobre un Canvas y superpone pastillas RGBA,
-    sin crear frames opacos entre el usuario y la imagen corporativa.
-    """
     secciones = (
         ("operaciones", "•", "Operaciones"),
         ("reportes", "•", "Reportes"),
@@ -390,7 +333,6 @@ def _crear_menu_acordeon(sidebar, menu_host, opciones, direccion):
         return cache_pastillas[clave]
 
     def _fondo_menu(ancho, alto):
-        # Mostrar la misma imagen del sidebar, alineada a su posición vertical.
         try:
             lateral_ancho = max(220, sidebar.winfo_width())
             lateral_alto = max(600, sidebar.winfo_height())
@@ -403,7 +345,6 @@ def _crear_menu_acordeon(sidebar, menu_host, opciones, direccion):
             origen_x = max(0, canvas.winfo_rootx() - sidebar.winfo_rootx())
             origen_y = max(0, canvas.winfo_rooty() - sidebar.winfo_rooty())
             lienzo = Image.new("RGB", (ancho, alto), "#0E2539")
-            # Repetir la imagen si el contenido supera la altura del sidebar.
             y = 0
             while y < alto:
                 inicio = (origen_y + y) % lateral_alto
@@ -411,7 +352,6 @@ def _crear_menu_acordeon(sidebar, menu_host, opciones, direccion):
                 recorte = fondo.crop((origen_x, inicio, origen_x + ancho, inicio + tramo))
                 lienzo.paste(recorte.convert("RGB"), (0, y))
                 y += tramo
-            # Sombra tenue, sin un panel sólido que tape la ilustración.
             velo = Image.new("RGBA", (ancho, alto), (5, 18, 32, 35))
             lienzo = Image.alpha_composite(lienzo.convert("RGBA"), velo)
             return ImageTk.PhotoImage(lienzo, master=canvas)
@@ -423,7 +363,7 @@ def _crear_menu_acordeon(sidebar, menu_host, opciones, direccion):
         estado["seccion"] = seccion
         estado["opcion"] = opcion
         _redibujar()
-        callback()  # Callback original, sin modificar firma ni permisos.
+        callback()
 
     def _abrir_seccion(clave):
         estado["seccion"] = None if estado["seccion"] == clave else clave
@@ -514,7 +454,6 @@ def _crear_menu_acordeon(sidebar, menu_host, opciones, direccion):
         canvas.configure(scrollregion=(0, 0, ancho, alto))
         canvas.yview_moveto(fraccion)
 
-    # El menú se desplaza exclusivamente con la barra lateral visible.
     def _wheel(event):
         return "break"
 
@@ -533,26 +472,6 @@ def _crear_menu_acordeon(sidebar, menu_host, opciones, direccion):
 # FUNCIÓN: crear_app_sidebar()
 # =====================================================
 def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None):
-    """
-    Construye el menú lateral principal.
-
-    Args:
-        parent:
-            Frame layout donde se colocará el sidebar.
-        usuario_activo:
-            Diccionario con datos del usuario actual.
-        callbacks:
-            Diccionario de funciones de navegación.
-        on_exit:
-            Función para cerrar la aplicación.
-        on_logout:
-            Función opcional para cerrar sesión y volver al Login.
-
-    Returns:
-        CTkFrame:
-            Sidebar completamente construido.
-    """
-
     sidebar = ctk.CTkFrame(
         parent,
         width=230,
@@ -566,15 +485,12 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
     )
     sidebar.pack_propagate(False)
 
-    # Wallpaper del sidebar: el fondo GENERAL permanece siempre visible y
-    # se sustituye temporalmente por el de la especialidad activa.
     background_label = tk.Label(sidebar, text="", bd=0, highlightthickness=0, bg=PRIMARY_DARK)
     sidebar._axia_background_label = background_label
     sidebar._axia_background_image = None
     sidebar._axia_sidebar_tipo = None
 
     def _on_sidebar_configure(_event=None):
-        # Redibujo diferido para no recalcular la imagen en cada pixel del resize.
         after_id = getattr(sidebar, "_axia_bg_after", None)
         if after_id:
             try:
@@ -597,17 +513,8 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
     )
     label_logo.image = logo_axia
     label_logo.pack(pady=(9, 9))
-    # Referencia estable para sustituir únicamente la cabecera visual cuando
-    # se abra uno de los nueve levantamientos temáticos.
     sidebar._axia_header_label = label_logo
     sidebar._axia_header_image = logo_axia
-
-    # =================================================
-    # INFORMACIÓN DEL USUARIO
-    # =================================================
-    # Se eliminan las etiquetas de usuario/rol para liberar
-    # espacio vertical en el menú lateral. La sesión sigue
-    # disponible internamente mediante app_context.
 
     # =================================================
     # NAVEGACIÓN EN SECCIONES DESPLEGABLES
@@ -615,10 +522,6 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
     usuario_es_admin = es_admin(usuario_activo)
     opciones, direccion = _opciones_menu_por_rol(usuario_activo, callbacks)
 
-    # El menú es desplazable; el logo y los controles de sesión permanecen
-    # siempre a la vista aunque la ventana se utilice en tamaño reducido.
-    # Canvas con imagen de fondo + scrollbar: evita que CTkScrollableFrame
-    # herede el color claro del panel, lo que ocurría en la V3.
     menu_marco = ctk.CTkFrame(sidebar, fg_color="#10283D", corner_radius=0, border_width=0)
     menu_marco.pack(side="top", fill="both", expand=True, padx=(5, 3), pady=(2, 4))
     menu_scroll = tk.Canvas(
@@ -639,9 +542,6 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
     # =================================================
     # MI USUARIO Y ACCIONES DE SESIÓN
     # =================================================
-    # Las acciones inferiores reutilizan las mismas tarjetas y efectos hover
-    # de las secciones Operaciones / Administración / Sistema / Dirección General.
-    # Conservar los callbacks originales evita afectar el cierre de sesión.
     acciones_sesion = tk.Frame(sidebar, bg="#0E2539", bd=0, highlightthickness=0)
     acciones_sesion.pack(side="bottom", pady=(2, 9), fill="x")
 
@@ -655,9 +555,6 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
     crear_boton_sidebar(acciones_sesion, "⏻ Cerrar AXIA", on_exit)
     crear_boton_sidebar(acciones_sesion, "🔒 Salir", on_logout or on_exit)
 
-    # Garantiza una jerarquía estable al terminar de construir el sidebar:
-    # fondo temático > fondo sólido interno de CTkFrame, y controles > fondo.
-    # La primera activación temática redimensionará la imagen al tamaño real.
     try:
         sidebar.after_idle(lambda: _redibujar_fondo_sidebar(sidebar))
     except Exception:

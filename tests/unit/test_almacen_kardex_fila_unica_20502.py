@@ -1,4 +1,3 @@
-"""La barra de búsqueda y reimpresión del Kárdex ocupa una sola fila."""
 import ast
 from pathlib import Path
 

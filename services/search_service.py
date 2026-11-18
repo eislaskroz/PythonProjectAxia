@@ -1,4 +1,3 @@
-"""Utilidades unificadas de búsqueda parcial para servicios AXIA."""
 from core.search_utils import normalizar_termino_busqueda, puntaje_coincidencia
 from services.query_compat import execute_select_compatible
 

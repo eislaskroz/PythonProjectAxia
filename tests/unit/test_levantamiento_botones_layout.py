@@ -1,8 +1,3 @@
-"""Regression checks for the footer overlay reported in AXIA Desktop.
-
-These checks intentionally inspect the view source without importing the GUI or
-connecting to the backend: they can run in a headless build environment.
-"""
 from pathlib import Path
 import ast
 
@@ -20,7 +15,6 @@ def test_pending_button_separated_from_main_action_bar():
     assert 'btn_ver_pendientes.grid(row=0, column=1, sticky="e")' in source
     assert 'lbl_faltantes_preview.grid(row=0, column=0' in source
     assert 'barra_botones,\n        text="Cancelar"' in source
-    # The single bottom action row reserves four distinct columns.
     for col in range(4):
         assert f'.grid(row=0, column={col}, padx=4)' in source
 

@@ -1,4 +1,3 @@
-"""Pruebas sin entorno gráfico: compatibilidad Base64, edición y PDF."""
 import base64
 import io
 import json

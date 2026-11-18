@@ -1,4 +1,3 @@
-"""Catálogo Maestro AXIA: trazabilidad de todas las columnas y movimientos reales."""
 from pathlib import Path
 import pytest
 from services.almacen_catalogo_maestro import CAMPOS_ORIGINALES,CAMPOS_ADICIONALES,ficha_producto_maestro

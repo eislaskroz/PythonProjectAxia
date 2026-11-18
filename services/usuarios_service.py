@@ -10,17 +10,6 @@ from services.movimientos_service import registrar_movimiento_seguro
 # =====================================================
 # SERVICIO DE USUARIOS - AXIA
 # =====================================================
-"""
-Este módulo concentra la lógica de negocio relacionada con usuarios.
-
-Incluye:
-- Registro administrativo.
-- Búsqueda administrativa.
-- Actualización administrativa.
-- Bcrypt para contraseñas.
-- Cifrado reversible de datos sensibles que sí deben mostrarse después.
-"""
-
 from supabase_config import supabase, TABLA_USUARIOS
 from utils import encriptar_password
 from security.permissions import OPERADOR, TIPOS_VALIDOS
@@ -54,27 +43,17 @@ CAMPOS_SENSIBLES_USUARIO = [
 
 
 def normalizar_datos_usuario(datos):
-    """
-    Normaliza campos antes de validar o guardar.
-    """
-
     datos_normalizados = dict(datos or {})
 
     for campo in ("usu_rfc", "usu_curp", "usu_imss", "usu_ine"):
         datos_normalizados[campo] = str(datos_normalizados.get(campo, "") or "").upper()
 
-    # El correo corporativo se conserva en una sola columna histórica (usu_correo)
-    # y se normaliza para evitar duplicidades por mayúsculas/minúsculas.
     datos_normalizados["usu_correo"] = str(datos_normalizados.get("usu_correo", "") or "").strip().lower()
 
     return datos_normalizados
 
 
 def validar_datos_usuario(datos):
-    """
-    Valida las reglas básicas para crear un usuario.
-    """
-
     if not datos.get("usu_nickname"):
         return False, "El usuario es obligatorio."
 
@@ -112,10 +91,6 @@ def validar_datos_usuario(datos):
 
 
 def existe_nickname(nickname):
-    """
-    Revisa si un nickname ya existe en Supabase.
-    """
-
     respuesta = (
         supabase
         .table(TABLA_USUARIOS)
@@ -129,10 +104,6 @@ def existe_nickname(nickname):
 
 
 def registrar_usuario(datos):
-    """
-    Registra un usuario nuevo en Supabase.
-    """
-
     try:
         datos = normalizar_datos_usuario(datos)
 
@@ -151,8 +122,6 @@ def registrar_usuario(datos):
             datos_guardar["usu_password"]
         )
 
-        # Si el alta no proviene del módulo administrativo se aplica el
-        # principio de menor privilegio: Operador (nivel 4).
         datos_guardar["usu_tipo"] = int(datos_guardar.get("usu_tipo", OPERADOR))
 
         datos_guardar = cifrar_diccionario(datos_guardar, CAMPOS_SENSIBLES_USUARIO)
@@ -187,9 +156,6 @@ def registrar_usuario(datos):
 
 
 def _coincide_usuario(usuario, termino):
-    """
-    Filtro local sobre registros descifrados.
-    """
     if not termino:
         return True
 
@@ -212,16 +178,9 @@ def _coincide_usuario(usuario, termino):
 
 
 class UsuarioServiceError(RuntimeError):
-    """Error de consulta administrativa de usuarios."""
 
 
 def _obtener_usuarios_paginados(limite=500):
-    """Recupera usuarios con columnas explícitas y paginación real.
-
-    La búsqueda administrativa necesita descifrar algunos campos antes de
-    comparar. Por eso se consultan páginas sucesivas en lugar de limitarse a
-    los primeros 100 registros de la tabla.
-    """
     limite = max(1, int(limite or 500))
     page_size = min(500, limite)
     registros = []
@@ -245,11 +204,6 @@ def _obtener_usuarios_paginados(limite=500):
 
 
 def buscar_usuarios(termino="", limite=500):
-    """Busca por nickname, nombre, apellido y campos administrativos.
-
-    Diferencia claramente entre una búsqueda sin coincidencias y una falla de
-    Supabase/esquema. Nunca convierte un error técnico en una lista vacía.
-    """
     try:
         termino = str(termino or "").strip()
         registros = _obtener_usuarios_paginados(limite=limite)
@@ -277,20 +231,10 @@ def buscar_usuarios(termino="", limite=500):
 
 
 def crear_usuario_admin(datos):
-    """
-    Crea un usuario desde la vista administrativa.
-    """
-
     return registrar_usuario(datos)
 
 
 def actualizar_usuario_admin(id_usuario, datos):
-    """
-    Actualiza datos básicos de un usuario existente.
-
-    La contraseña solo se actualiza si se captura una nueva.
-    """
-
     try:
         if not id_usuario:
             return False, "Selecciona un usuario para modificar.", None
@@ -309,8 +253,6 @@ def actualizar_usuario_admin(id_usuario, datos):
         password = datos_guardar.get("usu_password", "")
         if password:
             datos_guardar["usu_password"] = encriptar_password(password)
-            # Habilitar credenciales de altas de RH solo después de que el
-            # Administrador establezca una contraseña. No reactiva bajas.
             datos_guardar["usu_acceso_habilitado"] = True
         else:
             datos_guardar.pop("usu_password", None)
@@ -350,11 +292,6 @@ def actualizar_usuario_admin(id_usuario, datos):
 # FUNCIÓN: obtener_usuario_por_id()
 # =====================================================
 def obtener_usuario_por_id(id_usuario):
-    """
-    Obtiene un usuario por ID para la sección Mi Usuario.
-    La contraseña nunca se devuelve a la vista.
-    """
-
     try:
         if not id_usuario:
             return None
@@ -382,15 +319,6 @@ def obtener_usuario_por_id(id_usuario):
 # FUNCIÓN: cambiar_password_usuario_actual()
 # =====================================================
 def cambiar_password_usuario_actual(password_actual, password_nuevo, password_confirmacion):
-    """
-    Permite que el usuario en sesión cambie su propia contraseña.
-
-    Medida anti-bloqueo:
-    después de guardar el hash nuevo en Supabase, se vuelve a leer el campo
-    y se valida contra la contraseña nueva. Si no coincide, se restaura el
-    valor anterior para evitar que el usuario quede sin acceso.
-    """
-
     try:
         from app_context import obtener_usuario_actual
         from security.passwords import verificar_password, generar_hash_password, validar_fortaleza_password
@@ -440,7 +368,6 @@ def cambiar_password_usuario_actual(password_actual, password_nuevo, password_co
         if len(nuevo_hash) < 55:
             return False, "No fue posible generar un hash seguro para la contraseña."
 
-        # Validación local antes de tocar Supabase.
         if not verificar_password(password_nuevo, nuevo_hash):
             return False, "No fue posible validar el hash de la nueva contraseña."
 
@@ -467,7 +394,6 @@ def cambiar_password_usuario_actual(password_actual, password_nuevo, password_co
             )
 
         if not verificar_password(password_nuevo, password_confirmado):
-            # Restauramos el valor anterior para no bloquear al usuario.
             supabase.table(TABLA_USUARIOS).update({"usu_password": password_anterior}).eq("id_usuario", id_usuario).execute()
             return False, (
                 "La contraseña nueva no pudo verificarse después de guardarse. "
@@ -490,7 +416,6 @@ def cambiar_password_usuario_actual(password_actual, password_nuevo, password_co
 
 
 def _nombre_mostrable_usuario(usuario):
-    """Construye el nombre legible usado en selectores operativos."""
     nombre = " ".join(
         parte.strip()
         for parte in (
@@ -508,21 +433,11 @@ def obtener_usuarios_por_tipos(tipos, limite=500):
     cached = _catalogo_usuarios_cache.get(cache_key)
     if cached is not None:
         return list(cached)
-    """
-    Obtiene usuarios para los selectores de asignación de formularios.
-
-    No recupera contraseñas ni datos personales sensibles. Devuelve únicamente
-    id, nickname, nombre, apellido, tipo, correo corporativo y teléfono. Los registros se ordenan por nombre.
-    """
     try:
         tipos_validos = sorted({int(tipo) for tipo in tipos if int(tipo) in TIPOS_VALIDOS})
         if not tipos_validos:
             return []
 
-        # Paginar: una consulta .limit(3000) puede devolver solo el máximo
-        # que PostgREST tenga configurado (normalmente 1000 filas). Un ACO
-        # debe poder seleccionar a cualquier empleado registrado, sin perder
-        # los de las páginas siguientes.
         registros = []
         pagina = 1
         tamano_pagina = min(300, max(1, int(limite)))
@@ -569,7 +484,6 @@ def obtener_usuarios_por_tipos(tipos, limite=500):
 
 
 def obtener_nombres_usuarios_por_tipos(tipos, limite=500):
-    """Devuelve solo las etiquetas legibles para CTkOptionMenu."""
     return [
         usuario["etiqueta"]
         for usuario in obtener_usuarios_por_tipos(tipos, limite=limite)
@@ -577,15 +491,12 @@ def obtener_nombres_usuarios_por_tipos(tipos, limite=500):
 
 
 def obtener_tecnicos_responsables(limite=500):
-    """Operadores activos (usu_tipo 4) disponibles como técnicos de levantamiento."""
     return obtener_nombres_usuarios_por_tipos([4], limite=limite)
 
 
 def obtener_supervisores_formulario(limite=500):
-    """Jefes de Operaciones y Supervisores (usu_tipo 2 y 3)."""
     return obtener_nombres_usuarios_por_tipos([2, 3], limite=limite)
 
 
 def obtener_encargados_proyecto_formulario(limite=500):
-    """Encargados de proyecto AXIA disponibles (usu_tipo 3 y 4)."""
     return obtener_nombres_usuarios_por_tipos([3, 4], limite=limite)

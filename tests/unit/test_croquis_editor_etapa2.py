@@ -1,4 +1,3 @@
-"""Regresiones del editor de croquis etapa 2, sin interfaz Tk."""
 import base64
 import copy
 import io
@@ -105,7 +104,6 @@ def test_compatibilidad_png_fase_uno_y_croquis_legado():
     old_doc = CroquisDocumento()
     old_doc.add({'kind':'line','coords':[10,15,80,100],'color':'#172554','width':3})
     current = base64.b64decode(old_doc.export_base64())
-    # Simular fase 1: mismo PNG pero sin campo layers.
     from PIL import PngImagePlugin
     with Image.open(io.BytesIO(current)) as img:
         payload = json.loads(img.info[PNG_KEY]); payload.pop('layers')

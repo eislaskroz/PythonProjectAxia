@@ -1,6 +1,3 @@
-"""
-Helpers visuales y de preview para formularios operativos AXIA.
-"""
 from __future__ import annotations
 
 from core.logger import configurar_logger
@@ -46,13 +43,11 @@ def limpiar_json(valor):
 
 
 def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anotaciones tipo plano"):
-    """Entrada común de DESKTOP y Obra Civil al editor técnico de croquis."""
     from views.croquis_editor_view import anotacion_plano_popup as abrir_editor
     return abrir_editor(parent, variable_base64, on_change=on_change, titulo=titulo)
 
 
 def firmar_en_popup(parent, variable_firma_base64, on_change=None, titulo="Firma del cliente"):
-    """Abre una ventana para capturar firma y guardarla como PNG base64."""
     win = Toplevel(parent)
     win.title(titulo)
     win.transient(parent.winfo_toplevel())
@@ -135,7 +130,6 @@ def _nombre_archivo_seguro(texto):
 
 
 def _documentos_windows_real():
-    """Consulta la carpeta Documentos configurada en Windows (incluye OneDrive)."""
     if os.name != "nt":
         return Path.home() / "Documents"
     try:
@@ -143,7 +137,6 @@ def _documentos_windows_real():
         from ctypes import wintypes
         from uuid import UUID
 
-        # FOLDERID_Documents: Windows Known Folders API.
         guid = UUID("FDD39AD0-238F-46AF-ADB4-6C85480369C7")
         class GUID(ctypes.Structure):
             _fields_ = [("Data1", wintypes.DWORD), ("Data2", wintypes.WORD),
@@ -166,7 +159,6 @@ def _documentos_windows_real():
 
 
 def ruta_documentos_axia(subcarpeta="documentos"):
-    """Devuelve la carpeta local estable del usuario, respetando Documentos redirigido."""
     nombre = str(subcarpeta or "documentos").strip()
     if not nombre or Path(nombre).name != nombre or nombre in (".", ".."):
         raise ValueError("Subcarpeta AXIA no válida")
@@ -188,11 +180,6 @@ def _auditar_pdf(titulo, resultado, ruta_salida=None, abrir=True):
 
 
 def generar_pdf_archivo(titulo, datos, nombre_archivo=None, subcarpeta="documentos", secciones_tabla=None, firma_base64=None, firma_tecnico_base64=None, mostrar_firmas=None):
-    """Genera y guarda un PDF definitivo sin abrir vista previa.
-
-    Se utiliza después de guardar formularios en Supabase para conservar
-    una copia local en Documents/AXIA/<subcarpeta>.
-    """
     if not nombre_archivo:
         folio = ""
         if isinstance(datos, dict):
@@ -221,13 +208,6 @@ def generar_pdf_archivo(titulo, datos, nombre_archivo=None, subcarpeta="document
 
 
 def _generar_pdf_orden_servicio_axia(datos, firma_base64=None, ruta_salida=None, abrir=True):
-    """Render corporativo específico para Orden de Servicio.
-
-    Replica la estructura del formato físico AXIA: datos generales en dos bloques,
-    descripción del servicio, observaciones, evaluación y firma del cliente.
-    Los campos operativos pueden permanecer vacíos hasta que el formulario móvil
-    de OS sea habilitado; el PDF conserva desde ahora la estructura definitiva.
-    """
     try:
         from reportlab.lib.pagesizes import letter
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage, KeepTogether, Image as RLImage
@@ -277,12 +257,6 @@ def _generar_pdf_orden_servicio_axia(datos, firma_base64=None, ruta_salida=None,
         return t
 
     def box(title, body, height=None):
-        """Caja corporativa cuya altura crece únicamente con el contenido.
-
-        ``height`` se conserva sólo por compatibilidad con llamadas antiguas, pero
-        no se fuerza una altura mínima. Así evitamos grandes áreas vacías cuando
-        la descripción del servicio contiene una o dos líneas.
-        """
         body_p = p(body, normal)
         t = Table([[p(title.upper(), header)], [body_p]], colWidths=[6.90*inch], rowHeights=[0.23*inch, None])
         t.setStyle(TableStyle([
@@ -362,8 +336,6 @@ def _generar_pdf_orden_servicio_axia(datos, firma_base64=None, ruta_salida=None,
     if isinstance(evidencias_raw, dict):
         evidencias_raw = [evidencias_raw]
 
-    # Mismo motor inteligente de fotografías utilizado en Bitácoras.
-    # Se normaliza cada archivo una sola vez y se conserva el orden original.
     from services.pdf_fotos_inteligentes import FotoPdf, construir_filas_fotos
     fotos_preparadas = []
     for item in evidencias_raw or []:
@@ -412,8 +384,6 @@ def _generar_pdf_orden_servicio_axia(datos, firma_base64=None, ruta_salida=None,
         story.extend(filas_fotos[1:])
         story.append(Spacer(1, 8))
 
-    # Firma capturada desde el formulario operativo. Si todavía no existe, se
-    # conserva el recuadro para que el formato sea visualmente definitivo.
     firma_flow = None
     if firma_base64:
         try:
@@ -463,12 +433,6 @@ def _generar_pdf_orden_servicio_axia(datos, firma_base64=None, ruta_salida=None,
         return False
 
 def _generar_pdf_orden_trabajo_axia(datos, secciones_tabla=None, ruta_salida=None, abrir=True):
-    """Render maestro de Orden de Trabajo con la misma identidad de los LEV.
-
-    La OT reutiliza la retícula, barras azules, tablas compactas y fondo corporativo
-    de los levantamientos. Preview, PDF administrativo y PDF posterior al guardado
-    llegan a esta misma función, por lo que no existen dos diseños distintos.
-    """
     try:
         from reportlab.lib.pagesizes import letter
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, LongTable, Table, TableStyle
@@ -487,7 +451,6 @@ def _generar_pdf_orden_trabajo_axia(datos, secciones_tabla=None, ruta_salida=Non
     else:
         ruta = Path(tempfile.gettempdir()) / f"AXIA_preview_Orden_Trabajo_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
 
-    # Misma paleta y jerarquía visual que la plantilla maestra de levantamientos.
     BLUE = colors.HexColor("#1F4E79")
     LIGHT_BLUE = colors.HexColor("#EAF1F7")
     BORDER = colors.HexColor("#8FA3B5")
@@ -534,7 +497,6 @@ def _generar_pdf_orden_trabajo_axia(datos, secciones_tabla=None, ruta_salida=Non
 
     width = 6.90 * inch
 
-    # Cabecera de la OT: misma retícula 4 columnas de los levantamientos.
     general_rows = [
         ["NOMBRE DE ORDEN DE TRABAJO", "Orden de Trabajo", "FOLIO ORDEN DE TRABAJO", text("Folio OT")],
         ["CLIENTE", text("Cliente"), "FECHA", text("Fecha")],
@@ -566,7 +528,6 @@ def _generar_pdf_orden_trabajo_axia(datos, secciones_tabla=None, ruta_salida=Non
         ("BOTTOMPADDING", (0, 0), (-1, -1), 2.6),
     ]))
 
-    # Servicio en bloque azul + celda de descripción, igual que las secciones del LEV.
     service = text("Asunto", "Descripción", "Servicio", fallback="Sin descripción capturada.")
     service_table = Table(
         [[Paragraph("SERVICIO", header)], [p(service, normal, "")]],
@@ -585,7 +546,6 @@ def _generar_pdf_orden_trabajo_axia(datos, secciones_tabla=None, ruta_salida=Non
         ("BOTTOMPADDING", (0, 1), (-1, 1), 5),
     ]))
 
-    # Cada colección de OT se presenta en una tabla independiente.
     aliases = {
         "partida": ("Partida", "partida", "part."),
         "unidad": ("Unidad", "unidad"),
@@ -627,8 +587,6 @@ def _generar_pdf_orden_trabajo_axia(datos, secciones_tabla=None, ruta_salida=Non
         if normalized_rows:
             sections_render.append((str(section_title_text or "Partidas"), normalized_rows))
 
-    # Compatibilidad: si una ruta antigua entrega _partidas_ot sin secciones,
-    # se muestran como Materiales en lugar de perder información.
     if not sections_render and datos.get("_partidas_ot"):
         normalized_rows = []
         for counter, raw in enumerate(datos.get("_partidas_ot") or [], 1):
@@ -718,12 +676,6 @@ def _generar_pdf_orden_trabajo_axia(datos, secciones_tabla=None, ruta_salida=Non
 
 
 def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
-    """Render corporativo específico para Bitácoras de Avance.
-
-    Mantiene la identidad visual de Levantamientos y Órdenes de Trabajo y toma
-    como referencia el formato operativo físico: datos vinculados LEV/ACO/OT,
-    técnico(s), descripción del servicio y porcentaje acumulado de avance.
-    """
     try:
         from reportlab.lib.pagesizes import letter
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, LongTable, TableStyle, Image as RLImage, KeepTogether
@@ -763,9 +715,6 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
     def p(value, style=normal, conservar_saltos=False):
         contenido = html_escape(str(value or ""))
         if conservar_saltos:
-            # ReportLab interpreta los saltos de línea del texto plano como
-            # espacios. Convertirlos después de escapar el contenido conserva
-            # tanto los Enter como las líneas en blanco capturadas por el usuario.
             contenido = contenido.replace("\r\n", "\n").replace("\r", "\n")
             contenido = contenido.replace("\n", "<br/>")
         return Paragraph(contenido, style)
@@ -777,7 +726,6 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
     folio = text("Folio Bitácora", "Folio de bitácora", "Folio BIT")
     fecha = text("Fecha")
 
-    # Retícula equivalente a los datos generales de Levantamientos y OTs.
     rows = [
         [lp("Folio Bitácora"), p(folio), lp("Fecha"), p(fecha)],
         [lp("No. ACO"), p(text("Número de ACO", "No. ACO", "ACO")), lp("Levantamiento"), p(text("Levantamiento"))],
@@ -801,9 +749,6 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
     story.append(general)
     story.append(Spacer(1, 8))
 
-    # Descripción como bloque de altura dinámica y divisible. Cada renglón
-    # capturado se convierte en una fila: así LongTable puede continuar en otra
-    # página sin intentar acomodar toda la descripción en una celda indivisible.
     desc_header = Table([[Paragraph("DESCRIPCIÓN DEL SERVICIO", header)]], colWidths=[6.90*inch])
     desc_header.setStyle(TableStyle([
         ("BACKGROUND", (0,0), (-1,-1), BLUE),
@@ -845,8 +790,6 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
     ]))
     story.append(avance_tabla)
 
-    # Evidencia fotográfica real. Acepta rutas locales (preview antes de guardar)
-    # y los metadatos JSON guardados en Supabase Storage (PDF administrativo/definitivo).
     evidencias_raw = datos.get("Evidencia Fotográfica") or datos.get("Evidencias Fotográficas") or datos.get("Fotos") or []
     if isinstance(evidencias_raw, str):
         valor = evidencias_raw.strip()
@@ -863,7 +806,6 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
     from services.pdf_fotos_inteligentes import FotoPdf, construir_filas_fotos
 
     def _imagen_evidencia(item):
-        """Devuelve una fotografía normalizada o None sin romper el PDF."""
         nombre = "Evidencia"
         origen = ""
         try:
@@ -874,11 +816,9 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
                 origen = str(item or "").strip()
                 if origen:
                     nombre = Path(origen).name or "Evidencia"
-            # Algunos registros guardan solo storage_path, sin URL pública.
             if not origen and not (isinstance(item, dict) and item.get("storage_path")):
                 return None, nombre
 
-            # Algunas respuestas antiguas podían persistir el prefijo visible "Url:".
             if origen.lower().startswith("url:"):
                 origen = origen.split(":", 1)[1].strip()
 
@@ -893,8 +833,6 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
                     respuesta.raise_for_status()
                     contenido = respuesta.content
                 except Exception:
-                    # Si el bucket deja de ser público, intentamos descargar por
-                    # storage_path usando la sesión de Supabase configurada en AXIA.
                     if isinstance(item, dict) and str(item.get("storage_path") or "").strip():
                         from supabase_config import supabase
                         contenido = supabase.storage.from_("bitacoras-evidencias").download(
@@ -910,16 +848,11 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
             if not contenido:
                 return None, nombre
 
-            # Orientación EXIF y reducción limitada de resolución SOLO para PDF.
-            # Procesamos una imagen cada vez para no reservar memoria de más.
-            # Los originales almacenados en Supabase permanecen intactos.
             with Image.open(io.BytesIO(contenido)) as img_src:
                 img = ImageOps.exif_transpose(img_src)
                 img.thumbnail((1800, 1800), Image.Resampling.LANCZOS)
                 ancho_px, alto_px = img.size
                 salida = io.BytesIO()
-                # Para fotos de cámara JPEG consume mucho menos memoria/PDF;
-                # capturas PNG conservan texto y diagramas sin pérdida.
                 extension = Path(nombre).suffix.lower()
                 if extension in (".jpg", ".jpeg"):
                     if img.mode != "RGB":
@@ -959,8 +892,7 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
             fotos_preparadas, estilo_texto=normal,
             color_borde=BORDER, color_pie=LIGHT_BLUE,
         )
-        # El título viaja con al menos una fotografía; cada fila restante se
-        # pagina individualmente, evitando tablas enormes que no se dividen.
+
         story.append(KeepTogether([fotos_header, Spacer(1, 5), filas_fotos[0]]))
         story.extend(filas_fotos[1:])
 
@@ -1002,11 +934,6 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
         return False
 
 def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, firma_tecnico_base64=None, mostrar_firmas=None, ruta_salida=None, abrir=True):
-    """Genera PDF temporal y lo abre con el visor predeterminado.
-
-    El PDF incluye encabezado operativo, folio, fecha y zona de firmas
-    cuando corresponda. La plantilla corporativa se aplica en cada página.
-    """
     if str(titulo or "").strip().casefold() == "orden de servicio":
         resultado = _generar_pdf_orden_servicio_axia(
             datos, firma_base64=firma_base64, ruta_salida=ruta_salida, abrir=abrir
@@ -1083,7 +1010,6 @@ def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, fi
             return limpio
 
         def _parsear_detalle_tecnico(texto):
-            """Convierte bloques tipo '--- SECCION ---' en secciones PDF ordenadas."""
             secciones = []
             actual = None
             for linea in str(texto or "").splitlines():
@@ -1105,7 +1031,6 @@ def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, fi
         secciones_detalle = _parsear_detalle_tecnico(detalle_tecnico) if detalle_tecnico else []
 
         def _tabla_pares_compacta(pares, columnas=3):
-            """Construye tabla compacta de pares etiqueta/valor en 2 o 3 columnas visuales."""
             if not pares:
                 return None
             filas_tabla = []
@@ -1184,16 +1109,12 @@ def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, fi
             )
 
             for indice, seccion in enumerate(secciones_detalle):
-                # No se fuerza salto de página entre secciones.
-                # Se deja únicamente separación visual para aprovechar la hoja.
                 if indice > 0:
                     contenido.append(Spacer(1, 4))
 
                 titulo = seccion.get("titulo", "SECCIÓN")
                 lineas = seccion.get("lineas", [])
 
-                # Caso especial para que no aparezca como título corrido:
-                # LEVANTAMIENTO Seguridad y Monitoreo -> LEVANTAMIENTO: Seguridad y Monitoreo
                 if titulo.upper().startswith("LEVANTAMIENTO "):
                     valor = titulo[len("LEVANTAMIENTO "):].strip()
                     titulo_pdf = "LEVANTAMIENTO: <b>%s</b>" % valor
@@ -1226,7 +1147,6 @@ def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, fi
 
                 bloque_seccion = []
                 if filas:
-                    # Cada sección técnica usa una tabla compacta en 3 columnas cuando los valores son cortos.
                     pares_seccion = []
                     filas_largas = []
                     for fila_pdf in filas:
@@ -1269,7 +1189,6 @@ def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, fi
 
                 contenido.extend(bloque_seccion)
 
-        # Anotación gráfica tipo plano capturada desde el levantamiento.
         anotacion_b64 = str(datos.get("__anotacion_plano_base64") or "").strip() if isinstance(datos, dict) else ""
         if anotacion_b64:
             try:
@@ -1291,8 +1210,6 @@ def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, fi
             except Exception:
                 logger.warning("No fue posible insertar la anotación tipo plano en el PDF.", exc_info=True)
 
-
-        # Evidencias fotográficas opcionales del levantamiento/obra civil.
         evidencias_pdf = datos.get("__evidencias_fotograficas") or [] if isinstance(datos, dict) else []
         if isinstance(evidencias_pdf, str):
             try:
@@ -1365,8 +1282,6 @@ def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, fi
             contenido.append(Spacer(1, 3))
             contenido.append(tabla_fotos)
 
-        # Sólo las partidas de canalización se desglosan por categoría:
-        # funciona igual en preview, PDF final y regeneración de Obra Civil.
         from services.pdf_canalizacion_agrupada import desglosar_secciones_pdf
         for nombre, columnas, registros in desglosar_secciones_pdf(secciones_tabla):
             if not registros and columnas is not None:
@@ -1381,13 +1296,11 @@ def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, fi
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
             ]))
             contenido.append(encabezado_tabla)
-            # Cabecera general sin filas, seguida de categorías con su tabla.
+
             if columnas is None:
                 continue
             contenido.append(Spacer(1, 3))
-            # ReportLab no puede dividir una sola fila alta entre páginas.
-            # Normalizamos cada registro en filas de continuación para que textos
-            # extensos (principalmente Concepto/Descripción) siempre puedan paginarse.
+
             def _fragmentar_celda(valor, limite):
                 texto = str(valor or "").strip()
                 if not texto:
@@ -1423,9 +1336,6 @@ def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, fi
                         fila_continuacion[columna] = partes[indice] if indice < len(partes) else ""
                     filas_seguras.append(fila_continuacion)
 
-            # El color de un Paragraph se define en su propio estilo; TableStyle(TEXTCOLOR)
-            # no sobreescribe de forma fiable el textColor interno del Paragraph.
-            # Usamos un estilo blanco explícito para asegurar contraste sobre el fondo azul.
             data = [[Paragraph(str(c), estilo_encabezado_tabla) for c in columnas]]
             for r in filas_seguras:
                 data.append([Paragraph(str(r.get(c, "") or ""), estilo_normal) for c in columnas])
@@ -1455,7 +1365,6 @@ def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, fi
             contenido.append(t)
             contenido.append(Spacer(1, 5))
 
-        # Los levantamientos son documentos de diagnóstico y no requieren firmas.
         if mostrar_firmas is None:
             mostrar_firmas = "levantamiento" not in str(titulo or "").lower()
 
@@ -1514,15 +1423,6 @@ def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, fi
 
 
 def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, firma_tecnico_base64=None, mostrar_firmas=None, ruta_salida=None, abrir=True):
-    """Compatibilidad de formularios con AXIA PDF ENGINE Fase 4.
-
-    Preview y guardado usan el mismo motor; esta función solo conserva la API
-    histórica de las vistas existentes.
-
-    Orden de Trabajo es una excepción intencional: utiliza el formato operativo
-    oficial de AXIA (dos bloques superiores + servicio + tabla de partidas) y no
-    el perfil genérico del PDF Engine.
-    """
     if str(titulo or "").strip().casefold() == "orden de servicio":
         resultado = _generar_pdf_orden_servicio_axia(
             datos, firma_base64=firma_base64, ruta_salida=ruta_salida, abrir=abrir
@@ -1559,11 +1459,6 @@ def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, 
 
 
 def enfocar_inicio_formulario(scroll_widget=None, primer_widget=None, delay=180):
-    """Mantiene el formulario inicialmente arriba, sin enfocar ningún campo.
-
-    Conserva la firma para todas las vistas; el usuario elige el campo con un
-    clic o mediante TAB. No realiza ningún desplazamiento al usar el mouse.
-    """
     root = None
     if primer_widget is not None:
         root = primer_widget.winfo_toplevel()
@@ -1586,7 +1481,6 @@ def enfocar_inicio_formulario(scroll_widget=None, primer_widget=None, delay=180)
 
 
 def generar_pdf_preview_async(parent, titulo, datos, **kwargs):
-    """Genera la vista previa fuera del hilo visual para evitar congelamientos."""
     from core.performance import run_in_background
     return run_in_background(
         lambda: generar_pdf_preview(titulo, datos, **kwargs),

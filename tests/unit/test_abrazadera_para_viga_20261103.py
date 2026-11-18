@@ -1,5 +1,3 @@
-"""Regresión: abrazaderas para viga con tamaños exclusivos, sin alterar catálogos."""
-
 from views.levantamientos.catalogos_canalizacion import (
     MEDIDAS_ABRAZADERA_PARA_VIGA,
     TAMANOS_TUBOS,

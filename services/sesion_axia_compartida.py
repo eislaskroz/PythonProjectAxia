@@ -1,8 +1,3 @@
-"""Sesión AXIA compatible con FIELD para borradores privados.
-
-Se emite durante el login normal y se conserva únicamente en RAM.
-No almacena contraseñas, JWT ni llaves de servicio en disco.
-"""
 from __future__ import annotations
 
 import time
@@ -14,7 +9,6 @@ _EXPIRA: int = 0
 
 
 def solicitar_sesion(nickname: str, password: str, expected_user_id: object) -> tuple[str, int]:
-    """Utiliza la Edge Function existente mobile-auth, sin solicitar segundo login."""
     from supabase_config import SUPABASE_URL, SUPABASE_KEY
     response = requests.post(
         f"{SUPABASE_URL.rstrip('/')}/functions/v1/mobile-auth",

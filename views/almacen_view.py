@@ -1,5 +1,3 @@
-
-"""Almacén AXIA · catálogo maestro único con entradas y salidas persistentes."""
 from __future__ import annotations
 from utils import centrar_ventana
 from ui.form_fields import AxiaEntry, AxiaTextbox
@@ -37,7 +35,6 @@ def _moneda(value):
 
 
 def _icono_blanco(ruta):
-    """Convierte el icono a blanco y conserva su transparencia."""
     with Image.open(ruta) as imagen:
         imagen_rgba = imagen.convert('RGBA')
 
@@ -67,7 +64,6 @@ def mostrar_almacen(parent, app=None):
         messagebox.showerror('Almacén', str(exc))
         return
 
-    # Ruta de los iconos del módulo.
     carpeta_iconos = Path(__file__).resolve().parent.parent / 'assets' / 'iconos'
 
     root = ctk.CTkFrame(parent, fg_color='transparent')
@@ -78,7 +74,6 @@ def mostrar_almacen(parent, app=None):
     def ofrecer_comprobante(*, tipo, resumen, movimientos=None, codigo='', producto='',
                             cantidad='', destinatario='', motivo='', referencia='',
                             responsable='', identificador=None, fecha=None):
-        """Ofrece imprimir después del COMMIT confirmado. No registra inventario."""
         es_entrada = tipo == 'ENTRADA'
         titulo = 'Entrada registrada' if es_entrada else 'Salida registrada'
         nombre = 'etiqueta Code 128 para el producto' if es_entrada else 'ticket de entrega (80 mm)'
@@ -102,7 +97,6 @@ def mostrar_almacen(parent, app=None):
             try:
                 abrir_comprobante(ruta)
             except Exception:
-                # El PDF sigue guardado; imprimirlo no altera el movimiento.
                 messagebox.showinfo('Comprobante generado',
                     f'El archivo se guardó correctamente, pero no se pudo abrir automáticamente:\n{ruta}',
                     parent=root.winfo_toplevel())
@@ -112,7 +106,6 @@ def mostrar_almacen(parent, app=None):
                 f'No vuelvas a registrarlo.\n\nNo se pudo generar el comprobante: {exc}',
                 parent=root.winfo_toplevel())
 
-    # -------- PESTAÑAS OPERATIVAS --------
     tabs = ctk.CTkTabview(
         root,
         fg_color=WHITE,
@@ -133,7 +126,6 @@ def mostrar_almacen(parent, app=None):
     t_kardex = tabs.add('Kárdex / Historial')
     t_admin = tabs.add('Altas/Bajas/Modificaciones')
 
-    # El contenedor de pestañas se estira a todo el ancho disponible.
     tabs.grid_columnconfigure(0, weight=1)
     tabs._segmented_button.grid_configure(
         row=0,
@@ -143,7 +135,6 @@ def mostrar_almacen(parent, app=None):
         pady=0
     )
 
-    # Texto y altura de las cinco pestañas.
     tabs._segmented_button.configure(
         font=('Segoe UI', 14),
         text_color=WHITE,
@@ -151,7 +142,6 @@ def mostrar_almacen(parent, app=None):
         height=44
     )
 
-    # Distribuir uniformemente el ancho entre las cinco opciones.
     for columna in range(5):
         tabs._segmented_button.grid_columnconfigure(
             columna,
@@ -159,11 +149,9 @@ def mostrar_almacen(parent, app=None):
             uniform='pestanas_almacen'
         )
 
-    # La fuente piloto es exclusivamente CONSULTIVA. Los movimientos siguen
-    # utilizando 'registros', que se alimenta del catálogo OPERATIVO.
     maestro = {'items': [], 'total': 0, 'pagina': 1, 'limite': 100,
                'busqueda': '', 'cargado': False, 'solicitud': 0}
-    vista_maestro_habilitada = False  # Una sola base operativa.
+    vista_maestro_habilitada = False
     fuente_inicial = 'Operativo'
     COLUMNAS_OPERATIVAS = (
         ('codigo', 'Código AXIA', 160), ('estado', 'Estado', 95),
@@ -176,7 +164,6 @@ def mostrar_almacen(parent, app=None):
         ('codigo_origen_eleventa', 'Código ELEVENTA', 145),
     )
 
-    # -------- CATÁLOGO --------
     t_catalogo.grid_columnconfigure(0, weight=1)
     t_catalogo.grid_rowconfigure(3, weight=1)
 
@@ -277,8 +264,6 @@ def mostrar_almacen(parent, app=None):
         barra, values=['Maestro AXIA (piloto)', 'Operativo'], height=34,
         command=lambda opcion: cambiar_fuente_catalogo(opcion)
     )
-    # Selector de fuentes oculto: solamente existe un catálogo real.
-    # Selección inicial se aplica tras crear todos los controles.
 
     ayuda = ctk.CTkLabel(
         t_catalogo,
@@ -298,8 +283,6 @@ def mostrar_almacen(parent, app=None):
     , table_id="almacen_catalogo")
     tabla.grid(row=3, column=0, sticky='nsew', padx=7, pady=5)
 
-    # El catálogo utiliza todo el espacio libre para la tabla.
-    # Se retiraron el aviso de selección y la ficha inferior de detalle.
     paginacion_maestro = ctk.CTkFrame(t_catalogo, fg_color='transparent')
     paginacion_maestro.grid(row=6, column=0, sticky='e', padx=8, pady=(0, 4))
     btn_maestro_anterior = ctk.CTkButton(
@@ -314,7 +297,6 @@ def mostrar_almacen(parent, app=None):
     btn_maestro_siguiente.pack(side='left', padx=3)
     paginacion_maestro.grid_remove()
 
-    # -------- ALTAS / BAJAS / MODIFICACIONES: INDEPENDIENTE DE CONSULTA --------
     t_admin.grid_columnconfigure(0, weight=1)
     t_admin.grid_rowconfigure(2, weight=1)
     acciones = ctk.CTkFrame(t_admin, fg_color='transparent')
@@ -413,7 +395,6 @@ def mostrar_almacen(parent, app=None):
             )
             campos[key] = entry
 
-        # -------- BOTÓN CONFIRMAR: CENTRADO Y CON ESTILO MEJORADO --------
         if tipo == 'ENTRADA':
             nombre_icono = 'entrada.png'
             texto_boton = 'Confirmar entrada'
@@ -505,7 +486,6 @@ def mostrar_almacen(parent, app=None):
     control_modalidad.pack(side='left')
     control_modalidad.set('Por pieza')
 
-    # Entrega de varias partidas por Orden de Trabajo (sin descuentos parciales).
     formulario_ot.grid_columnconfigure(1,weight=1)
     ctk.CTkLabel(formulario_ot,text='Entrega de materiales por Orden de Trabajo',
                  font=TITLE_MD,text_color=TEXT_PRIMARY).grid(row=0,column=0,columnspan=3,
@@ -746,8 +726,6 @@ def mostrar_almacen(parent, app=None):
             revision_ot.set(False)
     campo_ot.bind('<KeyRelease>',invalidar_ot_cambiada)
 
-
-    # -------- KARDEX: BUSCADOR Y ACCIONES EN UNA ÚNICA FILA --------
     t_kardex.grid_columnconfigure(0, weight=1)
     t_kardex.grid_rowconfigure(1, weight=1)
 
@@ -762,14 +740,11 @@ def mostrar_almacen(parent, app=None):
         padx=8,
         pady=8
     )
-    # El buscador ocupa ~50 % de la fila; los 3 botones comparten el resto.
-    # 'uniform' mantiene la proporción cuando se maximiza la ventana.
+
     filtrar_k.grid_columnconfigure(0, weight=3, uniform='acciones_kardex')
     for indice in (1, 2, 3):
         filtrar_k.grid_columnconfigure(indice, weight=1, uniform='acciones_kardex')
 
-    # CORRECCIÓN: cargar buscar.png directamente, como en Catálogo.
-    # No aplicar _icono_blanco a este icono.
     with Image.open(carpeta_iconos / 'buscar.png') as imagen_buscar_k:
         imagen_buscar_k = imagen_buscar_k.convert('RGBA').copy()
 
@@ -779,7 +754,6 @@ def mostrar_almacen(parent, app=None):
         size=(20, 20)
     )
 
-    # Contenedor visual de la barra de búsqueda.
     buscar_k_wrap = ctk.CTkFrame(
         filtrar_k,
         fg_color='#F8FAFC',
@@ -826,7 +800,6 @@ def mostrar_almacen(parent, app=None):
         pady=3
     )
 
-    # Icono blanco del botón Consultar Kardex.
     imagen_consulta = _icono_blanco(
         carpeta_iconos / 'consulta.png'
     )
@@ -876,8 +849,6 @@ def mostrar_almacen(parent, app=None):
     , table_id="almacen_kardex")
     tabla_k.grid(row=1, column=0, sticky='nsew', padx=7, pady=6)
 
-    # Las reimpresiones son sólo de lectura: el servidor recupera la operación
-    # ORIGINAL y la capa PDF no ejecuta registrar/salida_ot ni modifica saldos.
     btn_reimprimir_etiqueta = ctk.CTkButton(
         filtrar_k, text='Reimprimir etiqueta', width=182, height=42,
         fg_color=SECONDARY, hover_color=BUTTON_HOVER, state='disabled',
@@ -1039,7 +1010,6 @@ def mostrar_almacen(parent, app=None):
         ejecutar(lambda: op(codigo=codigo, usuario=usuario), ok, 'No se pudo actualizar el producto')
 
     def abrir_editor_producto(editar=False):
-        """Ficha completa del Catálogo Maestro (no permite cambiar folio/saldo)."""
         registro = producto_seleccionado() if editar else None
         if editar and not registro:
             return
@@ -1047,8 +1017,6 @@ def mostrar_almacen(parent, app=None):
             messagebox.showwarning('Almacén', 'Reactiva el producto antes de editarlo.')
             return
 
-        # Estas equivalencias provienen del catálogo que realmente se consultó.
-        # Así no inventamos prefijos y conservamos los oficiales de AXIA.
         familias_por_categoria = {}
         for producto in registros:
             categoria = str(producto.get('categoria_axia') or '').strip()
@@ -1179,7 +1147,7 @@ def mostrar_almacen(parent, app=None):
             wraplength=850, text_color=TEXT_SECONDARY, justify='left', anchor='w').grid(
                 row=16, column=0, columnspan=4, sticky='ew', padx=10, pady=(12, 14))
 
-        solicitud_alta_id = str(uuid.uuid4())  # Mismo ID para reintentos de esta alta.
+        solicitud_alta_id = str(uuid.uuid4())
         controles = ctk.CTkFrame(ventana, fg_color='transparent')
         controles.grid(row=2, column=0, sticky='e', padx=22, pady=(8, 16))
         ctk.CTkButton(controles,text='Cancelar',width=110,fg_color='#64748B',
@@ -1253,7 +1221,6 @@ def mostrar_almacen(parent, app=None):
                 text='Sesión segura validada.',
                 text_color='#15803D'
             )
-            # El catálogo maestro alimenta todas las operaciones.
             cargar_catalogo()
 
         ejecutar(
@@ -1354,7 +1321,6 @@ def mostrar_almacen(parent, app=None):
             return [{**r,'estado':'Activo' if r.get('activo',True) else 'Inactivo',
                      'costo':_moneda(r.get('costo')),
                      'saldo_exportado':r.get('saldo_exportado','—')} for r in rows]
-        # Los datos operativos alimentan SOLO las transacciones operativas.
         criterio_admin=buscar_admin.get().strip().casefold()
         admin_visible=[r for r in registros if (var_inactivos.get() or r.get('activo',True))
                        and (not criterio_admin or any(criterio_admin in str(r.get(campo,'')).casefold()
@@ -1391,8 +1357,6 @@ def mostrar_almacen(parent, app=None):
                  'No se pudo consultar el Catálogo Maestro AXIA')
 
     def seleccionar(registro):
-        # Mantener las acciones existentes al seleccionar una fila de Catálogo.
-        # La ficha inferior ya no se muestra para aprovechar el espacio de la tabla.
         if es_vista_maestro():
             return
         codigo = str(registro.get('codigo') or '')

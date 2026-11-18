@@ -1,4 +1,3 @@
-"""Regresiones de AXIA: barra lateral sí, rueda del mouse no."""
 from __future__ import annotations
 
 import sys

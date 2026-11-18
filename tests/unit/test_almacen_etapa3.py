@@ -1,4 +1,3 @@
-"""La ejecución normal conecta siempre al Catálogo Maestro AXIA protegido."""
 import sys
 import types
 from pathlib import Path
