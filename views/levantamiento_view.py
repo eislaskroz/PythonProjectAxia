@@ -5348,6 +5348,22 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 _filas_canal_guardadas = _anidadas
 
         if _filas_canal_guardadas:
+            # El formulario crea una fila provisional de "Tubo" al abrirse.
+            # Al restaurar partidas reales, retirarla antes de agregar las guardadas
+            # evita una fila fantasma vacía en cada edición/recuperación.
+            for _item_provisional in canalizacion_materiales_items:
+                for _widget_provisional in _item_provisional.get("widgets", ()):
+                    try:
+                        _widget_provisional.destroy()
+                    except Exception:
+                        logger.debug("No fue posible retirar un control provisional de canalización.", exc_info=True)
+                _aproximado_provisional = _item_provisional.get("aproximado_widget")
+                if _aproximado_provisional is not None:
+                    try:
+                        _aproximado_provisional.destroy()
+                    except Exception:
+                        logger.debug("No fue posible retirar el aproximado provisional de canalización.", exc_info=True)
+            canalizacion_materiales_items.clear()
             var_requiere_canalizacion.set("Sí")
         elif _canal_cfg:
             var_requiere_canalizacion.set(str(_canal_cfg.get("requiere") or "No"))
