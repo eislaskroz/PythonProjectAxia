@@ -408,7 +408,6 @@ class NavigationController:
     def mostrar_compras(self):
         if not self._verificar_permiso(
             puede_ver_compras,
-    puede_autorizar_cotizacion_dg,
             "Tu nivel de usuario no tiene permiso para acceder al módulo de Compras.",
         ):
             return

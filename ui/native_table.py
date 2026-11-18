@@ -20,6 +20,7 @@ class NativeTreeTable(ttk.Frame):
         show: str = "headings",
         height: int = 14,
         table_id: str | None = None,
+        date_only_columns: Sequence[str] = (),
         **kwargs: Any,
     ) -> None:
         super().__init__(master, **kwargs)
@@ -32,6 +33,7 @@ class NativeTreeTable(ttk.Frame):
         self._hover_job = None
         self._hover_popup = None
         self._fechas_ids = {item[0] for item in columns if es_campo_fecha(item[0]) or es_campo_fecha(item[1])}
+        self._fechas_solo_dia = set(date_only_columns)
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
@@ -189,8 +191,12 @@ class NativeTreeTable(ttk.Frame):
         keys = tuple(value_keys or columns)
         for index, row in enumerate(rows):
             values = value_factory(row) if value_factory else [row.get(key, "") for key in keys]
-            visibles = [formatear_fecha_visual(v) if columna in self._fechas_ids else v
-                        for columna, v in zip(columns, values)]
+            visibles = []
+            for columna, valor in zip(columns, values):
+                texto = formatear_fecha_visual(valor) if columna in self._fechas_ids else valor
+                if columna in self._fechas_solo_dia and isinstance(texto, str):
+                    texto = texto.split(" ", 1)[0]
+                visibles.append(texto)
             iid = self.tree.insert("", "end", values=tuple("" if v is None else str(v) for v in visibles))
             self._payloads[iid] = row
             self.tree.item(iid, tags=("fila_azul",) if index % 2 else ("fila_blanca",))

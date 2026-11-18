@@ -158,7 +158,9 @@ def mostrar_conversion_orden_servicio(parent, app):
         columns=(("folio", "Folio", 105), ("cliente", "Cliente", 190), ("tipo", "Trabajo", 125), ("nombre", "Nombre del servicio", 220),
                  ("estatus", "Estatus", 75), ("fecha", "Fecha", 105)),
         height=20,
-     table_id="ordenes_servicio_conversion",)
+        table_id="ordenes_servicio_conversion",
+        date_only_columns=("fecha",),
+    )
     tabla.grid(row=1, column=0, sticky="nsew", padx=8, pady=(0, 8))
 
     panel_form_shell = ctk.CTkFrame(cuerpo, fg_color=WHITE, corner_radius=16)
@@ -841,7 +843,7 @@ def mostrar_conversion_orden_servicio(parent, app):
 
     acciones = ctk.CTkFrame(panel_form_shell, fg_color=WHITE, corner_radius=0)
     acciones.grid(row=1, column=0, sticky="ew", padx=8, pady=(4, 10))
-    for columna in range(3):
+    for columna in range(2):
         acciones.grid_columnconfigure(columna, weight=1, uniform="acciones_levantamientos")
 
     carpeta_iconos = Path(__file__).resolve().parent.parent / "assets" / "iconos"
@@ -863,78 +865,68 @@ def mostrar_conversion_orden_servicio(parent, app):
     icono_guardar = cargar_icono_boton("guardar.png")
     icono_votar = cargar_icono_boton("votar.png")
 
-    fila_superior = ctk.CTkFrame(acciones, fg_color="transparent")
-    fila_superior.grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 6))
-    for columna in range(3):
-        fila_superior.grid_columnconfigure(columna, weight=1, uniform="botones_sup")
-
     ctk.CTkButton(
-        fila_superior,
+        acciones,
         text="Cargar seleccionado",
         image=icono_detalle,
         compound="left",
-        width=145,
-        height=38,
+        width=175,
+        height=44,
         corner_radius=10,
         fg_color="#2563EB",
         hover_color="#1D4ED8",
         text_color=WHITE,
-        font=("Segoe UI", 11),
+        font=BUTTON_FONT,
         border_width=0,
         hover=True,
         command=cargar_seleccion,
-    ).grid(row=0, column=0, sticky="ew", padx=3)
+    ).grid(row=0, column=0, sticky="ew", padx=4, pady=4)
 
     btn_preview = ctk.CTkButton(
-        fila_superior,
+        acciones,
         text="PDF Levantamiento",
         image=icono_pdf,
         compound="left",
-        width=145,
-        height=38,
+        width=175,
+        height=44,
         corner_radius=10,
         fg_color="#2563EB",
         hover_color="#1D4ED8",
         text_color=WHITE,
-        font=("Segoe UI", 11),
+        font=BUTTON_FONT,
         border_width=0,
         hover=True,
         command=previsualizar_levantamiento,
         state="disabled",
     )
-    btn_preview.grid(row=0, column=1, sticky="ew", padx=3)
+    btn_preview.grid(row=0, column=1, sticky="ew", padx=4, pady=4)
 
     btn_editar = ctk.CTkButton(
-        fila_superior,
+        acciones,
         text="Editar",
         image=icono_editar,
         compound="left",
-        width=115,
-        height=38,
+        width=175,
+        height=44,
         corner_radius=10,
         fg_color="#3B82F6",
         hover_color="#2563EB",
         text_color=WHITE,
-        font=("Segoe UI", 11),
+        font=BUTTON_FONT,
         border_width=0,
         hover=True,
         command=abrir_editor_origen,
         state="disabled",
     )
-    btn_editar.grid(row=0, column=2, sticky="ew", padx=3)
-
-    fila_inferior = ctk.CTkFrame(acciones, fg_color="transparent")
-    fila_inferior.grid(row=1, column=0, columnspan=3, sticky="ew")
-    for columna in range(3):
-        fila_inferior.grid_columnconfigure(columna, weight=1, uniform="botones_inf")
+    btn_editar.grid(row=1, column=0, sticky="ew", padx=4, pady=4)
 
     btn_guardar = ctk.CTkButton(
-        fila_inferior,
+        acciones,
         text="Guardar",
         image=icono_guardar,
         compound="left",
-        width=115,
-        height=38,
+        width=175,
+        height=44,
         corner_radius=10,
         fg_color=SECONDARY,
         hover_color=BUTTON_HOVER,
@@ -945,28 +937,30 @@ def mostrar_conversion_orden_servicio(parent, app):
         command=guardar_cambios,
         state="disabled",
     )
-    btn_guardar.grid(row=0, column=0, sticky="ew", padx=3)
+    btn_guardar.grid(row=1, column=1, sticky="ew", padx=4, pady=4)
     btn_validar = ctk.CTkButton(
-        fila_inferior,
-        text="Validar Levantamiento",
+        acciones,
+        text="Validar levantamiento",
         image=icono_votar,
         compound="left",
-        width=145,
-        height=38,
+        width=175,
+        height=44,
         corner_radius=10,
         fg_color=SECONDARY,
         hover_color=BUTTON_HOVER,
+        text_color=WHITE,
+        font=BUTTON_FONT,
         command=validar_levantamiento_ventas,
         state="disabled",
     )
-    btn_validar.grid(row=0, column=1, sticky="ew", padx=3)
+    btn_validar.grid(row=2, column=0, sticky="ew", padx=4, pady=4)
     btn_convertir = ctk.CTkButton(
-        fila_inferior,
+        acciones,
         text="Convertir a OT",
         image=icono_votar,
         compound="left",
-        width=130,
-        height=38,
+        width=175,
+        height=44,
         corner_radius=10,
         fg_color=SECONDARY,
         hover_color=BUTTON_HOVER,
@@ -977,7 +971,7 @@ def mostrar_conversion_orden_servicio(parent, app):
         command=validar_y_convertir,
         state="disabled",
     )
-    btn_convertir.grid(row=0, column=2, sticky="ew", padx=3)
+    btn_convertir.grid(row=2, column=1, sticky="ew", padx=4, pady=4)
 
     _set_modo_edicion(False)
     ejecutar_busqueda()
