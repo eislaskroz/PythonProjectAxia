@@ -143,12 +143,14 @@ def mostrar_conversion_orden_servicio(parent, app):
 
     cuerpo = ctk.CTkFrame(contenedor, fg_color="transparent")
     cuerpo.grid(row=1, column=0, sticky="nsew")
-    cuerpo.grid_columnconfigure(0, weight=5)
-    cuerpo.grid_columnconfigure(1, weight=6)
+    cuerpo.grid_columnconfigure(0, weight=1, uniform="paneles_levantamiento")
+    cuerpo.grid_columnconfigure(1, weight=1, uniform="paneles_levantamiento")
     cuerpo.grid_rowconfigure(0, weight=1)
+    cuerpo.grid_propagate(False)
 
     panel_lista = ctk.CTkFrame(cuerpo, fg_color=WHITE, corner_radius=16)
     panel_lista.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
+    panel_lista.grid_propagate(False)
     panel_lista.grid_columnconfigure(0, weight=1)
     panel_lista.grid_rowconfigure(1, weight=1)
     lbl_resultados = ctk.CTkLabel(panel_lista, text="Levantamientos", font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="w")
@@ -165,6 +167,7 @@ def mostrar_conversion_orden_servicio(parent, app):
 
     panel_form_shell = ctk.CTkFrame(cuerpo, fg_color=WHITE, corner_radius=16)
     panel_form_shell.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
+    panel_form_shell.grid_propagate(False)
     panel_form_shell.grid_columnconfigure(0, weight=1)
     panel_form_shell.grid_rowconfigure(0, weight=1)
 

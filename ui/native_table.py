@@ -194,7 +194,7 @@ class NativeTreeTable(ttk.Frame):
             visibles = []
             for columna, valor in zip(columns, values):
                 texto = formatear_fecha_visual(valor) if columna in self._fechas_ids else valor
-                if columna in self._fechas_solo_dia and isinstance(texto, str):
+                if columna in self._fechas_ids and isinstance(texto, str):
                     texto = texto.split(" ", 1)[0]
                 visibles.append(texto)
             iid = self.tree.insert("", "end", values=tuple("" if v is None else str(v) for v in visibles))
