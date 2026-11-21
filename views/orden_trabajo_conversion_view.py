@@ -141,7 +141,7 @@ def mostrar_conversion_orden_trabajo(parent, app):
 
     def set_edit_mode(enabled):
         if enabled and not puede_editar_ordenes_operativas(obtener_usuario_actual()):
-            messagebox.showerror("Acceso denegado", "Solo tipos 2 y 3 pueden editar Órdenes de Servicio.")
+            messagebox.showerror("Acceso denegado", "Solo los tipos 1, 2 y 3 pueden editar Órdenes de Servicio.")
             return
         selected["editando"] = bool(enabled)
         state = "normal" if enabled else "disabled"
@@ -163,7 +163,7 @@ def mostrar_conversion_orden_trabajo(parent, app):
         if not record or not selected.get("editando"):
             return
         if not puede_editar_ordenes_operativas(obtener_usuario_actual()):
-            messagebox.showerror("Acceso denegado", "Solo tipos 2 y 3 pueden editar Órdenes de Servicio.")
+            messagebox.showerror("Acceso denegado", "Solo los tipos 1, 2 y 3 pueden editar Órdenes de Servicio.")
             return
         id_orden = record.get("id_orden")
         if not id_orden:

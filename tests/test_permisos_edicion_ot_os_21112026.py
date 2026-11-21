@@ -3,10 +3,10 @@ from security.permissions import puede_editar_ordenes_operativas
 
 
 class EdicionOrdenesPermisosTest(unittest.TestCase):
-    def test_solo_tipos_dos_y_tres(self):
+    def test_solo_tipos_uno_dos_y_tres(self):
         for tipo in range(1, 11):
             with self.subTest(tipo=tipo):
-                self.assertEqual(puede_editar_ordenes_operativas({"usu_tipo": tipo}), tipo in (2, 3))
+                self.assertEqual(puede_editar_ordenes_operativas({"usu_tipo": tipo}), tipo in (1, 2, 3))
 
     def test_identificador_usuario_no_otorga_permiso(self):
         self.assertFalse(puede_editar_ordenes_operativas({"id_usuario": 2, "usu_tipo": 4}))
@@ -17,6 +17,7 @@ class EdicionOrdenesPermisosTest(unittest.TestCase):
         self.assertFalse(puede_editar_ordenes_operativas(None))
 
     def test_tipo_como_cadena(self):
+        self.assertTrue(puede_editar_ordenes_operativas({"usu_tipo": "1"}))
         self.assertTrue(puede_editar_ordenes_operativas({"usu_tipo": "2"}))
         self.assertTrue(puede_editar_ordenes_operativas({"usu_tipo": "3"}))
 

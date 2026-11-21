@@ -475,7 +475,7 @@ class NavigationController:
 
         def actualizar_os_autorizada(identificador, cambios):
             if not puede_editar_ordenes_operativas(obtener_usuario_actual()):
-                raise PermissionError("Solo tipos de usuario 2 y 3 pueden editar Órdenes de Servicio.")
+                raise PermissionError("Solo los tipos 1, 2 y 3 pueden editar Órdenes de Servicio.")
             return actualizar_orden_servicio(identificador, cambios)
 
         mostrar_admin_operational_editor(
@@ -551,7 +551,7 @@ class NavigationController:
 
         def actualizar_ot_autorizada(identificador, cambios):
             if not puede_editar_ordenes_operativas(obtener_usuario_actual()):
-                raise PermissionError("Solo tipos de usuario 2 y 3 pueden editar Órdenes de Trabajo.")
+                raise PermissionError("Solo los tipos 1, 2 y 3 pueden editar Órdenes de Trabajo.")
             return actualizar_orden_trabajo(identificador, cambios)
 
         mostrar_admin_operational_editor(
