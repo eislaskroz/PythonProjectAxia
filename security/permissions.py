@@ -186,6 +186,10 @@ def puede_ver_almacen(usuario_activo) -> bool:
 def puede_avanzar_flujo_operativo(usuario_activo) -> bool:
     return _es_rol(usuario_activo, ADMINISTRADOR, ADMINISTRATIVO)
 
+def puede_editar_ordenes_operativas(usuario_activo) -> bool:
+    return _es_rol(usuario_activo, JEFE_OPERACIONES, SUPERVISOR)
+
+
 def puede_generar_orden(usuario_activo) -> bool:
     return obtener_tipo_usuario(usuario_activo) in ROLES_GESTION_OPERATIVA
 

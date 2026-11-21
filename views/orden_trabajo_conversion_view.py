@@ -8,7 +8,7 @@ from tkinter import messagebox
 from app_context import obtener_usuario_actual
 from ui.date_picker import asociar_selector_fecha
 from core.background_tasks import run_async
-from security.permissions import puede_convertir_levantamiento_a_orden
+from security.permissions import puede_convertir_levantamiento_a_orden, puede_editar_ordenes_operativas
 from services.ordenes_servicio_service import obtener_ordenes_servicio, buscar_ordenes_servicio, actualizar_orden_servicio
 from services.ordenes_trabajo_service import (
     convertir_orden_servicio_a_trabajo,
@@ -140,6 +140,9 @@ def mostrar_conversion_orden_trabajo(parent, app):
 
 
     def set_edit_mode(enabled):
+        if enabled and not puede_editar_ordenes_operativas(obtener_usuario_actual()):
+            messagebox.showerror("Acceso denegado", "Solo tipos 2 y 3 pueden editar Órdenes de Servicio.")
+            return
         selected["editando"] = bool(enabled)
         state = "normal" if enabled else "disabled"
         for widget in editable_widgets:
@@ -147,7 +150,7 @@ def mostrar_conversion_orden_trabajo(parent, app):
                 widget.configure(state=state)
             except Exception:
                 pass
-        btn_edit.configure(state="disabled" if enabled else ("normal" if selected.get("record") else "disabled"))
+        btn_edit.configure(state="disabled" if enabled else ("normal" if selected.get("record") and puede_editar_ordenes_operativas(obtener_usuario_actual()) else "disabled"))
         btn_save.configure(state="normal" if enabled else "disabled")
         if selected.get("record"):
             status.configure(
@@ -158,6 +161,9 @@ def mostrar_conversion_orden_trabajo(parent, app):
     def save_changes():
         record = selected.get("record")
         if not record or not selected.get("editando"):
+            return
+        if not puede_editar_ordenes_operativas(obtener_usuario_actual()):
+            messagebox.showerror("Acceso denegado", "Solo tipos 2 y 3 pueden editar Órdenes de Servicio.")
             return
         id_orden = record.get("id_orden")
         if not id_orden:

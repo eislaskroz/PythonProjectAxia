@@ -23,6 +23,7 @@ from security.permissions import (
     puede_administrar_registros,
     puede_ver_reportes, puede_ver_reportador_fotografico, puede_ver_direccion_general,
     puede_ver_bitacoras_operativas,
+    puede_editar_ordenes_operativas,
 )
 
 # =====================================================
@@ -472,6 +473,11 @@ class NavigationController:
                 messagebox.showinfo("Servicio finalizado", f"{folio_ot or 'La Orden de Trabajo'} quedó finalizada correctamente.")
                 refresh()
 
+        def actualizar_os_autorizada(identificador, cambios):
+            if not puede_editar_ordenes_operativas(obtener_usuario_actual()):
+                raise PermissionError("Solo tipos de usuario 2 y 3 pueden editar Órdenes de Servicio.")
+            return actualizar_orden_servicio(identificador, cambios)
+
         mostrar_admin_operational_editor(
             parent=self.content, app=self.app,
             config={
@@ -480,7 +486,8 @@ class NavigationController:
                 "campo_folio": "os_folio", "campos_aco": ["os_aco_numero"], "campos_cliente": ["os_cliente"],
                 "campos_estatus": ["os_estatus"], "campos_fecha": ["os_fecha", "fecha_registro"],
                 "obtener_todos": obtener_ordenes_servicio, "buscar": buscar_ordenes_servicio,
-                "actualizar": actualizar_orden_servicio, "id_field": "id_orden",
+                "actualizar": actualizar_os_autorizada, "id_field": "id_orden",
+                "formulario_edicion": True, "puede_editar": puede_editar_ordenes_operativas,
                 "pdf_config": pdf_config, "pdf_text": "PDF Orden de Servicio",
                 "accion_text": "Finalizar OT", "accion": finalizar_ot,
                 "campos": [
@@ -490,6 +497,9 @@ class NavigationController:
                     {"key":"os_aco_numero","label":"ACO"}, {"key":"os_fecha","label":"Fecha"},
                     {"key":"os_cliente","label":"Cliente"}, {"key":"os_contacto","label":"Contacto"},
                     {"key":"os_sucursal","label":"Sucursal / ubicación"}, {"key":"os_supervisor","label":"Supervisor"},
+                    {"key":"os_telefono","label":"Teléfono"}, {"key":"os_correo","label":"Correo"},
+                    {"key":"os_direccion","label":"Dirección"}, {"key":"os_fecha_programada","label":"Fecha programada"},
+                    {"key":"os_tipo_servicio","label":"Tipo de servicio"},
                     {"key":"os_tecnico","label":"Técnico"}, {"key":"os_estatus","label":"Estatus","integer":True,"readonly":True},
                     {"key":"os_descripcion","label":"Descripción","kind":"textbox","height":110},
                     {"key":"os_actividades","label":"Actividades / cierre","kind":"textbox","height":110},
@@ -539,6 +549,11 @@ class NavigationController:
             messagebox.showinfo("Orden de Servicio definitiva", "La Orden de Servicio se genera únicamente después de capturar el avance final, completar los datos y obtener la firma del cliente. Se abrirá su formulario.")
             self.mostrar_orden_servicio(aco={"aco_numero": aco})
 
+        def actualizar_ot_autorizada(identificador, cambios):
+            if not puede_editar_ordenes_operativas(obtener_usuario_actual()):
+                raise PermissionError("Solo tipos de usuario 2 y 3 pueden editar Órdenes de Trabajo.")
+            return actualizar_orden_trabajo(identificador, cambios)
+
         mostrar_admin_operational_editor(
             parent=self.content, app=self.app,
             config={
@@ -547,7 +562,8 @@ class NavigationController:
                 "campo_folio": "ot_folio", "campos_aco": ["ot_aco_numero"], "campos_cliente": ["ot_cliente"],
                 "campos_estatus": ["ot_estatus"], "campos_fecha": ["ot_fecha", "fecha_registro", "created_at"],
                 "obtener_todos": obtener_ordenes_trabajo, "buscar": buscar_ordenes_trabajo,
-                "actualizar": actualizar_orden_trabajo, "id_field": "ot_id",
+                "actualizar": actualizar_ot_autorizada, "id_field": "ot_id",
+                "formulario_edicion": True, "puede_editar": puede_editar_ordenes_operativas,
                 "pdf_config": pdf_config_ot, "pdf_text": "PDF Orden de Trabajo",
                 "accion_text": "Capturar OS definitiva", "accion": convertir_ot_a_os,
                 "campos": [
@@ -556,6 +572,7 @@ class NavigationController:
                     {"key":"ot_aco_numero","label":"ACO"}, {"key":"ot_fecha","label":"Fecha"},
                     {"key":"ot_cliente","label":"Cliente"}, {"key":"ot_contacto","label":"Contacto"},
                     {"key":"ot_sucursal","label":"Sucursal / ubicación"}, {"key":"ot_supervisor","label":"Supervisor"},
+                    {"key":"ot_jefe_operacion","label":"Jefe operacional"}, {"key":"ot_prioridad","label":"Prioridad"},
                     {"key":"ot_esi","label":"ESI / responsable"}, {"key":"ot_numero_dias","label":"Número de días"},
                     {"key":"ot_numero_personas","label":"Número de personas"}, {"key":"ot_asunto","label":"Asunto"},
                     {"key":"ot_estatus","label":"Estatus","integer":True,"readonly":True},

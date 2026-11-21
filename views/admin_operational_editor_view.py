@@ -10,6 +10,8 @@ _AXIA_ICON_BUSCAR_BLANCO = cargar_icono("buscar.png", (16, 16), blanco=True)
 from tkinter import messagebox
 from PIL import Image
 
+from app_context import obtener_usuario_actual
+from utils import centrar_ventana
 from core.background_tasks import run_async
 from core.search_utils import normalizar_termino_busqueda
 from services.pdf_registro_service import previsualizar_pdf_registro
@@ -113,6 +115,8 @@ def mostrar_admin_operational_editor(parent, app, config):
     form.grid_columnconfigure(1, weight=1)
 
     selected = {"record": None, "editando": False}
+    es_formulario_orden = bool(config.get("formulario_edicion"))
+    puede_editar = config.get("puede_editar", lambda usuario: True)
     vars_ = {}
     widgets = []
     textboxes = {}
@@ -173,8 +177,8 @@ def mostrar_admin_operational_editor(parent, app, config):
                 widget.configure(state=state)
             except Exception:
                 pass
-        btn_edit.configure(state="disabled" if enabled else ("normal" if selected.get("record") else "disabled"))
-        btn_save.configure(state="normal" if enabled else "disabled")
+        btn_edit.configure(state="disabled" if enabled else ("normal" if selected.get("record") and puede_editar(obtener_usuario_actual()) else "disabled"))
+        btn_save.configure(state="normal" if enabled and not es_formulario_orden else "disabled")
         if selected.get("record"):
             status.configure(text=("Modo edición habilitado. Guarda los cambios antes de continuar." if enabled
                                    else "Modo consulta. Usa Editar solo si necesitas modificar información."),
@@ -213,11 +217,7 @@ def mostrar_admin_operational_editor(parent, app, config):
 
         run_async(parent.winfo_toplevel(), task, lambda r: render((r or [])[:100]), search_error)
 
-    def load_selected():
-        record = table.selected_payload()
-        if not record:
-            messagebox.showinfo("Selecciona un registro", "Selecciona una fila de la tabla.")
-            return
+    def load_record_into_panel(record):
         selected["record"] = dict(record)
         for widget in widgets:
             try:
@@ -237,6 +237,13 @@ def mostrar_admin_operational_editor(parent, app, config):
         btn_pdf.configure(state="normal")
         btn_action.configure(state="normal")
         status.configure(text="Modo consulta. Revisa los datos; usa Editar solo si necesitas cambios.", text_color=TEXT_SECONDARY)
+
+    def load_selected():
+        record = table.selected_payload()
+        if not record:
+            messagebox.showinfo("Selecciona un registro", "Selecciona una fila de la tabla.")
+            return
+        load_record_into_panel(record)
 
     def capture_payload():
         payload = {}
@@ -264,6 +271,9 @@ def mostrar_admin_operational_editor(parent, app, config):
     def save_changes():
         record = selected.get("record")
         if not record or not selected.get("editando"):
+            return
+        if not puede_editar(obtener_usuario_actual()):
+            messagebox.showerror("Acceso denegado", "Solo Jefes Operacionales (tipo 2) y Supervisores (tipo 3) pueden editar estas órdenes.")
             return
         try:
             payload = capture_payload()
@@ -299,6 +309,129 @@ def mostrar_admin_operational_editor(parent, app, config):
             messagebox.showerror("Error al guardar", str(exc))
 
         run_async(parent.winfo_toplevel(), lambda: config["actualizar"](record_id, payload), ok, save_error)
+
+    def abrir_formulario_edicion():
+        registro = selected.get("record")
+        if not registro:
+            messagebox.showinfo("Selecciona un registro", "Selecciona una orden para editarla.")
+            return
+        if not puede_editar(obtener_usuario_actual()):
+            messagebox.showerror("Acceso denegado", "Solo Jefes Operacionales (tipo 2) y Supervisores (tipo 3) pueden editar estas órdenes.")
+            return
+        padre = parent.winfo_toplevel()
+        ventana = ctk.CTkToplevel(padre)
+        ventana.title(f"Editar {config['titulo_singular']} · {_value(registro, config['campo_folio'])}")
+        ventana.transient(padre)
+        ventana.grid_columnconfigure(0, weight=1)
+        ventana.grid_rowconfigure(1, weight=1)
+        cabecera = ctk.CTkFrame(ventana, fg_color=WHITE, corner_radius=12)
+        cabecera.grid(row=0, column=0, sticky="ew", padx=12, pady=(12, 6))
+        ctk.CTkLabel(cabecera, text=f"Editar {config['titulo_singular']}", font=TITLE_MD, text_color=TEXT_PRIMARY).pack(anchor="w", padx=14, pady=(10, 1))
+        ctk.CTkLabel(cabecera, text=f"{_value(registro, config['campo_folio'])} · Solo Supervisor o Jefe Operacional", font=TEXT_SM, text_color=TEXT_SECONDARY).pack(anchor="w", padx=14, pady=(0, 10))
+        cuerpo = ctk.CTkScrollableFrame(ventana, fg_color=WHITE, corner_radius=12)
+        cuerpo.grid(row=1, column=0, sticky="nsew", padx=12, pady=6)
+        cuerpo.grid_columnconfigure((0, 1), weight=1, uniform="campos_orden")
+        controles = {}
+        fila = 0
+        columna = 0
+        for campo in config["campos"]:
+            clave = campo["key"]
+            tipo = campo.get("kind", "entry")
+            solo_lectura = bool(campo.get("readonly"))
+            if tipo != "entry" and columna:
+                fila += 1
+                columna = 0
+            marco = ctk.CTkFrame(cuerpo, fg_color="transparent")
+            if tipo == "entry":
+                marco.grid(row=fila, column=columna, sticky="ew", padx=8, pady=6)
+            else:
+                marco.grid(row=fila, column=0, columnspan=2, sticky="ew", padx=8, pady=6)
+            ctk.CTkLabel(marco, text=campo["label"], font=TEXT_SM, text_color=TEXT_PRIMARY, anchor="w").pack(fill="x", pady=(0, 3))
+            valor = registro.get(clave)
+            if tipo == "entry":
+                variable = ctk.StringVar(value="" if valor is None else str(valor))
+                widget = AxiaEntry(marco, textvariable=variable, height=40)
+                widget.pack(fill="x")
+                if solo_lectura:
+                    widget.configure(state="disabled")
+                controles[clave] = (campo, variable, None)
+                columna += 1
+                if columna == 2:
+                    columna = 0
+                    fila += 1
+            else:
+                widget = AxiaTextbox(marco, height=campo.get("height", 110))
+                widget.pack(fill="x")
+                texto = json.dumps(valor, ensure_ascii=False, indent=2) if isinstance(valor, (dict, list)) else str(valor or "")
+                widget.insert("1.0", texto)
+                if solo_lectura:
+                    widget.configure(state="disabled")
+                controles[clave] = (campo, None, widget)
+                fila += 1
+                columna = 0
+        pie = ctk.CTkFrame(ventana, fg_color=WHITE, corner_radius=12)
+        pie.grid(row=2, column=0, sticky="ew", padx=12, pady=(6, 12))
+        pie.grid_columnconfigure((0, 1), weight=1)
+        estado = ctk.CTkLabel(pie, text="Los folios y estatus no se modifican desde este formulario.", text_color=TEXT_SECONDARY, font=TEXT_SM)
+        estado.grid(row=0, column=0, columnspan=2, sticky="w", padx=12, pady=(7, 3))
+        boton_cancelar = ctk.CTkButton(pie, text="Cancelar", height=44, fg_color="#64748B", command=ventana.destroy)
+        boton_cancelar.grid(row=1, column=0, sticky="ew", padx=8, pady=(3, 9))
+        boton_guardar = ctk.CTkButton(pie, text="Guardar cambios", height=44, fg_color=SECONDARY)
+        boton_guardar.grid(row=1, column=1, sticky="ew", padx=8, pady=(3, 9))
+        def guardar_modal():
+            if not puede_editar(obtener_usuario_actual()):
+                messagebox.showerror("Acceso denegado", "Ya no tienes permiso para editar órdenes.", parent=ventana)
+                return
+            payload = {}
+            try:
+                for clave, (campo, variable, widget) in controles.items():
+                    if campo.get("readonly"):
+                        continue
+                    valor = variable.get().strip() if variable is not None else widget.get("1.0", "end").strip()
+                    if campo.get("json") and valor:
+                        valor = json.loads(valor)
+                        if not isinstance(valor, list):
+                            raise ValueError(f"{campo['label']} debe contener una lista JSON.")
+                    if campo.get("integer") and valor != "":
+                        valor = int(valor)
+                    payload[clave] = valor if valor != "" else None if campo.get("nullable") else ""
+            except (ValueError, json.JSONDecodeError) as exc:
+                messagebox.showwarning("Datos inválidos", str(exc), parent=ventana)
+                return
+            record_id = registro.get(config["id_field"])
+            if record_id in (None, ""):
+                messagebox.showerror("No se puede guardar", "La orden no tiene un identificador válido.", parent=ventana)
+                return
+            if not payload:
+                ventana.destroy()
+                return
+            boton_guardar.configure(state="disabled")
+            estado.configure(text="Guardando los cambios...")
+            def ok(resultado):
+                if not ventana.winfo_exists():
+                    return
+                if not resultado:
+                    boton_guardar.configure(state="normal")
+                    messagebox.showerror("Sin confirmación", "Supabase no confirmó los cambios.", parent=ventana)
+                    return
+                registro.update(payload)
+                selected["record"] = dict(registro)
+                ventana.destroy()
+                load_record_into_panel(registro)
+                search_records()
+                messagebox.showinfo("Cambios guardados", f"{config['titulo_singular']} actualizado correctamente.")
+            def error(exc):
+                if ventana.winfo_exists():
+                    boton_guardar.configure(state="normal")
+                    estado.configure(text="No fue posible guardar los cambios.")
+                    messagebox.showerror("Error al guardar", str(exc), parent=ventana)
+            run_async(padre, lambda: config["actualizar"](record_id, payload), ok, error)
+        boton_guardar.configure(command=guardar_modal)
+        ventana.protocol("WM_DELETE_WINDOW", ventana.destroy)
+        centrar_ventana(ventana, ancho=900, alto=680, padre=padre)
+        ventana.lift()
+        ventana.grab_set()
+        ventana.focus_force()
 
     def preview_pdf():
         record = selected.get("record")
@@ -361,7 +494,7 @@ def mostrar_admin_operational_editor(parent, app, config):
     row_actions.grid_columnconfigure((0, 1, 2), weight=1)
     btn_edit = ctk.CTkButton(row_actions, text="Editar", image=icono_editar, compound="left", width=140, height=40, corner_radius=10,
                             fg_color="#3B82F6", hover_color="#2563EB", text_color=WHITE,
-                            border_width=0, font=BUTTON_FONT, command=lambda: set_edit_mode(True), state="disabled")
+                            border_width=0, font=BUTTON_FONT, command=abrir_formulario_edicion if es_formulario_orden else lambda: set_edit_mode(True), state="disabled")
     btn_edit.grid(row=0, column=0, sticky="ew", padx=4, pady=4)
     btn_save = ctk.CTkButton(row_actions, text="Guardar", image=icono_guardar, compound="left", width=140, height=40, corner_radius=10,
                             fg_color=SECONDARY, hover_color=BUTTON_HOVER, text_color=WHITE,
