@@ -19,16 +19,21 @@ from services.aco_context_service import normalizar_datos_aco
 from services.acos_service import buscar_aco_por_numero
 from services.folios_service import generar_siguiente_folio
 from services.usuarios_service import obtener_supervisores_formulario
-from services.ordenes_trabajo_service import crear_orden_trabajo, buscar_orden_trabajo_por_folio
-from security.permissions import puede_generar_orden
+from services.ordenes_trabajo_service import crear_orden_trabajo, buscar_orden_trabajo_por_folio, actualizar_orden_trabajo
+from security.permissions import puede_generar_orden, puede_editar_ordenes_operativas
 from views.formato_helpers import ENTRY_H, LABEL_FONT, SMALL_FONT, SECTION_FONT, generar_pdf_preview, generar_pdf_archivo, enfocar_inicio_formulario
 
 
-def mostrar_orden_trabajo(parent, app, aco=None):
+def mostrar_orden_trabajo(parent, app, aco=None, registro_edicion=None, al_guardar=None, al_cancelar=None):
     usuario_activo = obtener_usuario_actual()
-    if not puede_generar_orden(usuario_activo):
-        messagebox.showerror("Acceso denegado", "No tienes permisos para generar órdenes de trabajo.")
-        app.mostrar_vista_inicio_aco()
+    en_edicion = registro_edicion is not None
+    registro_edicion = dict(registro_edicion or {})
+    if not (puede_editar_ordenes_operativas(usuario_activo) if en_edicion else puede_generar_orden(usuario_activo)):
+        messagebox.showerror("Acceso denegado", "No tienes permisos para editar esta orden." if en_edicion else "No tienes permisos para generar órdenes de trabajo.")
+        if al_cancelar:
+            al_cancelar()
+        else:
+            app.mostrar_vista_inicio_aco()
         return
 
     for widget in parent.winfo_children():
@@ -43,7 +48,7 @@ def mostrar_orden_trabajo(parent, app, aco=None):
     campos_validables = []
     btn_preview = None
 
-    var_folio = ctk.StringVar(value=generar_siguiente_folio("OT"))
+    var_folio = ctk.StringVar(value=str(registro_edicion.get("ot_folio") or "") if en_edicion else generar_siguiente_folio("OT"))
     var_fecha = ctk.StringVar()
     var_aco = ctk.StringVar(value=datos_aco.get("aco_numero", ""))
     var_cliente = ctk.StringVar(value=datos_aco.get("cliente", ""))
@@ -149,6 +154,8 @@ def mostrar_orden_trabajo(parent, app, aco=None):
     e_aco = entry("ACO", var_aco, "Número de ACO", 1, 1)
     e_aco.bind("<FocusOut>", lambda _event: cargar_aco())
     e_aco.bind("<Return>", lambda _event: cargar_aco())
+    if en_edicion:
+        e_aco.configure(state="disabled")
     entry("Fecha", var_fecha, "YYYY-MM-DD", 1, 2, date=True)
     entry("Cliente", var_cliente, "Autollenado", 1, 3, lock=True)
     entry("Contacto", var_contacto, "Autollenado", 2, 0, lock=True)
@@ -166,8 +173,9 @@ def mostrar_orden_trabajo(parent, app, aco=None):
     partidas_frame = celda(6, 0, 4)
     headers = ["Parte", "Unidad", "Cantidad", "Modelo", "Marca", "Concepto", "Día", "Adicional", "Total"]
 
-    def agregar_partida():
-        row_vars = {h: ctk.StringVar() for h in headers}
+    def agregar_partida(valores=None):
+        valores = dict(valores or {})
+        row_vars = {h: ctk.StringVar(value=str(valores.get("partida" if h == "Parte" else h.lower().replace(" ", "_"), valores.get(h, "")) or "")) for h in headers}
         partidas.append(row_vars)
         fila = ctk.CTkFrame(partidas_frame, fg_color="transparent")
         fila.pack(fill="x", pady=1)
@@ -184,7 +192,14 @@ def mostrar_orden_trabajo(parent, app, aco=None):
         validar_preview()
 
     ctk.CTkButton(acciones_partidas, text="+ Nueva partida", width=150, height=30, fg_color=SECONDARY, hover_color=BUTTON_HOVER, command=agregar_partida).pack(anchor="w")
-    agregar_partida()
+    if en_edicion:
+        from services.ordenes_trabajo_schema import visible_partidas
+        for partida_guardada in visible_partidas(registro_edicion.get("ot_partidas_json")):
+            agregar_partida(partida_guardada)
+        if not partidas:
+            agregar_partida()
+    else:
+        agregar_partida()
 
     def partidas_limpias():
         salida = []
@@ -211,14 +226,26 @@ def mostrar_orden_trabajo(parent, app, aco=None):
         generar_pdf_preview("Orden de Trabajo", datos_pdf(), [("Partidas / Conceptos", headers, partidas_limpias())])
 
     def guardar_orden():
+        if en_edicion and not puede_editar_ordenes_operativas(obtener_usuario_actual()):
+            messagebox.showerror("Acceso denegado", "No tienes permiso para editar esta OT.")
+            return
         if not formulario_completo():
             messagebox.showwarning("Campos obligatorios", "Debes llenar todos los campos y capturar al menos una partida.")
             return
         folio = var_folio.get().strip()
-        if buscar_orden_trabajo_por_folio(folio):
+        if not en_edicion and buscar_orden_trabajo_por_folio(folio):
             folio = generar_siguiente_folio("OT")
             var_folio.set(folio)
         partidas_db = [{k.lower().replace(" ", "_").replace("í", "i"): v for k, v in p.items()} for p in partidas_limpias()]
+        if en_edicion:
+            partidas_anteriores = registro_edicion.get("ot_partidas_json") or []
+            if isinstance(partidas_anteriores, str):
+                try:
+                    partidas_anteriores = json.loads(partidas_anteriores)
+                except (ValueError, TypeError):
+                    partidas_anteriores = []
+            if isinstance(partidas_anteriores, list):
+                partidas_db.extend(item for item in partidas_anteriores if isinstance(item, dict) and "_axia_meta" in item)
         datos = {
             "id_aco": datos_aco.get("id_aco"), "id_sucursal": datos_aco.get("id_sucursal"), "id_contacto": datos_aco.get("id_contacto"), "ot_folio": folio, "ot_fecha": var_fecha.get().strip() or None, "ot_aco_numero": var_aco.get().strip(),
             "ot_cliente": var_cliente.get().strip(), "ot_contacto": var_contacto.get().strip(), "ot_sucursal": var_sucursal.get().strip(),
@@ -227,6 +254,24 @@ def mostrar_orden_trabajo(parent, app, aco=None):
             "ot_partidas_json": json.dumps(partidas_db, ensure_ascii=False), "ot_descripcion": var_asunto.get().strip(), "ot_estatus": 1, "ot_prioridad": 2,
             "creado_por": usuario_activo.get("usuario")
         }
+        if en_edicion:
+            ot_id = registro_edicion.get("ot_id")
+            if ot_id in (None, ""):
+                messagebox.showerror("Registro inválido", "La OT no tiene un identificador válido.")
+                return
+            cambios = {clave: valor for clave, valor in datos.items() if clave in {
+                "ot_fecha", "ot_cliente", "ot_contacto", "ot_sucursal", "ot_jefe_operacion", "ot_supervisor",
+                "ot_esi", "ot_numero_dias", "ot_numero_personas", "ot_asunto", "ot_partidas_json", "ot_descripcion"
+            }}
+            resultado = actualizar_orden_trabajo(ot_id, cambios)
+            if not resultado:
+                show_operation_error("No se pudo actualizar", "Actualizar Orden de Trabajo")
+                return
+            registrar_movimiento(modulo="Órdenes de Trabajo", accion="ACTUALIZAR", descripcion=f"Edición de OT {folio}", registro_afectado=folio)
+            messagebox.showinfo("Cambios guardados", f"La Orden de Trabajo {folio} se actualizó correctamente.")
+            if al_guardar:
+                al_guardar()
+            return
         resultado = crear_orden_trabajo(datos)
         if resultado:
             registrar_movimiento(modulo="Órdenes de Trabajo", accion="CREAR", descripcion=f"El usuario creó la orden de trabajo {folio}", registro_afectado=folio)
@@ -239,6 +284,9 @@ def mostrar_orden_trabajo(parent, app, aco=None):
 
 
     def volver_a_selector_aco():
+        if en_edicion and al_cancelar:
+            al_cancelar()
+            return
         if aco:
             app.mostrar_vista_inicio_aco_validado(aco)
         else:
@@ -250,14 +298,25 @@ def mostrar_orden_trabajo(parent, app, aco=None):
     barra_botones = ctk.CTkFrame(botones, fg_color="transparent")
     barra_botones.pack(anchor="center", pady=4)
     ctk.CTkButton(barra_botones, text="⬅ Atrás", width=120, height=38, corner_radius=10, fg_color="#64748B", hover_color="#475569", font=BUTTON_FONT, command=volver_a_selector_aco).grid(row=0, column=0, padx=4)
-    ctk.CTkButton(barra_botones, text="💾 Guardar Orden", width=185, height=38, corner_radius=10, fg_color=SECONDARY, hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=guardar_orden).grid(row=0, column=1, padx=4)
+    ctk.CTkButton(barra_botones, text="💾 Guardar cambios" if en_edicion else "💾 Guardar Orden", width=185, height=38, corner_radius=10, fg_color=SECONDARY, hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=guardar_orden).grid(row=0, column=1, padx=4)
     btn_preview = ctk.CTkButton(barra_botones, text="👁 Preview PDF", width=165, height=38, corner_radius=10, fg_color="#1F4E79", hover_color="#173B5C", font=BUTTON_FONT, command=preview_pdf, state="disabled")
     btn_preview.grid(row=0, column=2, padx=4)
-    ctk.CTkButton(barra_botones, text="↩ Cancelar", width=130, height=38, corner_radius=10, fg_color="gray", font=BUTTON_FONT, command=app.mostrar_vista_inicio_aco).grid(row=0, column=3, padx=4)
+    ctk.CTkButton(barra_botones, text="↩ Cancelar", width=130, height=38, corner_radius=10, fg_color="gray", font=BUTTON_FONT, command=volver_a_selector_aco if en_edicion else app.mostrar_vista_inicio_aco).grid(row=0, column=3, padx=4)
 
+    if en_edicion:
+        for variable, campo in (
+            (var_fecha, "ot_fecha"), (var_aco, "ot_aco_numero"), (var_cliente, "ot_cliente"),
+            (var_contacto, "ot_contacto"), (var_sucursal, "ot_sucursal"),
+            (var_jefe_operacion, "ot_jefe_operacion"), (var_supervisor, "ot_supervisor"),
+            (var_esi, "ot_esi"), (var_numero_dias, "ot_numero_dias"),
+            (var_numero_personas, "ot_numero_personas"), (var_asunto, "ot_asunto")
+        ):
+            valor = registro_edicion.get(campo)
+            variable.set("" if valor is None else str(valor)[:10] if campo == "ot_fecha" else str(valor))
+        bloquear_autollenados()
     enfocar_inicio_formulario(card)
     validar_preview()
 
-    if aco:
+    if aco and not en_edicion:
         bloquear_autollenados()
     validar_preview()

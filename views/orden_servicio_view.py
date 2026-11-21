@@ -27,7 +27,7 @@ from services.ordenes_servicio_service import (
     avance_comprobado_para_cierre_os, _numero_porcentaje,
 )
 from services.bitacora_evidencias_service import subir_evidencias_orden_servicio
-from security.permissions import puede_generar_orden_servicio
+from security.permissions import puede_generar_orden_servicio, puede_editar_ordenes_operativas
 from views.formato_helpers import ENTRY_H, OPTION_H, LABEL_FONT, SMALL_FONT, SECTION_FONT, obtener_textbox, enfocar_inicio_formulario, firmar_en_popup, generar_pdf_preview, generar_pdf_archivo
 
 TIPOS_SERVICIO = ["Urgente", "Correctivo", "Capacitación", "Póliza", "Reubicación", "Ordinario", "Preventivo", "Desmantelamiento", "Siniestro", "Otro"]
@@ -35,11 +35,16 @@ EVALUACIONES = ["Excelente", "Bueno", "Regular", "Malo", "No aplica"]
 MOVIMIENTOS_EQUIPO = ["Instalación", "Reparación", "Garantía"]
 
 
-def mostrar_orden_servicio(parent, app, aco=None):
+def mostrar_orden_servicio(parent, app, aco=None, registro_edicion=None, al_guardar=None, al_cancelar=None):
     usuario_activo = obtener_usuario_actual()
-    if not puede_generar_orden_servicio(usuario_activo):
-        messagebox.showerror("Acceso denegado", "No tienes permisos para generar órdenes de servicio.")
-        app.mostrar_vista_inicio_aco()
+    en_edicion = registro_edicion is not None
+    registro_edicion = dict(registro_edicion or {})
+    if not (puede_editar_ordenes_operativas(usuario_activo) if en_edicion else puede_generar_orden_servicio(usuario_activo)):
+        messagebox.showerror("Acceso denegado", "No tienes permisos para editar esta orden." if en_edicion else "No tienes permisos para generar órdenes de servicio.")
+        if al_cancelar:
+            al_cancelar()
+        else:
+            app.mostrar_vista_inicio_aco()
         return
 
     for widget in parent.winfo_children():
@@ -57,7 +62,7 @@ def mostrar_orden_servicio(parent, app, aco=None):
     nombres_textboxes = {}
     btn_preview = None
 
-    var_folio = ctk.StringVar(value=generar_siguiente_folio("OS"))
+    var_folio = ctk.StringVar(value=str(registro_edicion.get("os_folio") or "") if en_edicion else generar_siguiente_folio("OS"))
     var_fecha = ctk.StringVar(value=datetime.now().strftime("%d/%m/%Y"))
     var_cliente = ctk.StringVar(value=datos_aco.get("cliente", ""))
     var_sucursal = ctk.StringVar(value=datos_aco.get("sucursal", ""))
@@ -96,6 +101,8 @@ def mostrar_orden_servicio(parent, app, aco=None):
     contextos_cierre = obtener_contextos_aco_disponibles_cierre()
     contexto_por_aco = {x["aco_numero"]: x for x in contextos_cierre}
     acos_disponibles = list(contexto_por_aco)
+    if en_edicion and registro_edicion.get("os_aco_numero") and registro_edicion["os_aco_numero"] not in acos_disponibles:
+        acos_disponibles.insert(0, registro_edicion["os_aco_numero"])
     if var_aco.get() and var_aco.get() not in acos_disponibles:
         acos_disponibles.insert(0, var_aco.get())
 
@@ -246,7 +253,7 @@ def mostrar_orden_servicio(parent, app, aco=None):
     seccion("Información General", 0)
     entry("Folio OS", var_folio, "Automático", 1, 0, state="disabled", required=False, width=115)
     entry("Fecha", var_fecha, "DD/MM/AAAA", 1, 1, state="disabled", required=False, width=210)
-    option("ACO", var_aco, acos_disponibles or ["Sin ACOs disponibles"], 1, 2, command=cargar_aco, state="normal" if acos_disponibles else "disabled", width=365)
+    option("ACO", var_aco, acos_disponibles or ["Sin ACOs disponibles"], 1, 2, command=cargar_aco, state="normal" if acos_disponibles and not en_edicion else "disabled", width=365)
     entry("Cliente", var_cliente, "Autollenado", 1, 3, lock=True, width=355)
     entry("Sucursal", var_sucursal, "Autollenado", 1, 4, lock=True, width=275)
 
@@ -298,7 +305,14 @@ def mostrar_orden_servicio(parent, app, aco=None):
     lbl_evidencias.pack(fill="x", pady=(0,4))
     def refrescar_evidencias():
         nombres = [Path(x).name for x in evidencias_locales]
-        texto = "Sin fotografías agregadas" if not nombres else f"{len(nombres)} fotografía(s): " + ", ".join(nombres[:4]) + (f" y {len(nombres)-4} más" if len(nombres)>4 else "")
+        anteriores = registro_edicion.get("os_fotos") if en_edicion else []
+        if isinstance(anteriores, str):
+            try:
+                anteriores = json.loads(anteriores)
+            except (ValueError, TypeError):
+                anteriores = []
+        total_anteriores = len(anteriores) if isinstance(anteriores, list) else 0
+        texto = "Sin fotografías agregadas" if not nombres and not total_anteriores else f"{total_anteriores} guardada(s), {len(nombres)} nueva(s)" + (": " + ", ".join(nombres[:4]) if nombres else "")
         lbl_evidencias.configure(text=texto)
         validar_preview()
     def agregar_fotos():
@@ -322,9 +336,14 @@ def mostrar_orden_servicio(parent, app, aco=None):
     equipos_frame.grid_remove()
     headers = ["Equipo", "Número de Serie", "Movimiento", "Diagnóstico de la Falla"]
 
-    def agregar_equipo():
+    def agregar_equipo(valores=None):
+        valores = dict(valores or {})
         equipos_frame.grid()
         row_vars = {"Equipo": ctk.StringVar(), "Número de Serie": ctk.StringVar(), "Movimiento": ctk.StringVar(value="Instalación"), "Diagnóstico de la Falla": ctk.StringVar()}
+        for clave, variable in row_vars.items():
+            dato = valores.get({"Equipo": "equipo", "Número de Serie": "numero_serie", "Movimiento": "movimiento", "Diagnóstico de la Falla": "diagnostico_falla"}[clave], valores.get(clave))
+            if dato is not None:
+                variable.set(str(dato))
         fila = ctk.CTkFrame(equipos_frame, fg_color="transparent")
         fila.pack(fill="x", pady=1)
         row_vars["_frame"] = fila
@@ -463,11 +482,73 @@ def mostrar_orden_servicio(parent, app, aco=None):
         }
 
     def preview_pdf():
+        if en_edicion:
+            generar_pdf_preview("Orden de Servicio", datos_pdf(), secciones_equipos_pdf(), firma_base64=var_firma_cliente.get())
+            return
         if not validar_o_avisar("previsualizar el PDF"):
             return
         generar_pdf_preview("Orden de Servicio", datos_pdf(), secciones_equipos_pdf(), firma_base64=var_firma_cliente.get())
 
     def guardar_orden():
+        if en_edicion:
+            if not puede_editar_ordenes_operativas(obtener_usuario_actual()):
+                messagebox.showerror("Acceso denegado", "No tienes permiso para editar esta OS.")
+                return
+            os_id = registro_edicion.get("id_orden")
+            if os_id in (None, ""):
+                messagebox.showerror("Registro inválido", "La OS no tiene un identificador válido.")
+                return
+            if not var_cliente.get().strip():
+                messagebox.showwarning("Información incompleta", "El nombre del cliente es obligatorio.")
+                return
+            equipos_db = [{"equipo": e["Equipo"], "numero_serie": e["Número de Serie"], "movimiento": e["Movimiento"], "diagnostico_falla": e["Diagnóstico de la Falla"]} for e in equipos_limpios()]
+            cambios = {
+                "os_cliente": var_cliente.get().strip(), "os_sucursal": var_sucursal.get().strip(),
+                "os_domicilio": var_domicilio.get().strip(), "os_encargado": var_encargado_general.get().strip(),
+                "os_solicitante": var_solicitante.get().strip(), "os_correo": var_correo.get().strip(),
+                "os_celular": var_celular.get().strip(), "os_hora_llegada": var_hora_llegada.get().strip(),
+                "os_hora_salida": var_hora_salida.get().strip(), "os_tipo_servicio": var_tipo_servicio.get().strip(),
+                "os_tipos_servicio_json": json.dumps([var_tipo_servicio.get().strip()], ensure_ascii=False),
+                "os_supervisor": var_supervisor.get().strip(), "os_encargado_servicio": var_encargado_servicio.get().strip(),
+                "os_tecnicos": var_tecnicos.get().strip(), "os_tecnico": var_tecnicos.get().strip(),
+                "os_descripcion": obtener_textbox(txt_descripcion), "os_equipos_json": json.dumps(equipos_db, ensure_ascii=False),
+                "os_eval_trato": var_eval_trato.get(), "os_eval_habilidades": var_eval_habilidades.get(),
+                "os_eval_velocidad": var_eval_velocidad.get(), "os_eval_otro": var_eval_otro.get(),
+                "os_firmante_nombre": var_firmante_nombre.get().strip(), "os_firmante_puesto": var_firmante_puesto.get().strip(),
+                "os_firma_cliente": var_firma_cliente.get(),
+            }
+            if var_porcentaje_os.get().strip():
+                try:
+                    porcentaje = float(_numero_porcentaje(var_porcentaje_os.get(), "Avance de OS"))
+                    if porcentaje < 0 or porcentaje > 100:
+                        raise ValueError("El avance debe estar entre 0 y 100%.")
+                    cambios["os_porcentaje_avance"] = porcentaje
+                except ValueError as error:
+                    messagebox.showwarning("Avance inválido", str(error))
+                    return
+            resultado = actualizar_orden_servicio(os_id, cambios)
+            if not resultado:
+                show_operation_error("No se pudo actualizar", "Actualizar Orden de Servicio")
+                return
+            if evidencias_locales:
+                try:
+                    fotos_subidas = subir_evidencias_orden_servicio(var_folio.get(), evidencias_locales)
+                    if fotos_subidas:
+                        fotos_previas = registro_edicion.get("os_fotos") or []
+                        if isinstance(fotos_previas, str):
+                            try:
+                                fotos_previas = json.loads(fotos_previas)
+                            except (ValueError, TypeError):
+                                fotos_previas = []
+                        actualizar_orden_servicio(os_id, {"os_fotos": list(fotos_previas) + list(fotos_subidas)})
+                except Exception as error:
+                    logger.exception("No fue posible subir las evidencias de la OS editada.")
+                    messagebox.showwarning("Evidencias pendientes", str(error))
+            registrar_movimiento(modulo="Órdenes de Servicio", accion="ACTUALIZAR", descripcion=f"Edición de OS {var_folio.get()}", registro_afectado=var_folio.get())
+            messagebox.showinfo("Cambios guardados", f"La Orden de Servicio {var_folio.get()} se actualizó correctamente.")
+            if al_guardar:
+                al_guardar()
+            return
         if not validar_o_avisar("guardar la Orden de Servicio"):
             return
         folio = var_folio.get().strip()
@@ -526,6 +607,9 @@ def mostrar_orden_servicio(parent, app, aco=None):
 
 
     def volver_a_selector_aco():
+        if en_edicion and al_cancelar:
+            al_cancelar()
+            return
         if aco:
             app.mostrar_vista_inicio_aco_validado(aco)
         else:
@@ -536,17 +620,50 @@ def mostrar_orden_servicio(parent, app, aco=None):
     botones.grid_columnconfigure(0, weight=1)
     barra_botones = ctk.CTkFrame(botones, fg_color="transparent")
     barra_botones.pack(anchor="center", pady=4)
-    btn_guardar = ctk.CTkButton(barra_botones, text="💾 Guardar Orden", width=185, height=38, corner_radius=10, fg_color=SECONDARY, hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=guardar_orden)
+    btn_guardar = ctk.CTkButton(barra_botones, text="💾 Guardar cambios" if en_edicion else "💾 Guardar Orden", width=185, height=38, corner_radius=10, fg_color=SECONDARY, hover_color=BUTTON_HOVER, font=BUTTON_FONT, command=guardar_orden)
     btn_preview = ctk.CTkButton(barra_botones, text="👁 Preview PDF", width=165, height=38, corner_radius=10, fg_color="#1F4E79", hover_color="#173B5C", font=BUTTON_FONT, command=preview_pdf, state="normal")
     ctk.CTkButton(barra_botones, text="⬅ Atrás", width=120, height=38, corner_radius=10, fg_color="#64748B", hover_color="#475569", font=BUTTON_FONT, command=volver_a_selector_aco).grid(row=0, column=0, padx=4)
     btn_guardar.grid(row=0, column=1, padx=4)
     btn_preview.grid(row=0, column=2, padx=4)
-    ctk.CTkButton(barra_botones, text="↩ Cancelar", width=130, height=38, corner_radius=10, fg_color="gray", font=BUTTON_FONT, command=app.mostrar_vista_inicio_aco).grid(row=0, column=3, padx=4)
+    ctk.CTkButton(barra_botones, text="↩ Cancelar", width=130, height=38, corner_radius=10, fg_color="gray", font=BUTTON_FONT, command=volver_a_selector_aco if en_edicion else app.mostrar_vista_inicio_aco).grid(row=0, column=3, padx=4)
 
+    if en_edicion:
+        for variable, campo in (
+            (var_folio, "os_folio"), (var_fecha, "os_fecha"), (var_aco, "os_aco_numero"),
+            (var_cliente, "os_cliente"), (var_sucursal, "os_sucursal"),
+            (var_domicilio, "os_domicilio"), (var_encargado_general, "os_encargado"),
+            (var_solicitante, "os_solicitante"), (var_correo, "os_correo"),
+            (var_celular, "os_celular"), (var_hora_llegada, "os_hora_llegada"),
+            (var_hora_salida, "os_hora_salida"), (var_supervisor, "os_supervisor"),
+            (var_encargado_servicio, "os_encargado_servicio"), (var_tipo_servicio, "os_tipo_servicio"),
+            (var_porcentaje_os, "os_porcentaje_avance"), (var_firmante_nombre, "os_firmante_nombre"),
+            (var_firmante_puesto, "os_firmante_puesto"), (var_firma_cliente, "os_firma_cliente"),
+            (var_eval_trato, "os_eval_trato"), (var_eval_habilidades, "os_eval_habilidades"),
+            (var_eval_velocidad, "os_eval_velocidad"), (var_eval_otro, "os_eval_otro")
+        ):
+            valor = registro_edicion.get(campo)
+            if valor is not None:
+                variable.set(str(valor))
+        _cargar_tecnicos_desde_texto(registro_edicion.get("os_tecnicos") or registro_edicion.get("os_tecnico"))
+        txt_descripcion.delete("1.0", "end")
+        txt_descripcion.insert("1.0", str(registro_edicion.get("os_descripcion") or ""))
+        equipos_guardados = registro_edicion.get("os_equipos_json") or []
+        if isinstance(equipos_guardados, str):
+            try:
+                equipos_guardados = json.loads(equipos_guardados)
+            except (ValueError, TypeError):
+                equipos_guardados = []
+        if isinstance(equipos_guardados, list):
+            for equipo in equipos_guardados:
+                if isinstance(equipo, dict):
+                    agregar_equipo(equipo)
+        actualizar_firma()
+        refrescar_evidencias()
+        bloquear_autollenados()
     enfocar_inicio_formulario(card)
     validar_preview()
 
-    if var_aco.get():
+    if var_aco.get() and not en_edicion:
         cargar_aco(var_aco.get())
     elif aco:
         bloquear_autollenados()
