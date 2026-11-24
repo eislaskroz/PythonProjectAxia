@@ -7,6 +7,7 @@ from core.logger import configurar_logger
 from services.movimientos_service import registrar_movimiento_seguro
 from services.cotizacion_partidas import es_lote_servicio, importes_servicio
 from services.ordenes_trabajo_schema import partidas_desde_detalle_levantamiento
+from services.levantamiento_compat import normalizar_registro_levantamiento
 from services.levantamientos_schema import TABLA_LEVANTAMIENTOS, COLUMNAS_LEVANTAMIENTOS
 from services.cotizaciones_schema import TABLA_COTIZACIONES, COLUMNAS_COTIZACIONES
 from services.query_compat import execute_select_compatible, ejecutar_lectura_con_reintento
@@ -111,6 +112,7 @@ def obtener_levantamientos_para_cotizar(limite: int = 200) -> list[dict]:
 
 
 def partidas_cotizables(registro: dict) -> list[dict]:
+    registro = normalizar_registro_levantamiento(registro)
     detalle = (registro or {}).get("lev_detalle_tecnico_json")
     rows = partidas_desde_detalle_levantamiento(detalle)
     resultado = []
@@ -213,7 +215,18 @@ def construir_partidas_comerciales(registro: dict, cotizacion: dict | None = Non
         except Exception:
             guardadas = []
     if isinstance(guardadas, list) and guardadas:
-        return [dict(x) for x in guardadas if isinstance(x, dict)]
+        existentes = [dict(x) for x in guardadas if isinstance(x, dict)]
+        comerciales = [x for i, x in enumerate(existentes) if not es_lote_servicio(x, i, len(existentes))]
+        if comerciales or not base:
+            return existentes
+        servicio_guardado = [x for i, x in enumerate(existentes) if es_lote_servicio(x, i, len(existentes))]
+        if servicio_guardado:
+            legado = dict(cotizacion)
+            legado["cot_partidas_json"] = []
+            recalculadas = construir_partidas_comerciales(registro, legado)
+            if recalculadas and es_lote_servicio(recalculadas[-1], len(recalculadas) - 1, len(recalculadas)):
+                recalculadas.pop()
+            return recalculadas + servicio_guardado
 
     legacy = cargar_cotizacion_legacy(registro)
     leg_parts = legacy.get("partidas") if isinstance(legacy.get("partidas"), list) else []
