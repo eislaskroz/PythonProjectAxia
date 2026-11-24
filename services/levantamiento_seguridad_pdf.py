@@ -546,7 +546,7 @@ def _key_value_table(rows: Sequence[Sequence[Any]], widths: Sequence[float], nor
         for idx, value in enumerate(row):
             converted.append(_p(value, label if idx % 2 == 0 else normal, ""))
         data.append(converted)
-    table = Table(data, colWidths=list(widths))
+    table = Table(data, colWidths=[float(w)*0.94 for w in widths], hAlign="LEFT")
     table.setStyle(TableStyle([
         ("GRID", (0, 0), (-1, -1), 0.45, BORDER),
         ("BACKGROUND", (0, 0), (-1, -1), WHITE),
@@ -790,6 +790,7 @@ def generar_pdf_seguridad_instalacion(
         onFirstPage=_page,
         onLaterPages=_page,
     )
+    _proteger_logo_pdf_levantamiento(ruta)
     _anexar_paginas_pdf(ruta, registro)
     if abrir:
         if os.name == "nt":
@@ -1347,6 +1348,63 @@ def _description_for(registro: Mapping[str, Any], detail: Mapping[str, Any]) -> 
     return _text(registro.get("lev_descripcion") or registro.get("lev_observaciones"), "Sin descripción capturada.")
 
 
+
+def _proteger_logo_pdf_levantamiento(ruta: Path) -> None:
+    from io import BytesIO
+    import fitz
+    from PIL import Image, ImageDraw
+
+    fondo = BasePdfGenerator.BACKGROUND_PATH
+    if not fondo.exists():
+        return
+
+    with Image.open(fondo) as imagen:
+        origen = imagen.convert("RGBA")
+
+    documento = fitz.open(str(ruta))
+    area = (526.0, 53.0, 612.0, 185.0)
+    cambio = False
+    try:
+        for pagina in documento:
+            if pagina.rect.width >= pagina.rect.height:
+                continue
+            escala_x = pagina.rect.width / 612.0
+            escala_y = pagina.rect.height / 792.0
+            cuadro = fitz.Rect(area[0] * escala_x, area[1] * escala_y, area[2] * escala_x, area[3] * escala_y)
+            px = (
+                round(cuadro.x0 / pagina.rect.width * origen.width),
+                round(cuadro.y0 / pagina.rect.height * origen.height),
+                round(cuadro.x1 / pagina.rect.width * origen.width),
+                round(cuadro.y1 / pagina.rect.height * origen.height),
+            )
+            recorte = origen.crop(px)
+            mascara = Image.new("L", recorte.size, 255)
+            dibujar = ImageDraw.Draw(mascara)
+            for palabra in pagina.get_text("words"):
+                posicion = fitz.Rect(palabra[:4])
+                if not posicion.intersects(cuadro):
+                    continue
+                inter = posicion & cuadro
+                margen = 1.5
+                x0 = max(0, (inter.x0 - cuadro.x0 - margen) / cuadro.width * recorte.width)
+                y0 = max(0, (inter.y0 - cuadro.y0 - margen) / cuadro.height * recorte.height)
+                x1 = min(recorte.width, (inter.x1 - cuadro.x0 + margen) / cuadro.width * recorte.width)
+                y1 = min(recorte.height, (inter.y1 - cuadro.y0 + margen) / cuadro.height * recorte.height)
+                dibujar.rectangle((x0, y0, x1, y1), fill=0)
+            recorte.putalpha(mascara)
+            buf = BytesIO()
+            recorte.save(buf, format="PNG")
+            pagina.insert_image(cuadro, stream=buf.getvalue(), overlay=True, keep_proportion=False)
+            cambio = True
+        if cambio:
+            temporal = ruta.with_name(ruta.stem + "_logo_tmp.pdf")
+            documento.save(str(temporal), garbage=3, deflate=True)
+            documento.close()
+            temporal.replace(ruta)
+    finally:
+        if not documento.is_closed:
+            documento.close()
+
 def generar_pdf_levantamiento_maestro(
     registro: Mapping[str, Any], *, ruta_salida: str | Path, abrir: bool = False,
 ) -> str:
@@ -1454,6 +1512,7 @@ def generar_pdf_levantamiento_maestro(
     def _page(canvas, document):
         BasePdfGenerator.draw_page(canvas, document, title=title)
     doc.build(story, canvasmaker=BasePdfGenerator.canvas_factory(title), onFirstPage=_page, onLaterPages=_page)
+    _proteger_logo_pdf_levantamiento(ruta)
     _anexar_paginas_pdf(ruta, registro)
     if abrir:
         if os.name == "nt":
