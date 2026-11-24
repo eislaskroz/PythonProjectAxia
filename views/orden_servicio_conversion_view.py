@@ -539,7 +539,7 @@ def mostrar_conversion_orden_servicio(parent, app):
                 messagebox.showerror("Solicitud no registrada", str(error), parent=ventana_solicitud)
                 return
             ventana_solicitud.destroy()
-            messagebox.showinfo("Solicitud enviada", "La solicitud quedó pendiente de autorización por los tipos 1, 2 o 3.")
+            messagebox.showinfo("Solicitud enviada", "La solicitud quedó pendiente de autorización por un jefe operacional o supervisor.")
         ctk.CTkButton(ventana_solicitud, text="Enviar solicitud", command=enviar).pack(pady=(0, 12))
 
     def verificar_desbloqueo_esi():
