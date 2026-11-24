@@ -31,9 +31,12 @@ def generar_comprobante_historico(detalle: Mapping, *, ruta: str | Path | None =
             cantidad=producto['cantidad'], referencia=referencia,
             identificador=ident, fecha=fecha, ruta=ruta,
         )
+    recepcion = detalle.get('recepcion') or {}
     return generar_ticket_salida(
         partidas=partidas, destinatario=str(detalle.get('destinatario') or ''),
         motivo=str(detalle.get('motivo') or ''), referencia=referencia,
         responsable=str(detalle.get('responsable') or ''),
         identificador=ident, fecha=fecha, ruta=ruta,
+        notas=str(recepcion.get('notas') or ''),
+        firma_png_base64=str(recepcion.get('firma_png_base64') or ''),
     )

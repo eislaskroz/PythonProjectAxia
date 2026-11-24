@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import Mapping, Sequence
 from xml.sax.saxutils import escape
 import os
+import base64
+import io
 import re
 import subprocess
 import sys
@@ -17,7 +19,7 @@ from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.graphics.barcode import code128
 from reportlab.pdfgen import canvas
-from reportlab.platypus import HRFlowable, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import HRFlowable, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle, Image
 
 from services.almacen_fechas import ZONA_MEXICO, fecha_kardex_mexico
 
@@ -158,7 +160,8 @@ def generar_etiqueta_entrada(*, codigo: str, producto: str, cantidad,
 def generar_ticket_salida(*, partidas: Sequence[Mapping], destinatario: str,
                           motivo: str, referencia: str = '', responsable: str = '',
                           identificador: str | None = None, fecha=None,
-                          ruta: str | Path | None = None) -> Path:
+                          ruta: str | Path | None = None, notas: str = '',
+                          firma_png_base64: str = '') -> Path:
     if not partidas:
         raise ValueError('El ticket necesita al menos una partida confirmada.')
     referencia = _texto(referencia, 120)
@@ -196,6 +199,20 @@ def generar_ticket_salida(*, partidas: Sequence[Mapping], destinatario: str,
         story.append(KeepTogether(item))
     story.append(Spacer(1, 5 * mm))
     story.append(p(f'ARTICULOS: {len(partidas)}', bold))
+    if notas:
+        story.append(Spacer(1,2*mm))
+        story.append(p('NOTAS DE ENTREGA', bold))
+        story.append(p(_texto(notas,1000), small))
+    if firma_png_base64:
+        try:
+            raw = base64.b64decode(firma_png_base64, validate=True)
+            if len(raw) > 180000 or not raw.startswith(b'\x89PNG\r\n\x1a\n'):
+                raise ValueError('Firma PNG inválida')
+            # La imagen proviene del registro firmado del servidor; no se edita.
+            story.append(Spacer(1,2*mm))
+            story.append(Image(io.BytesIO(raw), width=62*mm, height=19*mm, kind='proportional'))
+        except Exception as exc:
+            raise ValueError('La firma almacenada no pudo recuperarse para el comprobante.') from exc
     story.append(Spacer(1, 9 * mm))
     story.extend([HRFlowable(width='90%', thickness=.5, color=GRIS),
                   p('RECIBE / FIRMA',subhead), Spacer(1,3*mm),
