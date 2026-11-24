@@ -3,7 +3,7 @@ from pathlib import Path
 import fitz
 
 from core.pdf.base_pdf import BasePdfGenerator
-from services import levantamiento_seguridad_pdf as generator
+from services.levantamiento_seguridad_pdf import generar_pdf_levantamiento_maestro
 
 
 def _registro_largo():
@@ -27,25 +27,26 @@ def _registro_largo():
     }
 
 
-def test_logo_original_y_mismo_texto_en_multipagina(tmp_path, monkeypatch):
-    reg = _registro_largo()
-    original = tmp_path / "sin_proteccion.pdf"
-    corregido = tmp_path / "protegido.pdf"
-
-    with monkeypatch.context() as m:
-        m.setattr(generator, "_proteger_logo_pdf_levantamiento", lambda _: None)
-        generator.generar_pdf_levantamiento_maestro(reg, ruta_salida=original)
-    generator.generar_pdf_levantamiento_maestro(reg, ruta_salida=corregido)
-
-    base = fitz.open(original)
-    nuevo = fitz.open(corregido)
-    assert len(base) == len(nuevo) >= 2
-    for anterior, actual in zip(base, nuevo):
-        assert [w[4] for w in anterior.get_text("words")] == [w[4] for w in actual.get_text("words")]
+def test_todas_las_tablas_principales_alineadas_y_logo_despejado(tmp_path):
+    destino = tmp_path / "levantamiento.pdf"
+    generar_pdf_levantamiento_maestro(_registro_largo(), ruta_salida=destino)
+    with fitz.open(destino) as pdf:
+        assert len(pdf) >= 2
+        for pagina in pdf:
+            # Los bloques tabulares anchos comparten x inicial y x final, incluso tras el salto de página.
+            cuadros = [d["rect"] for d in pagina.get_drawings()
+                       if d["rect"].width > 350 and 115 <= d["rect"].y0 <= 450]
+            assert cuadros
+            bordes = {(round(r.x0, 1), round(r.x1, 1)) for r in cuadros}
+            assert bordes == {(40.0, 522.4)}
+            assert "LEVANTAMIENTOS" in pagina.get_text()
     assert BasePdfGenerator.BACKGROUND_PATH.name == "FormatoFondo.png"
 
 
-def test_sin_plantilla_corporativa_exclusiva():
+def test_sin_parches_visuales_ni_fondos_alternativos():
     root = Path(__file__).resolve().parents[2]
-    source = (root / "core/pdf/base_pdf.py").read_text(encoding="utf8")
-    assert "BACKGROUND_LEVANTAMIENTOS_PATH" not in source
+    source = (root / "services/levantamiento_seguridad_pdf.py").read_text(encoding="utf8")
+    assert "_proteger_logo_pdf_levantamiento" not in source
+    assert "hAlign=\"LEFT\"" in source
+    background = (root / "core/pdf/base_pdf.py").read_text(encoding="utf8")
+    assert "BACKGROUND_LEVANTAMIENTOS_PATH" not in background

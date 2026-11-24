@@ -527,7 +527,7 @@ def es_seguridad_instalacion(registro: Mapping[str, Any]) -> bool:
 
 
 def _section_title(title: str, width: float, header_style) -> Table:
-    table = Table([[Paragraph(escape(title.upper()), header_style)]], colWidths=[width])
+    table = Table([[Paragraph(escape(title.upper()), header_style)]], colWidths=[width], hAlign="LEFT")
     table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), BLUE),
         ("BOX", (0, 0), (-1, -1), 0.5, BLUE),
@@ -546,7 +546,7 @@ def _key_value_table(rows: Sequence[Sequence[Any]], widths: Sequence[float], nor
         for idx, value in enumerate(row):
             converted.append(_p(value, label if idx % 2 == 0 else normal, ""))
         data.append(converted)
-    table = Table(data, colWidths=[float(w)*0.94 for w in widths], hAlign="LEFT")
+    table = Table(data, colWidths=[float(w) * (6.70 / 6.90) for w in widths], hAlign="LEFT")
     table.setStyle(TableStyle([
         ("GRID", (0, 0), (-1, -1), 0.45, BORDER),
         ("BACKGROUND", (0, 0), (-1, -1), WHITE),
@@ -565,7 +565,7 @@ def _matrix_table(headers: Sequence[str], rows: Sequence[Sequence[Any]], widths:
     data = [[Paragraph(escape(str(h)), table_header) for h in headers]]
     for row in _pdf_filter_table_rows(rows):
         data.append([_p(value, normal, "") for value in row])
-    table = LongTable(data, colWidths=list(widths), repeatRows=1, splitByRow=1)
+    table = LongTable(data, colWidths=[float(w) * (6.70 / 6.90) for w in widths], repeatRows=1, splitByRow=1, hAlign="LEFT")
     table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), BLUE),
         ("TEXTCOLOR", (0, 0), (-1, 0), WHITE),
@@ -586,7 +586,7 @@ def _section_matrix_table(title: str, headers: Sequence[str], rows: Sequence[Seq
     data.append([Paragraph(escape(str(h)), table_header) for h in headers])
     for row in _pdf_filter_table_rows(rows):
         data.append([_p(value, normal, "") for value in row])
-    table = LongTable(data, colWidths=list(widths), repeatRows=2, splitByRow=1)
+    table = LongTable(data, colWidths=[float(w) * (6.70 / 6.90) for w in widths], repeatRows=2, splitByRow=1, hAlign="LEFT")
     table.setStyle(TableStyle([
         ("SPAN", (0, 0), (-1, 0)),
         ("BACKGROUND", (0, 0), (-1, 1), BLUE),
@@ -628,7 +628,7 @@ def _description_table(text: str, width: float, normal, table_header) -> LongTab
             chunks.append(paragraph)
     data = [[Paragraph("DESCRIPCIÓN DETALLADA DEL SERVICIO", table_header)]]
     data.extend([[_p(chunk, normal, "")]] for chunk in chunks)
-    table = LongTable(data, colWidths=[width], repeatRows=0, splitByRow=1)
+    table = LongTable(data, colWidths=[width], repeatRows=0, splitByRow=1, hAlign="LEFT")
     table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), BLUE),
         ("TEXTCOLOR", (0, 0), (-1, 0), WHITE),
@@ -687,7 +687,7 @@ def generar_pdf_seguridad_instalacion(
     if not isinstance(materiales, (list, tuple)):
         materiales = []
 
-    width = 6.90 * inch
+    width = 6.70 * inch
     doc = SimpleDocTemplate(
         str(ruta),
         pagesize=(612, 792),
@@ -790,7 +790,6 @@ def generar_pdf_seguridad_instalacion(
         onFirstPage=_page,
         onLaterPages=_page,
     )
-    _proteger_logo_pdf_levantamiento(ruta)
     _anexar_paginas_pdf(ruta, registro)
     if abrir:
         if os.name == "nt":
@@ -1217,7 +1216,7 @@ def _fragmentos_resumen_pdf(texto: str, *, max_chars: int = 480) -> list[str]:
 def _tabla_resumen_extenso(etiqueta: str, texto: str, width: float, normal, label) -> LongTable:
     data = [[_p(etiqueta, label, "")]]
     data.extend([[_p(fragmento, normal, " ")]] for fragmento in _fragmentos_resumen_pdf(texto))
-    table = LongTable(data, colWidths=[width], repeatRows=1, splitByRow=1)
+    table = LongTable(data, colWidths=[width], repeatRows=1, splitByRow=1, hAlign="LEFT")
     table.setStyle(TableStyle([
         ("GRID", (0, 0), (-1, -1), 0.45, BORDER),
         ("BACKGROUND", (0, 0), (-1, 0), LIGHT_BLUE),
@@ -1349,62 +1348,6 @@ def _description_for(registro: Mapping[str, Any], detail: Mapping[str, Any]) -> 
 
 
 
-def _proteger_logo_pdf_levantamiento(ruta: Path) -> None:
-    from io import BytesIO
-    import fitz
-    from PIL import Image, ImageDraw
-
-    fondo = BasePdfGenerator.BACKGROUND_PATH
-    if not fondo.exists():
-        return
-
-    with Image.open(fondo) as imagen:
-        origen = imagen.convert("RGBA")
-
-    documento = fitz.open(str(ruta))
-    area = (526.0, 53.0, 612.0, 185.0)
-    cambio = False
-    try:
-        for pagina in documento:
-            if pagina.rect.width >= pagina.rect.height:
-                continue
-            escala_x = pagina.rect.width / 612.0
-            escala_y = pagina.rect.height / 792.0
-            cuadro = fitz.Rect(area[0] * escala_x, area[1] * escala_y, area[2] * escala_x, area[3] * escala_y)
-            px = (
-                round(cuadro.x0 / pagina.rect.width * origen.width),
-                round(cuadro.y0 / pagina.rect.height * origen.height),
-                round(cuadro.x1 / pagina.rect.width * origen.width),
-                round(cuadro.y1 / pagina.rect.height * origen.height),
-            )
-            recorte = origen.crop(px)
-            mascara = Image.new("L", recorte.size, 255)
-            dibujar = ImageDraw.Draw(mascara)
-            for palabra in pagina.get_text("words"):
-                posicion = fitz.Rect(palabra[:4])
-                if not posicion.intersects(cuadro):
-                    continue
-                inter = posicion & cuadro
-                margen = 1.5
-                x0 = max(0, (inter.x0 - cuadro.x0 - margen) / cuadro.width * recorte.width)
-                y0 = max(0, (inter.y0 - cuadro.y0 - margen) / cuadro.height * recorte.height)
-                x1 = min(recorte.width, (inter.x1 - cuadro.x0 + margen) / cuadro.width * recorte.width)
-                y1 = min(recorte.height, (inter.y1 - cuadro.y0 + margen) / cuadro.height * recorte.height)
-                dibujar.rectangle((x0, y0, x1, y1), fill=0)
-            recorte.putalpha(mascara)
-            buf = BytesIO()
-            recorte.save(buf, format="PNG")
-            pagina.insert_image(cuadro, stream=buf.getvalue(), overlay=True, keep_proportion=False)
-            cambio = True
-        if cambio:
-            temporal = ruta.with_name(ruta.stem + "_logo_tmp.pdf")
-            documento.save(str(temporal), garbage=3, deflate=True)
-            documento.close()
-            temporal.replace(ruta)
-    finally:
-        if not documento.is_closed:
-            documento.close()
-
 def generar_pdf_levantamiento_maestro(
     registro: Mapping[str, Any], *, ruta_salida: str | Path, abrir: bool = False,
 ) -> str:
@@ -1425,7 +1368,7 @@ def generar_pdf_levantamiento_maestro(
         fontSize=7.0, leading=8.4, textColor=BasePdfGenerator.PRIMARY,
     )
     detail = _detail(registro)
-    width = 6.90 * inch
+    width = 6.70 * inch
     doc = SimpleDocTemplate(
         str(ruta), pagesize=(612, 792), rightMargin=BasePdfGenerator.RIGHT_MARGIN,
         leftMargin=BasePdfGenerator.LEFT_MARGIN, topMargin=BasePdfGenerator.TOP_MARGIN,
@@ -1512,7 +1455,6 @@ def generar_pdf_levantamiento_maestro(
     def _page(canvas, document):
         BasePdfGenerator.draw_page(canvas, document, title=title)
     doc.build(story, canvasmaker=BasePdfGenerator.canvas_factory(title), onFirstPage=_page, onLaterPages=_page)
-    _proteger_logo_pdf_levantamiento(ruta)
     _anexar_paginas_pdf(ruta, registro)
     if abrir:
         if os.name == "nt":
