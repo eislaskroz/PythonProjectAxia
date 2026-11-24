@@ -227,7 +227,6 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
         ("observaciones", "OBSERVACIONES", "observaciones", 1.40),
     ]
     columnas = [(key, t, field, width) for key, t, field, width in columnas if ver(key)]
-    totals_anchor_width = 3.0 * inch
     if ver("partidas") and columnas:
         table_data = [[Paragraph(t, header) for _, t, _, _ in columnas]]
         for item in partidas:
@@ -240,8 +239,6 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
             table_data.append([p("", row_style, "")] * len(columnas))
         weights = [c[3] for c in columnas]
         widths = [body_width * w / sum(weights) for w in weights]
-        if len(widths) >= 3:
-            totals_anchor_width = sum(widths[-3:])
         commercial = LongTable(table_data, colWidths=widths, repeatRows=1, splitByRow=1, hAlign="LEFT")
         commercial.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), BLUE),
@@ -265,9 +262,9 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
     ]
     totals_rows = [[p(t, label, ""), p(v, label if k == "total" else normal, "")] for k, t, v in totals_defs if ver(k)]
     if ver("totales") and totals_rows:
-        ancho_etiqueta_totales = max(1.55 * inch, totals_anchor_width * 0.54)
-        ancho_valor_totales = max(1.45 * inch, totals_anchor_width - ancho_etiqueta_totales)
-        totals = Table(totals_rows, colWidths=[ancho_etiqueta_totales, ancho_valor_totales], hAlign="RIGHT")
+        # El resumen económico conserva siempre su tamaño: ocultar columnas
+        # de partidas no debe estirar ni desplazar esta tabla.
+        totals = Table(totals_rows, colWidths=[1.65 * inch, 1.30 * inch], hAlign="RIGHT")
         totals.setStyle(TableStyle([
             ("GRID", (0, 0), (-1, -1), 0.45, BORDER),
             ("BACKGROUND", (0, 0), (0, -1), LIGHT_BLUE),
