@@ -129,6 +129,8 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
 
     page_w, _page_h = landscape(letter)
     body_width = BasePdfGenerator.landscape_body_width(page_w)
+    # Solo la primera sección evita el logo superior derecho; el resto mantiene el ancho completo.
+    header_safe_width = body_width - 116
     story = []
 
     left_defs = [
@@ -190,9 +192,9 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
         t.setStyle(TableStyle(reglas))
         return t
 
-    generales = datos_compactos(left_defs, body_width)
+    generales = datos_compactos(left_defs, header_safe_width)
     if generales is not None:
-        story.append(section_title("Datos generales de cotización", body_width))
+        story.append(section_title("Datos generales de cotización", header_safe_width))
         story.append(Spacer(1, 2))
         story.append(generales)
         story.append(Spacer(1, 3))
@@ -286,7 +288,7 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
         pagesize=landscape(letter),
         rightMargin=BasePdfGenerator.LANDSCAPE_SIDE_MARGIN,
         leftMargin=BasePdfGenerator.LANDSCAPE_SIDE_MARGIN,
-        topMargin=BasePdfGenerator.LANDSCAPE_TOP_MARGIN,
+        topMargin=92,  # Cotizaciones: inicia bajo el título, con el logo protegido por ancho reducido
         bottomMargin=BasePdfGenerator.LANDSCAPE_BOTTOM_MARGIN,
         title=f"AXIA - Cotización {folio}",
         author="AXIA Comunicaciones S.A. de C.V.",
