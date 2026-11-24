@@ -45,9 +45,18 @@ def centrar_ventana(ventana, ancho=None, alto=None, padre=None):
         x = int((pantalla_ancho - ancho_real) / 2)
         y = int((pantalla_alto - alto_real) / 2)
 
-    if not usar_padre:
-        x = max(0, x)
-        y = max(0, y)
+    try:
+        pantalla_ancho = int(ventana.winfo_screenwidth())
+        pantalla_alto = int(ventana.winfo_screenheight())
+    except Exception:
+        pantalla_ancho = ancho_real
+        pantalla_alto = alto_real
+
+    margen_seguridad = 8
+    x_max = max(margen_seguridad, pantalla_ancho - ancho_real - margen_seguridad)
+    y_max = max(margen_seguridad, pantalla_alto - alto_real - margen_seguridad)
+    x = max(margen_seguridad, min(int(x), int(x_max)))
+    y = max(margen_seguridad, min(int(y), int(y_max)))
 
     ventana.geometry(f"{ancho_real}x{alto_real}+{x}+{y}")
     return x, y

@@ -129,6 +129,7 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
 
     page_w, _page_h = landscape(letter)
     usable_width = page_w - 56  # 28 pt por lado
+    body_width = usable_width
     story = []
 
     left_defs = [
@@ -190,19 +191,19 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
         t.setStyle(TableStyle(reglas))
         return t
 
-    generales = datos_compactos(left_defs, usable_width)
+    generales = datos_compactos(left_defs, body_width)
     if generales is not None:
-        story.append(section_title("Datos generales de cotización", usable_width))
+        story.append(section_title("Datos generales de cotización", body_width))
         story.append(Spacer(1, 2))
         story.append(generales)
         story.append(Spacer(1, 3))
 
-    comerciales = datos_compactos(quote_defs, usable_width)
+    comerciales = datos_compactos(quote_defs, body_width)
     if comerciales is not None:
         story.append(comerciales)
         story.append(Spacer(1, 4))
     if ver("partidas"):
-        story.extend([section_title("Partidas de cotización", usable_width), Spacer(1, 2)])
+        story.extend([section_title("Partidas de cotización", body_width), Spacer(1, 2)])
 
     partidas = cotizacion.get("cot_partidas_json") or []
     if isinstance(partidas, str):
@@ -236,8 +237,8 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
         if len(table_data) == 1:
             table_data.append([p("", row_style, "")] * len(columnas))
         weights = [c[3] for c in columnas]
-        widths = [usable_width * w / sum(weights) for w in weights]
-        commercial = LongTable(table_data, colWidths=widths, repeatRows=1, splitByRow=1)
+        widths = [body_width * w / sum(weights) for w in weights]
+        commercial = LongTable(table_data, colWidths=widths, repeatRows=1, splitByRow=1, hAlign="LEFT")
         commercial.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), BLUE),
             ("TEXTCOLOR", (0, 0), (-1, 0), WHITE),
@@ -281,7 +282,7 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
         pagesize=landscape(letter),
         rightMargin=28,
         leftMargin=28,
-        topMargin=90,
+        topMargin=146,
         bottomMargin=62,
         title=f"AXIA - Cotización {folio}",
         author="AXIA Comunicaciones S.A. de C.V.",

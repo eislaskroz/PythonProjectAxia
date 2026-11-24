@@ -1,6 +1,7 @@
 import customtkinter as ctk
 from ui.colors import TEXT_PRIMARY
 from tkinter import messagebox
+from utils import centrar_ventana
 
 CAMPOS_PDF = [
     ("Datos de AXIA", [("empresa", "Razón social"), ("rfc", "RFC"), ("domicilio_axia", "Domicilio AXIA"),
@@ -21,50 +22,14 @@ CAMPOS_PDF = [
 TODOS_CAMPOS_PDF = frozenset(k for _, items in CAMPOS_PDF for k, _ in items)
 
 
-def _area_visible(ventana):
-    """Área de trabajo visible, sin la barra de tareas cuando Windows la informa."""
-    try:
-        import ctypes
-        from ctypes import wintypes
-        rect = wintypes.RECT()
-        if ctypes.windll.user32.SystemParametersInfoW(48, 0, ctypes.byref(rect), 0):
-            return rect.left, rect.top, rect.right, rect.bottom
-    except (AttributeError, ImportError, OSError):
-        pass
-    return 0, 0, ventana.winfo_screenwidth(), ventana.winfo_screenheight()
-
-
-def _ubicar_dialogo(ventana, padre, ancho, alto):
-    ventana.update_idletasks()
-    x0, y0, x1, y1 = _area_visible(ventana)
-    margen = 12
-    ancho = min(ancho, max(1, x1 - x0 - 2 * margen))
-    alto = min(alto, max(1, y1 - y0 - 2 * margen))
-    try:
-        padre.update_idletasks()
-        px, py = padre.winfo_rootx(), padre.winfo_rooty()
-        pw, ph = padre.winfo_width(), padre.winfo_height()
-        if pw <= 1 or ph <= 1:
-            raise ValueError("Ventana principal sin geometría")
-        cx, cy = px + pw / 2, py + ph / 2
-        if not (x0 <= cx < x1 and y0 <= cy < y1):
-            raise ValueError("Ventana principal fuera de pantalla")
-    except Exception:
-        cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
-    x = max(x0 + margen, min(round(cx - ancho / 2), x1 - margen - ancho))
-    y = max(y0 + margen, min(round(cy - alto / 2), y1 - margen - alto))
-    ventana.geometry(f"{ancho}x{alto}+{x}+{y}")
-
-
 def solicitar_campos_pdf(parent):
     raiz = parent.winfo_toplevel()
     ventana = ctk.CTkToplevel(raiz)
     ventana.withdraw()
     ventana.title("AXIA · Seleccionar campos del PDF de cotización")
     ventana.transient(raiz)
-    x0, y0, x1, y1 = _area_visible(ventana)
-    alto = min(660, int((y1 - y0) * 0.82), y1 - y0 - 24)
-    ventana.minsize(min(480, x1 - x0 - 24), min(420, alto))
+    alto = max(420, min(660, int(ventana.winfo_screenheight() * 0.82)))
+    ventana.minsize(480, min(420, alto))
     resultado = {"valor": None}
     vars_ = {key: ctk.BooleanVar(master=ventana, value=True) for key in TODOS_CAMPOS_PDF}
     ctk.CTkLabel(ventana, text="¿Qué campos deseas incluir en el PDF?", font=("Montserrat", 17, "bold"), text_color=TEXT_PRIMARY).pack(anchor="w", padx=18, pady=(15, 3))
@@ -92,7 +57,7 @@ def solicitar_campos_pdf(parent):
         ventana.destroy()
     ctk.CTkButton(actions, text="Generar PDF", command=aceptar).pack(side="right", padx=(6, 0))
     ctk.CTkButton(actions, text="Cancelar", fg_color="#64748B", command=ventana.destroy).pack(side="right")
-    _ubicar_dialogo(ventana, raiz, 590, alto)
+    centrar_ventana(ventana, 590, alto, padre=raiz)
     ventana.deiconify()
     ventana.lift()
     ventana.grab_set()
