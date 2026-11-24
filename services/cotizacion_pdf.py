@@ -190,9 +190,9 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
         t.setStyle(TableStyle(reglas))
         return t
 
-    generales = datos_compactos(left_defs, usable_width - 82)
+    generales = datos_compactos(left_defs, usable_width)
     if generales is not None:
-        story.append(section_title("Datos generales de cotización", usable_width - 82))
+        story.append(section_title("Datos generales de cotización", usable_width))
         story.append(Spacer(1, 2))
         story.append(generales)
         story.append(Spacer(1, 3))
