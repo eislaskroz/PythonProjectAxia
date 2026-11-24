@@ -24,12 +24,12 @@ class BasePdfGenerator:
 
     ASSETS_DIR = Path(__file__).resolve().parents[2] / "assets"
     BACKGROUND_PATH = ASSETS_DIR / "FormatoFondo.png"
+    BACKGROUND_LEVANTAMIENTOS_PATH = ASSETS_DIR / "FormatoFondoLevantamientos.png"
     BACKGROUND_LANDSCAPE_PATH = ASSETS_DIR / "FormatoFondoHorizontal.png"
 
     LEFT_MARGIN = 34
     RIGHT_MARGIN = 34
     TOP_MARGIN = 96
-    LEVANTAMIENTO_TOP_MARGIN = 150  # Reserva vertical para el logo corporativo en todas las hojas
     BOTTOM_MARGIN = 78
 
     LANDSCAPE_SIDE_MARGIN = 28
@@ -57,7 +57,13 @@ class BasePdfGenerator:
         canvas.saveState()
         width, height = document.pagesize
 
-        background_path = cls.BACKGROUND_LANDSCAPE_PATH if width > height else cls.BACKGROUND_PATH
+        title_key = str(title or "").strip().casefold()
+        if width > height:
+            background_path = cls.BACKGROUND_LANDSCAPE_PATH
+        elif title_key.startswith("levantamiento") and cls.BACKGROUND_LEVANTAMIENTOS_PATH.exists():
+            background_path = cls.BACKGROUND_LEVANTAMIENTOS_PATH
+        else:
+            background_path = cls.BACKGROUND_PATH
         if background_path.exists():
             try:
                 canvas.drawImage(
@@ -72,7 +78,6 @@ class BasePdfGenerator:
             except Exception:
                 logger.debug("Excepción recuperable controlada.", exc_info=True)
 
-        title_key = str(title or "").strip().casefold()
         visible_title = None
         if title_key.startswith("levantamiento"):
             visible_title = "LEVANTAMIENTOS"
