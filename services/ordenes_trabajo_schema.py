@@ -109,6 +109,47 @@ def partidas_desde_detalle_levantamiento(detalle) -> list[dict]:
                 except Exception:
                     pass
 
+            if key_norm == "_conceptos_obra" and isinstance(value, (list, tuple)):
+                for item in value:
+                    if not isinstance(item, Mapping):
+                        continue
+                    nombre = text(item.get("concepto") or item.get("partida"))
+                    codigo = text(item.get("partida"))
+                    if codigo and nombre and codigo.casefold() not in nombre.casefold():
+                        nombre = f"{codigo} - {nombre}"
+                    add(unidad=item.get("unidad"), cantidad=item.get("cantidad"), concepto=nombre, grupo="Conceptos de obra")
+                continue
+            if key_norm == "_materiales_miscelaneos" and isinstance(value, (list, tuple)):
+                for item in value:
+                    if not isinstance(item, Mapping) or text(item.get("requerido")).casefold() in {"no", "false", "0"}:
+                        continue
+                    nombre = text(item.get("material"))
+                    spec = text(item.get("especificacion") or item.get("medida"))
+                    add(unidad=item.get("unidad"), cantidad=item.get("cantidad"),
+                        concepto=f"{nombre} - {spec}" if nombre and spec else nombre, grupo="Misceláneos")
+                continue
+            if key_norm == "herramientas" and isinstance(value, (list, tuple)):
+                for item in value:
+                    if not isinstance(item, Mapping):
+                        continue
+                    nombre = text(item.get("herramienta"))
+                    obs = text(item.get("observaciones"))
+                    add(unidad="Pieza(s)", cantidad=item.get("cantidad"),
+                        concepto=f"{nombre} - {obs}" if nombre and obs else nombre, grupo="Herramientas")
+                continue
+            if key_norm in {"epp", "_epp"} and isinstance(value, Mapping):
+                from services.recursos_epp import EPP_BASICO
+                basicos = {x.casefold() for x in EPP_BASICO}
+                for item in value.get("partidas", []) or []:
+                    if not isinstance(item, Mapping):
+                        continue
+                    nombre = text(item.get("epp") or item.get("equipo"))
+                    if not nombre or nombre.casefold() in basicos:
+                        continue
+                    obs = text(item.get("observaciones") or item.get("especificacion"))
+                    add(unidad="Pieza(s)", cantidad=item.get("cantidad"),
+                        concepto=f"{nombre} - {obs}" if obs else nombre, grupo="EPP adicional")
+                continue
             if isinstance(value, (list, tuple)) and value and all(isinstance(x, Mapping) for x in value):
                 if key_norm in {"canalizacion_materiales", "canalizacion_cableado_materiales", "partidas_canalizacion"} or "canalizacion" in key_norm:
                     for item in value:
