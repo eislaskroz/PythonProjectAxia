@@ -12,7 +12,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import landscape, letter
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.platypus import LongTable, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import CondPageBreak, KeepTogether, LongTable, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from core.logger import configurar_logger
 from core.pdf.base_pdf import BasePdfGenerator
@@ -251,7 +251,7 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
             ("BOTTOMPADDING", (0, 0), (-1, -1), 1.4),
             ("ROWBACKGROUNDS", (0, 1), (-1, -1), [WHITE, colors.HexColor("#F8FAFC")]),
         ]))
-        story.extend([commercial, Spacer(1, 1.5)])
+        story.append(commercial)
 
     totals_defs = [
         ("subtotal", "SUBTOTAL", _money(cotizacion.get("cot_subtotal"))),
@@ -276,7 +276,10 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
             ("TOPPADDING", (0, 0), (-1, -1), 3),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
         ]))
-        story.append(totals)
+        # Protección 1: si el resumen ya no cabe limpio, se mueve completo a la siguiente hoja.
+        estimated_totals_height = max(1.05 * inch, len(totals_rows) * 0.24 * inch + 0.22 * inch)
+        story.append(CondPageBreak(estimated_totals_height))
+        story.append(KeepTogether([Spacer(1, 1.5), totals]))
     if not story:
         story.append(Paragraph("Cotización sin campos seleccionados", normal))
 
