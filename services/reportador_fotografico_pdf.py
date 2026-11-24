@@ -15,6 +15,11 @@ from services import reportador_fotografico_service as service
 
 W, H = 612.0, 792.0
 CONTENT_BOTTOM = 728.0
+CONTENT_LEFT = 48.0
+CONTENT_WIDTH = 470.0  # Reserva el área del logotipo sin modificar el fondo ni los márgenes verticales.
+CONTENT_RIGHT = CONTENT_LEFT + CONTENT_WIDTH
+PHOTO_GAP = 12.0
+PHOTO_HALF_WIDTH = (CONTENT_WIDTH - PHOTO_GAP) / 2
 BLUE = colors.HexColor('#124675')
 DARK = colors.HexColor('#1C3045')
 CYAN = colors.HexColor('#0DABCC')
@@ -181,7 +186,7 @@ class _OriginalStylePDF:
                              ('Servicio', 'nombre_servicio'), ('Tecnico responsable', 'tecnico_responsable')]:
             self.text(48, self.y, label + ':', 10, 'semi', TEAL)
             start = self.y
-            self.lines(r.get(field), 10, 330, 14, x=195)
+            self.lines(r.get(field), 10, CONTENT_RIGHT - 195, 14, x=195)
             self.y = start + max(20, (self.y - start) + 4)
         obs = str(r.get('observaciones') or '').strip()
         if obs:
@@ -190,7 +195,7 @@ class _OriginalStylePDF:
                 self.page(new=True)
             self.text(48, self.y, 'Observaciones:', 10, 'bold', TEAL)
             self.y += 16
-            for paragraph in _wrap(obs, self.fonts['regular'], 9, 500):
+            for paragraph in _wrap(obs, self.fonts['regular'], 9, CONTENT_WIDTH):
                 if self.y + 20 > CONTENT_BOTTOM:
                     self.page(new=True)
                 self.text(48, self.y, paragraph, 9)
@@ -211,19 +216,19 @@ class _OriginalStylePDF:
                 except Exception as exc:
                     raise service.ErrorReportador(f'No se pudo cargar la foto {slot} de la actividad {idx}.') from exc
                 pictures.append({'data': data, 'aspect': aspect, 'landscape': aspect > 1.12})
-            title_lines = _wrap(activity.get('titulo'), self.fonts['bold'], 10, 520)
+            title_lines = _wrap(activity.get('titulo'), self.fonts['bold'], 10, CONTENT_WIDTH)
             description = str(activity.get('descripcion') or '') if activity.get('descripcion_habilitada', True) else ''
-            desc_lines = _wrap(description, self.fonts['regular'], 9, 525) if description.strip() else []
+            desc_lines = _wrap(description, self.fonts['regular'], 9, CONTENT_WIDTH) if description.strip() else []
             head_need = 12 + 20 + len(title_lines)*15 + 2 + (len(desc_lines)*12 + 10 if desc_lines else 0)
             if head_need + 90 > CONTENT_BOTTOM - 82:
                 raise service.ErrorReportador('Descripción demasiado extensa para incluir evidencias.')
             if self.y + head_need + 90 > CONTENT_BOTTOM:
                 self.page(new=True)
-            self.rect(48, self.y, 520, 2.5, CYAN)
+            self.rect(CONTENT_LEFT, self.y, CONTENT_WIDTH, 2.5, CYAN)
             self.y += 12
             self.text(48, self.y, f'ACTIVIDAD {idx}', 10, 'bold', TEAL)
             self.y += 20
-            self.lines(activity.get('titulo'), 10, 520, 15, 'bold', x=48)
+            self.lines(activity.get('titulo'), 10, CONTENT_WIDTH, 15, 'bold', x=CONTENT_LEFT)
             self.y += 2
             if desc_lines:
                 for line in desc_lines:
@@ -245,12 +250,12 @@ class _OriginalStylePDF:
                         pos += 1
                     rows.append((members, False))
             for row_index, (photos, wide) in enumerate(rows):
-                row_width = 520.0 if wide else 254.0
+                row_width = CONTENT_WIDTH if wide else PHOTO_HALF_WIDTH
                 row_cap = 310.0 if wide else 360.0
                 target_height = max(90, min(row_cap, max(row_width / p['aspect'] for p in photos)))
                 room = CONTENT_BOTTOM - self.y - 14
                 if idx == len(acts) and row_index == len(rows)-1:
-                    credit_lines = len(_wrap(author, self.fonts['semi'], 10, 500))
+                    credit_lines = len(_wrap(author, self.fonts['semi'], 10, CONTENT_WIDTH))
                     credit_reserve = 18 + credit_lines*15 + 14 + 18
                     if room - credit_reserve >= 90:
                         room -= credit_reserve
@@ -263,24 +268,24 @@ class _OriginalStylePDF:
                 if draw_height < 90:
                     raise service.ErrorReportador('No se pudo reservar espacio para evidencias.')
                 for col, pic in enumerate(photos):
-                    x = 48.0 if wide else ((W-254.0)/2 if len(photos)==1 else 48.0+col*266.0)
+                    x = CONTENT_LEFT if wide else ((CONTENT_LEFT + (CONTENT_WIDTH - PHOTO_HALF_WIDTH) / 2) if len(photos) == 1 else CONTENT_LEFT + col * (PHOTO_HALF_WIDTH + PHOTO_GAP))
                     self.image_fit(pic['data'], x, self.y, row_width, draw_height)
                 self.y += draw_height
                 if row_index < len(rows)-1:
                     self.y += 12
             self.y += 18
-        credit_lines = _wrap(author, self.fonts['semi'], 10, 500)
+        credit_lines = _wrap(author, self.fonts['semi'], 10, CONTENT_WIDTH)
         if self.y + 18 + 15*len(credit_lines) + 14 > CONTENT_BOTTOM:
             self.page(new=True)
             self.y = 92
-        self.rect(48, self.y, 520, 1, colors.HexColor('#CFDFE8'))
+        self.rect(CONTENT_LEFT, self.y, CONTENT_WIDTH, 1, colors.HexColor('#CFDFE8'))
         self.y += 11
         label = 'Reporte elaborado por:'
-        x = (W - pdfmetrics.stringWidth(label, self.fonts['regular'], 9))/2
+        x = CONTENT_LEFT + (CONTENT_WIDTH - pdfmetrics.stringWidth(label, self.fonts['regular'], 9))/2
         self.text(x, self.y, label, 9, color=GRAY)
         self.y += 17
         for line in credit_lines:
-            x = max(48, (W - pdfmetrics.stringWidth(line, self.fonts['semi'], 10))/2)
+            x = max(CONTENT_LEFT, CONTENT_LEFT + (CONTENT_WIDTH - pdfmetrics.stringWidth(line, self.fonts['semi'], 10))/2)
             self.text(x, self.y, line, 10, 'semi', BLUE)
             self.y += 15
 
@@ -289,7 +294,7 @@ class _OriginalStylePDF:
             self.page(new=True)
             self.text(48, 82, 'ORDEN DE SERVICIO ' + str(num), 18, 'bold', BLUE)
             try:
-                self.image_fit(fetch(report_id, num, os=True), 48, 116, 516, 590, paint_box=False)
+                self.image_fit(fetch(report_id, num, os=True), CONTENT_LEFT, 116, CONTENT_WIDTH, 590, paint_box=False)
             except Exception as exc:
                 raise service.ErrorReportador(f'No se pudo cargar la Orden de Servicio {num}.') from exc
 
