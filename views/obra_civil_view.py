@@ -60,12 +60,15 @@ ESTADOS = ["Pendiente", "En proceso", "Terminado"]
 RESULTADOS = ["Aprobadas", "Reprobadas", "Pendiente"]
 
 
-def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=None, al_guardar=None):
+def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=None, al_guardar=None, autorizacion_esi=None):
     modo_edicion = isinstance(obra_edicion, dict) and bool(obra_edicion.get('obc_id'))
     if modo_edicion:
         from services.obra_civil_edicion import preparar_borrador_edicion
         borrador = preparar_borrador_edicion(obra_edicion)
     usuario_activo = obtener_usuario_actual()
+    if modo_edicion and int(usuario_activo.get('usu_tipo') or 0) == 6 and not autorizacion_esi:
+        messagebox.showerror('Acceso protegido', 'La ESI necesita una autorización de Obra Civil vigente.')
+        return
     if not modo_edicion and not puede_generar_levantamiento(usuario_activo):
         messagebox.showerror("Acceso denegado", "No tienes permisos para generar registros de obra civil.")
         app.mostrar_vista_inicio_aco()
@@ -2033,9 +2036,11 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                     return
                 if callable(al_guardar):
                     al_guardar(resultado)
+                mensaje = ('Se creó una nueva versión y se conservó la obra original.'
+                           if autorizacion_esi else 'Se conserva el mismo registro, sin duplicarlo.')
                 messagebox.showinfo('Obra Civil actualizada',
-                    f"Cambios guardados. Nuevo folio: {resultado['obc_folio']}. "
-                    'Se conserva el mismo registro, sin duplicarlo.',parent=parent.winfo_toplevel())
+                    f"Cambios guardados. Nuevo folio: {resultado['obc_folio']}. " + mensaje,
+                    parent=parent.winfo_toplevel())
                 parent.winfo_toplevel().destroy()
             def fracaso(error):
                 btn_guardar.configure(state='normal')
@@ -2065,6 +2070,9 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                         subidas_editor['archivos']=resultado
                     cambios_finales['obc_archivos_adjuntos_json']=json.dumps(
                         list(archivos_adjuntos_existentes)+subidas_editor['archivos'],ensure_ascii=False)
+                if autorizacion_esi:
+                    from services.autorizaciones_esi_service import guardar_revision_obc
+                    return guardar_revision_obc(obra_edicion, cambios_finales, autorizacion_esi)
                 return gestionar_obra_civil('actualizar', usuario_id=usuario_activo.get('id_usuario'),
                     folio=obra_edicion['obc_folio'], cambios=cambios_finales, solicitud=solicitud_edicion)
             run_async(parent.winfo_toplevel(), guardar_en_servidor, exito, fracaso)

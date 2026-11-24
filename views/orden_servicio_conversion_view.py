@@ -462,7 +462,7 @@ def mostrar_conversion_orden_servicio(parent, app):
                 seleccionado['registro'] = transformar_obra_civil(obra_actualizada)
                 _set_modo_edicion(False)
                 ejecutar_busqueda()
-            abrir_editor_obra_civil(parent.winfo_toplevel(), obra, al_guardar)
+            abrir_editor_obra_civil(parent.winfo_toplevel(), obra, al_guardar, autorizacion_esi=autorizacion_esi)
             return
         original = normalizar_registro_levantamiento(seleccionado.get("registro"))
         if not original:
@@ -516,9 +516,6 @@ def mostrar_conversion_orden_servicio(parent, app):
         registro = seleccionado.get("registro")
         if not es_esi or not registro:
             return
-        if es_obra_civil(registro):
-            messagebox.showinfo("Obra Civil", "Este candado aplica únicamente a folios LEV.")
-            return
         if registro.get("lev_validado_ventas") or registro.get("lev_fecha_validacion") or seleccionado.get("cotizacion_finalizada") or seleccionado.get("ot_existente"):
             messagebox.showwarning("Levantamiento bloqueado", "El folio ya avanzó en el flujo hacia Cotización. No puede solicitarse su edición.")
             return
@@ -532,9 +529,13 @@ def mostrar_conversion_orden_servicio(parent, app):
         motivo = ctk.CTkTextbox(ventana_solicitud, height=120)
         motivo.pack(fill="x", padx=16, pady=12)
         def enviar():
-            from services.autorizaciones_esi_service import solicitar
+            from services.autorizaciones_esi_service import solicitar, solicitar_obc
             try:
-                solicitar(registro, motivo.get("1.0", "end").strip())
+                if es_obra_civil(registro):
+                    obra = registro.get('_obc_original') or {}
+                    solicitar_obc(obra, motivo.get("1.0", "end").strip())
+                else:
+                    solicitar(registro, motivo.get("1.0", "end").strip())
             except Exception as error:
                 messagebox.showerror("Solicitud no registrada", str(error), parent=ventana_solicitud)
                 return
@@ -546,12 +547,12 @@ def mostrar_conversion_orden_servicio(parent, app):
         registro = seleccionado.get("registro")
         if not es_esi or not registro:
             return
-        if es_obra_civil(registro):
-            messagebox.showinfo("Obra Civil", "El desbloqueo ESI aplica únicamente a folios LEV.")
-            return
-        from services.autorizaciones_esi_service import permiso_vigente
+        from services.autorizaciones_esi_service import permiso_vigente, permiso_vigente_obc
         try:
-            permiso = permiso_vigente(registro)
+            if es_obra_civil(registro):
+                permiso = permiso_vigente_obc(registro.get('_obc_original') or {})
+            else:
+                permiso = permiso_vigente(registro)
         except Exception as error:
             messagebox.showerror("Edición bloqueada", str(error))
             return
@@ -564,9 +565,9 @@ def mostrar_conversion_orden_servicio(parent, app):
     def bandeja_autorizaciones_esi():
         if tipo_usuario not in (1, 2, 3):
             return
-        from services.autorizaciones_esi_service import listar_pendientes, resolver
+        from services.autorizaciones_esi_service import listar_pendientes, resolver, listar_pendientes_obc, resolver_obc
         try:
-            pendientes = listar_pendientes() or []
+            pendientes = (listar_pendientes() or []) + (listar_pendientes_obc() or [])
         except Exception as error:
             messagebox.showerror("Autorizaciones no disponibles", str(error))
             return
@@ -581,7 +582,7 @@ def mostrar_conversion_orden_servicio(parent, app):
         for pendiente in pendientes:
             caja = ctk.CTkFrame(cont)
             caja.pack(fill="x", pady=5)
-            ctk.CTkLabel(caja, text=f"{pendiente.get('lev_folio')} · {pendiente.get('solicitante_nombre') or pendiente.get('solicitante_id')}", font=TITLE_MD).pack(anchor="w", padx=8, pady=4)
+            ctk.CTkLabel(caja, text=f"{pendiente.get('lev_folio') or pendiente.get('obc_folio')} · {pendiente.get('solicitante_nombre') or pendiente.get('solicitante_id')}", font=TITLE_MD).pack(anchor="w", padx=8, pady=4)
             ctk.CTkLabel(caja, text=str(pendiente.get('motivo') or ''), wraplength=610, justify="left").pack(anchor="w", padx=8, pady=4)
             comentario = ctk.CTkEntry(caja, placeholder_text="Motivo de resolución (obligatorio al rechazar)")
             comentario.pack(fill="x", padx=8, pady=5)
@@ -591,7 +592,10 @@ def mostrar_conversion_orden_servicio(parent, app):
             ctk.CTkButton(fila, text="Rechazar", fg_color="#B91C1C", command=lambda it=pendiente, en=comentario, m=caja: decidir_entrada(False, it, en, m)).pack(side="left", padx=5)
         def decidir_entrada(aceptar, item, entrada, marco):
             try:
-                resolver(item['id'], aceptar, entrada.get())
+                if item.get('obc_folio'):
+                    resolver_obc(item['id'], aceptar, entrada.get())
+                else:
+                    resolver(item['id'], aceptar, entrada.get())
             except Exception as error:
                 messagebox.showerror("No se resolvió", str(error), parent=ventana_bandeja)
                 return

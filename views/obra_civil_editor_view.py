@@ -3,7 +3,7 @@ import customtkinter as ctk
 from tkinter import messagebox
 
 
-def abrir_editor_obra_civil(padre, obra, al_guardar):
+def abrir_editor_obra_civil(padre, obra, al_guardar, autorizacion_esi=None):
     if not (isinstance(obra,dict) and obra.get('obc_folio') and obra.get('obc_id')):
         messagebox.showerror('Obra Civil','No se pudo identificar la obra completa.',parent=padre)
         return
@@ -17,7 +17,7 @@ def abrir_editor_obra_civil(padre, obra, al_guardar):
     host.pack(fill='both',expand=True)
     try:
         from views.obra_civil_view import mostrar_obra_civil
-        mostrar_obra_civil(host, app=None, obra_edicion=obra, al_guardar=al_guardar)
+        mostrar_obra_civil(host, app=None, obra_edicion=obra, al_guardar=al_guardar, autorizacion_esi=autorizacion_esi)
     except Exception:
         ventana.destroy()
         raise

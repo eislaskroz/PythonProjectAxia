@@ -70,3 +70,32 @@ def guardar_revision(registro, datos, solicitud_id):
     if not solicitud_id:
         raise PermissionError('La solicitud autorizada es obligatoria.')
     return ejecutar('guardar_revision', id_levantamiento=registro['id_levantamiento'], solicitud_id=solicitud_id, datos=datos)
+
+
+def solicitar_obc(registro, motivo):
+    if obtener_tipo_usuario(obtener_usuario_actual()) != 6:
+        raise PermissionError('Solo ESI puede solicitar esta autorización.')
+    motivo = str(motivo or '').strip()
+    if len(motivo) < 12 or len(motivo) > 1000:
+        raise ValueError('Describe el motivo de la edición (12 a 1000 caracteres).')
+    return ejecutar('solicitar_obc', obc_id=registro['obc_id'], motivo=motivo)
+
+def listar_pendientes_obc():
+    if obtener_tipo_usuario(obtener_usuario_actual()) not in (1, 2, 3):
+        raise PermissionError('No tienes permiso para consultar solicitudes OBC.')
+    return ejecutar('listar_pendientes_obc')
+
+def resolver_obc(solicitud_id, aprobar, comentario):
+    if obtener_tipo_usuario(obtener_usuario_actual()) not in (1, 2, 3):
+        raise PermissionError('No tienes permiso para resolver solicitudes OBC.')
+    return ejecutar('resolver_obc', solicitud_id=solicitud_id, aprobar=bool(aprobar), comentario=str(comentario or '').strip())
+
+def permiso_vigente_obc(registro):
+    if obtener_tipo_usuario(obtener_usuario_actual()) != 6:
+        raise PermissionError('Solo ESI puede consultar esta autorización.')
+    return ejecutar('permiso_vigente_obc', obc_id=registro['obc_id'])
+
+def guardar_revision_obc(registro, datos, solicitud_id):
+    if obtener_tipo_usuario(obtener_usuario_actual()) != 6 or not solicitud_id:
+        raise PermissionError('No hay autorización OBC vigente.')
+    return ejecutar('guardar_revision_obc', obc_id=registro['obc_id'], solicitud_id=solicitud_id, datos=datos)
