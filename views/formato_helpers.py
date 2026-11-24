@@ -245,8 +245,11 @@ def _generar_pdf_orden_servicio_axia(datos, firma_base64=None, ruta_salida=None,
     def p(value, style=normal):
         return Paragraph(html_escape(str(value or "")), style)
 
+    # Ancho compartido de todos los bloques, dejando libre el logo sin bajar nada.
+    ancho_os = 6.55 * inch
+
     def pair_table(rows, widths):
-        t = Table([[p(a,label), p(b)] for a,b in rows], colWidths=widths)
+        t = Table([[p(a,label), p(b)] for a,b in rows], colWidths=widths, hAlign="LEFT")
         t.setStyle(TableStyle([
             ("GRID", (0,0), (-1,-1), 0.45, BORDER),
             ("BACKGROUND", (0,0), (0,-1), LIGHT_BLUE),
@@ -258,7 +261,7 @@ def _generar_pdf_orden_servicio_axia(datos, firma_base64=None, ruta_salida=None,
 
     def box(title, body, height=None):
         body_p = p(body, normal)
-        t = Table([[p(title.upper(), header)], [body_p]], colWidths=[6.90*inch], rowHeights=[0.23*inch, None])
+        t = Table([[p(title.upper(), header)], [body_p]], colWidths=[ancho_os], rowHeights=[0.23*inch, None], hAlign="LEFT")
         t.setStyle(TableStyle([
             ("BACKGROUND", (0,0), (-1,0), BLUE), ("TEXTCOLOR", (0,0), (-1,0), colors.white),
             ("GRID", (0,0), (-1,-1), 0.45, BORDER), ("VALIGN", (0,1), (-1,-1), "TOP"),
@@ -279,9 +282,9 @@ def _generar_pdf_orden_servicio_axia(datos, firma_base64=None, ruta_salida=None,
         ("Supervisor AXIA", text("Supervisor")), ("Encargado AXIA", text("Encargado Servicio")),
         ("Técnicos AXIA", text("Técnicos")),
     ]
-    left = pair_table(left_rows, [0.92*inch, 2.30*inch])
-    right = pair_table(right_rows, [0.98*inch, 2.70*inch])
-    top = Table([[left, right]], colWidths=[3.22*inch, 3.68*inch])
+    left = pair_table(left_rows, [0.88*inch, 2.18*inch])
+    right = pair_table(right_rows, [0.94*inch, 2.55*inch])
+    top = Table([[left, right]], colWidths=[3.06*inch, 3.49*inch], hAlign="LEFT")
     top.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "TOP"), ("LEFTPADDING", (0,0), (-1,-1), 0), ("RIGHTPADDING", (0,0), (-1,-1), 0)]))
 
     descripcion = text("Descripción", fallback="")
@@ -297,7 +300,8 @@ def _generar_pdf_orden_servicio_axia(datos, firma_base64=None, ruta_salida=None,
     eval_value_cells = [p(valor or "No aplica", center) for _, valor in evaluaciones]
     evaluacion_tabla = Table(
         [eval_header_cells, eval_value_cells],
-        colWidths=[1.725*inch] * 4,
+        colWidths=[ancho_os / 4] * 4,
+        hAlign="LEFT",
     )
     evaluacion_tabla.setStyle(TableStyle([
         ("BACKGROUND", (0,0), (-1,0), BLUE),
@@ -311,7 +315,7 @@ def _generar_pdf_orden_servicio_axia(datos, firma_base64=None, ruta_salida=None,
         ("RIGHTPADDING", (0,0), (-1,-1), 4),
     ]))
 
-    evaluacion_titulo = Table([[p("Evaluación del Servicio".upper(), header)]], colWidths=[6.90*inch])
+    evaluacion_titulo = Table([[p("Evaluación del Servicio".upper(), header)]], colWidths=[ancho_os], hAlign="LEFT")
     evaluacion_titulo.setStyle(TableStyle([
         ("BACKGROUND", (0,0), (-1,-1), BLUE),
         ("BOX", (0,0), (-1,-1), 0.45, BORDER),
@@ -374,12 +378,15 @@ def _generar_pdf_orden_servicio_axia(datos, firma_base64=None, ruta_salida=None,
         except Exception:
             logger.warning("No se pudo incorporar evidencia al PDF de Orden de Servicio", exc_info=True)
     if fotos_preparadas:
-        fotos_header = Table([[p("EVIDENCIA FOTOGRÁFICA", header)]], colWidths=[6.90*inch])
+        fotos_header = Table([[p("EVIDENCIA FOTOGRÁFICA", header)]], colWidths=[ancho_os], hAlign="LEFT")
         fotos_header.setStyle(TableStyle([
             ("BACKGROUND", (0,0), (-1,-1), BLUE),
             ("BOX", (0,0), (-1,-1), 0.45, BORDER),
         ]))
-        filas_fotos = construir_filas_fotos(fotos_preparadas, estilo_texto=normal)
+        filas_fotos = construir_filas_fotos(
+            fotos_preparadas, estilo_texto=normal,
+            ancho_total=ancho_os, alineacion="LEFT",
+        )
         story.append(KeepTogether([fotos_header, Spacer(1, 5), filas_fotos[0]]))
         story.extend(filas_fotos[1:])
         story.append(Spacer(1, 8))
@@ -412,7 +419,7 @@ def _generar_pdf_orden_servicio_axia(datos, firma_base64=None, ruta_salida=None,
         ("BOX", (0,0), (-1,-1), 0.55, BORDER), ("ALIGN", (0,0), (-1,-1), "CENTER"),
         ("VALIGN", (0,0), (-1,-1), "MIDDLE"), ("TOPPADDING", (0,0), (-1,-1), 2), ("BOTTOMPADDING", (0,0), (-1,-1), 2),
     ]))
-    firma_wrap = Table([["", firma, ""]], colWidths=[2.175*inch, 2.55*inch, 2.175*inch])
+    firma_wrap = Table([["", firma, ""]], colWidths=[2.00*inch, 2.55*inch, 2.00*inch], hAlign="LEFT")
     firma_wrap.setStyle(TableStyle([("ALIGN", (1,0), (1,0), "CENTER"), ("VALIGN", (0,0), (-1,-1), "TOP")]))
     story.append(firma_wrap)
 
