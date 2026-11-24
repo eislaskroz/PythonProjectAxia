@@ -99,3 +99,32 @@ def guardar_revision_obc(registro, datos, solicitud_id):
     if obtener_tipo_usuario(obtener_usuario_actual()) != 6 or not solicitud_id:
         raise PermissionError('No hay autorización OBC vigente.')
     return ejecutar('guardar_revision_obc', obc_id=registro['obc_id'], solicitud_id=solicitud_id, datos=datos)
+
+
+def nombres_solicitantes(pendientes):
+    from supabase_config import supabase
+    ids = []
+    for solicitud in pendientes or []:
+        try:
+            identificador = int(solicitud.get('solicitante_id'))
+        except (ValueError, TypeError):
+            continue
+        if identificador > 0 and identificador not in ids:
+            ids.append(identificador)
+    if not ids:
+        return {}
+    try:
+        respuesta = (supabase.table('db_usuarios')
+                     .select('id_usuario,usu_nombre,usu_apellido,usu_nickname')
+                     .in_('id_usuario', ids).execute())
+    except Exception:
+        return {}
+    nombres = {}
+    for usuario in respuesta.data or []:
+        nombre = ' '.join(str(usuario.get(campo) or '').strip()
+                          for campo in ('usu_nombre', 'usu_apellido')).strip()
+        if not nombre:
+            nombre = str(usuario.get('usu_nickname') or '').strip()
+        if nombre:
+            nombres[str(usuario['id_usuario'])] = nombre
+    return nombres

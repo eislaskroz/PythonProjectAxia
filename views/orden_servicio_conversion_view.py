@@ -565,9 +565,10 @@ def mostrar_conversion_orden_servicio(parent, app):
     def bandeja_autorizaciones_esi():
         if tipo_usuario not in (1, 2, 3):
             return
-        from services.autorizaciones_esi_service import listar_pendientes, resolver, listar_pendientes_obc, resolver_obc
+        from services.autorizaciones_esi_service import listar_pendientes, resolver, listar_pendientes_obc, resolver_obc, nombres_solicitantes
         try:
             pendientes = (listar_pendientes() or []) + (listar_pendientes_obc() or [])
+            nombres = nombres_solicitantes(pendientes)
         except Exception as error:
             messagebox.showerror("Autorizaciones no disponibles", str(error))
             return
@@ -582,7 +583,10 @@ def mostrar_conversion_orden_servicio(parent, app):
         for pendiente in pendientes:
             caja = ctk.CTkFrame(cont)
             caja.pack(fill="x", pady=5)
-            ctk.CTkLabel(caja, text=f"{pendiente.get('lev_folio') or pendiente.get('obc_folio')} · {pendiente.get('solicitante_nombre') or pendiente.get('solicitante_id')}", font=TITLE_MD).pack(anchor="w", padx=8, pady=4)
+            solicitante = (nombres.get(str(pendiente.get("solicitante_id")))
+                           or pendiente.get("solicitante_nombre")
+                           or f"Usuario {pendiente.get('solicitante_id')}")
+            ctk.CTkLabel(caja, text=f"{pendiente.get('lev_folio') or pendiente.get('obc_folio')} · {solicitante}", font=TITLE_MD).pack(anchor="w", padx=8, pady=4)
             ctk.CTkLabel(caja, text=str(pendiente.get('motivo') or ''), wraplength=610, justify="left").pack(anchor="w", padx=8, pady=4)
             comentario = ctk.CTkEntry(caja, placeholder_text="Motivo de resolución (obligatorio al rechazar)")
             comentario.pack(fill="x", padx=8, pady=5)
