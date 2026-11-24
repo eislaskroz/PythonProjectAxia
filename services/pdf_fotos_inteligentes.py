@@ -82,6 +82,7 @@ def construir_filas_fotos(
     color_borde=colors.HexColor('#8FA3B5'),
     color_pie=colors.HexColor('#EAF1F7'),
     ancho_total: float = 6.90 * inch,
+    alineacion: str = 'CENTER',
 ) -> list[Table]:
     filas = []
     for grupo in agrupar_fotos(fotos, ancho_total):
@@ -96,7 +97,7 @@ def construir_filas_fotos(
                 anchuras.append(_SEPARACION)
             celdas.append(imagen)
             anchuras.append(anchos[j])
-        fila = Table([celdas], colWidths=anchuras, hAlign='CENTER')
+        fila = Table([celdas], colWidths=anchuras, hAlign=alineacion)
         fila.setStyle(TableStyle([
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),

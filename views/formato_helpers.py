@@ -912,6 +912,7 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
             fotos_preparadas, estilo_texto=normal,
             color_borde=BORDER, color_pie=LIGHT_BLUE,
             ancho_total=ancho_bitacora,
+            alineacion="LEFT",
         )
 
         story.append(KeepTogether([fotos_header, Spacer(1, 5), filas_fotos[0]]))
