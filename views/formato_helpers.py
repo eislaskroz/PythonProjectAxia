@@ -495,7 +495,9 @@ def _generar_pdf_orden_trabajo_axia(datos, secciones_tabla=None, ruta_salida=Non
         ]))
         return table
 
-    width = 6.90 * inch
+    # Se reserva espacio uniforme del lado derecho para respetar el área del logo,
+    # sin empujar el contenido hacia abajo.
+    width = 6.55 * inch
 
     general_rows = [
         ["NOMBRE DE ORDEN DE TRABAJO", "Orden de Trabajo", "FOLIO ORDEN DE TRABAJO", text("Folio OT")],
@@ -513,8 +515,9 @@ def _generar_pdf_orden_trabajo_axia(datos, secciones_tabla=None, ruta_salida=Non
         ])
     general = Table(
         general_data,
-        colWidths=[1.18 * inch, 2.05 * inch, 1.25 * inch, 2.42 * inch],
+        colWidths=[1.12 * inch, 1.95 * inch, 1.19 * inch, 2.29 * inch],
         repeatRows=0,
+        hAlign="LEFT",
     )
     general.setStyle(TableStyle([
         ("GRID", (0, 0), (-1, -1), 0.45, BORDER),
@@ -532,6 +535,7 @@ def _generar_pdf_orden_trabajo_axia(datos, secciones_tabla=None, ruta_salida=Non
     service_table = Table(
         [[Paragraph("SERVICIO", header)], [p(service, normal, "")]],
         colWidths=[width],
+        hAlign="LEFT",
     )
     service_table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), BLUE),
@@ -619,8 +623,9 @@ def _generar_pdf_orden_trabajo_axia(datos, secciones_tabla=None, ruta_salida=Non
             ])
         tabla = LongTable(
             table_data,
-            colWidths=[0.58*inch, 0.70*inch, 0.72*inch, 0.92*inch, 1.05*inch, 2.93*inch],
+            colWidths=[0.55*inch, 0.66*inch, 0.68*inch, 0.87*inch, 0.99*inch, 2.80*inch],
             repeatRows=2, splitByRow=1,
+            hAlign="LEFT",
         )
         tabla.setStyle(TableStyle([
             ("SPAN", (0, 0), (-1, 0)),
