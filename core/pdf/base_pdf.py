@@ -29,6 +29,7 @@ class BasePdfGenerator:
     LEFT_MARGIN = 34
     RIGHT_MARGIN = 34
     TOP_MARGIN = 96
+    LEVANTAMIENTO_TOP_MARGIN = 150  # Reserva vertical para el logo corporativo en todas las hojas
     BOTTOM_MARGIN = 78
 
     LANDSCAPE_SIDE_MARGIN = 28

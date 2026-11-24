@@ -693,7 +693,7 @@ def generar_pdf_seguridad_instalacion(
         pagesize=(612, 792),
         rightMargin=BasePdfGenerator.RIGHT_MARGIN,
         leftMargin=BasePdfGenerator.LEFT_MARGIN,
-        topMargin=BasePdfGenerator.TOP_MARGIN,
+        topMargin=BasePdfGenerator.LEVANTAMIENTO_TOP_MARGIN,
         bottomMargin=BasePdfGenerator.BOTTOM_MARGIN,
     )
     story = []
@@ -1370,7 +1370,7 @@ def generar_pdf_levantamiento_maestro(
     width = 6.90 * inch
     doc = SimpleDocTemplate(
         str(ruta), pagesize=(612, 792), rightMargin=BasePdfGenerator.RIGHT_MARGIN,
-        leftMargin=BasePdfGenerator.LEFT_MARGIN, topMargin=BasePdfGenerator.TOP_MARGIN,
+        leftMargin=BasePdfGenerator.LEFT_MARGIN, topMargin=BasePdfGenerator.LEVANTAMIENTO_TOP_MARGIN,
         bottomMargin=BasePdfGenerator.BOTTOM_MARGIN,
     )
     story: list = []
