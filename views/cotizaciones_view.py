@@ -410,201 +410,299 @@ def mostrar_cotizaciones(parent, app=None):
 
         ctk.CTkLabel(scroll, text="Partidas comerciales", font=TITLE_MD, text_color=TEXT_PRIMARY, anchor="w").grid(
             row=2, column=0, columnspan=4, sticky="ew", padx=6, pady=(4,2))
-        partidas = construir_partidas_comerciales(registro, cot)
-        estado["partidas"] = partidas
+        partidas_iniciales = construir_partidas_comerciales(registro, cot)
+        partidas_servicio = [dict(item) for i, item in enumerate(partidas_iniciales)
+                             if es_lote_servicio(item, i, len(partidas_iniciales))]
+        servicio_original = partidas_servicio[-1] if partidas_servicio else {
+            "unidad_tipo": "Servicio", "cantidad": "1", "concepto": "Servicio de instalación",
+            "importe": "0", "precio_unitario": "0", "precio_lista": "0",
+            "proveedor": "AXIA", "marca": "AXIA", "utilidad_pct": "0",
+        }
+        estado["servicio_template"] = dict(servicio_original)
+        mostrar_servicio = bool(partidas_servicio and _num(servicio_original.get("importe")) > 0)
+        partida_datos = [dict(item) for i, item in enumerate(partidas_iniciales)
+                         if not es_lote_servicio(item, i, len(partidas_iniciales))]
+
+        barra_partidas = ctk.CTkFrame(scroll, fg_color="transparent")
+        barra_partidas.grid(row=3, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 5))
+        barra_partidas.grid_columnconfigure(1, weight=1)
         cont = ctk.CTkFrame(scroll, fg_color="transparent")
-        cont.grid(row=3, column=0, columnspan=4, sticky="ew")
+        cont.grid(row=4, column=0, columnspan=4, sticky="ew")
         cont.grid_columnconfigure(0, weight=1)
+        inicio_edicion_partidas = len(estado["editables"])
+        incluir_servicio = ctk.BooleanVar(value=mostrar_servicio)
 
-        for i, item in enumerate(partidas):
-            servicio = es_lote_servicio(item, i, len(partidas))
-            card = ctk.CTkFrame(cont, fg_color=WHITE, corner_radius=10)
-            card.grid(row=i, column=0, sticky="ew", padx=4, pady=2)
-            for c in range(24):
-                card.grid_columnconfigure(c, weight=1, uniform="partida_compacta")
+        def captura_actual():
+            return [{k: v.get() for k, v in pv.items()} for pv in estado["partida_vars"]]
 
-            vars_item = {
-                key: ctk.StringVar(value=str(value) if value is not None else "")
-                for key, value in item.items()
-            }
-            todas_las_claves = (
-                "unidad_tipo", "cantidad", "proveedor", "modelo", "sku", "marca",
-                "concepto", "precio_lista", "costo", "utilidad_pct", "precio_venta",
-                "precio_unitario", "importe", "observaciones",
-            )
-            for key in todas_las_claves:
-                vars_item.setdefault(key, ctk.StringVar(value=""))
+        def dibujar_partidas(items):
+            for hijo in cont.winfo_children():
+                hijo.destroy()
+            del estado["editables"][inicio_edicion_partidas:]
+            estado["partida_vars"] = []
+            estado["partidas"] = items
+            partidas = items
+            for i, item in enumerate(partidas):
+                servicio = es_lote_servicio(item, i, len(partidas))
+                card = ctk.CTkFrame(cont, fg_color=WHITE, corner_radius=10)
+                card.grid(row=i, column=0, sticky="ew", padx=4, pady=2)
+                for c in range(24):
+                    card.grid_columnconfigure(c, weight=1, uniform="partida_compacta")
 
-            encabezado = ctk.CTkLabel(
-                card,
-                text=f"Lote {item.get('lote', i+1)} · {item.get('concepto', '')}",
-                font=("Montserrat", 11, "bold"), text_color=TEXT_PRIMARY,
-                anchor="w", justify="left", wraplength=1240,
-            )
-            encabezado.grid(row=0, column=0, columnspan=24, sticky="ew", padx=7, pady=(4, 1))
-            vars_item["concepto"].trace_add(
-                "write", lambda *_args, pv=vars_item, header=encabezado, lote=item.get("lote", i+1):
-                header.configure(text=f"Lote {lote} · {pv['concepto'].get()}")
-            )
+                vars_item = {
+                    key: ctk.StringVar(value=str(value) if value is not None else "")
+                    for key, value in item.items()
+                }
+                todas_las_claves = (
+                    "unidad_tipo", "cantidad", "proveedor", "modelo", "sku", "marca",
+                    "concepto", "precio_lista", "costo", "utilidad_pct", "precio_venta",
+                    "precio_unitario", "importe", "observaciones",
+                )
+                for key in todas_las_claves:
+                    vars_item.setdefault(key, ctk.StringVar(value=""))
 
-            def campo_partida(contenedor, etiqueta, clave, fila, columna, ancho):
-                celda = ctk.CTkFrame(contenedor, fg_color="transparent")
-                celda.grid(row=fila, column=columna, columnspan=ancho,
-                           sticky="ew", padx=3, pady=(0, 2))
-                ctk.CTkLabel(
-                    celda, text=etiqueta, font=("Montserrat", 9),
-                    text_color=TEXT_SECONDARY, anchor="w", height=15,
-                ).pack(fill="x")
-                variable = vars_item[clave]
-                ent = AxiaEntry(celda, textvariable=variable, height=25,
-                                font=("Montserrat", 10))
-                ent.pack(fill="x")
-                if clave in {"precio_lista", "costo", "precio_venta", "precio_unitario", "importe"}:
-                    aplicar_mascara_numerica(ent, variable, MONEY)
-                elif clave in {"cantidad", "utilidad_pct"}:
-                    aplicar_mascara_numerica(ent, variable, NUMBER)
+                encabezado = ctk.CTkLabel(
+                    card,
+                    text=f"Lote {item.get('lote', i+1)} · {item.get('concepto', '')}",
+                    font=("Montserrat", 11, "bold"), text_color=TEXT_PRIMARY,
+                    anchor="w", justify="left", wraplength=1240,
+                )
+                encabezado.grid(row=0, column=0, columnspan=24, sticky="ew", padx=7, pady=(4, 1))
+                vars_item["concepto"].trace_add(
+                    "write", lambda *_args, pv=vars_item, header=encabezado, lote=item.get("lote", i+1):
+                    header.configure(text=f"Lote {lote} · {pv['concepto'].get()}")
+                )
 
-                if clave in {"unidad_tipo", "cantidad", "concepto", "costo", "precio_venta", "precio_unitario", "importe"} and not (servicio and clave == "importe"):
-                    ent.configure(state="disabled")
+                def campo_partida(contenedor, etiqueta, clave, fila, columna, ancho):
+                    celda = ctk.CTkFrame(contenedor, fg_color="transparent")
+                    celda.grid(row=fila, column=columna, columnspan=ancho,
+                               sticky="ew", padx=3, pady=(0, 2))
+                    ctk.CTkLabel(
+                        celda, text=etiqueta, font=("Montserrat", 9),
+                        text_color=TEXT_SECONDARY, anchor="w", height=15,
+                    ).pack(fill="x")
+                    variable = vars_item[clave]
+                    ent = AxiaEntry(celda, textvariable=variable, height=25,
+                                    font=("Montserrat", 10))
+                    ent.pack(fill="x")
+                    if clave in {"precio_lista", "costo", "precio_venta", "precio_unitario", "importe"}:
+                        aplicar_mascara_numerica(ent, variable, MONEY)
+                    elif clave in {"cantidad", "utilidad_pct"}:
+                        aplicar_mascara_numerica(ent, variable, NUMBER)
+
+                    if clave in {"unidad_tipo", "cantidad", "concepto", "costo", "precio_venta", "precio_unitario", "importe"} and not (servicio and clave == "importe"):
+                        ent.configure(state="disabled")
+                    else:
+                        estado["editables"].append(ent)
+                    return ent
+
+                if servicio:
+                    principales = [
+                        ("Unidad / Tipo", "unidad_tipo", 1, 0, 3),
+                        ("Cantidad", "cantidad", 1, 3, 2),
+                        ("Modelo", "modelo", 1, 5, 4),
+                        ("Marca", "marca", 1, 9, 3),
+                        ("P. Unitario", "precio_unitario", 1, 12, 3),
+                        ("Importe", "importe", 1, 15, 3),
+                        ("Concepto", "concepto", 2, 0, 20),
+                    ]
+                    secundarios = [
+                        ("Proveedor", "proveedor", 0, 0, 5),
+                        ("SKU", "sku", 0, 5, 4),
+                        ("P. Lista", "precio_lista", 0, 9, 3),
+                        ("Costo", "costo", 0, 12, 3),
+                        ("Utilidad %", "utilidad_pct", 0, 15, 3),
+                        ("P. Venta", "precio_venta", 0, 18, 3),
+                        ("Observaciones", "observaciones", 1, 0, 24),
+                    ]
                 else:
-                    estado["editables"].append(ent)
-                return ent
+                    principales = [
+                        ("Unidad / Tipo", "unidad_tipo", 1, 0, 3),
+                        ("Cantidad", "cantidad", 1, 3, 2),
+                        ("Modelo", "modelo", 1, 5, 4),
+                        ("Marca", "marca", 1, 9, 3),
+                        ("Costo", "costo", 1, 12, 3),
+                        ("P. Venta", "precio_venta", 1, 15, 3),
+                        ("Importe", "importe", 1, 18, 3),
+                        ("Concepto", "concepto", 2, 0, 20),
+                    ]
+                    secundarios = [
+                        ("Proveedor", "proveedor", 0, 0, 5),
+                        ("SKU", "sku", 0, 5, 4),
+                        ("P. Lista", "precio_lista", 0, 9, 3),
+                        ("Utilidad %", "utilidad_pct", 0, 12, 3),
+                        ("P. Unitario", "precio_unitario", 0, 15, 3),
+                        ("Observaciones", "observaciones", 0, 18, 6),
+                    ]
 
-            if servicio:
-                principales = [
-                    ("Unidad / Tipo", "unidad_tipo", 1, 0, 3),
-                    ("Cantidad", "cantidad", 1, 3, 2),
-                    ("Modelo", "modelo", 1, 5, 4),
-                    ("Marca", "marca", 1, 9, 3),
-                    ("P. Unitario", "precio_unitario", 1, 12, 3),
-                    ("Importe", "importe", 1, 15, 3),
-                    ("Concepto", "concepto", 2, 0, 20),
-                ]
-                secundarios = [
-                    ("Proveedor", "proveedor", 0, 0, 5),
-                    ("SKU", "sku", 0, 5, 4),
-                    ("P. Lista", "precio_lista", 0, 9, 3),
-                    ("Costo", "costo", 0, 12, 3),
-                    ("Utilidad %", "utilidad_pct", 0, 15, 3),
-                    ("P. Venta", "precio_venta", 0, 18, 3),
-                    ("Observaciones", "observaciones", 1, 0, 24),
-                ]
-            else:
-                principales = [
-                    ("Unidad / Tipo", "unidad_tipo", 1, 0, 3),
-                    ("Cantidad", "cantidad", 1, 3, 2),
-                    ("Modelo", "modelo", 1, 5, 4),
-                    ("Marca", "marca", 1, 9, 3),
-                    ("Costo", "costo", 1, 12, 3),
-                    ("P. Venta", "precio_venta", 1, 15, 3),
-                    ("Importe", "importe", 1, 18, 3),
-                    ("Concepto", "concepto", 2, 0, 20),
-                ]
-                secundarios = [
-                    ("Proveedor", "proveedor", 0, 0, 5),
-                    ("SKU", "sku", 0, 5, 4),
-                    ("P. Lista", "precio_lista", 0, 9, 3),
-                    ("Utilidad %", "utilidad_pct", 0, 12, 3),
-                    ("P. Unitario", "precio_unitario", 0, 15, 3),
-                    ("Observaciones", "observaciones", 0, 18, 6),
-                ]
+                fila_boton = 2
+                columna_boton = 20
+                ancho_boton = 4
 
-            fila_boton = 2
-            columna_boton = 20
-            ancho_boton = 4
+                for etiqueta, clave, fila, columna, ancho in principales:
+                    campo_partida(card, etiqueta, clave, fila, columna, ancho)
 
-            for etiqueta, clave, fila, columna, ancho in principales:
-                campo_partida(card, etiqueta, clave, fila, columna, ancho)
+                zona_detalles = ctk.CTkFrame(card, fg_color="#F4F7FB", corner_radius=8)
+                zona_detalles.grid(row=3, column=0, columnspan=24, sticky="ew",
+                                  padx=4, pady=(1, 3))
+                for col_detalle in range(24):
+                    zona_detalles.grid_columnconfigure(col_detalle, weight=1,
+                                                         uniform="detalle_partida")
+                for etiqueta, clave, fila, col, span in secundarios:
+                    campo_partida(zona_detalles, etiqueta, clave, fila, col, span)
+                zona_detalles.grid_remove()
+                detalles_abiertos = {"valor": False}
 
-            zona_detalles = ctk.CTkFrame(card, fg_color="#F4F7FB", corner_radius=8)
-            zona_detalles.grid(row=3, column=0, columnspan=24, sticky="ew",
-                              padx=4, pady=(1, 3))
-            for col_detalle in range(24):
-                zona_detalles.grid_columnconfigure(col_detalle, weight=1,
-                                                     uniform="detalle_partida")
-            for etiqueta, clave, fila, col, span in secundarios:
-                campo_partida(zona_detalles, etiqueta, clave, fila, col, span)
-            zona_detalles.grid_remove()
-            detalles_abiertos = {"valor": False}
+                def alternar_detalles(panel=zona_detalles, estado_panel=detalles_abiertos,
+                                     boton_ref=None):
+                    estado_panel["valor"] = not estado_panel["valor"]
+                    if estado_panel["valor"]:
+                        panel.grid()
+                        if boton_ref is not None:
+                            boton_ref.configure(text="▲ Ocultar detalles")
+                    else:
+                        panel.grid_remove()
+                        if boton_ref is not None:
+                            boton_ref.configure(text="▼ Más detalles")
 
-            def alternar_detalles(panel=zona_detalles, estado_panel=detalles_abiertos,
-                                 boton_ref=None):
-                estado_panel["valor"] = not estado_panel["valor"]
-                if estado_panel["valor"]:
-                    panel.grid()
-                    if boton_ref is not None:
-                        boton_ref.configure(text="▲ Ocultar detalles")
-                else:
-                    panel.grid_remove()
-                    if boton_ref is not None:
-                        boton_ref.configure(text="▼ Más detalles")
+                boton_detalles = ctk.CTkButton(
+                    card, text="▼ Más detalles", height=27, corner_radius=8,
+                    fg_color="#E7EFF8", hover_color="#DAE7F5", text_color="#1F4E79",
+                    font=("Montserrat", 10, "bold"),
+                )
+                boton_detalles.configure(command=lambda panel=zona_detalles,
+                                        visual=detalles_abiertos, boton=boton_detalles:
+                                        alternar_detalles(panel, visual, boton))
+                boton_detalles.grid(row=fila_boton, column=columna_boton,
+                                    columnspan=ancho_boton, sticky="ew",
+                                    padx=4, pady=(15, 2))
 
-            boton_detalles = ctk.CTkButton(
-                card, text="▼ Más detalles", height=27, corner_radius=8,
-                fg_color="#E7EFF8", hover_color="#DAE7F5", text_color="#1F4E79",
-                font=("Montserrat", 10, "bold"),
-            )
-            boton_detalles.configure(command=lambda panel=zona_detalles,
-                                    visual=detalles_abiertos, boton=boton_detalles:
-                                    alternar_detalles(panel, visual, boton))
-            boton_detalles.grid(row=fila_boton, column=columna_boton,
-                                columnspan=ancho_boton, sticky="ew",
-                                padx=4, pady=(15, 2))
+                if estado["modo_edicion"]:
+                    btn_eliminar = ctk.CTkButton(
+                        card, text="Quitar partida", height=25, width=116,
+                        fg_color="#B91C1C", hover_color="#991B1B", font=("Montserrat", 10),
+                        command=lambda indice=i: quitar_partida(indice),
+                    )
+                    btn_eliminar.grid(row=0, column=20, columnspan=4, sticky="e", padx=6, pady=(4, 1))
 
-            if servicio:
-                lock_servicio = {"x": False}
-                def calc_servicio(*_, pv=vars_item, lk=lock_servicio):
-                    if lk["x"]:
-                        return
-                    importe = _num(pv["importe"].get())
-                    cantidad = _num(pv["cantidad"].get()) or 1.0
-                    unitario = round(importe / cantidad, 2)
-                    lk["x"] = True
-                    try:
-                        pv["precio_lista"].set(f"{importe:.2f}")
-                        pv["costo"].set("0.00")
-                        pv["utilidad_pct"].set("0")
-                        pv["precio_venta"].set(f"{unitario:.2f}")
-                        pv["precio_unitario"].set(f"{unitario:.2f}")
-                    finally:
-                        lk["x"] = False
-                    recalcular()
-                vars_item["importe"].trace_add("write", calc_servicio)
-                calc_servicio()
-
-            if not servicio:
-                lock = {"x": False}
-                def calc_comercial(*_, pv=vars_item, lk=lock):
-                    if lk["x"]:
-                        return
-                    try:
-                        lista = _num(pv["precio_lista"].get())
-                        utilidad = _num(pv["utilidad_pct"].get())
-                        cantidad = _num(pv["cantidad"].get())
-                    except (TypeError, ValueError):
+                if servicio:
+                    lock_servicio = {"x": False}
+                    def calc_servicio(*_, pv=vars_item, lk=lock_servicio):
+                        if lk["x"]:
+                            return
+                        importe = _num(pv["importe"].get())
+                        cantidad = _num(pv["cantidad"].get()) or 1.0
+                        unitario = round(importe / cantidad, 2)
+                        lk["x"] = True
+                        try:
+                            pv["precio_lista"].set(f"{importe:.2f}")
+                            pv["costo"].set("0.00")
+                            pv["utilidad_pct"].set("0")
+                            pv["precio_venta"].set(f"{unitario:.2f}")
+                            pv["precio_unitario"].set(f"{unitario:.2f}")
+                        finally:
+                            lk["x"] = False
                         recalcular()
-                        return
-                    costo = round(lista * utilidad / 100.0, 2)
-                    venta = round(lista + costo, 2)
-                    importe = round(venta * cantidad, 2)
-                    lk["x"] = True
-                    try:
-                        pv["costo"].set(f"{costo:.2f}")
-                        pv["precio_venta"].set(f"{venta:.2f}")
-                        pv["precio_unitario"].set(f"{venta:.2f}")
-                        pv["importe"].set(f"{importe:.2f}")
-                    finally:
-                        lk["x"] = False
-                    recalcular()
-                vars_item["precio_lista"].trace_add("write", calc_comercial)
-                vars_item["utilidad_pct"].trace_add("write", calc_comercial)
-                vars_item["cantidad"].trace_add("write", calc_comercial)
-                calc_comercial()
+                    vars_item["importe"].trace_add("write", calc_servicio)
+                    calc_servicio()
 
-            vars_item["importe"].trace_add("write", recalcular)
-            for _var in vars_item.values():
-                _var.trace_add("write", lambda *_: actualizar_estado_botones())
-            estado["partida_vars"].append(vars_item)
+                if not servicio:
+                    lock = {"x": False}
+                    def calc_comercial(*_, pv=vars_item, lk=lock):
+                        if lk["x"]:
+                            return
+                        try:
+                            lista = _num(pv["precio_lista"].get())
+                            utilidad = _num(pv["utilidad_pct"].get())
+                            cantidad = _num(pv["cantidad"].get())
+                        except (TypeError, ValueError):
+                            recalcular()
+                            return
+                        costo = round(lista * utilidad / 100.0, 2)
+                        venta = round(lista + costo, 2)
+                        importe = round(venta * cantidad, 2)
+                        lk["x"] = True
+                        try:
+                            pv["costo"].set(f"{costo:.2f}")
+                            pv["precio_venta"].set(f"{venta:.2f}")
+                            pv["precio_unitario"].set(f"{venta:.2f}")
+                            pv["importe"].set(f"{importe:.2f}")
+                        finally:
+                            lk["x"] = False
+                        recalcular()
+                    vars_item["precio_lista"].trace_add("write", calc_comercial)
+                    vars_item["utilidad_pct"].trace_add("write", calc_comercial)
+                    vars_item["cantidad"].trace_add("write", calc_comercial)
+                    calc_comercial()
+
+                vars_item["importe"].trace_add("write", recalcular)
+                for _var in vars_item.values():
+                    _var.trace_add("write", lambda *_: actualizar_estado_botones())
+                estado["partida_vars"].append(vars_item)
+            for widget in estado["editables"][inicio_edicion_partidas:]:
+                widget.configure(state="normal" if estado["modo_edicion"] else "disabled")
+            actualizar_estado_botones()
+            recalcular()
+
+        def quitar_partida(indice):
+            if not estado["modo_edicion"]:
+                return
+            actuales = captura_actual()
+            if indice < 0 or indice >= len(actuales):
+                return
+            anterior = actuales.pop(indice)
+            if es_lote_servicio(anterior, indice, len(actuales) + 1):
+                estado["servicio_template"] = anterior
+                incluir_servicio.set(False)
+            dibujar_partidas(actuales)
+
+        def agregar_partida():
+            if not estado["modo_edicion"]:
+                return
+            actuales = captura_actual()
+            nueva = {
+                "unidad_tipo": "Pieza(s)", "cantidad": "1", "proveedor": "",
+                "modelo": "", "sku": "", "marca": "", "concepto": "",
+                "precio_lista": "", "costo": "0", "utilidad_pct": "0",
+                "precio_venta": "0", "precio_unitario": "0", "importe": "0",
+                "observaciones": "",
+            }
+            if incluir_servicio.get() and actuales:
+                actuales.insert(len(actuales) - 1, nueva)
+            else:
+                actuales.append(nueva)
+            dibujar_partidas(actuales)
+
+        def alternar_servicio():
+            if not estado["modo_edicion"]:
+                return
+            actuales = captura_actual()
+            indices = [i for i, item in enumerate(actuales)
+                       if es_lote_servicio(item, i, len(actuales))]
+            if indices:
+                estado["servicio_template"] = dict(actuales[indices[-1]])
+                actuales.pop(indices[-1])
+            if incluir_servicio.get():
+                actuales.append(dict(estado["servicio_template"]))
+            dibujar_partidas(actuales)
+
+        agregar = ctk.CTkButton(
+            barra_partidas, text="＋ Agregar partida", width=160, height=32,
+            font=BUTTON_FONT, command=agregar_partida,
+        )
+        agregar.grid(row=0, column=0, sticky="w", padx=(0, 14))
+        chk_servicio = ctk.CTkCheckBox(
+            barra_partidas, text="Incluir costo de servicio / mano de obra / envío (opcional)",
+            variable=incluir_servicio, command=alternar_servicio,
+            font=("Montserrat", 11), text_color=TEXT_PRIMARY,
+        )
+        chk_servicio.grid(row=0, column=1, sticky="w")
+        if not estado["modo_edicion"]:
+            agregar.configure(state="disabled")
+            chk_servicio.configure(state="disabled")
+        if mostrar_servicio:
+            partida_datos.append(dict(servicio_original))
+        dibujar_partidas(partida_datos)
 
         for widget in estado["editables"]:
             try:
