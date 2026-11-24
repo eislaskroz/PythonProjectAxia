@@ -89,7 +89,7 @@ def _filtro_autor_levantamiento(usuario=None):
     nickname = str((usuario or {}).get("usuario") or "").strip()
     if not (usuario or {}).get("id_usuario") or not nickname or nickname.upper() == "DESCONOCIDO":
         return None, False
-    if obtener_tipo_usuario(usuario) in (ADMINISTRADOR, JEFE_OPERACIONES, SUPERVISOR, ADMINISTRATIVO):
+    if obtener_tipo_usuario(usuario) in (ADMINISTRADOR, JEFE_OPERACIONES, SUPERVISOR, ADMINISTRATIVO, 6):
         return None, True
     return nickname, True
 

@@ -332,7 +332,7 @@ class NavigationController:
         self._registrar_vista("mostrar_admin_levantamientos")
         logger.info("Cargando vista administrativa: Levantamientos")
         self.limpiar_contenido()
-        if puede_modificar_levantamientos(obtener_usuario_actual()):
+        if puede_modificar_levantamientos(obtener_usuario_actual()) or int((obtener_usuario_actual() or {}).get("usu_tipo") or 0) == 6:
             self.cambiar_titulo(
                 "Levantamientos",
                 "Busca, consulta y modifica levantamientos registrados."

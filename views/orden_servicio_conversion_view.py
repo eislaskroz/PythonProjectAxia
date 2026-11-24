@@ -15,6 +15,7 @@ from security.permissions import (
     puede_convertir_levantamiento_a_orden,
     puede_modificar_levantamientos,
     puede_validar_levantamiento_ventas,
+    obtener_tipo_usuario,
 )
 from services.levantamientos_service import obtener_levantamientos, buscar_levantamientos, actualizar_levantamiento
 from services.levantamiento_compat import normalizar_registro_levantamiento
@@ -69,7 +70,8 @@ def _tipo_levantamiento_origen(registro):
 
 def mostrar_conversion_orden_servicio(parent, app):
     usuario = obtener_usuario_actual()
-    if not puede_modificar_levantamientos(usuario):
+    tipo_usuario = obtener_tipo_usuario(usuario)
+    if not (puede_modificar_levantamientos(usuario) or tipo_usuario == 6):
         messagebox.showerror(
             "Acceso denegado",
             "Tu nivel de usuario no tiene permiso para modificar levantamientos.",
@@ -177,6 +179,7 @@ def mostrar_conversion_orden_servicio(parent, app):
     panel_form.grid_columnconfigure(1, weight=1)
 
     seleccionado = {"registro": None, "editando": False, "cotizacion_finalizada": {}, "ot_existente": {}}
+    es_esi = tipo_usuario == 6
     widgets_editables = []
     entradas_por_campo = {}
     vars_campos = {
@@ -251,10 +254,10 @@ def mostrar_conversion_orden_servicio(parent, app):
             for clave in ("lev_fecha_programada", "lev_tipo", "lev_modalidad_operativa", "lev_prioridad"):
                 entradas_por_campo[clave].configure(state="disabled")
 
-        btn_editar.configure(state="disabled" if habilitado or (
+        btn_editar.configure(state="normal" if es_esi and seleccionado.get("registro") else "disabled" if es_esi or habilitado or (
             es_obra_civil(seleccionado.get("registro")) and seleccionado["registro"].get("lev_validado_ventas"))
             else ("normal" if seleccionado.get("registro") else "disabled"))
-        btn_guardar.configure(state="normal" if habilitado else "disabled")
+        btn_guardar.configure(state="normal" if es_esi and seleccionado.get("registro") else "normal" if habilitado else "disabled")
         if habilitado:
             btn_validar.configure(state="disabled")
             btn_convertir.configure(state="disabled")
@@ -441,7 +444,10 @@ def mostrar_conversion_orden_servicio(parent, app):
         })
         return cambios
 
-    def abrir_editor_origen():
+    def abrir_editor_origen(autorizacion_esi=None):
+        if es_esi and not autorizacion_esi:
+            messagebox.showwarning("Edición protegida", "Solicita una autorización antes de editar el levantamiento.")
+            return
         if es_obra_civil(seleccionado.get("registro")):
             registro = seleccionado["registro"]
             if registro.get("lev_validado_ventas"):
@@ -461,6 +467,9 @@ def mostrar_conversion_orden_servicio(parent, app):
         original = normalizar_registro_levantamiento(seleccionado.get("registro"))
         if not original:
             messagebox.showwarning("Selecciona un levantamiento", "Primero carga un levantamiento de la tabla.")
+            return
+        if es_esi and (original.get("lev_validado_ventas") or original.get("lev_fecha_validacion")):
+            messagebox.showwarning("Levantamiento bloqueado", "El levantamiento ya fue enviado a Cotización y no admite nuevas revisiones ESI.")
             return
         existente = buscar_orden_trabajo_por_levantamiento(original.get("lev_folio"), original.get("id_levantamiento"))
         if existente:
@@ -500,9 +509,98 @@ def mostrar_conversion_orden_servicio(parent, app):
             registro_editar=original,
             on_saved=al_guardar,
             modal=True,
+            autorizacion_esi=autorizacion_esi,
         )
 
+    def solicitar_edicion_esi():
+        registro = seleccionado.get("registro")
+        if not es_esi or not registro:
+            return
+        if es_obra_civil(registro):
+            messagebox.showinfo("Obra Civil", "Este candado aplica únicamente a folios LEV.")
+            return
+        if registro.get("lev_validado_ventas") or registro.get("lev_fecha_validacion") or seleccionado.get("cotizacion_finalizada") or seleccionado.get("ot_existente"):
+            messagebox.showwarning("Levantamiento bloqueado", "El folio ya avanzó en el flujo hacia Cotización. No puede solicitarse su edición.")
+            return
+        ventana_solicitud = ctk.CTkToplevel(parent.winfo_toplevel())
+        ventana_solicitud.title("Solicitar autorización de edición")
+        centrar_ventana(ventana_solicitud, 520, 310, padre=parent.winfo_toplevel())
+        ventana_solicitud.transient(parent.winfo_toplevel())
+        ventana_solicitud.grab_set()
+        ctk.CTkLabel(ventana_solicitud, text=f"Solicitud para {registro.get('lev_folio')}", font=TITLE_MD).pack(padx=16, pady=(18, 8))
+        ctk.CTkLabel(ventana_solicitud, text="Explica por qué necesitas generar una nueva versión del levantamiento.", wraplength=470).pack(padx=16)
+        motivo = ctk.CTkTextbox(ventana_solicitud, height=120)
+        motivo.pack(fill="x", padx=16, pady=12)
+        def enviar():
+            from services.autorizaciones_esi_service import solicitar
+            try:
+                solicitar(registro, motivo.get("1.0", "end").strip())
+            except Exception as error:
+                messagebox.showerror("Solicitud no registrada", str(error), parent=ventana_solicitud)
+                return
+            ventana_solicitud.destroy()
+            messagebox.showinfo("Solicitud enviada", "La solicitud quedó pendiente de autorización por los tipos 1, 2 o 3.")
+        ctk.CTkButton(ventana_solicitud, text="Enviar solicitud", command=enviar).pack(pady=(0, 12))
+
+    def verificar_desbloqueo_esi():
+        registro = seleccionado.get("registro")
+        if not es_esi or not registro:
+            return
+        if es_obra_civil(registro):
+            messagebox.showinfo("Obra Civil", "El desbloqueo ESI aplica únicamente a folios LEV.")
+            return
+        from services.autorizaciones_esi_service import permiso_vigente
+        try:
+            permiso = permiso_vigente(registro)
+        except Exception as error:
+            messagebox.showerror("Edición bloqueada", str(error))
+            return
+        solicitud = permiso.get('solicitud_id') if isinstance(permiso, dict) else None
+        if not solicitud:
+            messagebox.showwarning("Sin autorización", "No existe una autorización vigente para este folio y usuario.")
+            return
+        abrir_editor_origen(autorizacion_esi=solicitud)
+
+    def bandeja_autorizaciones_esi():
+        if tipo_usuario not in (1, 2, 3):
+            return
+        from services.autorizaciones_esi_service import listar_pendientes, resolver
+        try:
+            pendientes = listar_pendientes() or []
+        except Exception as error:
+            messagebox.showerror("Autorizaciones no disponibles", str(error))
+            return
+        ventana_bandeja = ctk.CTkToplevel(parent.winfo_toplevel())
+        ventana_bandeja.title("Autorizaciones de edición ESI")
+        centrar_ventana(ventana_bandeja, 690, 480, padre=parent.winfo_toplevel())
+        ventana_bandeja.transient(parent.winfo_toplevel())
+        cont = ctk.CTkScrollableFrame(ventana_bandeja)
+        cont.pack(fill="both", expand=True, padx=12, pady=12)
+        if not pendientes:
+            ctk.CTkLabel(cont, text="No hay solicitudes pendientes.").pack(pady=24)
+        for pendiente in pendientes:
+            caja = ctk.CTkFrame(cont)
+            caja.pack(fill="x", pady=5)
+            ctk.CTkLabel(caja, text=f"{pendiente.get('lev_folio')} · {pendiente.get('solicitante_nombre') or pendiente.get('solicitante_id')}", font=TITLE_MD).pack(anchor="w", padx=8, pady=4)
+            ctk.CTkLabel(caja, text=str(pendiente.get('motivo') or ''), wraplength=610, justify="left").pack(anchor="w", padx=8, pady=4)
+            comentario = ctk.CTkEntry(caja, placeholder_text="Motivo de resolución (obligatorio al rechazar)")
+            comentario.pack(fill="x", padx=8, pady=5)
+            fila = ctk.CTkFrame(caja, fg_color="transparent")
+            fila.pack(fill="x", padx=8, pady=8)
+            ctk.CTkButton(fila, text="Autorizar · 60 min", command=lambda it=pendiente, en=comentario, m=caja: decidir_entrada(True, it, en, m)).pack(side="left", padx=5)
+            ctk.CTkButton(fila, text="Rechazar", fg_color="#B91C1C", command=lambda it=pendiente, en=comentario, m=caja: decidir_entrada(False, it, en, m)).pack(side="left", padx=5)
+        def decidir_entrada(aceptar, item, entrada, marco):
+            try:
+                resolver(item['id'], aceptar, entrada.get())
+            except Exception as error:
+                messagebox.showerror("No se resolvió", str(error), parent=ventana_bandeja)
+                return
+            marco.destroy()
+
     def guardar_cambios():
+        if es_esi:
+            messagebox.showerror("Acceso protegido", "Las ESI solo pueden generar una nueva versión mediante autorización del servidor.")
+            return
         if es_obra_civil(seleccionado.get("registro")):
             original = seleccionado["registro"]
             if not seleccionado.get("editando"):
@@ -976,5 +1074,12 @@ def mostrar_conversion_orden_servicio(parent, app):
     )
     btn_convertir.grid(row=2, column=1, sticky="ew", padx=4, pady=4)
 
+    if es_esi:
+        btn_editar.configure(text="Verificar autorización", command=verificar_desbloqueo_esi, state="normal")
+        btn_guardar.configure(text="Solicitar edición", command=solicitar_edicion_esi, state="normal")
+        btn_validar.configure(state="disabled")
+        btn_convertir.configure(state="disabled")
+    elif tipo_usuario in (1, 2, 3):
+        ctk.CTkButton(acciones, text="Solicitudes ESI", command=bandeja_autorizaciones_esi, height=40).grid(row=3, column=0, columnspan=2, sticky="ew", padx=4, pady=4)
     _set_modo_edicion(False)
     ejecutar_busqueda()

@@ -150,6 +150,14 @@ def puede_generar_levantamiento(usuario_activo) -> bool:
     return obtener_tipo_usuario(usuario_activo) in ROLES_TODOS
 
 
+def puede_solicitar_edicion_esi(usuario_activo) -> bool:
+    return _es_rol(usuario_activo, ESPECIAL)
+
+
+def puede_resolver_edicion_esi(usuario_activo) -> bool:
+    return _es_rol(usuario_activo, ADMINISTRADOR, JEFE_OPERACIONES, SUPERVISOR)
+
+
 def puede_modificar_levantamientos(usuario_activo) -> bool:
     return _es_rol(
         usuario_activo,

@@ -239,7 +239,7 @@ from services.pdf_registro_service import generar_pdf_registro
 from services.mail_service import enviar_levantamiento_pdf
 from services.bitacora_evidencias_service import subir_evidencias_levantamiento, subir_archivos_levantamiento
 
-from security.permissions import puede_generar_levantamiento, puede_convertir_levantamiento_a_orden
+from security.permissions import puede_generar_levantamiento, puede_convertir_levantamiento_a_orden, obtener_tipo_usuario
 
 from views.levantamientos.catalogos_canalizacion import (
     TIPOS_TUBOS,
@@ -275,7 +275,7 @@ from views.levantamientos.form_definitions import (
 # =====================================================
 # FUNCIÓN: mostrar_levantamiento()
 # =====================================================
-def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, registro_editar=None, on_saved=None, modal=False, borrador=None):
+def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, registro_editar=None, on_saved=None, modal=False, borrador=None, autorizacion_esi=None):
 
     usuario_activo = obtener_usuario_actual()
 
@@ -5672,6 +5672,9 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     # =================================================
 
     def guardar_levantamiento():
+        if registro_editar and obtener_tipo_usuario(usuario_activo) == 6 and not autorizacion_esi:
+            messagebox.showerror("Edición protegida", "La edición ESI exige una autorización vigente verificada por el servidor.")
+            return
         folio = ""
         evidencias_previas = _json_list((registro_editar or {}).get("lev_evidencias_json")) if registro_editar else []
         archivos_previos = _json_list((registro_editar or {}).get("lev_archivos_adjuntos_json")) if registro_editar else list(archivos_adjuntos_existentes)
@@ -5831,7 +5834,16 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             datos["lev_archivos_adjuntos_json"] = registro_editar.get("lev_archivos_adjuntos_json") or "[]"
             datos["creado_por"] = usuario_activo.get("usuario")
             datos.pop("actualizado_por", None)
-            resultado = crear_levantamiento(datos)
+            if obtener_tipo_usuario(usuario_activo) == 6:
+                from services.autorizaciones_esi_service import guardar_revision
+                try:
+                    respuesta_esi = guardar_revision(registro_editar, datos, autorizacion_esi)
+                    resultado = [respuesta_esi] if isinstance(respuesta_esi, dict) else respuesta_esi
+                except Exception as error:
+                    messagebox.showerror("Edición no autorizada", str(error))
+                    return
+            else:
+                resultado = crear_levantamiento(datos)
         else:
             resultado = crear_levantamiento(datos)
 
