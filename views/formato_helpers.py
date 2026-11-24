@@ -727,6 +727,7 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
     def lp(value):
         return Paragraph(html_escape(str(value or "")).upper(), label)
 
+    ancho_bitacora = 6.55 * inch
     story = []
     folio = text("Folio Bitácora", "Folio de bitácora", "Folio BIT")
     fecha = text("Fecha")
@@ -739,7 +740,7 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
         [lp("Nombre del Encargado"), p(text("Nombre del Encargado", "Encargado del proyecto AXIA")), lp("Técnico(s)"), p(text("Técnico(s)", "Técnico en sitio"))],
         [lp("Hora de Llegada"), p(text("Hora de Llegada")), lp("Hora de Salida"), p(text("Hora de Salida"))],
     ]
-    general = Table(rows, colWidths=[1.32*inch, 2.16*inch, 1.20*inch, 2.22*inch])
+    general = Table(rows, colWidths=[1.25*inch, 2.05*inch, 1.14*inch, 2.11*inch], hAlign="LEFT")
     general.setStyle(TableStyle([
         ("GRID", (0,0), (-1,-1), 0.45, BORDER),
         ("BACKGROUND", (0,0), (0,-1), LIGHT_BLUE),
@@ -754,7 +755,7 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
     story.append(general)
     story.append(Spacer(1, 8))
 
-    desc_header = Table([[Paragraph("DESCRIPCIÓN DEL SERVICIO", header)]], colWidths=[6.90*inch])
+    desc_header = Table([[Paragraph("DESCRIPCIÓN DEL SERVICIO", header)]], colWidths=[ancho_bitacora], hAlign="LEFT")
     desc_header.setStyle(TableStyle([
         ("BACKGROUND", (0,0), (-1,-1), BLUE),
         ("BOX", (0,0), (-1,-1), 0.45, BORDER),
@@ -770,7 +771,7 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
         [p(linea)] if linea else [Spacer(1, normal.leading)]
         for linea in lineas_descripcion
     ]
-    desc_body = LongTable(filas_descripcion, colWidths=[6.90*inch], splitByRow=1)
+    desc_body = LongTable(filas_descripcion, colWidths=[ancho_bitacora], hAlign="LEFT", splitByRow=1)
     desc_body.setStyle(TableStyle([
         ("BOX", (0,0), (-1,-1), 0.45, BORDER),
         ("VALIGN", (0,0), (-1,-1), "TOP"),
@@ -793,7 +794,21 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
         ("TOPPADDING", (0,0), (-1,-1), 3),
         ("BOTTOMPADDING", (0,0), (-1,-1), 3),
     ]))
-    story.append(avance_tabla)
+    # El resumen conserva su tamaño compacto y termina en el mismo margen derecho
+    # que el resto de las secciones, sin depender del ancho total de la página.
+    avance_alineado = Table(
+        [["", avance_tabla]],
+        colWidths=[ancho_bitacora - 3.60 * inch, 3.60 * inch],
+        hAlign="LEFT",
+    )
+    avance_alineado.setStyle(TableStyle([
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ]))
+    story.append(avance_alineado)
 
     evidencias_raw = datos.get("Evidencia Fotográfica") or datos.get("Evidencias Fotográficas") or datos.get("Fotos") or []
     if isinstance(evidencias_raw, str):
@@ -884,7 +899,7 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
 
     if fotos_preparadas:
         story.append(Spacer(1, 8))
-        fotos_header = Table([[Paragraph("EVIDENCIA FOTOGRÁFICA", header)]], colWidths=[6.90 * inch])
+        fotos_header = Table([[Paragraph("EVIDENCIA FOTOGRÁFICA", header)]], colWidths=[ancho_bitacora], hAlign="LEFT")
         fotos_header.setStyle(TableStyle([
             ("BACKGROUND", (0,0), (-1,-1), BLUE),
             ("BOX", (0,0), (-1,-1), 0.45, BORDER),
@@ -896,6 +911,7 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
         filas_fotos = construir_filas_fotos(
             fotos_preparadas, estilo_texto=normal,
             color_borde=BORDER, color_pie=LIGHT_BLUE,
+            ancho_total=ancho_bitacora,
         )
 
         story.append(KeepTogether([fotos_header, Spacer(1, 5), filas_fotos[0]]))
