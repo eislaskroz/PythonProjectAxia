@@ -31,6 +31,15 @@ class BasePdfGenerator:
     TOP_MARGIN = 96
     BOTTOM_MARGIN = 78
 
+    LANDSCAPE_SIDE_MARGIN = 28
+    LANDSCAPE_TOP_MARGIN = 146
+    LANDSCAPE_BOTTOM_MARGIN = 62
+    FRAME_PADDING = 6
+
+    @classmethod
+    def landscape_body_width(cls, page_width=792):
+        return page_width - 2 * cls.LANDSCAPE_SIDE_MARGIN - 2 * cls.FRAME_PADDING
+
     @classmethod
     def canvas_factory(cls, title: str):
         def _factory(filename, pagesize=None, **kwargs):

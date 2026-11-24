@@ -128,8 +128,7 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
         return t
 
     page_w, _page_h = landscape(letter)
-    usable_width = page_w - 56  # 28 pt por lado
-    body_width = usable_width
+    body_width = BasePdfGenerator.landscape_body_width(page_w)
     story = []
 
     left_defs = [
@@ -226,6 +225,7 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
         ("observaciones", "OBSERVACIONES", "observaciones", 1.40),
     ]
     columnas = [(key, t, field, width) for key, t, field, width in columnas if ver(key)]
+    totals_anchor_width = 3.0 * inch
     if ver("partidas") and columnas:
         table_data = [[Paragraph(t, header) for _, t, _, _ in columnas]]
         for item in partidas:
@@ -238,6 +238,8 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
             table_data.append([p("", row_style, "")] * len(columnas))
         weights = [c[3] for c in columnas]
         widths = [body_width * w / sum(weights) for w in weights]
+        if len(widths) >= 3:
+            totals_anchor_width = sum(widths[-3:])
         commercial = LongTable(table_data, colWidths=widths, repeatRows=1, splitByRow=1, hAlign="LEFT")
         commercial.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), BLUE),
@@ -250,7 +252,7 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
             ("BOTTOMPADDING", (0, 0), (-1, -1), 1.4),
             ("ROWBACKGROUNDS", (0, 1), (-1, -1), [WHITE, colors.HexColor("#F8FAFC")]),
         ]))
-        story.extend([commercial, Spacer(1, 4)])
+        story.extend([commercial, Spacer(1, 1.5)])
 
     totals_defs = [
         ("subtotal", "SUBTOTAL", _money(cotizacion.get("cot_subtotal"))),
@@ -261,7 +263,9 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
     ]
     totals_rows = [[p(t, label, ""), p(v, label if k == "total" else normal, "")] for k, t, v in totals_defs if ver(k)]
     if ver("totales") and totals_rows:
-        totals = Table(totals_rows, colWidths=[1.55*inch, 1.45*inch], hAlign="RIGHT")
+        ancho_etiqueta_totales = max(1.55 * inch, totals_anchor_width * 0.54)
+        ancho_valor_totales = max(1.45 * inch, totals_anchor_width - ancho_etiqueta_totales)
+        totals = Table(totals_rows, colWidths=[ancho_etiqueta_totales, ancho_valor_totales], hAlign="RIGHT")
         totals.setStyle(TableStyle([
             ("GRID", (0, 0), (-1, -1), 0.45, BORDER),
             ("BACKGROUND", (0, 0), (0, -1), LIGHT_BLUE),
@@ -280,10 +284,10 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
     doc = SimpleDocTemplate(
         str(destino),
         pagesize=landscape(letter),
-        rightMargin=28,
-        leftMargin=28,
-        topMargin=146,
-        bottomMargin=62,
+        rightMargin=BasePdfGenerator.LANDSCAPE_SIDE_MARGIN,
+        leftMargin=BasePdfGenerator.LANDSCAPE_SIDE_MARGIN,
+        topMargin=BasePdfGenerator.LANDSCAPE_TOP_MARGIN,
+        bottomMargin=BasePdfGenerator.LANDSCAPE_BOTTOM_MARGIN,
         title=f"AXIA - Cotización {folio}",
         author="AXIA Comunicaciones S.A. de C.V.",
         subject="Cotización Comercial",

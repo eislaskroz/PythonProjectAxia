@@ -78,30 +78,59 @@ def exportar_registros_dialogo(registros, nombre_sugerido="exportacion_axia"):
             wb.save(ruta)
         elif ruta.suffix.lower() == ".pdf":
             from reportlab.lib.pagesizes import letter, landscape
-            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+            from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+            from reportlab.platypus import SimpleDocTemplate, LongTable, TableStyle, Paragraph, Spacer
             from reportlab.lib import colors
-            from reportlab.lib.styles import getSampleStyleSheet
+            from html import escape as html_escape
 
-            doc = SimpleDocTemplate(str(ruta), pagesize=landscape(letter), rightMargin=34, leftMargin=34, topMargin=76, bottomMargin=70)
+            page_width, _ = landscape(letter)
+            side_margin = BasePdfGenerator.LANDSCAPE_SIDE_MARGIN
+            content_width = BasePdfGenerator.landscape_body_width(page_width)
+            doc = SimpleDocTemplate(
+                str(ruta), pagesize=landscape(letter),
+                rightMargin=side_margin, leftMargin=side_margin,
+                topMargin=BasePdfGenerator.LANDSCAPE_TOP_MARGIN,
+                bottomMargin=BasePdfGenerator.LANDSCAPE_BOTTOM_MARGIN,
+            )
             doc.title = "AXIA - Exportación"
             doc.author = "AXIA Comunicaciones S.A. de C.V."
             doc.subject = "Reporte exportado por Sistema AXIA"
             doc.creator = "Sistema AXIA"
             estilos = getSampleStyleSheet()
-            contenido = [Paragraph("AXIA COMUNICACIONES", estilos["Title"]), Paragraph("Reporte de información", estilos["Heading2"]), Spacer(1, 10)]
-            datos_tabla = [columnas]
-            for registro in registros:
-                datos_tabla.append([str(registro.get(campo, "") or "")[:120] for campo in columnas])
-            tabla = Table(datos_tabla, repeatRows=1)
-            tabla.setStyle(TableStyle([
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1E3A8A")),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("FONTSIZE", (0, 0), (-1, -1), 7),
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ]))
-            contenido.append(tabla)
+            contenido = [Paragraph("Reporte de información", estilos["Heading2"]), Spacer(1, 10)]
+            if columnas:
+                n = len(columnas)
+                widths = [content_width / n] * n
+                header_style = ParagraphStyle(
+                    "AxiaExportHeader", parent=estilos["Normal"],
+                    fontName="Helvetica-Bold", fontSize=6, leading=7.5,
+                    textColor=colors.white,
+                )
+                value_style = ParagraphStyle(
+                    "AxiaExportValue", parent=estilos["Normal"],
+                    fontSize=6, leading=7.5,
+                )
+                def celda(valor, estilo):
+                    return Paragraph(html_escape(str(valor if valor is not None else "")), estilo)
+
+                datos_tabla = [[celda(nombre, header_style) for nombre in columnas]]
+                for registro in registros:
+                    datos_tabla.append([
+                        celda(str(registro.get(campo, "") or "")[:120], value_style)
+                        for campo in columnas
+                    ])
+                tabla = LongTable(datos_tabla, colWidths=widths, repeatRows=1,
+                                  splitByRow=1, hAlign="LEFT")
+                tabla.setStyle(TableStyle([
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1F4E79")),
+                    ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#8FA3B5")),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 3),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+                    ("TOPPADDING", (0, 0), (-1, -1), 3),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ]))
+                contenido.append(tabla)
 
             def _pagina_exportacion(canvas, documento):
                 BasePdfGenerator.draw_page(canvas, documento, title="Reporte de información")
