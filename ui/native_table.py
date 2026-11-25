@@ -51,7 +51,7 @@ class NativeTreeTable(ttk.Frame):
                   foreground=[("selected", "#FFFFFF")])
         style.configure("AXIA.Treeview.Heading", background="#0F172A", foreground="#FFFFFF",
                         relief="flat", padding=(10, 8), borderwidth=0,
-                        font=("Segoe UI", 10))
+                        font=("Poppins", 10))
         style.map("AXIA.Treeview.Heading", background=[("active", "#1E293B")])
         style.configure("Vertical.TScrollbar", troughcolor="#EEF4FF", background="#5B8DEF",
                         arrowcolor="#0F172A", borderwidth=0)
@@ -112,7 +112,7 @@ class NativeTreeTable(ttk.Frame):
             value = str(self.tree.set(row, key))
             available = self.tree.column(key, 'width') - 22
             if self._measure_font is None:
-                self._measure_font = tkfont.Font(root=self.tree, family='Segoe UI', size=10)
+                self._measure_font = tkfont.Font(root=self.tree, family='Poppins', size=10)
             if not value.strip() or self._measure_font.measure(value) <= available:
                 return
         except (IndexError, KeyError, ValueError, tk.TclError):
@@ -131,7 +131,7 @@ class NativeTreeTable(ttk.Frame):
             popup.wm_overrideredirect(True)
             popup.configure(background='#CBD5E1')
             label = tk.Label(popup, text=value, background='#FFFFFF',
-                             foreground='#0F172A', font=('Segoe UI', 10),
+                             foreground='#0F172A', font=('Poppins', 10),
                              justify='left', wraplength=540, padx=8, pady=6)
             label.pack(padx=1, pady=1)
             popup.update_idletasks()
@@ -203,7 +203,7 @@ class NativeTreeTable(ttk.Frame):
         self.tree.tag_configure("fila_blanca", background="#FFFFFF", foreground="#0F172A")
         self.tree.tag_configure("fila_azul", background="#EAF3FF", foreground="#0F172A")
         if self._measure_font is None:
-            self._measure_font = tkfont.Font(root=self.tree, family="Segoe UI", size=10)
+            self._measure_font = tkfont.Font(root=self.tree, family="Poppins", size=10)
         medidos: dict[str, int] = {}
         for iid in self.tree.get_children(""):
             valores = self.tree.item(iid, 'values')

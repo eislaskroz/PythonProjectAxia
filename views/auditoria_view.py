@@ -61,7 +61,7 @@ def mostrar_auditoria(parent, app):
     ctk.CTkLabel(
         encabezado,
         text="Auditoría del sistema",
-        font=("Montserrat", 19, "bold"),
+        font=("Poppins", 19, "bold"),
         text_color=TEXT_PRIMARY,
     ).pack(side="left")
 
@@ -270,7 +270,7 @@ def mostrar_auditoria(parent, app):
     lbl_tabla = ctk.CTkLabel(
         panel,
         text="Registros encontrados (0)",
-        font=("Montserrat", 16, "bold"),
+        font=("Poppins", 16, "bold"),
         text_color=TEXT_PRIMARY,
         anchor="w",
     )

@@ -104,7 +104,7 @@ def mostrar_selector_tipo_levantamiento(parent, app, aco=None):
         ctk.CTkLabel(
             encabezado,
             text=tipo["nombre"],
-            font=("Montserrat", 16, "bold"),
+            font=("Poppins", 16, "bold"),
             text_color=PRIMARY if tipo["habilitado"] else "#64748B",
             anchor="w",
             height=28,

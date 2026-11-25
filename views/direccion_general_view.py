@@ -209,7 +209,7 @@ def mostrar_direccion_general(parent, app):
                     hover_color='#EAF0F7',
                     text_color='#1F2937',
                     border_width=0,
-                    font=('Segoe UI', 11),
+                    font=('Poppins', 11),
                     command=lambda v=value: self._set_active(v)
                 )
                 btn.grid(
@@ -583,7 +583,7 @@ def mostrar_direccion_general(parent, app):
     actions = ctk.CTkFrame(root, fg_color='transparent')
     actions.pack(fill='x', pady=(10, 2))
 
-    FONT_ACTIONS = ('Segoe UI', 13)
+    FONT_ACTIONS = ('Poppins', 13)
 
     btn_refresh = ctk.CTkButton(
         actions,
@@ -783,14 +783,14 @@ def mostrar_direccion_general(parent, app):
                 y - 8,
                 text=str(counts[n]),
                 fill=TEXT_PRIMARY,
-                font=('Arial', 9, 'bold')
+                font=("Poppins", 9, 'bold')
             )
             chart.create_text(
                 x + barw / 2,
                 77,
                 text=n[:8],
                 fill=TEXT_SECONDARY,
-                font=('Arial', 8)
+                font=("Poppins", 8)
             )
 
         apply_filter()

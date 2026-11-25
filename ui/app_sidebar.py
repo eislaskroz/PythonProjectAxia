@@ -169,7 +169,7 @@ def crear_boton_sidebar(parent, texto, comando=None, habilitado=True):
         boton.create_text(17, 22, text=simbolo, fill=color,
                           font=("Segoe UI Symbol", 15), anchor="w")
         boton.create_text(47, 22, text=etiqueta, fill=color,
-                          font=("Segoe UI", 11, "normal"), anchor="w")
+                          font=("Poppins", 11, "normal"), anchor="w")
 
     def hover(_evento):
         estado["hover"] = True
@@ -427,13 +427,13 @@ def _crear_menu_acordeon(sidebar, menu_host, opciones, direccion):
                                font=("Segoe UI Symbol", 15), anchor="w", tags=(etiqueta,))
             activo = estado["opcion"] == ident and tipo == "opcion"
             canvas.create_text(x + 47, top + h // 2, text=titulo, anchor="w",
-                               font=("Segoe UI", 11, "normal"),
+                               font=("Poppins", 11, "normal"),
                                fill=blanco if tipo == "cabecera" or activo else secundario,
                                tags=(etiqueta,))
             if tipo == "cabecera":
                 canvas.create_text(x + w - 17, top + h // 2,
                                    text="▾" if estado["seccion"] == ident else "▸",
-                                   font=("Segoe UI", 13), fill=secundario,
+                                   font=("Poppins", 13), fill=secundario,
                                    anchor="center", tags=(etiqueta,))
             if activo:
                 canvas.create_rectangle(x + 3, top + 7, x + 6, top + h - 7,

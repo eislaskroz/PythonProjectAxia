@@ -1,5 +1,6 @@
-
 from __future__ import annotations
+
+from ui.pdf_fonts import FONT_PDF_REGULAR, FONT_PDF_BOLD
 
 import csv
 import json
@@ -103,7 +104,7 @@ def exportar_registros_dialogo(registros, nombre_sugerido="exportacion_axia"):
                 widths = [content_width / n] * n
                 header_style = ParagraphStyle(
                     "AxiaExportHeader", parent=estilos["Normal"],
-                    fontName="Helvetica-Bold", fontSize=6, leading=7.5,
+                    fontName=FONT_PDF_BOLD, fontSize=6, leading=7.5,
                     textColor=colors.white,
                 )
                 value_style = ParagraphStyle(

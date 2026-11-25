@@ -99,7 +99,7 @@ def mostrar_usuarios_admin(parent, app):
     if solo_rrhh:
         barra.grid(row=0, column=0, sticky="nsew", padx=(0, 4))
         ctk.CTkLabel(
-            barra, text="Buscar empleado", font=("Montserrat", 16, "bold"),
+            barra, text="Buscar empleado", font=("Poppins", 16, "bold"),
             text_color=TEXT_PRIMARY, anchor="w",
         ).grid(row=0, column=0, columnspan=2, sticky="ew", padx=10, pady=(5, 2))
     else:
@@ -153,7 +153,7 @@ def mostrar_usuarios_admin(parent, app):
         height=38,
         fg_color="transparent",
         border_width=0,
-        font=("Segoe UI", 13),
+        font=("Poppins", 13),
     )
     entry_busqueda.grid(row=0, column=1, sticky="ew", padx=(0, 12), pady=6)
 
@@ -214,7 +214,7 @@ def mostrar_usuarios_admin(parent, app):
     panel_resultados.grid_columnconfigure(0, weight=1)
 
     lbl_resultados = ctk.CTkLabel(
-        panel_resultados, text="Resultados (0)", font=("Montserrat", 16, "bold"),
+        panel_resultados, text="Resultados (0)", font=("Poppins", 16, "bold"),
         text_color=TEXT_PRIMARY, anchor="w",
     )
     lbl_resultados.grid(
@@ -262,7 +262,7 @@ def mostrar_usuarios_admin(parent, app):
     ctk.CTkLabel(
         panel_formulario,
         text="Expediente de personal" if solo_rrhh else "Datos del usuario",
-        font=("Montserrat", 18, "bold"),
+        font=("Poppins", 18, "bold"),
         text_color=TEXT_PRIMARY,
     ).pack(anchor="w", padx=10, pady=(9, 3))
 

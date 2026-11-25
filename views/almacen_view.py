@@ -136,7 +136,7 @@ def mostrar_almacen(parent, app=None):
     )
 
     tabs._segmented_button.configure(
-        font=('Segoe UI', 14),
+        font=('Poppins', 14),
         text_color=WHITE,
         corner_radius=8,
         height=44
@@ -246,7 +246,7 @@ def mostrar_almacen(parent, app=None):
         corner_radius=10,
         border_width=1,
         border_color='#52708F',
-        font=('Segoe UI', 13),
+        font=('Poppins', 13),
         text_color=WHITE,
         fg_color=SECONDARY,
         hover_color=BUTTON_HOVER,
@@ -257,7 +257,7 @@ def mostrar_almacen(parent, app=None):
 
     ctk.CTkButton(
         barra, text='Buscar', height=30, width=85,
-        font=('Segoe UI', 13), command=lambda: buscar_en_catalogo()
+        font=('Poppins', 13), command=lambda: buscar_en_catalogo()
     ).grid(row=0, column=2, padx=(2, 3))
 
     origen = ctk.CTkSegmentedButton(
@@ -306,7 +306,7 @@ def mostrar_almacen(parent, app=None):
     def boton_producto(texto, columna, callback, color=SECONDARY):
         btn = ctk.CTkButton(
             acciones, text=texto, width=138, height=36, corner_radius=10,
-            fg_color=color, hover_color=BUTTON_HOVER, font=('Segoe UI', 12),
+            fg_color=color, hover_color=BUTTON_HOVER, font=('Poppins', 12),
             command=callback
         )
         btn.grid(row=0, column=columna, padx=(0, 7), pady=2)
@@ -318,7 +318,7 @@ def mostrar_almacen(parent, app=None):
     boton_producto('Reactivar', 3, lambda: cambiar_estado_producto(True))
     ctk.CTkCheckBox(
         acciones, text='Ver inactivos', variable=var_inactivos,
-        command=lambda: mostrar_registros(), font=('Segoe UI', 12),
+        command=lambda: mostrar_registros(), font=('Poppins', 12),
         text_color=TEXT_PRIMARY
     ).grid(row=0, column=4, sticky='w', padx=(10, 0))
 
@@ -417,7 +417,7 @@ def mostrar_almacen(parent, app=None):
             text=texto_boton,
             image=icono_confirmar,
             compound='left',
-            font=('Segoe UI', 15),
+            font=('Poppins', 15),
             text_color=WHITE,
             fg_color=SECONDARY,
             hover_color=BUTTON_HOVER,
@@ -460,7 +460,7 @@ def mostrar_almacen(parent, app=None):
     construir_form(t_entrada, 'ENTRADA')
     if not servicio.remoto:
         ctk.CTkLabel(t_entrada, text='Modo simulador: los movimientos desaparecen al cerrar esta pantalla.',
-                     font=('Segoe UI',11), text_color='#A65E09').grid(row=8,column=0,columnspan=2,sticky='w',padx=14)
+                     font=('Poppins',11), text_color='#A65E09').grid(row=8,column=0,columnspan=2,sticky='w',padx=14)
 
     t_salida.grid_columnconfigure(0, weight=1)
     t_salida.grid_rowconfigure(1, weight=1)
@@ -538,7 +538,7 @@ def mostrar_almacen(parent, app=None):
     btn_guardar_ot.grid(row=10,column=0,columnspan=3,sticky='ew',padx=12,pady=(5,8))
     if not servicio.remoto:
         ctk.CTkLabel(formulario_ot,text='Modo simulador: OT no validada en Supabase; los saldos se pierden al cerrar.',
-                     font=('Segoe UI',11),text_color='#A65E09').grid(row=11,column=0,columnspan=3,sticky='w',padx=12)
+                     font=('Poppins',11),text_color='#A65E09').grid(row=11,column=0,columnspan=3,sticky='w',padx=12)
     partidas_ot = []
     ot_validada = {'folio':None,'pendientes':[]}
     intento_ot = {'firma':None,'id':None}
@@ -818,7 +818,7 @@ def mostrar_almacen(parent, app=None):
         height=42,
         width=200,
         corner_radius=10,
-        font=('Segoe UI', 14),
+        font=('Poppins', 14),
         text_color=WHITE,
         fg_color=SECONDARY,
         hover_color=BUTTON_HOVER,
@@ -852,13 +852,13 @@ def mostrar_almacen(parent, app=None):
     btn_reimprimir_etiqueta = ctk.CTkButton(
         filtrar_k, text='Reimprimir etiqueta', width=182, height=42,
         fg_color=SECONDARY, hover_color=BUTTON_HOVER, state='disabled',
-        font=('Segoe UI', 12), command=lambda: reimprimir_kardex('ENTRADA'),
+        font=('Poppins', 12), command=lambda: reimprimir_kardex('ENTRADA'),
     )
     btn_reimprimir_etiqueta.grid(row=0, column=2, sticky='ew', padx=(0, 8))
     btn_reimprimir_ticket = ctk.CTkButton(
         filtrar_k, text='Reimprimir ticket', width=182, height=42,
         fg_color=SECONDARY, hover_color=BUTTON_HOVER, state='disabled',
-        font=('Segoe UI', 12), command=lambda: reimprimir_kardex('SALIDA'),
+        font=('Poppins', 12), command=lambda: reimprimir_kardex('SALIDA'),
     )
     btn_reimprimir_ticket.grid(row=0, column=3, sticky='ew')
 

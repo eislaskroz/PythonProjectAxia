@@ -23,7 +23,7 @@ def cargar_logo_axia(size=(210, 210)):
     # =====================================================
     # CONSTRUIR RUTA COMPLETA DEL LOGO
     # =====================================================
-    ruta_logo = ruta_proyecto / "assets" / "LogoAxia-Full.png"
+    ruta_logo = ruta_proyecto / "assets" / "Isologo-con-fondo-blanco.png"
 
     # =====================================================
     # CARGAR IMAGEN

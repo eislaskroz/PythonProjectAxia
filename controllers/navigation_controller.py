@@ -941,14 +941,14 @@ class NavigationController:
         ctk.CTkLabel(
             card,
             text="Módulo en construcción",
-            font=("Montserrat", 22, "bold"),
+            font=("Poppins", 22, "bold"),
             text_color="#0F172A"
         ).pack(pady=(60, 5))
 
         ctk.CTkLabel(
             card,
             text="Esta sección todavía no está liberada. Las funciones operativas principales ya están disponibles desde el menú lateral.",
-            font=("Montserrat", 12),
+            font=("Poppins", 12),
             text_color="#475569",
             wraplength=650
         ).pack()

@@ -59,9 +59,9 @@ def mostrar_admin_registros(parent, app):
     cont.pack(fill="both", expand=True, padx=12, pady=7)
     top=ctk.CTkFrame(cont, fg_color=WHITE, corner_radius=12)
     top.pack(fill="x", pady=(0,8))
-    ctk.CTkLabel(top, text="Administración de Registros",font=("Montserrat",20,"bold"),text_color=TEXT_PRIMARY).pack(anchor="w",padx=13,pady=(9,2))
+    ctk.CTkLabel(top, text="Administración de Registros",font=("Poppins",20,"bold"),text_color=TEXT_PRIMARY).pack(anchor="w",padx=13,pady=(9,2))
     ctk.CTkLabel(top, text="Solo Administrador · Cambios auditados · Sin eliminación en cascada · Folios y relaciones protegidos",
-                 text_color=TEXT_SECONDARY,font=("Montserrat",11)).pack(anchor="w",padx=13,pady=(0,8))
+                 text_color=TEXT_SECONDARY,font=("Poppins",11)).pack(anchor="w",padx=13,pady=(0,8))
     controles=ctk.CTkFrame(top,fg_color="transparent")
     controles.pack(fill="x", padx=10, pady=(0,10))
     tipo=ctk.StringVar(value=next(iter(TIPOS)))
@@ -159,7 +159,7 @@ def mostrar_admin_registros(parent, app):
             win.transient(root)
             centrar_ventana(win, 980, 520, padre=root)
             ctk.CTkLabel(win,text="Últimos 75 cambios, incluidos registros eliminados",
-                font=("Montserrat",15,"bold")).pack(anchor="w",padx=15,pady=10)
+                font=("Poppins",15,"bold")).pack(anchor="w",padx=15,pady=10)
             tabla_auditoria=NativeTreeTable(win,columns=(
                 ("fecha","Fecha",185),("folio","Folio",145),("accion","Acción",100),
                 ("usuario","Administrador",175),("motivo","Motivo",320)),
@@ -192,7 +192,7 @@ def dialogo_registro(tabla, original, clave, root, *, editar=False, eliminar=Fal
     centrar_ventana(ventana, 920, 710, padre=root)
     marco=ctk.CTkFrame(ventana,fg_color="transparent")
     marco.pack(fill="both",expand=True,padx=12,pady=8)
-    ctk.CTkLabel(marco,text=f"{folio}   |   {identificador}",font=("Montserrat",18,"bold")).pack(anchor="w",pady=4)
+    ctk.CTkLabel(marco,text=f"{folio}   |   {identificador}",font=("Poppins",18,"bold")).pack(anchor="w",pady=4)
     ctk.CTkLabel(marco,text="Los folios, IDs, relaciones, firmas y evidencias no se modifican aquí.",text_color="#64748B").pack(anchor="w",pady=(0,8))
     zona=ctk.CTkScrollableFrame(marco,fg_color="#F7F9FC")
     zona.pack(fill="both",expand=True)

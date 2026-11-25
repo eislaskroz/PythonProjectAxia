@@ -93,7 +93,7 @@ class NativeComboBox(ttk.Combobox):
         if width is not None:
             ttk_kwargs["width"] = max(8, min(80, int(width / 9)))
         if font is None:
-            font = ("Montserrat", 11)
+            font = ("Poppins", 11)
         ttk_kwargs["font"] = font
         ttk_kwargs.update(kwargs)
 

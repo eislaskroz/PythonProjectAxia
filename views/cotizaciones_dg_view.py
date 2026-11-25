@@ -24,7 +24,7 @@ def mostrar_cotizaciones_dg(parent, app=None):
     root.pack(fill="both", expand=True, padx=14, pady=10)
     root.grid_columnconfigure(0, weight=1)
     root.grid_rowconfigure(1, weight=1)
-    ctk.CTkLabel(root, text="Cotizaciones pendientes de autorización — DG", font=("Montserrat", 19, "bold"), anchor="w").grid(
+    ctk.CTkLabel(root, text="Cotizaciones pendientes de autorización — DG", font=("Poppins", 19, "bold"), anchor="w").grid(
         row=0, column=0, sticky="ew", pady=(0, 9))
     panel = ctk.CTkFrame(root, fg_color=WHITE)
     panel.grid(row=1, column=0, sticky="nsew")

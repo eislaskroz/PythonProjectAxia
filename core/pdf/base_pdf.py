@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ui.pdf_fonts import FONT_PDF_REGULAR, FONT_PDF_BOLD
+
 from core.logger import configurar_logger
 
 logger = configurar_logger(__name__)
@@ -84,19 +86,19 @@ class BasePdfGenerator:
 
         if visible_title:
             canvas.setFillColor(cls.PRIMARY)
-            canvas.setFont("Helvetica-Bold", 13)
+            canvas.setFont(FONT_PDF_BOLD, 13)
             canvas.drawCentredString(width / 2, height - 88, visible_title)
 
         canvas.setFillColor(cls.TEXT)
-        canvas.setFont("Helvetica", 6.5)
+        canvas.setFont(FONT_PDF_REGULAR, 6.5)
         if width > height:
             canvas.setFillColor(colors.white)
-            canvas.setFont("Helvetica-Bold", 6.2)
+            canvas.setFont(FONT_PDF_BOLD, 6.2)
             canvas.drawString(33, 18, "55-49-89-34-64")
             canvas.drawString(150, 18, "www.axiacomunicaciones.com")
             canvas.drawString(345, 18, "Álvaro Obregón Manzana 2, Lote 3 - 55630 San Juan de Guadalupe, Méx.")
             canvas.setFillColor(cls.TEXT)
-            canvas.setFont("Helvetica", 6.5)
+            canvas.setFont(FONT_PDF_REGULAR, 6.5)
             canvas.drawRightString(width - cls.RIGHT_MARGIN, 62, f"Página {document.page}")
         else:
             canvas.drawRightString(width - cls.RIGHT_MARGIN, 72, f"Página {document.page}")
@@ -109,7 +111,7 @@ class BasePdfGenerator:
             "normal": ParagraphStyle(
                 "AxiaPdfNormal",
                 parent=base["Normal"],
-                fontName="Helvetica",
+                fontName=FONT_PDF_REGULAR,
                 fontSize=7.4,
                 leading=9.2,
                 textColor=cls.TEXT,
@@ -117,7 +119,7 @@ class BasePdfGenerator:
             "title": ParagraphStyle(
                 "AxiaPdfTitle",
                 parent=base["Title"],
-                fontName="Helvetica-Bold",
+                fontName=FONT_PDF_BOLD,
                 fontSize=14,
                 leading=16,
                 alignment=1,
@@ -135,7 +137,7 @@ class BasePdfGenerator:
             "section": ParagraphStyle(
                 "AxiaPdfSection",
                 parent=base["Heading2"],
-                fontName="Helvetica-Bold",
+                fontName=FONT_PDF_BOLD,
                 fontSize=8.7,
                 leading=10.5,
                 textColor=cls.PRIMARY,
@@ -143,7 +145,7 @@ class BasePdfGenerator:
             "table_header": ParagraphStyle(
                 "AxiaPdfTableHeader",
                 parent=base["Normal"],
-                fontName="Helvetica-Bold",
+                fontName=FONT_PDF_BOLD,
                 fontSize=7.0,
                 leading=8.4,
                 textColor=colors.white,

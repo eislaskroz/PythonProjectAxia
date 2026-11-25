@@ -83,7 +83,7 @@ def mostrar_admin_operational_editor(parent, app, config):
         height=38,
         fg_color="transparent",
         border_width=0,
-        font=("Segoe UI", 13),
+        font=("Poppins", 13),
     )
     ent_search.grid(row=0, column=1, sticky="ew", padx=(0, 12), pady=6)
 

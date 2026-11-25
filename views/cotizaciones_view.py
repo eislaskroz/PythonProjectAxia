@@ -213,10 +213,10 @@ def mostrar_cotizaciones(parent, app=None):
         lbl_total.configure(text=f"Total: ${total:,.2f} MXN")
 
     def add_field(parent_frame, row, col, label, key, value="", readonly=False, colspan=1):
-        ctk.CTkLabel(parent_frame, text=label, font=("Montserrat", 10), text_color=TEXT_PRIMARY, anchor="w").grid(
+        ctk.CTkLabel(parent_frame, text=label, font=("Poppins", 10), text_color=TEXT_PRIMARY, anchor="w").grid(
             row=row*2, column=col, columnspan=colspan, sticky="ew", padx=4, pady=(1,0))
         var = ctk.StringVar(value=str(value or "")); estado["vars"][key] = var
-        ent = AxiaEntry(parent_frame, textvariable=var, height=25, font=("Montserrat", 11))
+        ent = AxiaEntry(parent_frame, textvariable=var, height=25, font=("Poppins", 11))
         ent.grid(row=row*2+1, column=col, columnspan=colspan, sticky="ew", padx=4, pady=(0,2))
         if key in {"cot_dias", "cot_personas", "cot_vigencia"}:
             aplicar_mascara_numerica(ent, var, INTEGER)
@@ -230,7 +230,7 @@ def mostrar_cotizaciones(parent, app=None):
         return var
 
     def add_select(parent_frame, row, col, label, key, values, value="", colspan=1, placeholder=None):
-        ctk.CTkLabel(parent_frame, text=label, font=("Montserrat", 10), text_color=TEXT_PRIMARY, anchor="w").grid(
+        ctk.CTkLabel(parent_frame, text=label, font=("Poppins", 10), text_color=TEXT_PRIMARY, anchor="w").grid(
             row=row*2, column=col, columnspan=colspan, sticky="ew", padx=4, pady=(1,0))
         opciones = [str(x).strip() for x in (values or []) if str(x).strip()]
         hay_personal = bool(opciones)
@@ -240,7 +240,7 @@ def mostrar_cotizaciones(parent, app=None):
         coincidencia = next((op for op in opciones if op.casefold() == actual.casefold()), None)
         actual = coincidencia if coincidencia is not None else (opciones[0] if opciones else "")
         var = ctk.StringVar(value=actual); estado["vars"][key] = var
-        menu = ctk.CTkOptionMenu(parent_frame, variable=var, values=opciones or ["SIN PERSONAL REGISTRADO"], height=25, font=("Montserrat", 11))
+        menu = ctk.CTkOptionMenu(parent_frame, variable=var, values=opciones or ["SIN PERSONAL REGISTRADO"], height=25, font=("Poppins", 11))
         menu.grid(row=row*2+1, column=col, columnspan=colspan, sticky="ew", padx=4, pady=(0,2))
         if not hay_personal:
             menu.configure(state="disabled")
@@ -464,7 +464,7 @@ def mostrar_cotizaciones(parent, app=None):
                 encabezado = ctk.CTkLabel(
                     card,
                     text=f"Lote {item.get('lote', i+1)} · {item.get('concepto', '')}",
-                    font=("Montserrat", 11, "bold"), text_color=TEXT_PRIMARY,
+                    font=("Poppins", 11, "bold"), text_color=TEXT_PRIMARY,
                     anchor="w", justify="left", wraplength=1240,
                 )
                 encabezado.grid(row=0, column=0, columnspan=24, sticky="ew", padx=7, pady=(4, 1))
@@ -478,12 +478,12 @@ def mostrar_cotizaciones(parent, app=None):
                     celda.grid(row=fila, column=columna, columnspan=ancho,
                                sticky="ew", padx=3, pady=(0, 2))
                     ctk.CTkLabel(
-                        celda, text=etiqueta, font=("Montserrat", 9),
+                        celda, text=etiqueta, font=("Poppins", 9),
                         text_color=TEXT_SECONDARY, anchor="w", height=15,
                     ).pack(fill="x")
                     variable = vars_item[clave]
                     ent = AxiaEntry(celda, textvariable=variable, height=25,
-                                    font=("Montserrat", 10))
+                                    font=("Poppins", 10))
                     ent.pack(fill="x")
                     if clave in {"precio_lista", "costo", "precio_venta", "precio_unitario", "importe"}:
                         aplicar_mascara_numerica(ent, variable, MONEY)
@@ -568,7 +568,7 @@ def mostrar_cotizaciones(parent, app=None):
                 boton_detalles = ctk.CTkButton(
                     card, text="▼ Más detalles", height=27, corner_radius=8,
                     fg_color="#E7EFF8", hover_color="#DAE7F5", text_color="#1F4E79",
-                    font=("Montserrat", 10, "bold"),
+                    font=("Poppins", 10, "bold"),
                 )
                 boton_detalles.configure(command=lambda panel=zona_detalles,
                                         visual=detalles_abiertos, boton=boton_detalles:
@@ -580,7 +580,7 @@ def mostrar_cotizaciones(parent, app=None):
                 if estado["modo_edicion"]:
                     btn_eliminar = ctk.CTkButton(
                         card, text="Quitar partida", height=25, width=116,
-                        fg_color="#B91C1C", hover_color="#991B1B", font=("Montserrat", 10),
+                        fg_color="#B91C1C", hover_color="#991B1B", font=("Poppins", 10),
                         command=lambda indice=i: quitar_partida(indice),
                     )
                     btn_eliminar.grid(row=0, column=20, columnspan=4, sticky="e", padx=6, pady=(4, 1))
@@ -694,7 +694,7 @@ def mostrar_cotizaciones(parent, app=None):
         chk_servicio = ctk.CTkCheckBox(
             barra_partidas, text="Incluir costo de servicio / mano de obra / envío (opcional)",
             variable=incluir_servicio, command=alternar_servicio,
-            font=("Montserrat", 11), text_color=TEXT_PRIMARY,
+            font=("Poppins", 11), text_color=TEXT_PRIMARY,
         )
         chk_servicio.grid(row=0, column=1, sticky="w")
         if not estado["modo_edicion"]:

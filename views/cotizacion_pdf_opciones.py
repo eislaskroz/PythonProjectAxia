@@ -32,17 +32,17 @@ def solicitar_campos_pdf(parent):
     ventana.minsize(480, min(420, alto))
     resultado = {"valor": None}
     vars_ = {key: ctk.BooleanVar(master=ventana, value=True) for key in TODOS_CAMPOS_PDF}
-    ctk.CTkLabel(ventana, text="¿Qué campos deseas incluir en el PDF?", font=("Montserrat", 17, "bold"), text_color=TEXT_PRIMARY).pack(anchor="w", padx=18, pady=(15, 3))
+    ctk.CTkLabel(ventana, text="¿Qué campos deseas incluir en el PDF?", font=("Poppins", 17, "bold"), text_color=TEXT_PRIMARY).pack(anchor="w", padx=18, pady=(15, 3))
     ctk.CTkLabel(ventana, text="Aplica solo a este PDF; no modifica la cotización guardada.", text_color="#64748B").pack(anchor="w", padx=18, pady=(0, 10))
     body = ctk.CTkScrollableFrame(ventana)
     body.pack(fill="both", expand=True, padx=16, pady=(0, 8))
     for title, fields in CAMPOS_PDF:
-        ctk.CTkLabel(body, text=title, font=("Montserrat", 13, "bold"), anchor="w").pack(fill="x", pady=(9, 3))
+        ctk.CTkLabel(body, text=title, font=("Poppins", 13, "bold"), anchor="w").pack(fill="x", pady=(9, 3))
         grid = ctk.CTkFrame(body, fg_color="transparent")
         grid.pack(fill="x")
         grid.grid_columnconfigure((0, 1), weight=1)
         for i, (key, text) in enumerate(fields):
-            ctk.CTkCheckBox(grid, text=text, variable=vars_[key], font=("Montserrat", 11)).grid(
+            ctk.CTkCheckBox(grid, text=text, variable=vars_[key], font=("Poppins", 11)).grid(
                 row=i // 2, column=i % 2, sticky="w", padx=5, pady=5)
     actions = ctk.CTkFrame(ventana, fg_color="transparent")
     actions.pack(fill="x", padx=18, pady=(3, 14))

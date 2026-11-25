@@ -46,7 +46,7 @@ def _crear_card_resultado(parent, registro, configuracion):
     ctk.CTkLabel(
         card,
         text=f"📄 {folio}",
-        font=("Montserrat", 14, "bold"),
+        font=("Poppins", 14, "bold"),
         text_color=TEXT_PRIMARY,
         anchor="w"
     ).pack(fill="x", padx=8, pady=(6, 2))

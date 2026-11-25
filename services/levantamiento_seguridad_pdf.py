@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ui.pdf_fonts import FONT_PDF_REGULAR, FONT_PDF_BOLD
+
 import base64
 import json
 import re
@@ -661,7 +663,7 @@ def generar_pdf_seguridad_instalacion(
     label = ParagraphStyle(
         "AxiaMasterLabel",
         parent=normal,
-        fontName="Helvetica-Bold",
+        fontName=FONT_PDF_BOLD,
         fontSize=7.0,
         leading=8.4,
         textColor=BasePdfGenerator.PRIMARY,
@@ -1364,7 +1366,7 @@ def generar_pdf_levantamiento_maestro(
     normal = styles["normal"]
     header = styles["table_header"]
     label = ParagraphStyle(
-        "AxiaMasterLabelGeneral", parent=normal, fontName="Helvetica-Bold",
+        "AxiaMasterLabelGeneral", parent=normal, fontName=FONT_PDF_BOLD,
         fontSize=7.0, leading=8.4, textColor=BasePdfGenerator.PRIMARY,
     )
     detail = _detail(registro)

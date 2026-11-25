@@ -39,9 +39,9 @@ from ui.fonts import (
     BUTTON_FONT
 )
 
-FORM_FIELD_FONT = ("Montserrat", 11)
-FORM_SECTION_FONT = ("Montserrat", 13, "bold")
-FORM_TABLE_HEADER_FONT = ("Montserrat", 11)
+FORM_FIELD_FONT = ("Poppins", 11)
+FORM_SECTION_FONT = ("Poppins", 13, "bold")
+FORM_TABLE_HEADER_FONT = ("Poppins", 11)
 FORM_CONTROL_HEIGHT = 30
 
 
@@ -53,7 +53,7 @@ def _buscador_catalogo_independiente(parent, opciones, agregar, etiqueta, texto_
     variable = ctk.StringVar()
     entrada = ctk.CTkEntry(marco, textvariable=variable, height=32, placeholder_text="Escribe para buscar en el catálogo...")
     entrada.grid(row=1, column=0, sticky="ew", padx=(0, 10))
-    lista = tk.Listbox(marco, height=5, exportselection=False, font=("Montserrat", 10),
+    lista = tk.Listbox(marco, height=5, exportselection=False, font=("Poppins", 10),
                        activestyle="dotbox", selectmode=tk.SINGLE, relief="solid", borderwidth=1,
                        bg="#FFFFFF", fg="#102A43", selectbackground="#DBEAFE", selectforeground="#102A43")
     lista.grid(row=2, column=0, sticky="ew", pady=(3, 0))
@@ -156,7 +156,7 @@ def _abrir_selector_dias_horario(parent, variable):
     except Exception:
         pass
 
-    ctk.CTkLabel(win, text="Días y horario permitido para trabajo", font=("Montserrat", 16, "bold")).pack(anchor="w", padx=22, pady=(20, 5))
+    ctk.CTkLabel(win, text="Días y horario permitido para trabajo", font=("Poppins", 16, "bold")).pack(anchor="w", padx=22, pady=(20, 5))
     ctk.CTkLabel(win, text="Selecciona los días. El horario será el mismo para todos.", font=FORM_FIELD_FONT, text_color=TEXT_SECONDARY).pack(anchor="w", padx=22, pady=(0, 12))
 
     caja_dias = ctk.CTkFrame(win, fg_color="#F7F9FC", corner_radius=12)
@@ -176,14 +176,14 @@ def _abrir_selector_dias_horario(parent, variable):
 
     caja_hora = ctk.CTkFrame(win, fg_color="transparent")
     caja_hora.pack(fill="x", padx=22, pady=4)
-    ctk.CTkLabel(caja_hora, text="Hora de inicio", font=("Montserrat", 11)).grid(row=0, column=0, columnspan=3, sticky="w", pady=(0,4))
-    ctk.CTkLabel(caja_hora, text="Hora de término", font=("Montserrat", 11)).grid(row=0, column=4, columnspan=3, sticky="w", padx=(35,0), pady=(0,4))
+    ctk.CTkLabel(caja_hora, text="Hora de inicio", font=("Poppins", 11)).grid(row=0, column=0, columnspan=3, sticky="w", pady=(0,4))
+    ctk.CTkLabel(caja_hora, text="Hora de término", font=("Poppins", 11)).grid(row=0, column=4, columnspan=3, sticky="w", padx=(35,0), pady=(0,4))
     vi_h, vi_m, vf_h, vf_m = ctk.StringVar(value=hi_h), ctk.StringVar(value=hi_m), ctk.StringVar(value=hf_h), ctk.StringVar(value=hf_m)
     ctk.CTkOptionMenu(caja_hora, variable=vi_h, values=horas, width=75).grid(row=1,column=0)
-    ctk.CTkLabel(caja_hora, text=":", font=("Montserrat", 16, "bold")).grid(row=1,column=1,padx=4)
+    ctk.CTkLabel(caja_hora, text=":", font=("Poppins", 16, "bold")).grid(row=1,column=1,padx=4)
     ctk.CTkOptionMenu(caja_hora, variable=vi_m, values=minutos, width=75).grid(row=1,column=2)
     ctk.CTkOptionMenu(caja_hora, variable=vf_h, values=horas, width=75).grid(row=1,column=4,padx=(35,0))
-    ctk.CTkLabel(caja_hora, text=":", font=("Montserrat", 16, "bold")).grid(row=1,column=5,padx=4)
+    ctk.CTkLabel(caja_hora, text=":", font=("Poppins", 16, "bold")).grid(row=1,column=5,padx=4)
     ctk.CTkOptionMenu(caja_hora, variable=vf_m, values=minutos, width=75).grid(row=1,column=6)
 
     def guardar():
@@ -1340,7 +1340,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             return "".join(letra for letra in descompuesto if not unicodedata.combining(letra)).casefold()
 
         resultados = tk.Listbox(
-            fila_selector, height=5, exportselection=False, font=("Montserrat", 10),
+            fila_selector, height=5, exportselection=False, font=("Poppins", 10),
             selectmode=tk.SINGLE, relief="solid", borderwidth=1,
             bg="#FFFFFF", fg="#102A43", selectbackground="#DBEAFE",
             selectforeground="#102A43", activestyle="none",
@@ -1398,7 +1398,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             fg_color="transparent",
             hover_color="#EFF6FF",
             text_color=PRIMARY,
-            font=("Montserrat", 17),
+            font=("Poppins", 17),
             command=alternar_busqueda,
         )
         boton_buscar.grid(row=0, column=1, sticky="e", padx=(3, 0))
@@ -2891,7 +2891,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
 
                 switch = ctk.CTkSwitch(
                     seccion_extra, text="Agregar información adicional", variable=switch_var,
-                    command=_alternar_opcional, font=("Montserrat", 10),
+                    command=_alternar_opcional, font=("Poppins", 10),
                     onvalue=True, offvalue=False
                 )
                 switch.grid(row=0, column=3, columnspan=2, sticky="e", padx=(6, 12), pady=(5, 3))
@@ -3075,7 +3075,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                                                width=370, height=32, placeholder_text="Escribe material o tipo...")
         entrada_buscar_material.grid(row=3, column=1, columnspan=2, sticky="ew", padx=5, pady=(0, 4))
         resultados_busqueda = tk.Listbox(seccion_canalizacion_dinamica, height=5, exportselection=False,
-                                         font=("Montserrat", 10), activestyle="dotbox", selectmode=tk.SINGLE,
+                                         font=("Poppins", 10), activestyle="dotbox", selectmode=tk.SINGLE,
                                          relief="solid", borderwidth=1, bg="#FFFFFF", fg="#102A43",
                                          selectbackground="#DBEAFE", selectforeground="#102A43")
         indice_busqueda = []
@@ -3260,7 +3260,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
                 programar_actualizacion_estado_preview()
 
             btn_eliminar = ctk.CTkButton(seccion_canalizacion_dinamica, text="✕", width=34,
-                                         height=30, corner_radius=11, font=("Arial", 17, "bold"),
+                                         height=30, corner_radius=11, font=("Poppins", 17, "bold"),
                                          fg_color="#DC2626", hover_color="#B91C1C", command=eliminar)
             btn_eliminar.grid(row=fila, column=8, padx=3, pady=2)
             item["widgets"].append(btn_eliminar)
@@ -6157,7 +6157,7 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
             boton = ctk.CTkButton(
                 frame, text="✏️ Habilitar edición", width=145, height=27,
                 corner_radius=8, fg_color="#1F4E79", hover_color="#173B5C",
-                font=("Montserrat", 10), command=alternar
+                font=("Poppins", 10), command=alternar
             )
             try:
                 boton.place(relx=0.992, y=5, anchor="ne")

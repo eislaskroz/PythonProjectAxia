@@ -242,7 +242,7 @@ class FormularioSeccionado:
         marco.pack(fill='x', padx=7, pady=6)
         cabecera = ctk.CTkFrame(marco, fg_color='transparent')
         cabecera.pack(fill='x', padx=13, pady=(8, 2))
-        ctk.CTkLabel(cabecera, text=titulo, font=('Montserrat', 14, 'bold'),
+        ctk.CTkLabel(cabecera, text=titulo, font=('Poppins', 14, 'bold'),
                      text_color=TEXT_PRIMARY).pack(side='left')
         self.desbloqueadas[titulo] = False
         controles_seccion = []
@@ -259,7 +259,7 @@ class FormularioSeccionado:
                               fg_color='#000A8B', corner_radius=11, command=alternar)
         boton.pack(side='right', padx=2)
         ctk.CTkLabel(marco, text='Solo esta sección podrá modificarse al desbloquearla.',
-                     font=('Montserrat', 10), text_color=TEXT_SECONDARY).pack(anchor='w',padx=13,pady=(0,5))
+                     font=('Poppins', 10), text_color=TEXT_SECONDARY).pack(anchor='w',padx=13,pady=(0,5))
         contenido = ctk.CTkFrame(marco, fg_color='transparent')
         contenido.pack(fill='x', padx=11, pady=(0,10))
         for col in range(3):
@@ -274,7 +274,7 @@ class FormularioSeccionado:
             caja = ctk.CTkFrame(contenido, fg_color='transparent')
             caja.grid(row=fila, column=columna, columnspan=ncolumnas, sticky='ew', padx=4, pady=(0,9))
             ctk.CTkLabel(caja, text=NOMBRES.get(campo, _nombre_clave(campo)),
-                         font=('Montserrat', 11), text_color=TEXT_PRIMARY).pack(anchor='w', pady=(0,2))
+                         font=('Poppins', 11), text_color=TEXT_PRIMARY).pack(anchor='w', pady=(0,2))
             control = self._construir_control(caja, campo, titulo, valor)
             self.controles[campo] = control
             controles_seccion.append(campo)
@@ -288,9 +288,9 @@ class FormularioSeccionado:
     def _construir_control(self, padre, campo, seccion, valor):
         if RELACIONES_PROTEGIDAS.get(campo) and self.original.get(RELACIONES_PROTEGIDAS[campo]):
             ctk.CTkLabel(padre, text=str(valor or '—'), anchor='w',
-                         font=('Montserrat',11),text_color=TEXT_PRIMARY).pack(anchor='w',pady=4)
+                         font=('Poppins',11),text_color=TEXT_PRIMARY).pack(anchor='w',pady=4)
             ctk.CTkLabel(padre,text='Vinculado a un ID: cambiarlo requiere reasignación segura.',
-                         font=('Montserrat',9),text_color=TEXT_SECONDARY).pack(anchor='w')
+                         font=('Poppins',9),text_color=TEXT_SECONDARY).pack(anchor='w')
             return ControlAdmin(campo,seccion,lambda:valor,lambda activo:None)
         if campo.endswith('_json'):
             obj, es_cadena = _analizar_json(valor)
@@ -329,7 +329,7 @@ class FormularioSeccionado:
             selector = NativeComboBox(padre, variable=variable, values=codigos, state='disabled')
             selector.pack(fill='x')
             ctk.CTkLabel(padre, text='Código del estado; se conserva la numeración del registro.',
-                         text_color=TEXT_SECONDARY, font=('Montserrat', 9)).pack(anchor='w')
+                         text_color=TEXT_SECONDARY, font=('Poppins', 9)).pack(anchor='w')
             return ControlAdmin(campo, seccion, lambda: _convertir_hoja(variable.get(), valor),
                                 lambda activo: selector.configure(state='readonly' if activo else 'disabled'))
 
@@ -392,7 +392,7 @@ class FormularioSeccionado:
         selector.pack(side='left',fill='x',expand=True,padx=(0,4))
         self._catalogo_control.append((campo,selector,''))
         etiqueta = ctk.CTkLabel(padre, text=original or 'Sin técnicos',
-                                text_color=TEXT_SECONDARY,font=('Montserrat',10),
+                                text_color=TEXT_SECONDARY,font=('Poppins',10),
                                 anchor='w',justify='left',wraplength=570)
         etiqueta.pack(anchor='w',fill='x',pady=(3,0))
         def refrescar():
@@ -430,7 +430,7 @@ class FormularioSeccionado:
         if campo == 'ot_partidas_json' and isinstance(base,list):
             return self._control_partidas(padre,campo,seccion,base,es_cadena,original)
         ctk.CTkLabel(padre,text='Respuestas técnicas guardadas · conservan su estructura',
-                     text_color=TEXT_SECONDARY,font=('Montserrat',10)).pack(anchor='w',pady=2)
+                     text_color=TEXT_SECONDARY,font=('Poppins',10)).pack(anchor='w',pady=2)
         grupo = ctk.CTkFrame(padre, fg_color='#F6F8FC', corner_radius=8)
         grupo.pack(fill='x', padx=1, pady=3)
         hojas = []
@@ -439,21 +439,21 @@ class FormularioSeccionado:
                 for llave, sub in nodo.items():
                     if isinstance(sub,(dict,list)):
                         titulo = ctk.CTkLabel(grupo,text='  '*min(nivel,4)+_nombre_clave(llave),
-                                             font=('Montserrat',11,'bold'),text_color=TEXT_PRIMARY)
+                                             font=('Poppins',11,'bold'),text_color=TEXT_PRIMARY)
                         titulo.pack(anchor='w',padx=9,pady=(7,1))
                     crear(sub,ruta+(llave,),nivel+1)
             elif isinstance(nodo,list):
                 for i, sub in enumerate(nodo):
                     if isinstance(sub,(dict,list)):
                         ctk.CTkLabel(grupo,text=f'Elemento {i+1}',text_color=TEXT_SECONDARY,
-                                     font=('Montserrat',10,'bold')).pack(anchor='w',padx=12,pady=(5,0))
+                                     font=('Poppins',10,'bold')).pack(anchor='w',padx=12,pady=(5,0))
                     crear(sub,ruta+(i,),nivel+1)
             elif ruta:
                 etiqueta = _nombre_clave(ruta[-1]) if isinstance(ruta[-1],str) else f'Valor {ruta[-1]+1}'
                 caja = ctk.CTkFrame(grupo,fg_color='transparent')
                 caja.pack(fill='x',padx=10,pady=2)
                 ctk.CTkLabel(caja,text=etiqueta,width=235,anchor='w',wraplength=225,
-                             font=('Montserrat',10)).pack(side='left',padx=(0,7))
+                             font=('Poppins',10)).pack(side='left',padx=(0,7))
                 v=ctk.StringVar(value=('Sí' if nodo else 'No') if isinstance(nodo,bool) else '' if nodo is None else str(nodo))
                 if isinstance(nodo,bool):
                     control=NativeComboBox(caja,variable=v,values=['Sí','No'],state='disabled')
@@ -496,7 +496,7 @@ class FormularioSeccionado:
                 columna=ctk.CTkFrame(linea,fg_color='transparent')
                 columna.grid(row=0,column=i,sticky='ew',padx=2,pady=2)
                 linea.grid_columnconfigure(i,weight=1)
-                ctk.CTkLabel(columna,text=label,font=('Montserrat',9)).pack(anchor='w')
+                ctk.CTkLabel(columna,text=label,font=('Poppins',9)).pack(anchor='w')
                 valor = item.get(key, '')
                 v=ctk.StringVar(value=str(valor) if valor is not None else '')
                 e=AxiaEntry(columna,textvariable=v,height=29,state='disabled',width=65)

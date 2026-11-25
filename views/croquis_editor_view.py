@@ -64,10 +64,10 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
 
     top = ctk.CTkFrame(root, fg_color=WHITE, corner_radius=0)
     top.pack(fill="x", padx=15, pady=(10, 6))
-    ctk.CTkLabel(top, text="AXIA  |  Editor de croquis", font=("Montserrat", 19, "bold"),
+    ctk.CTkLabel(top, text="AXIA  |  Editor de croquis", font=("Poppins", 19, "bold"),
                  text_color=TEXT_PRIMARY).pack(anchor="w")
     ctk.CTkLabel(top, text="Dibuja, selecciona y modifica elementos. Los cambios se guardan al pulsar 'Guardar croquis'.",
-                 font=("Montserrat", 10), text_color=TEXT_SECONDARY).pack(anchor="w")
+                 font=("Poppins", 10), text_color=TEXT_SECONDARY).pack(anchor="w")
 
     commands = ctk.CTkFrame(root, fg_color="#EFF4FA", corner_radius=10)
     commands.pack(fill="x", padx=12, pady=(0, 7))
@@ -78,7 +78,7 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
 
     bottom = ctk.CTkFrame(root, fg_color=WHITE, corner_radius=0)
     bottom.pack(side="bottom", fill="x", padx=12, pady=(0, 11))
-    status = ctk.CTkLabel(root, text="", height=20, font=("Montserrat", 10),
+    status = ctk.CTkLabel(root, text="", height=20, font=("Poppins", 10),
                           text_color=TEXT_SECONDARY, anchor="w")
     status.pack(side="bottom", fill="x", padx=18)
 
@@ -86,7 +86,7 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
     body.pack(fill="both", expand=True, padx=12)
     rail = ctk.CTkScrollableFrame(body, width=158, fg_color="#F3F6FA", corner_radius=9)
     rail.pack(side="left", fill="y", padx=(0, 8))
-    ctk.CTkLabel(rail, text="HERRAMIENTAS", font=("Montserrat", 10, "bold"),
+    ctk.CTkLabel(rail, text="HERRAMIENTAS", font=("Poppins", 10, "bold"),
                  text_color=TEXT_SECONDARY).pack(pady=(12, 9))
     tool_buttons = {}
 
@@ -109,24 +109,24 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
 
     properties = ctk.CTkScrollableFrame(body, width=217, fg_color="#F3F6FA", corner_radius=9)
     properties.pack(side="right", fill="y", padx=(8, 0))
-    ctk.CTkLabel(properties, text="PROPIEDADES", font=("Montserrat", 10, "bold"),
+    ctk.CTkLabel(properties, text="PROPIEDADES", font=("Poppins", 10, "bold"),
                  text_color=TEXT_SECONDARY).pack(pady=(12, 8))
     selected_info = ctk.CTkLabel(properties, text="Ningún elemento seleccionado",
-                                 wraplength=175, justify="left", font=("Montserrat", 10),
+                                 wraplength=175, justify="left", font=("Poppins", 10),
                                  text_color=TEXT_SECONDARY)
     selected_info.pack(fill="x", padx=10, pady=(0, 12))
-    ctk.CTkLabel(properties, text="Color del trazo / texto", font=("Montserrat", 10),
+    ctk.CTkLabel(properties, text="Color del trazo / texto", font=("Poppins", 10),
                  text_color=TEXT_PRIMARY).pack(anchor="w", padx=10)
     palette = ctk.CTkFrame(properties, fg_color="transparent")
     palette.pack(fill="x", padx=8, pady=7)
     palette_buttons = []
-    ctk.CTkLabel(properties, text="Grosor del trazo", font=("Montserrat", 10),
+    ctk.CTkLabel(properties, text="Grosor del trazo", font=("Poppins", 10),
                  text_color=TEXT_PRIMARY).pack(anchor="w", padx=10, pady=(7, 4))
 
-    zoom_label = ctk.CTkLabel(commands_right, text="80%", width=45, font=("Montserrat", 11),
+    zoom_label = ctk.CTkLabel(commands_right, text="80%", width=45, font=("Poppins", 11),
                               text_color=TEXT_PRIMARY)
     hint = ctk.CTkLabel(center, text="Selecciona un elemento para moverlo o arrastra la esquina para cambiar su tamaño.",
-                        font=("Montserrat", 10), text_color=TEXT_SECONDARY)
+                        font=("Poppins", 10), text_color=TEXT_SECONDARY)
     hint.pack(fill="x", pady=(0, 7))
     def coords(ev):
         z = state["zoom"]
@@ -232,7 +232,7 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
             else:
                 drawing.create_text(obj["x"]*z,obj["y"]*z,anchor="nw",
                                     text=obj.get("text", ""), fill=color,
-                                    font=("Arial", max(8, round(obj.get("size",20)*z))))
+                                    font=("Poppins", max(8, round(obj.get("size",20)*z))))
 
     def select_tool(tool):
         state["tool"] = tool
@@ -250,22 +250,22 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
     for name, code in TOOLS:
         btn = ctk.CTkButton(rail, text=name, anchor="w", height=34, width=132,
                             fg_color=DARK if code == "select" else SECONDARY,
-                            hover_color=BUTTON_HOVER, font=("Montserrat", 11),
+                            hover_color=BUTTON_HOVER, font=("Poppins", 11),
                             command=lambda val=code: select_tool(val))
         btn.pack(padx=7, pady=3)
         tool_buttons[code] = btn
 
-    ctk.CTkLabel(rail, text="INSERTAR", font=("Montserrat", 10, "bold"),
+    ctk.CTkLabel(rail, text="INSERTAR", font=("Poppins", 10, "bold"),
                  text_color=TEXT_SECONDARY).pack(pady=(12, 6))
     symbol_names = list(SYMBOLS.values())
     symbol_keys = list(SYMBOLS.keys())
     symbol_selector = ctk.CTkOptionMenu(rail, values=symbol_names, width=136, height=30,
-                                        fg_color=SECONDARY, button_color=DARK, font=("Montserrat", 9),
+                                        fg_color=SECONDARY, button_color=DARK, font=("Poppins", 9),
                                         command=lambda v: state.update(symbol=symbol_keys[symbol_names.index(v)]))
     symbol_selector.set(symbol_names[0])
     symbol_selector.pack(padx=5, pady=3)
     ctk.CTkLabel(rail, text="Elige símbolo y haz clic\nen el lienzo.",
-                 font=("Montserrat", 9), text_color=TEXT_SECONDARY).pack(pady=(1,5))
+                 font=("Poppins", 9), text_color=TEXT_SECONDARY).pack(pady=(1,5))
     ctk.CTkButton(rail, text="Colocar símbolo", width=138, height=29,
                   fg_color=SECONDARY, hover_color=BUTTON_HOVER,
                   command=lambda: select_tool('symbol')).pack(pady=3)
@@ -295,7 +295,7 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
                   fg_color=DARK, hover_color=BUTTON_HOVER,
                   command=import_plan).pack(pady=(12,3), padx=5)
     ctk.CTkLabel(rail, text="PNG, JPG, WEBP, BMP, PDF\n(primera página)",
-                 font=("Montserrat", 9), text_color=TEXT_SECONDARY).pack(pady=3)
+                 font=("Poppins", 9), text_color=TEXT_SECONDARY).pack(pady=3)
 
     def update_properties():
         index = state["selected"]
@@ -330,7 +330,7 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
 
     thickness = ctk.CTkOptionMenu(properties, values=["2 px", "3 px", "5 px", "8 px", "12 px"],
                                   width=165, height=29, fg_color=SECONDARY,
-                                  button_color=DARK, font=("Montserrat", 11))
+                                  button_color=DARK, font=("Poppins", 11))
     thickness.set("3 px")
     thickness.pack(padx=10, pady=(0, 10))
 
@@ -397,7 +397,7 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
 
     def prop_button(text, command, color=SECONDARY):
         ctk.CTkButton(properties, text=text, height=30, width=169,
-                      fg_color=color, hover_color=BUTTON_HOVER, font=("Montserrat", 10),
+                      fg_color=color, hover_color=BUTTON_HOVER, font=("Poppins", 10),
                       command=command).pack(padx=9, pady=3)
     prop_button("Editar texto", edit_text)
 
@@ -415,10 +415,10 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
     prop_button("Enviar al fondo", lambda: change_order(False))
     prop_button("Eliminar seleccionado", remove, color="#DC2626")
 
-    ctk.CTkLabel(properties, text="CAPAS", font=("Montserrat", 11),
+    ctk.CTkLabel(properties, text="CAPAS", font=("Poppins", 11),
                  text_color=TEXT_PRIMARY).pack(anchor="w", padx=12, pady=(18, 5))
     ctk.CTkLabel(properties, text="Ojo: mostrar / ocultar   Candado: bloquear",
-                 text_color=TEXT_SECONDARY, font=("Montserrat", 9), wraplength=198).pack(padx=9)
+                 text_color=TEXT_SECONDARY, font=("Poppins", 9), wraplength=198).pack(padx=9)
     layer_host = ctk.CTkFrame(properties, fg_color="transparent")
     layer_host.pack(fill="x", padx=7, pady=5)
 
@@ -436,13 +436,13 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
             active = lid == state['active_layer']
             short_name = layer['name'][:18]
             ctk.CTkButton(line, text=short_name, width=115, height=25, anchor='w',
-                          fg_color=DARK if active else SECONDARY, font=("Montserrat", 9),
+                          fg_color=DARK if active else SECONDARY, font=("Poppins", 9),
                           command=lambda v=lid: choose_layer(v)).pack(side='left', padx=1)
             ctk.CTkButton(line, text='●' if layer['visible'] else '○', width=28, height=25,
-                          fg_color=SECONDARY, font=("Montserrat", 11),
+                          fg_color=SECONDARY, font=("Poppins", 11),
                           command=lambda v=lid: toggle_layer(v, 'visible')).pack(side='left', padx=1)
             ctk.CTkButton(line, text='🔒' if layer['locked'] else '🔓', width=32, height=25,
-                          fg_color=SECONDARY, font=("Montserrat", 10),
+                          fg_color=SECONDARY, font=("Poppins", 10),
                           command=lambda v=lid: toggle_layer(v, 'locked')).pack(side='left', padx=1)
 
     def toggle_layer(layer_id, property_name):
@@ -532,7 +532,7 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
     def top_button(host, label, cmd, color=SECONDARY, width=89):
         return ctk.CTkButton(host, text=label, height=30, width=width,
                              fg_color=color, hover_color=BUTTON_HOVER,
-                             font=("Montserrat", 10), command=cmd)
+                             font=("Poppins", 10), command=cmd)
 
     top_button(commands_left, "↶ Deshacer", undo, width=94).pack(side="left", padx=2)
     top_button(commands_left, "↷ Rehacer", redo, width=94).pack(side="left", padx=2)
@@ -546,7 +546,7 @@ def anotacion_plano_popup(parent, variable_base64, on_change=None, titulo="Anota
 
     ctk.CTkButton(commands_right, text="Guardar croquis", width=157, height=32,
                   fg_color="#15803D", hover_color="#166534",
-                  font=("Montserrat", 11, "bold"),
+                  font=("Poppins", 11, "bold"),
                   command=save).pack(side="left", padx=(12, 2))
 
     def fit_zoom():

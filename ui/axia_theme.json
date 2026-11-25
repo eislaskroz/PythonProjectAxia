@@ -361,17 +361,17 @@
   },
   "CTkFont": {
     "macOS": {
-      "family": "Montserrat",
+      "family": "Poppins",
       "size": 12,
       "weight": "normal"
     },
     "Windows": {
-      "family": "Montserrat",
+      "family": "Poppins",
       "size": 12,
       "weight": "normal"
     },
     "Linux": {
-      "family": "Montserrat",
+      "family": "Poppins",
       "size": 12,
       "weight": "normal"
     }

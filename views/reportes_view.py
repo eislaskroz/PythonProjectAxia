@@ -236,7 +236,7 @@ def crear_bloque_reporte(parent, reporte):
         height=36,
         fg_color="transparent",
         border_width=0,
-        font=("Segoe UI", 13),
+        font=("Poppins", 13),
     )
     entry_busqueda.grid(row=0, column=1, sticky="ew", padx=(0, 12), pady=4)
 

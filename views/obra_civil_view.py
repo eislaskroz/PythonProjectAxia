@@ -722,7 +722,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
     panel_conceptos.grid_columnconfigure(3, weight=1, minsize=72)
     panel_conceptos.grid_columnconfigure(4, weight=1, minsize=76)
     for col, encabezado in enumerate(("Tipo", "Partida / concepto", "Unidad", "Cantidad", "Acción")):
-        ctk.CTkLabel(panel_conceptos, text=encabezado, font=("Montserrat", 12)).grid(row=0, column=col, sticky="w", padx=3)
+        ctk.CTkLabel(panel_conceptos, text=encabezado, font=("Poppins", 12)).grid(row=0, column=col, sticky="w", padx=3)
 
     TIPO_CONCEPTO_OTROS = "OTROS"
     tipos_concepto_obra = [t for t in obtener_tipos_concepto_obra(catalogo_conceptos_obra)
@@ -891,12 +891,12 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
     panel_misc.grid_columnconfigure(3, weight=1)
     panel_misc.grid_columnconfigure(4, weight=3)
     panel_misc.grid_columnconfigure(5, weight=1)
-    ctk.CTkLabel(panel_misc, text="Material", font=("Montserrat", 12)).grid(row=0, column=0, sticky="w", padx=3)
-    ctk.CTkLabel(panel_misc, text="¿Se requiere?", font=("Montserrat", 12)).grid(row=0, column=1, sticky="w", padx=3)
-    ctk.CTkLabel(panel_misc, text="Cantidad", font=("Montserrat", 12)).grid(row=0, column=2, sticky="w", padx=3)
-    ctk.CTkLabel(panel_misc, text="Unidad", font=("Montserrat", 12)).grid(row=0, column=3, sticky="w", padx=3)
-    ctk.CTkLabel(panel_misc, text="Especificación / medida", font=("Montserrat", 12)).grid(row=0, column=4, sticky="w", padx=3)
-    ctk.CTkLabel(panel_misc, text="Acción", font=("Montserrat", 12)).grid(row=0, column=5, sticky="w", padx=3)
+    ctk.CTkLabel(panel_misc, text="Material", font=("Poppins", 12)).grid(row=0, column=0, sticky="w", padx=3)
+    ctk.CTkLabel(panel_misc, text="¿Se requiere?", font=("Poppins", 12)).grid(row=0, column=1, sticky="w", padx=3)
+    ctk.CTkLabel(panel_misc, text="Cantidad", font=("Poppins", 12)).grid(row=0, column=2, sticky="w", padx=3)
+    ctk.CTkLabel(panel_misc, text="Unidad", font=("Poppins", 12)).grid(row=0, column=3, sticky="w", padx=3)
+    ctk.CTkLabel(panel_misc, text="Especificación / medida", font=("Poppins", 12)).grid(row=0, column=4, sticky="w", padx=3)
+    ctk.CTkLabel(panel_misc, text="Acción", font=("Poppins", 12)).grid(row=0, column=5, sticky="w", padx=3)
 
     def agregar_material_misc_obra(material_catalogo=None):
         material_catalogo = material_catalogo or {}
@@ -974,13 +974,13 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
         text="Selecciona categoría y material, después el tipo, medida y cantidad.",
         font=SMALL_FONT, text_color=TEXT_SECONDARY,
     ).grid(row=0, column=0, columnspan=9, sticky="w", padx=3, pady=(0, 6))
-    ctk.CTkLabel(panel_canalizacion, text="¿Se requiere?", font=("Montserrat", 11)).grid(row=1, column=0, sticky="w", padx=3)
+    ctk.CTkLabel(panel_canalizacion, text="¿Se requiere?", font=("Poppins", 11)).grid(row=1, column=0, sticky="w", padx=3)
     combo_requiere_canalizacion = NativeComboBox(panel_canalizacion, variable=var_requiere_canalizacion,
                                                 values=["Sí", "No"], width=120, height=31)
     combo_requiere_canalizacion.grid(row=2, column=0, sticky="w", padx=3, pady=(0, 5))
     for col, encabezado in enumerate(("Categoría", "Material", "Tipo", "Tamaño/calibre",
                                      "Color/Modelo/Otros", "Cantidad", "Unidad", "Aprox.", "Acción")):
-        ctk.CTkLabel(panel_canalizacion, text=encabezado, font=("Montserrat", 11),
+        ctk.CTkLabel(panel_canalizacion, text=encabezado, font=("Poppins", 11),
                      text_color=TEXT_PRIMARY).grid(row=3, column=col, sticky="w", padx=3, pady=(0, 2))
 
     def obtener_canalizacion_materiales_obra():
@@ -1145,7 +1145,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
             validar_preview()
 
         btn_eliminar = ctk.CTkButton(panel_canalizacion, text="✕", width=34, height=30,
-                                     corner_radius=11, font=("Arial", 17, "bold"),
+                                     corner_radius=11, font=("Poppins", 17, "bold"),
                                      fg_color="#DC2626", hover_color="#B91C1C", command=eliminar_partida)
         btn_eliminar.grid(row=fila, column=8, padx=3, pady=2)
         item["widgets"].append(btn_eliminar)

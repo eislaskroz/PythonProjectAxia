@@ -16,7 +16,7 @@ def mostrar_detalle_registro(parent, titulo, registro):
     ctk.CTkLabel(
         contenedor,
         text=titulo,
-        font=("Montserrat", 18, "bold"),
+        font=("Poppins", 18, "bold"),
         anchor="w",
     ).pack(fill="x", pady=(0, 6))
 
@@ -29,13 +29,13 @@ def mostrar_detalle_registro(parent, titulo, registro):
         ctk.CTkLabel(
             scroll,
             text=str(campo),
-            font=("Montserrat", 12),
+            font=("Poppins", 12),
             anchor="w",
         ).grid(row=fila, column=0, sticky="nw", padx=6, pady=3)
         ctk.CTkLabel(
             scroll,
             text=str(fecha_para_vista(campo, valor) or "-"),
-            font=("Montserrat", 12),
+            font=("Poppins", 12),
             anchor="w",
             justify="left",
             wraplength=520,

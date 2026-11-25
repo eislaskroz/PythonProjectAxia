@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ui.pdf_fonts import FONT_PDF_REGULAR, FONT_PDF_BOLD
+
 import json
 import os
 import subprocess
@@ -94,15 +96,15 @@ def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = No
 
     styles = BasePdfGenerator.styles()
     normal = ParagraphStyle(
-        "AxiaCotNormal", parent=styles["normal"], fontName="Helvetica",
+        "AxiaCotNormal", parent=styles["normal"], fontName=FONT_PDF_REGULAR,
         fontSize=5.7, leading=6.7, textColor=TEXT,
     )
     label = ParagraphStyle(
-        "AxiaCotLabel", parent=normal, fontName="Helvetica-Bold",
+        "AxiaCotLabel", parent=normal, fontName=FONT_PDF_BOLD,
         fontSize=5.65, leading=6.6,
     )
     header = ParagraphStyle(
-        "AxiaCotHeader", parent=normal, fontName="Helvetica-Bold",
+        "AxiaCotHeader", parent=normal, fontName=FONT_PDF_BOLD,
         fontSize=5.8, leading=6.6, textColor=WHITE, alignment=1,
     )
     row_style = ParagraphStyle(

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ui.pdf_fonts import FONT_PDF_REGULAR, FONT_PDF_BOLD
+
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
@@ -96,11 +98,11 @@ def generar_etiqueta_entrada(*, codigo: str, producto: str, cantidad,
     c.setFillColor(AZUL)
     c.roundRect(2 * mm, h - 14 * mm, w - 4 * mm, 12 * mm, 3 * mm, fill=1, stroke=0)
     c.setFillColor(colors.white)
-    c.setFont('Helvetica-Bold', 14)
+    c.setFont(FONT_PDF_BOLD, 14)
     c.drawString(6 * mm, h - 10.2 * mm, 'AXIA  /  ALMACEN')
-    c.setFont('Helvetica', 7.2)
+    c.setFont(FONT_PDF_REGULAR, 7.2)
     c.drawRightString(w - 6 * mm, h - 10 * mm, 'ETIQUETA DE ENTRADA')
-    def wrap_label(texto, max_w, font='Helvetica-Bold', size=9.0, max_lines=2):
+    def wrap_label(texto, max_w, font=FONT_PDF_BOLD, size=9.0, max_lines=2):
         words = _texto(texto, 500).split()
         lines, line = [], ''
         for word in words:
@@ -128,7 +130,7 @@ def generar_etiqueta_entrada(*, codigo: str, producto: str, cantidad,
         return lines
 
     c.setFillColor(AZUL)
-    c.setFont('Helvetica-Bold', 9)
+    c.setFont(FONT_PDF_BOLD, 9)
     for i, line in enumerate(wrap_label(producto, w - 12 * mm)):
         c.drawString(6 * mm, h - 19.2 * mm - i * 4 * mm, line)
     barcode = code128.Code128(codigo, barHeight=13 * mm, barWidth=.32 * mm, humanReadable=False)
@@ -140,16 +142,16 @@ def generar_etiqueta_entrada(*, codigo: str, producto: str, cantidad,
     c.scale(scale, 1)
     barcode.drawOn(c, 0, 0)
     c.restoreState()
-    c.setFont('Helvetica-Bold', 10)
+    c.setFont(FONT_PDF_BOLD, 10)
     c.drawCentredString(w / 2, 15 * mm, codigo)
-    c.setFont('Helvetica-Bold', 8)
+    c.setFont(FONT_PDF_BOLD, 8)
     c.drawString(6 * mm, 9.4 * mm, f'CANTIDAD: {_n(cantidad)}')
-    c.setFont('Helvetica', 7)
+    c.setFont(FONT_PDF_REGULAR, 7)
     c.setFillColor(GRIS)
     c.drawRightString(w - 6 * mm, 9.4 * mm, _fecha(fecha))
     if referencia:
         ref = _texto(referencia, 40)
-        while pdfmetrics.stringWidth(ref, 'Helvetica', 7) > w - 12 * mm:
+        while pdfmetrics.stringWidth(ref, FONT_PDF_REGULAR, 7) > w - 12 * mm:
             ref = ref[:-1]
         c.drawString(6 * mm, 5 * mm, f'Ref: {ref}')
     c.showPage()
@@ -169,10 +171,10 @@ def generar_ticket_salida(*, partidas: Sequence[Mapping], destinatario: str,
     ruta = Path(ruta) if ruta else _ruta('TICKET_SALIDA', referencia or 'INDIVIDUAL', ident)
     ruta.parent.mkdir(parents=True, exist_ok=True)
     usable = 70 * mm
-    normal = ParagraphStyle('axia-ticket-texto', fontName='Helvetica', fontSize=8, leading=11,
+    normal = ParagraphStyle('axia-ticket-texto', fontName=FONT_PDF_REGULAR, fontSize=8, leading=11,
                             textColor=colors.HexColor('#202733'), spaceAfter=0)
     small = ParagraphStyle('axia-ticket-small', parent=normal, fontSize=7, leading=9)
-    bold = ParagraphStyle('axia-ticket-bold', parent=normal, fontName='Helvetica-Bold')
+    bold = ParagraphStyle('axia-ticket-bold', parent=normal, fontName=FONT_PDF_BOLD)
     header = ParagraphStyle('axia-ticket-title', parent=bold, fontSize=14, leading=17, alignment=TA_CENTER,
                             textColor=AZUL)
     subhead = ParagraphStyle('axia-ticket-subtitle', parent=small, alignment=TA_CENTER, textColor=GRIS)

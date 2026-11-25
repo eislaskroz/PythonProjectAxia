@@ -62,10 +62,10 @@ class SelectorProductoAxia(ttk.Frame):
         self._pendiente_descripcion = ''
         self._actualizando = False
         self._combo = ttk.Combobox(self, state='normal', height=16,
-                                   font=('Montserrat', 11), **kw)
+                                   font=('Poppins', 11), **kw)
         self._combo.pack(fill='x', expand=True)
         self._informacion = tk.Label(self, text='Cargando Catálogo Maestro...',
-                                     font=('Montserrat', 9), fg='#52677E',
+                                     font=('Poppins', 9), fg='#52677E',
                                      bg='#F7F9FC', anchor='w', justify='left',
                                      wraplength=520)
         self._informacion.pack(fill='x', pady=(1, 0))

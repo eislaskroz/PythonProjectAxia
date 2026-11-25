@@ -117,7 +117,7 @@ def mostrar_clientes_admin(parent, app):
         height=38,
         fg_color="transparent",
         border_width=0,
-        font=("Segoe UI", 13),
+        font=("Poppins", 13),
     )
     entry_busqueda.grid(
         row=0, column=1, sticky="ew", padx=(0, 12), pady=6
@@ -156,7 +156,7 @@ def mostrar_clientes_admin(parent, app):
     lbl_resultados = ctk.CTkLabel(
         panel_resultados,
         text="Resultados (0)",
-        font=("Montserrat", 16, "bold"),
+        font=("Poppins", 16, "bold"),
         text_color=TEXT_PRIMARY,
         anchor="w",
     )
@@ -188,7 +188,7 @@ def mostrar_clientes_admin(parent, app):
     ctk.CTkLabel(
         panel_formulario,
         text="Datos del cliente",
-        font=("Montserrat", 18, "bold"),
+        font=("Poppins", 18, "bold"),
         text_color=TEXT_PRIMARY,
     ).pack(anchor="w", padx=10, pady=(9, 3))
 
@@ -429,14 +429,14 @@ def mostrar_clientes_admin(parent, app):
     ctk.CTkLabel(
         panel_operativo,
         text="Sucursales operativas",
-        font=("Montserrat", 14, "bold"),
+        font=("Poppins", 14, "bold"),
         text_color=TEXT_PRIMARY,
     ).grid(row=0, column=0, sticky="w", padx=7, pady=(6, 2))
 
     ctk.CTkLabel(
         panel_operativo,
         text="Contactos por sucursal",
-        font=("Montserrat", 14, "bold"),
+        font=("Poppins", 14, "bold"),
         text_color=TEXT_PRIMARY,
     ).grid(row=0, column=1, sticky="w", padx=7, pady=(6, 2))
 

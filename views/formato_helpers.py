@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ui.pdf_fonts import FONT_PDF_REGULAR, FONT_PDF_BOLD
+
 from core.logger import configurar_logger
 
 logger = configurar_logger(__name__)
@@ -24,9 +26,9 @@ from utils import centrar_ventana
 
 ENTRY_H = 30
 OPTION_H = 30
-LABEL_FONT = ("Montserrat", 10)
-SMALL_FONT = ("Montserrat", 10)
-SECTION_FONT = ("Montserrat", 14, "bold")
+LABEL_FONT = ("Poppins", 10)
+SMALL_FONT = ("Poppins", 10)
+SECTION_FONT = ("Poppins", 14, "bold")
 
 
 def obtener_textbox(box):
@@ -230,9 +232,9 @@ def _generar_pdf_orden_servicio_axia(datos, firma_base64=None, ruta_salida=None,
     BORDER = colors.HexColor("#8FA3B5")
     TEXT = colors.HexColor("#243447")
     estilos = BasePdfGenerator.styles()
-    normal = ParagraphStyle("AxiaOsNormal", parent=estilos["normal"], fontName="Helvetica", fontSize=7.4, leading=9.1, textColor=TEXT)
-    label = ParagraphStyle("AxiaOsLabel", parent=normal, fontName="Helvetica-Bold", fontSize=7.1, leading=8.5)
-    header = ParagraphStyle("AxiaOsHeader", parent=normal, fontName="Helvetica-Bold", fontSize=7.2, leading=8.6, textColor=colors.white, alignment=1)
+    normal = ParagraphStyle("AxiaOsNormal", parent=estilos["normal"], fontName=FONT_PDF_REGULAR, fontSize=7.4, leading=9.1, textColor=TEXT)
+    label = ParagraphStyle("AxiaOsLabel", parent=normal, fontName=FONT_PDF_BOLD, fontSize=7.1, leading=8.5)
+    header = ParagraphStyle("AxiaOsHeader", parent=normal, fontName=FONT_PDF_BOLD, fontSize=7.2, leading=8.6, textColor=colors.white, alignment=1)
     center = ParagraphStyle("AxiaOsCenter", parent=normal, alignment=1)
 
     def text(*keys, fallback=""):
@@ -325,7 +327,7 @@ def _generar_pdf_orden_servicio_axia(datos, firma_base64=None, ruta_salida=None,
     ]))
 
     story = [
-        Paragraph("ORDEN DE SERVICIO", ParagraphStyle("AxiaOsTitle", parent=estilos["title"], fontName="Helvetica-Bold", fontSize=13, leading=15, alignment=1, textColor=TEXT)),
+        Paragraph("ORDEN DE SERVICIO", ParagraphStyle("AxiaOsTitle", parent=estilos["title"], fontName=FONT_PDF_BOLD, fontSize=13, leading=15, alignment=1, textColor=TEXT)),
         Spacer(1, 4), top, Spacer(1, 8),
         box("Descripción del Servicio y/o Instalación", descripcion), Spacer(1, 8),
         evaluacion_titulo, evaluacion_tabla, Spacer(1, 8),
@@ -466,15 +468,15 @@ def _generar_pdf_orden_trabajo_axia(datos, secciones_tabla=None, ruta_salida=Non
 
     estilos = BasePdfGenerator.styles()
     normal = ParagraphStyle(
-        "AxiaOtMasterNormal", parent=estilos["normal"], fontName="Helvetica",
+        "AxiaOtMasterNormal", parent=estilos["normal"], fontName=FONT_PDF_REGULAR,
         fontSize=7.4, leading=9.2, textColor=TEXT,
     )
     label = ParagraphStyle(
-        "AxiaOtMasterLabel", parent=normal, fontName="Helvetica-Bold",
+        "AxiaOtMasterLabel", parent=normal, fontName=FONT_PDF_BOLD,
         fontSize=7.1, leading=8.6,
     )
     header = ParagraphStyle(
-        "AxiaOtMasterHeader", parent=normal, fontName="Helvetica-Bold",
+        "AxiaOtMasterHeader", parent=normal, fontName=FONT_PDF_BOLD,
         fontSize=7.0, leading=8.4, textColor=colors.white,
     )
 
@@ -711,10 +713,10 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
     BORDER = colors.HexColor("#8FA3B5")
     TEXT = colors.HexColor("#243447")
     estilos = BasePdfGenerator.styles()
-    normal = ParagraphStyle("AxiaBitNormal", parent=estilos["normal"], fontName="Helvetica", fontSize=7.4, leading=9.2, textColor=TEXT)
-    label = ParagraphStyle("AxiaBitLabel", parent=normal, fontName="Helvetica-Bold", fontSize=7.1, leading=8.5)
-    header = ParagraphStyle("AxiaBitHeader", parent=normal, fontName="Helvetica-Bold", fontSize=7.3, leading=8.7, textColor=colors.white, alignment=0)
-    title_style = ParagraphStyle("AxiaBitTitle", parent=normal, fontName="Helvetica-Bold", fontSize=14, leading=17, textColor=colors.HexColor("#102A43"), alignment=1)
+    normal = ParagraphStyle("AxiaBitNormal", parent=estilos["normal"], fontName=FONT_PDF_REGULAR, fontSize=7.4, leading=9.2, textColor=TEXT)
+    label = ParagraphStyle("AxiaBitLabel", parent=normal, fontName=FONT_PDF_BOLD, fontSize=7.1, leading=8.5)
+    header = ParagraphStyle("AxiaBitHeader", parent=normal, fontName=FONT_PDF_BOLD, fontSize=7.3, leading=8.7, textColor=colors.white, alignment=0)
+    title_style = ParagraphStyle("AxiaBitTitle", parent=normal, fontName=FONT_PDF_BOLD, fontSize=14, leading=17, textColor=colors.HexColor("#102A43"), alignment=1)
     subtitle_style = ParagraphStyle("AxiaBitSub", parent=normal, fontSize=7.7, leading=9.2, alignment=1)
 
     def text(*keys, fallback=""):

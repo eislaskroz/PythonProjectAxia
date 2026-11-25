@@ -29,24 +29,8 @@ GRAY = colors.HexColor('#526E80')
 
 
 def _font_names() -> dict[str, str]:
-    base = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent.parent))
-    candidates = (
-        base / 'assets' / 'reportador' / 'fonts',
-        Path.home() / 'AppData' / 'Local' / 'Microsoft' / 'Windows' / 'Fonts',
-        Path('C:/Windows/Fonts'),
-    )
-    files = ('Montserrat-Regular.ttf', 'Montserrat-SemiBold.ttf', 'Montserrat-Bold.ttf')
-    for folder in candidates:
-        if all((folder / name).is_file() for name in files):
-            try:
-                names = ('RF-Montserrat', 'RF-Montserrat-SemiBold', 'RF-Montserrat-Bold')
-                for alias, file in zip(names, files):
-                    if alias not in pdfmetrics.getRegisteredFontNames():
-                        pdfmetrics.registerFont(TTFont(alias, str(folder / file)))
-                return dict(zip(('regular', 'semi', 'bold'), names))
-            except Exception:
-                continue
-    return {'regular': 'Helvetica', 'semi': 'Helvetica-Bold', 'bold': 'Helvetica-Bold'}
+    from ui.pdf_fonts import FONT_PDF_REGULAR, FONT_PDF_BOLD, FONT_PDF_SEMIBOLD
+    return {'regular': FONT_PDF_REGULAR, 'semi': FONT_PDF_SEMIBOLD, 'bold': FONT_PDF_BOLD}
 
 
 def _wrap(value: object, font: str, size: float, max_width: float) -> list[str]:
