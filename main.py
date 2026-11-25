@@ -1,3 +1,6 @@
+from ui.font_runtime import ensure_poppins
+ensure_poppins()
+
 # =====================================================
 # IMPORTACIÓN DE LIBRERÍAS
 # =====================================================

@@ -35,6 +35,8 @@ if (-not $SkipInstall) {
     Invoke-Python -m pip install -r requirements-dev.txt
 }
 
+Invoke-Python .\scripts\prepare_poppins.py
+
 Write-Host "[1/4] Validación estática, versión y sintaxis..." -ForegroundColor Cyan
 Invoke-Python .\scripts\check_version_sync.py
 Invoke-Python .\tools\validar_calidad.py
@@ -52,6 +54,7 @@ Invoke-Python .\scripts\limpiar_proyecto.py
 Invoke-Python -m PyInstaller --noconfirm --clean .\AXIA.spec
 
 if (-not (Test-Path ".\dist\AXIA\AXIA.exe")) { throw "No se generó dist\AXIA\AXIA.exe" }
+if (-not (Test-Path ".\dist\AXIA\_internal\assets\fonts\Poppins-Regular.ttf")) { throw "Falta Poppins en la aplicación empaquetada." }
 if (Test-Path ".\dist\AXIA\.env") { throw "Se encontró un .env dentro de dist. Proceso cancelado." }
 Copy-Item ".env.example" ".\dist\AXIA\.env.example" -Force
 
