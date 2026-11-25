@@ -111,7 +111,7 @@ def _redibujar_fondo_sidebar(sidebar):
             if ruta_logo.exists():
                 with Image.open(ruta_logo) as original:
                     isologo = original.convert("RGBA")
-                    isologo.thumbnail((155, 155), Image.Resampling.LANCZOS)
+                    isologo.thumbnail((165, 165), Image.Resampling.LANCZOS)
                     fondo.alpha_composite(isologo, ((ancho - isologo.width) // 2, 9))
             imagen = ImageTk.PhotoImage(fondo)
         else:
@@ -525,7 +525,7 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
     opciones, direccion = _opciones_menu_por_rol(usuario_activo, callbacks)
 
     menu_marco = ctk.CTkFrame(sidebar, fg_color="#10283D", corner_radius=0, border_width=0)
-    menu_marco.pack(side="top", fill="both", expand=True, padx=(5, 3), pady=(174, 4))
+    menu_marco.pack(side="top", fill="both", expand=True, padx=(5, 3), pady=(150, 4))
     menu_scroll = tk.Canvas(
         menu_marco, background="#0E2539", borderwidth=0,
         highlightthickness=0, relief="flat", takefocus=True,
