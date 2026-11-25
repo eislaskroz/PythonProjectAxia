@@ -1310,15 +1310,136 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
         contenedor_campo = _crear_contenedor_campo(fila, columna, colspan=colspan)
         _label_campo(contenedor_campo, texto)
 
+        fila_selector = ctk.CTkFrame(contenedor_campo, fg_color="transparent")
+        fila_selector.pack(fill="x")
+        fila_selector.grid_columnconfigure(0, weight=1)
+
+        clientes_disponibles = tuple(values or ["Sin clientes registrados"])
         option = NativeComboBox(
-            contenedor_campo,
+            fila_selector,
             variable=variable,
-            values=values or ["Sin clientes registrados"],
+            values=clientes_disponibles,
             height=FORM_CONTROL_HEIGHT,
             font=FORM_FIELD_FONT,
             command=cargar_cliente_desde_selector
         )
-        option.pack(fill="x")
+        option.grid(row=0, column=0, sticky="ew")
+
+        busqueda_var = ctk.StringVar()
+        busqueda = AxiaEntry(
+            fila_selector,
+            textvariable=busqueda_var,
+            height=FORM_CONTROL_HEIGHT,
+            corner_radius=0,
+            font=FORM_FIELD_FONT,
+            placeholder_text="Buscar cliente..."
+        )
+
+        def normalizar_cliente(valor):
+            descompuesto = unicodedata.normalize("NFKD", str(valor or ""))
+            return "".join(letra for letra in descompuesto if not unicodedata.combining(letra)).casefold()
+
+        resultados = tk.Listbox(
+            fila_selector, height=5, exportselection=False, font=("Montserrat", 10),
+            selectmode=tk.SINGLE, relief="solid", borderwidth=1,
+            bg="#FFFFFF", fg="#102A43", selectbackground="#DBEAFE",
+            selectforeground="#102A43", activestyle="none",
+        )
+        resultados.grid(row=1, column=0, sticky="ew", pady=(3, 0))
+        resultados.grid_remove()
+        coincidencias_visibles = []
+        seleccionando_cliente = [False]
+
+        def filtrar_clientes(*_args):
+            resultados.delete(0, tk.END)
+            coincidencias_visibles.clear()
+            termino = normalizar_cliente(busqueda_var.get().strip())
+            if not termino or not busqueda.winfo_manager():
+                resultados.grid_remove()
+                return
+            coincidencias = [nombre for nombre in clientes_disponibles if termino in normalizar_cliente(nombre)]
+            coincidencias.sort(key=lambda nombre: (not normalizar_cliente(nombre).startswith(termino), normalizar_cliente(nombre)))
+            for nombre in coincidencias[:60]:
+                coincidencias_visibles.append(nombre)
+                resultados.insert(tk.END, nombre)
+            if coincidencias_visibles:
+                resultados.configure(height=min(len(coincidencias_visibles), 5))
+                resultados.grid(row=1, column=0, sticky="ew", pady=(3, 0))
+                resultados.selection_set(0)
+                resultados.activate(0)
+            else:
+                resultados.grid_remove()
+
+        busqueda_var.trace_add("write", filtrar_clientes)
+
+        def cerrar_busqueda():
+            resultados.grid_remove()
+            busqueda.grid_remove()
+            option.grid(row=0, column=0, sticky="ew")
+            boton_buscar.configure(text="⌕", fg_color="transparent", text_color=PRIMARY)
+            busqueda_var.set("")
+
+        def alternar_busqueda():
+            if busqueda.winfo_manager():
+                cerrar_busqueda()
+            else:
+                option.grid_remove()
+                busqueda.grid(row=0, column=0, sticky="ew")
+                boton_buscar.configure(text="×", fg_color="#EFF6FF", text_color=PRIMARY)
+                busqueda.focus_set()
+                filtrar_clientes()
+
+        boton_buscar = ctk.CTkButton(
+            fila_selector,
+            text="⌕",
+            width=28,
+            height=FORM_CONTROL_HEIGHT,
+            corner_radius=5,
+            fg_color="transparent",
+            hover_color="#EFF6FF",
+            text_color=PRIMARY,
+            font=("Montserrat", 17),
+            command=alternar_busqueda,
+        )
+        boton_buscar.grid(row=0, column=1, sticky="e", padx=(3, 0))
+
+        def elegir_cliente_filtrado(_event=None):
+            if seleccionando_cliente[0] or not coincidencias_visibles:
+                return "break"
+            indices = resultados.curselection()
+            indice = indices[0] if indices else 0
+            if indice >= len(coincidencias_visibles):
+                return "break"
+            elegido = coincidencias_visibles[indice]
+            seleccionando_cliente[0] = True
+            try:
+                variable.set(elegido)
+                cargar_cliente_desde_selector(elegido)
+                cerrar_busqueda()
+            finally:
+                seleccionando_cliente[0] = False
+            return "break"
+
+        def navegar_resultados(event):
+            if not coincidencias_visibles:
+                return "break"
+            actual = resultados.curselection()
+            indice = actual[0] if actual else 0
+            indice = min(len(coincidencias_visibles) - 1, indice + (1 if event.keysym == "Down" else -1))
+            resultados.selection_clear(0, tk.END)
+            resultados.selection_set(indice)
+            resultados.activate(indice)
+            resultados.see(indice)
+            return "break"
+
+        busqueda.bind("<Down>", navegar_resultados)
+        busqueda.bind("<Up>", navegar_resultados)
+        busqueda.bind("<Return>", elegir_cliente_filtrado)
+        busqueda.bind("<Escape>", lambda _event: (cerrar_busqueda(), "break")[1])
+        resultados.bind("<ButtonRelease-1>", elegir_cliente_filtrado)
+        resultados.bind("<Return>", elegir_cliente_filtrado)
+        resultados.bind("<Escape>", lambda _event: (cerrar_busqueda(), "break")[1])
+
         manual = AxiaEntry(
             contenedor_campo, textvariable=var_cliente, height=FORM_CONTROL_HEIGHT, corner_radius=0, font=FORM_FIELD_FONT,
             placeholder_text="Nombre / razón social del cliente"
