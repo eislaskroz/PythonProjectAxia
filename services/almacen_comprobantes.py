@@ -181,9 +181,14 @@ def generar_ticket_salida(*, partidas: Sequence[Mapping], destinatario: str,
 
     story = [p('AXIA COMUNICACIONES', header), p('COMPROBANTE DE SALIDA DE ALMACEN', subhead),
              Spacer(1, 3 * mm), HRFlowable(width='100%', thickness=1.5, color=AZUL), Spacer(1, 3 * mm)]
-    for title, val in [('Emitido (México)',_fecha(fecha)), ('Movimiento',ident or 'CONFIRMADO'),
-                       ('OT / Referencia',referencia or 'Salida individual'),
-                       ('Recibe',destinatario), ('Entrega',responsable), ('Motivo',motivo)]:
+    # La fecha histórica siempre procede del movimiento registrado en el servidor.
+    # Nunca sustituirla silenciosamente por la fecha de una reimpresión.
+    fecha_movimiento = _fecha(fecha) if fecha else 'No disponible'
+    fecha_impresion = _fecha()
+    for title, val in [('Fecha del movimiento', fecha_movimiento),
+                       ('Fecha de impresión', fecha_impresion),
+                       ('OT / Referencia', referencia or 'Salida individual'),
+                       ('Entrega', responsable), ('Motivo', motivo)]:
         if val:
             story.append(p(f'{title}: {val}', small))
             story.append(Spacer(1, 1.2 * mm))
@@ -203,6 +208,9 @@ def generar_ticket_salida(*, partidas: Sequence[Mapping], destinatario: str,
         story.append(Spacer(1,2*mm))
         story.append(p('NOTAS DE ENTREGA', bold))
         story.append(p(_texto(notas,1000), small))
+    # El nombre del receptor solamente aparece junto a su firma.
+    story.append(Spacer(1, 4 * mm))
+    story.append(p(f'RECIBE / FIRMA: {destinatario or "Sin nombre registrado"}', bold))
     if firma_png_base64:
         try:
             raw = base64.b64decode(firma_png_base64, validate=True)
@@ -213,15 +221,17 @@ def generar_ticket_salida(*, partidas: Sequence[Mapping], destinatario: str,
             story.append(Image(io.BytesIO(raw), width=62*mm, height=19*mm, kind='proportional'))
         except Exception as exc:
             raise ValueError('La firma almacenada no pudo recuperarse para el comprobante.') from exc
-    story.append(Spacer(1, 9 * mm))
+    story.append(Spacer(1, 3 * mm))
     story.extend([HRFlowable(width='90%', thickness=.5, color=GRIS),
-                  p('RECIBE / FIRMA',subhead), Spacer(1,3*mm),
-                  p('Documento interno - No es comprobante fiscal',subhead)])
+                  Spacer(1, 2 * mm),
+                  p('Documento interno - No es comprobante fiscal', subhead)])
     def alto(elemento):
         if isinstance(elemento, KeepTogether):
             return sum(alto(parte) for parte in elemento._content)
         return elemento.wrap(usable, 10_000 * mm)[1]
-    altura = max(75 * mm, sum(alto(e) for e in story) + 22 * mm)
+    # Reservar altura adicional para los espaciados internos de ReportLab.
+    # Sin esta tolerancia el pie podía saltar a una segunda página vacía.
+    altura = max(75 * mm, sum(alto(e) for e in story) + 40 * mm)
     doc = SimpleDocTemplate(str(ruta), pagesize=(80 * mm, altura),
                             leftMargin=5 * mm, rightMargin=5 * mm,
                             topMargin=7 * mm, bottomMargin=7 * mm,

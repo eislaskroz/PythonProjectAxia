@@ -32,8 +32,11 @@ def generar_comprobante_historico(detalle: Mapping, *, ruta: str | Path | None =
             identificador=ident, fecha=fecha, ruta=ruta,
         )
     recepcion = detalle.get('recepcion') or {}
+    if not isinstance(recepcion, Mapping):
+        recepcion = {}
+    receptor = str(recepcion.get('receptor_nombre') or detalle.get('destinatario') or '')
     return generar_ticket_salida(
-        partidas=partidas, destinatario=str(detalle.get('destinatario') or ''),
+        partidas=partidas, destinatario=receptor,
         motivo=str(detalle.get('motivo') or ''), referencia=referencia,
         responsable=str(detalle.get('responsable') or ''),
         identificador=ident, fecha=fecha, ruta=ruta,
