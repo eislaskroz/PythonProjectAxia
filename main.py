@@ -1,5 +1,7 @@
 from ui.font_runtime import ensure_poppins
 ensure_poppins()
+from ui.axia_dialogs import install_axia_dialogs
+install_axia_dialogs()
 
 # =====================================================
 # IMPORTACIÓN DE LIBRERÍAS

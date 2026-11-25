@@ -105,7 +105,17 @@ def _redibujar_fondo_sidebar(sidebar):
         sidebar.update_idletasks()
         ancho = max(220, sidebar.winfo_width())
         alto = max(600, sidebar.winfo_height())
-        imagen = _crear_fondo_sidebar(tipo, (ancho, alto))
+        fondo = _imagen_fondo_sidebar(tipo, (ancho, alto))
+        if fondo is not None:
+            ruta_logo = _ruta_recurso_sidebar("Isologo-con-fondo-blanco.png")
+            if ruta_logo.exists():
+                with Image.open(ruta_logo) as original:
+                    isologo = original.convert("RGBA")
+                    isologo.thumbnail((155, 155), Image.Resampling.LANCZOS)
+                    fondo.alpha_composite(isologo, ((ancho - isologo.width) // 2, 9))
+            imagen = ImageTk.PhotoImage(fondo)
+        else:
+            imagen = None
         if imagen is None:
             label.place_forget()
             return
@@ -504,17 +514,9 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
     # =================================================
     # LOGOTIPO
     # =================================================
-    logo_axia = cargar_logo_axia(size=(155, 155))
-
-    label_logo = ctk.CTkLabel(
-        sidebar,
-        image=logo_axia,
-        text=""
-    )
-    label_logo.image = logo_axia
-    label_logo.pack(pady=(9, 9))
-    sidebar._axia_header_label = label_logo
-    sidebar._axia_header_image = logo_axia
+    # El isologo se compone sobre el propio fondo de la barra, sin un widget opaco.
+    sidebar._axia_header_label = None
+    sidebar._axia_header_image = None
 
     # =================================================
     # NAVEGACIÓN EN SECCIONES DESPLEGABLES
@@ -523,7 +525,7 @@ def crear_app_sidebar(parent, usuario_activo, callbacks, on_exit, on_logout=None
     opciones, direccion = _opciones_menu_por_rol(usuario_activo, callbacks)
 
     menu_marco = ctk.CTkFrame(sidebar, fg_color="#10283D", corner_radius=0, border_width=0)
-    menu_marco.pack(side="top", fill="both", expand=True, padx=(5, 3), pady=(2, 4))
+    menu_marco.pack(side="top", fill="both", expand=True, padx=(5, 3), pady=(174, 4))
     menu_scroll = tk.Canvas(
         menu_marco, background="#0E2539", borderwidth=0,
         highlightthickness=0, relief="flat", takefocus=True,
