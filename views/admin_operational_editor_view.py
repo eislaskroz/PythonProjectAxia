@@ -428,4 +428,16 @@ def mostrar_admin_operational_editor(parent, app, config):
                               border_width=0, font=BUTTON_FONT, command=final_action, state="disabled")
     btn_action.grid(row=0, column=2, sticky="ew", padx=4, pady=4)
 
+    if config.get("prefijo") == "OT" and str(obtener_usuario_actual().get("usu_tipo")) == "1":
+        def asignar_personal():
+            record = selected.get("record")
+            if not record or not record.get("ot_id"):
+                messagebox.showinfo("Asignaciones", "Carga primero la OT seleccionada.")
+                return
+            from views.ot_assignments_view import abrir_asignaciones
+            abrir_asignaciones(parent.winfo_toplevel(), record["ot_id"])
+        ctk.CTkButton(actions, text="Asignación de personal", font=BUTTON_FONT,
+                      fg_color=SECONDARY, hover_color=BUTTON_HOVER,
+                      command=asignar_personal).grid(row=2, column=0, columnspan=2, sticky="ew", padx=4, pady=4)
+
     search_records()

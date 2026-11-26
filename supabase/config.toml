@@ -2,3 +2,6 @@
 # No depende de Supabase Auth JWT porque Desktop usa db_usuarios.
 [functions.axia-reportador-desktop]
 verify_jwt = false
+
+[functions.desktop-ot-assignments]
+verify_jwt = false
