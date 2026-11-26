@@ -5,12 +5,17 @@ from ui.pdf_fonts import FONT_PDF_REGULAR, FONT_PDF_BOLD
 import base64
 import json
 import re
+import os
+import tempfile
+from contextvars import ContextVar
+from functools import wraps
 from io import BytesIO
 from html import escape
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 from services.levantamiento_compat import normalizar_registro_levantamiento
 from services.levantamiento_autoria import nombre_elaborador
+from services.desktop_evidence_access import descargar_evidencia_field, EvidenciaNoDisponible
 from services.pdf_canalizacion_agrupada import (
     agrupar_partidas_canalizacion, ENCABEZADOS_CANALIZACION, TITULO_CANALIZACION,
 )
@@ -41,6 +46,71 @@ BORDER = colors.HexColor("#8FA3B5")
 TEXT = colors.HexColor("#243447")
 WHITE = colors.white
 logger = configurar_logger(__name__)
+_evidence_cache = ContextVar("axia_pdf_evidence_cache", default=None)
+
+
+def _field_path(item):
+    if not isinstance(item, Mapping):
+        return None
+    path = str(item.get("storage_path") or "").strip()
+    bucket = str(item.get("bucket") or "").strip()
+    return path if path and (bucket == "levantamientos-evidencias" or (not bucket and re.fullmatch(r"LEV-\d{5,}/[^/]+", path, re.I))) else None
+
+
+def contiene_evidencias_field(registro):
+    return any(_field_path(item) for item in _evidencias_todas(registro) + _archivos_adjuntos_levantamiento(registro))
+
+
+def _validar_evidencias_field(func):
+    @wraps(func)
+    def wrapper(registro, *args, **kwargs):
+        if _evidence_cache.get() is not None:
+            return func(registro, *args, **kwargs)
+        cache = {}
+        token = _evidence_cache.set(cache)
+        try:
+            for item in _evidencias_todas(registro) + _archivos_adjuntos_levantamiento(registro):
+                path = _field_path(item)
+                if path and path not in cache:
+                    raw = descargar_evidencia_field(path)
+                    try:
+                        if _es_pdf(item):
+                            from pypdf import PdfReader
+                            if not len(PdfReader(BytesIO(raw)).pages):
+                                raise ValueError("PDF vacío")
+                        else:
+                            from PIL import Image
+                            with Image.open(BytesIO(raw)) as im:
+                                im.load()
+                    except Exception:
+                        raise EvidenciaNoDisponible("Una evidencia registrada está dañada o tiene un formato no válido.") from None
+                    cache[path] = raw
+            if not cache:
+                return func(registro, *args, **kwargs)
+            final = Path(kwargs["ruta_salida"])
+            final.parent.mkdir(parents=True, exist_ok=True)
+            fd, temp_name = tempfile.mkstemp(prefix=".axia-", suffix=".pdf", dir=final.parent)
+            os.close(fd)
+            temporary = Path(temp_name)
+            try:
+                abrir = bool(kwargs.get("abrir", False))
+                func(registro, *args, **{**kwargs, "ruta_salida": temporary, "abrir": False})
+                if not temporary.is_file() or temporary.stat().st_size == 0:
+                    raise EvidenciaNoDisponible("No se confirmó la generación del PDF.")
+                temporary.replace(final)
+                if abrir:
+                    if os.name == "nt":
+                        os.startfile(str(final))
+                    else:
+                        import subprocess
+                        subprocess.Popen(["xdg-open", str(final)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                return str(final)
+            finally:
+                temporary.unlink(missing_ok=True)
+                temporary.with_suffix(".attachments.tmp.pdf").unlink(missing_ok=True)
+        finally:
+            _evidence_cache.reset(token)
+    return wrapper
 
 
 def _json(value: Any, default: Any = None) -> Any:
@@ -209,6 +279,14 @@ def _append_elaborado_por(
     story.append(tabla)
 
 
+def _append_cierre_levantamiento(story, registro, detail, width, normal, header):
+    cierre = []
+    _append_vobo_cliente(cierre, registro, detail, width, normal, header)
+    _append_elaborado_por(cierre, registro, detail, width, normal)
+    if cierre:
+        story.append(KeepTogether(cierre))
+
+
 def _anotacion_plano_base64(registro: Mapping[str, Any]) -> str:
     payload = _json(registro.get("lev_anotacion_plano_json"), {})
     if not isinstance(payload, Mapping):
@@ -236,7 +314,7 @@ def _append_anotacion_plano(story: list, registro: Mapping[str, Any], width: flo
         iw = float(getattr(image, "imageWidth", 0) or 1)
         ih = float(getattr(image, "imageHeight", 0) or 1)
         max_w = min(width, 4.75 * inch)
-        max_h = 3.20 * inch
+        max_h = 2.00 * inch
         scale = min(max_w / iw, max_h / ih, 1.0)
         image.drawWidth = iw * scale
         image.drawHeight = ih * scale
@@ -244,7 +322,11 @@ def _append_anotacion_plano(story: list, registro: Mapping[str, Any], width: flo
         title = _section_title("Anotaciones tipo plano", width, header)
         story.append(Spacer(1, 4))
         story.append(KeepTogether([title, Spacer(1, 4), image]))
+    except EvidenciaNoDisponible:
+        raise
     except Exception:
+        if contiene_evidencias_field(registro):
+            raise EvidenciaNoDisponible("No fue posible integrar todas las evidencias al PDF.") from None
         return
 
 
@@ -339,7 +421,7 @@ def _append_archivos_adjuntos(story: list, registro: Mapping[str, Any], width: f
             image = RLImage(BytesIO(raw))
             iw = float(getattr(image, "imageWidth", 0) or 1)
             ih = float(getattr(image, "imageHeight", 0) or 1)
-            scale = min((4.75 * inch) / iw, (4.25 * inch) / ih, 1.0)
+            scale = min((4.75 * inch) / iw, (3.00 * inch) / ih, 1.0)
             image.drawWidth, image.drawHeight = iw * scale, ih * scale
             image.hAlign = "CENTER"
             story.extend([
@@ -347,77 +429,42 @@ def _append_archivos_adjuntos(story: list, registro: Mapping[str, Any], width: f
                 Spacer(1, 7),
             ])
         except Exception:
+            if _field_path(item):
+                raise EvidenciaNoDisponible("No fue posible integrar un plano adjunto.") from None
             continue
 
 
 def _cargar_archivo_evidencia(item):
+    path = _field_path(item)
+    if path:
+        cache = _evidence_cache.get()
+        if cache is not None and path in cache:
+            return cache[path]
+        return descargar_evidencia_field(path)
     try:
-        origen = ""
-        storage_path = ""
-        if isinstance(item, Mapping):
-            origen = str(item.get("url") or item.get("public_url") or item.get("ruta") or item.get("path") or "").strip()
-            storage_path = str(item.get("storage_path") or "").strip()
-        else:
-            origen = str(item or "").strip()
+        origen = str(item.get("url") or item.get("public_url") or item.get("ruta") or item.get("path") or "").strip() if isinstance(item, Mapping) else str(item or "").strip()
         if origen and Path(origen).is_file():
             return Path(origen).read_bytes()
         if origen.lower().startswith(("http://", "https://")):
+            import requests
             try:
-                import requests
                 r = requests.get(origen, timeout=12)
                 r.raise_for_status()
                 return r.content
             except Exception:
                 pass
-        if storage_path:
-            from supabase_config import supabase
-            bucket = str(item.get("bucket") or "levantamientos-evidencias") if isinstance(item, Mapping) else "levantamientos-evidencias"
-            storage = supabase.storage.from_(bucket)
-            try:
-                raw = storage.download(storage_path)
-                if raw:
-                    return raw
-            except Exception:
-                pass
-            try:
-                public_url = str(storage.get_public_url(storage_path) or "").strip()
-                if public_url:
-                    import requests
-                    response = requests.get(public_url, timeout=20)
-                    response.raise_for_status()
-                    return response.content
-            except Exception:
-                pass
-            if bucket == "levantamientos-evidencias":
-                try:
-                    from supabase_config import SUPABASE_KEY, SUPABASE_URL
-                    import requests
-                    endpoint = f"{str(SUPABASE_URL).rstrip('/')}/functions/v1/mobile-evidence-access"
-                    signed_response = requests.post(
-                        endpoint,
-                        headers={
-                            "Authorization": f"Bearer {SUPABASE_KEY}",
-                            "apikey": str(SUPABASE_KEY),
-                            "Content-Type": "application/json",
-                        },
-                        json={"bucket": bucket, "storagePath": storage_path},
-                        timeout=15,
-                    )
-                    signed_response.raise_for_status()
-                    signed_url = str((signed_response.json() or {}).get("signedUrl") or "").strip()
-                    if signed_url:
-                        file_response = requests.get(signed_url, timeout=25)
-                        file_response.raise_for_status()
-                        return file_response.content
-                except Exception:
-                    logger.warning(
-                        "No fue posible descargar complemento FIELD: bucket=%s path=%s",
-                        bucket,
-                        storage_path,
-                        exc_info=True,
-                    )
+        # Compatibilidad con evidencias históricas de DESKTOP, que usan otro bucket.
+        # Nunca se intenta descargar el bucket privado de FIELD por esta vía.
+        if isinstance(item, Mapping):
+            storage_path = str(item.get("storage_path") or "").strip()
+            bucket = str(item.get("bucket") or "").strip()
+            if not bucket and storage_path.startswith(("levantamientos/", "levantamientos-archivos/")):
+                bucket = "bitacoras-evidencias"
+            if storage_path and bucket == "bitacoras-evidencias":
+                from supabase_config import supabase
+                return supabase.storage.from_(bucket).download(storage_path)
     except Exception:
-        return None
+        pass
     return None
 
 
@@ -445,13 +492,19 @@ def _anexar_paginas_pdf(ruta_salida: str | Path, registro: Mapping[str, Any]) ->
                     writer.add_page(page)
                     appended += 1
             except Exception:
+                if _field_path(item):
+                    raise EvidenciaNoDisponible("No fue posible integrar un PDF adjunto.") from None
                 continue
         if appended:
             temporary = output.with_suffix(".attachments.tmp.pdf")
             with temporary.open("wb") as stream:
                 writer.write(stream)
             temporary.replace(output)
+    except EvidenciaNoDisponible:
+        raise
     except Exception:
+        if contiene_evidencias_field(registro):
+            raise EvidenciaNoDisponible("No fue posible integrar todas las evidencias al PDF.") from None
         return
 
 
@@ -474,7 +527,7 @@ def _append_evidencias_fotograficas(story: list, registro: Mapping[str, Any], wi
                 im.save(buf, format="PNG")
                 buf.seek(0)
                 iw, ih = im.size
-            max_w, max_h = 2.55 * inch, 1.75 * inch
+            max_w, max_h = 2.55 * inch, 1.65 * inch
             scale = min(max_w / max(iw, 1), max_h / max(ih, 1))
             img = RLImage(buf, width=max(1, iw * scale), height=max(1, ih * scale))
             card = Table([[img]], colWidths=[2.68 * inch])
@@ -505,7 +558,11 @@ def _append_evidencias_fotograficas(story: list, registro: Mapping[str, Any], wi
             grid = Table([row], colWidths=[width/2, width/2], hAlign="LEFT")
             grid.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "TOP")]))
             story.extend([Spacer(1, 4), grid])
+    except EvidenciaNoDisponible:
+        raise
     except Exception:
+        if contiene_evidencias_field(registro):
+            raise EvidenciaNoDisponible("No fue posible integrar todas las evidencias al PDF.") from None
         return
 
 def _tipo_y_modalidad(registro: Mapping[str, Any], detail: Mapping[str, Any] | None = None) -> tuple[str, str]:
@@ -644,6 +701,7 @@ def _description_table(text: str, width: float, normal, table_header) -> LongTab
     return table
 
 
+@_validar_evidencias_field
 def generar_pdf_seguridad_instalacion(
     registro: Mapping[str, Any],
     *,
@@ -774,8 +832,7 @@ def generar_pdf_seguridad_instalacion(
     _append_anotacion_plano(story, registro, width, header)
     _append_archivos_adjuntos(story, registro, width, normal, header)
     _append_evidencias_fotograficas(story, registro, width, header)
-    _append_vobo_cliente(story, registro, detail, width, normal, header)
-    _append_elaborado_por(story, registro, detail, width, normal)
+    _append_cierre_levantamiento(story, registro, detail, width, normal, header)
 
     title = "Levantamiento Seguridad y Monitoreo - Instalación"
     doc.title = f"AXIA - {title}"
@@ -1350,6 +1407,7 @@ def _description_for(registro: Mapping[str, Any], detail: Mapping[str, Any]) -> 
 
 
 
+@_validar_evidencias_field
 def generar_pdf_levantamiento_maestro(
     registro: Mapping[str, Any], *, ruta_salida: str | Path, abrir: bool = False,
 ) -> str:
@@ -1446,8 +1504,7 @@ def generar_pdf_levantamiento_maestro(
     _append_anotacion_plano(story, registro, width, header)
     _append_archivos_adjuntos(story, registro, width, normal, header)
     _append_evidencias_fotograficas(story, registro, width, header)
-    _append_vobo_cliente(story, registro, detail, width, normal, header)
-    _append_elaborado_por(story, registro, detail, width, normal)
+    _append_cierre_levantamiento(story, registro, detail, width, normal, header)
 
     title = f"Levantamiento {tipo}" + (f" - {modalidad}" if modalidad and str(modalidad).strip().casefold() != str(tipo).strip().casefold() else "")
     doc.title = f"AXIA - {title}"

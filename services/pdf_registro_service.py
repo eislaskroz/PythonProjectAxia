@@ -10,6 +10,7 @@ from services.axia_pdf_artifacts import AxiaPdfArtifactStore, PDF_RENDERER_VERSI
 from services.levantamiento_compat import normalizar_registro_levantamiento
 from services.levantamiento_seguridad_pdf import (
     es_levantamiento,
+    contiene_evidencias_field,
     generar_pdf_levantamiento_maestro,
 )
 
@@ -421,9 +422,16 @@ def generar_pdf_registro(
         if ruta_salida is None:
             safe = "_".join(str(registro.get("lev_tipo_levantamiento") or "Levantamiento").split())
             ruta_salida = AxiaPdfEngine._preview_path(f"Levantamiento_{safe}")
-        resultado = generar_pdf_levantamiento_maestro(
-            registro, ruta_salida=Path(ruta_salida), abrir=abrir
-        )
+        from services.desktop_evidence_access import EvidenciaNoDisponible
+        try:
+            resultado = generar_pdf_levantamiento_maestro(
+                registro, ruta_salida=Path(ruta_salida), abrir=abrir
+            )
+        except EvidenciaNoDisponible as error:
+            if abrir:
+                messagebox.showwarning("Evidencias no disponibles", str(error) + "\nNo se generó el PDF definitivo.")
+                return False
+            raise
         if isinstance(resultado, (str, Path)) and Path(resultado).is_file():
             AxiaPdfArtifactStore.register(folio, resultado)
         return resultado
@@ -555,7 +563,7 @@ def guardar_pdf_registro(registro: dict, configuracion: dict | None = None) -> b
     )
     if not ruta:
         return False
-    exacto = AxiaPdfArtifactStore.export_exact(
+    exacto = None if es_levantamiento(registro) and contiene_evidencias_field(registro) else AxiaPdfArtifactStore.export_exact(
         folio, Path(ruta), min_renderer_version=PDF_RENDERER_VERSION
     )
     if exacto:
@@ -565,9 +573,14 @@ def guardar_pdf_registro(registro: dict, configuracion: dict | None = None) -> b
         )
         return True
 
-    resultado = generar_pdf_registro(
-        registro, configuracion, ruta_salida=Path(ruta), abrir=False
-    )
+    from services.desktop_evidence_access import EvidenciaNoDisponible
+    try:
+        resultado = generar_pdf_registro(
+            registro, configuracion, ruta_salida=Path(ruta), abrir=False
+        )
+    except EvidenciaNoDisponible as error:
+        messagebox.showwarning("Evidencias no disponibles", str(error) + "\nNo se generó el PDF definitivo.")
+        return False
     if resultado:
         messagebox.showinfo(
             "Guardar PDF",
