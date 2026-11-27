@@ -465,7 +465,15 @@ def mostrar_auditoria(parent, app):
             else buscar_movimientos_auditoria
         )
 
-        registros = consulta(termino=termino, limite=200) or []
+        from services.desktop_secure_reads import ConsultaSeguraError
+        try:
+            registros = consulta(termino=termino, limite=200) or []
+        except ConsultaSeguraError as error:
+            estado["registros"] = []
+            estado["filtrados"] = []
+            pintar_tabla([])
+            messagebox.showerror("Consulta de auditoría", str(error))
+            return
         filtrados = [r for r in registros if coincide_filtros(r)]
 
         estado["registros"] = registros

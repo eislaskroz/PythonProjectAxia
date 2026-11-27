@@ -4,30 +4,30 @@ logger = configurar_logger(__name__)
 
 COLUMNAS_MOVIMIENTOS = "id_usuario,fecha_hora,usuario,modulo,accion,descripcion,equipo,ip_local,registro_afectado,latitud,longitud,ciudad,region,pais"
 
-# =====================================================
-# IMPORTACIÓN DE LIBRERÍAS
-# =====================================================
 
-# Librería para obtener información del equipo local
+
+
+
+
 import socket
 import json
 from datetime import datetime
 from core.app_paths import user_data_dir
 
-# =====================================================
-# IMPORTACIÓN DE SUPABASE
-# =====================================================
 
-# Cliente Supabase centralizado del proyecto
+
+
+
+
 from supabase_config import (
     supabase,
     TABLA_BITACORA_MOVIMIENTOS
 )
 from app_context import obtener_usuario_actual
 
-# =====================================================
-# FUNCIÓN: obtener_equipo_local()
-# =====================================================
+
+
+
 def obtener_equipo_local():
     try:
         return socket.gethostname()
@@ -37,9 +37,9 @@ def obtener_equipo_local():
         return "DESCONOCIDO"
 
 
-# =====================================================
-# FUNCIÓN: obtener_ip_local()
-# =====================================================
+
+
+
 def obtener_ip_local():
     try:
         return socket.gethostbyname(socket.gethostname())
@@ -62,9 +62,9 @@ def _guardar_movimiento_pendiente(datos):
         logger.exception("No fue posible conservar localmente el movimiento pendiente.")
 
 
-# =====================================================
-# FUNCIÓN: registrar_movimiento()
-# =====================================================
+
+
+
 def registrar_movimiento(
     id_usuario=None,
     usuario="DESCONOCIDO",
@@ -81,9 +81,9 @@ def registrar_movimiento(
 
     try:
 
-        # =================================================
-        # OBTENER USUARIO ACTIVO
-        # =================================================
+
+
+
         usuario_activo = obtener_usuario_actual()
 
         if id_usuario is None:
@@ -104,9 +104,9 @@ def registrar_movimiento(
         if pais is None:
             pais = ubicacion.get("pais")
 
-        # =================================================
-        # DATOS A INSERTAR EN SUPABASE
-        # =================================================
+
+
+
 
         datos = {
             "id_usuario": id_usuario,
@@ -124,9 +124,9 @@ def registrar_movimiento(
             "pais": pais
         }
 
-        # =================================================
-        # INSERTAR REGISTRO EN SUPABASE
-        # =================================================
+
+
+
 
         supabase.table(TABLA_BITACORA_MOVIMIENTOS).insert(datos).execute()
 
@@ -141,9 +141,9 @@ def registrar_movimiento(
         return False
 
 
-# =====================================================
-# FUNCIÓN: registrar_movimiento_seguro()
-# =====================================================
+
+
+
 def registrar_movimiento_seguro(
     modulo="GENERAL",
     accion="SIN_ACCION",
@@ -162,66 +162,27 @@ def registrar_movimiento_seguro(
         logger.exception("Error no controlado en registrar_movimiento_seguro.")
         return False
 
-# =====================================================
-# FUNCIÓN: obtener_bitacora_movimientos()
-# =====================================================
+
+
+
 def obtener_bitacora_movimientos():
-    try:
-        respuesta = (
-            supabase
-            .table(TABLA_BITACORA_MOVIMIENTOS)
-            .select(COLUMNAS_MOVIMIENTOS)
-            .order("fecha_hora", desc=True)
-            .execute()
-        )
-
-        # Registramos la consulta de auditoría sin interrumpir si falla.
-        try:
-            registrar_movimiento(
-                modulo="AUDITORIA",
-                accion="CONSULTAR",
-                descripcion="Consulta de bitácora de movimientos",
-                registro_afectado=f"Total consultado: {len(respuesta.data or [])}",
-            )
-        except Exception:
-            logger.warning("No fue posible auditar la consulta de movimientos.", exc_info=True)
-
-        return respuesta.data
-
-    except Exception as error:
-        logger.exception("Error al consultar bitácora de movimientos.")
-        return []
+    from services.desktop_secure_reads import listar
+    registros = listar("desktop-audit", "movimientos", 1000)
+    registrar_movimiento(modulo="AUDITORIA", accion="CONSULTAR", descripcion="Consulta de bitácora de movimientos", registro_afectado=f"Total consultado: {len(registros)}")
+    return registros
 
 
 
-# =====================================================
-# FUNCIÓN: obtener_movimientos_usuario_actual()
-# =====================================================
+
+
+
 def obtener_movimientos_usuario_actual(limite=300):
-    try:
-        usuario_activo = obtener_usuario_actual()
-        id_usuario = usuario_activo.get("id_usuario")
-        usuario = usuario_activo.get("usuario")
+    from services.desktop_secure_reads import listar
+    return listar("desktop-audit", "mis_movimientos", limite)
 
-        consulta = supabase.table(TABLA_BITACORA_MOVIMIENTOS).select(COLUMNAS_MOVIMIENTOS)
 
-        if id_usuario:
-            consulta = consulta.eq("id_usuario", id_usuario)
-        elif usuario:
-            consulta = consulta.eq("usuario", usuario)
-        else:
-            return []
 
-        respuesta = consulta.order("fecha_hora", desc=True).limit(limite).execute()
-        return respuesta.data or []
 
-    except Exception:
-        logger.exception("Error al consultar bitácora personal.")
-        return []
-
-# =====================================================
-# FUNCIÓN: obtener_estadisticas_movimientos()
-# =====================================================
 def obtener_estadisticas_movimientos():
     try:
         movimientos = obtener_bitacora_movimientos()
@@ -236,9 +197,9 @@ def obtener_estadisticas_movimientos():
         logger.exception("Error al obtener estadísticas de movimientos.")
         return 0, 0, 0
 
-# =====================================================
-# FUNCIÓN: _coincide_movimiento()
-# =====================================================
+
+
+
 def _coincide_movimiento(movimiento, termino):
 
     termino = str(termino or "").lower().strip()
@@ -267,58 +228,22 @@ def _coincide_movimiento(movimiento, termino):
     )
 
 
-# =====================================================
-# FUNCIÓN: buscar_movimientos()
-# =====================================================
+
+
+
 def buscar_movimientos(termino="", limite=200):
-    try:
-        termino = str(termino or "").strip()
-        if not termino:
-            return []
-
-        respuesta = (
-            supabase
-            .table(TABLA_BITACORA_MOVIMIENTOS)
-            .select(COLUMNAS_MOVIMIENTOS)
-            .order("fecha_hora", desc=True)
-            .limit(max(limite, 500))
-            .execute()
-        )
-
-        registros = respuesta.data or []
-        return [m for m in registros if _coincide_movimiento(m, termino)][:limite]
-
-    except Exception:
-        logger.exception("Error al buscar movimientos.")
+    from services.desktop_secure_reads import listar
+    if not str(termino or "").strip():
         return []
+    registros = listar("desktop-audit", "movimientos", max(limite, 500))
+    return [m for m in registros if _coincide_movimiento(m, termino)][:limite]
 
 
-# =====================================================
-# FUNCIÓN: buscar_movimientos_usuario_actual()
-# =====================================================
+
+
+
 def buscar_movimientos_usuario_actual(termino="", limite=100):
-    try:
-        termino = str(termino or "").strip()
-        if not termino:
-            return []
-
-        usuario_activo = obtener_usuario_actual()
-        id_usuario = usuario_activo.get("id_usuario")
-        usuario = usuario_activo.get("usuario")
-
-        consulta = supabase.table(TABLA_BITACORA_MOVIMIENTOS).select(COLUMNAS_MOVIMIENTOS)
-
-        if id_usuario:
-            consulta = consulta.eq("id_usuario", id_usuario)
-        elif usuario:
-            consulta = consulta.eq("usuario", usuario)
-        else:
-            return []
-
-        respuesta = consulta.order("fecha_hora", desc=True).limit(max(limite, 300)).execute()
-        registros = respuesta.data or []
-        return [m for m in registros if _coincide_movimiento(m, termino)][:limite]
-
-    except Exception:
-        logger.exception("Error al buscar movimientos del usuario actual.")
+    if not str(termino or "").strip():
         return []
+    registros = obtener_movimientos_usuario_actual(max(limite, 300))
+    return [m for m in registros if _coincide_movimiento(m, termino)][:limite]

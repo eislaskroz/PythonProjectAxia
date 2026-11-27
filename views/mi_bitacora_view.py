@@ -146,9 +146,9 @@ def mostrar_mi_usuario(parent, app):
     contenedor = ctk.CTkScrollableFrame(parent, fg_color="transparent", corner_radius=0)
     contenedor.pack(fill="both", expand=True, padx=9, pady=3)
 
-    # =================================================
-    # DATOS GENERALES
-    # =================================================
+
+
+
     card_datos = ctk.CTkFrame(contenedor, fg_color=WHITE, corner_radius=14)
     card_datos.pack(fill="x", pady=(0, 5))
 
@@ -225,9 +225,9 @@ def mostrar_mi_usuario(parent, app):
     acomodar_fichas(1440)
     card_datos.bind("<Configure>", lambda evento: acomodar_fichas(evento.width), add="+")
 
-    # =================================================
-    # CAMBIO DE CONTRASEÑA
-    # =================================================
+
+
+
     card_password = ctk.CTkFrame(contenedor, fg_color=WHITE, corner_radius=14)
     card_password.pack(fill="x", pady=(0, 8))
     card_password.grid_columnconfigure((0, 1, 2), weight=1, uniform="pwd")
@@ -282,9 +282,9 @@ def mostrar_mi_usuario(parent, app):
         command=cambiar_password,
     ).grid(row=2, column=0, columnspan=3, sticky="e", padx=8, pady=(0, 6))
 
-    # =================================================
-    # MOVIMIENTOS PERSONALES BAJO BÚSQUEDA
-    # =================================================
+
+
+
     card_mov = ctk.CTkFrame(contenedor, fg_color=WHITE, corner_radius=14)
     card_mov.pack(fill="both", expand=True)
     card_mov.grid_columnconfigure(0, weight=1)
@@ -376,7 +376,14 @@ def mostrar_mi_usuario(parent, app):
             messagebox.showwarning("Búsqueda requerida", "Ingresa un dato para consultar tus movimientos.")
             limpiar_panel()
             return
-        registros = buscar_movimientos_usuario_actual(termino=termino, limite=100)
+        from services.desktop_secure_reads import ConsultaSeguraError
+        try:
+            registros = buscar_movimientos_usuario_actual(termino=termino, limite=100)
+        except ConsultaSeguraError as error:
+            estado["movimientos"] = []
+            limpiar_panel()
+            messagebox.showerror("Consulta de movimientos", str(error))
+            return
         estado["movimientos"] = registros or []
         pintar(estado["movimientos"])
 

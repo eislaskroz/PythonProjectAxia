@@ -359,9 +359,9 @@ def mostrar_usuarios_admin(parent, app):
         entry.configure(state="disabled")
         estado["entradas"][campo] = entry
 
-    # =====================================================
-    # BOTONES DE ACCIÓN CENTRADOS
-    # =====================================================
+
+
+
 
     acciones = ctk.CTkFrame(
         panel_formulario,
@@ -482,6 +482,9 @@ def mostrar_usuarios_admin(parent, app):
             entry.configure(state="disabled")
 
         estado["modo"] = "lectura"
+        if not solo_rrhh:
+            btn_guardar.configure(state="disabled")
+            btn_actualizar.configure(state="disabled")
         btn_guardar.configure(text='Registrar alta' if solo_rrhh else 'Guardar nuevo')
         btn_actualizar.configure(text="Actualizar seleccionado")
         if solo_rrhh:
@@ -489,6 +492,8 @@ def mostrar_usuarios_admin(parent, app):
 
 
     def desbloquear_formulario(modo):
+        if not solo_rrhh:
+            return
         estado["modo"] = modo
 
         for campo, entry in estado["entradas"].items():
@@ -624,6 +629,8 @@ def mostrar_usuarios_admin(parent, app):
             )
 
     def guardar_nuevo():
+        if not solo_rrhh:
+            return
         if estado.get("modo") != "nuevo":
             limpiar_formulario()
             desbloquear_formulario("nuevo")
@@ -686,6 +693,8 @@ def mostrar_usuarios_admin(parent, app):
             messagebox.showerror('Recursos Humanos', mensaje)
 
     def actualizar_seleccionado():
+        if not solo_rrhh:
+            return
         seleccionado = estado.get("seleccionado")
 
         if not seleccionado:

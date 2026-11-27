@@ -8,22 +8,12 @@
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/version.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/version.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/installer/AXIA.iss" beforeDir="false" afterPath="$PROJECT_DIR$/installer/AXIA.iss" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/bitacora_evidencias_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/bitacora_evidencias_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/cotizacion_pdf.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/cotizacion_pdf.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/desktop_historical_evidence.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/desktop_historical_evidence.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/desktop_operational_evidence.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/desktop_operational_evidence.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/levantamiento_seguridad_pdf.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/levantamiento_seguridad_pdf.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/obras_civiles_universal.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/obras_civiles_universal.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/pdf_registro_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/pdf_registro_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/reportador_fotografico_pdf.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/reportador_fotografico_pdf.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/supabase/functions/desktop-historical-evidence-access/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/supabase/functions/desktop-historical-evidence-access/index.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/views/admin_operational_editor_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/admin_operational_editor_view.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/views/bitacora_avance_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/bitacora_avance_view.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/views/formato_helpers.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/formato_helpers.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/views/levantamiento_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/levantamiento_view.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/views/obra_civil_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/obra_civil_view.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/views/orden_servicio_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/orden_servicio_view.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/views/reportador_fotografico_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/reportador_fotografico_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/auditoria_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/auditoria_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/movimientos_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/movimientos_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/usuarios_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/usuarios_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/auditoria_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/auditoria_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/mi_bitacora_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/mi_bitacora_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/usuarios_admin_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/usuarios_admin_view.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -652,14 +642,6 @@
       <option name="presentableId" value="Default" />
       <updated>1787595329657</updated>
     </task>
-    <task id="LOCAL-00211" summary="Merge remote-tracking branch 'orign/main'">
-      <option name="closed" value="true" />
-      <created>1795272025630</created>
-      <option name="number" value="00211" />
-      <option name="presentableId" value="LOCAL-00211" />
-      <option name="project" value="LOCAL" />
-      <updated>1795272025630</updated>
-    </task>
     <task id="LOCAL-00212" summary="Merge remote-tracking branch 'orign/main'">
       <option name="closed" value="true" />
       <created>1795272760244</created>
@@ -1044,7 +1026,15 @@
       <option name="project" value="LOCAL" />
       <updated>1795791750059</updated>
     </task>
-    <option name="localTasksCounter" value="260" />
+    <task id="LOCAL-00260" summary="Merge remote-tracking branch 'orign/main'">
+      <option name="closed" value="true" />
+      <created>1795803608586</created>
+      <option name="number" value="00260" />
+      <option name="presentableId" value="LOCAL-00260" />
+      <option name="project" value="LOCAL" />
+      <updated>1795803608587</updated>
+    </task>
+    <option name="localTasksCounter" value="261" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

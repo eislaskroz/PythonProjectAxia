@@ -7,9 +7,9 @@ from services.query_compat import execute_select_compatible
 logger = configurar_logger(__name__)
 from services.movimientos_service import registrar_movimiento_seguro
 
-# =====================================================
-# SERVICIO DE USUARIOS - AXIA
-# =====================================================
+
+
+
 from supabase_config import supabase, TABLA_USUARIOS
 from utils import encriptar_password
 from security.permissions import OPERADOR, TIPOS_VALIDOS
@@ -182,26 +182,8 @@ class UsuarioServiceError(RuntimeError):
 
 
 def _obtener_usuarios_paginados(limite=500):
-    limite = max(1, int(limite or 500))
-    page_size = min(500, limite)
-    registros = []
-    page = 1
-
-    while len(registros) < limite:
-        start, end = page_range(page, page_size)
-        respuesta = execute_select_compatible(
-            supabase,
-            TABLA_USUARIOS,
-            COLUMNAS_USUARIOS,
-            lambda query, start=start, end=end: query.order("id_usuario").range(start, end),
-        )
-        lote = list(respuesta.data or [])
-        registros.extend(lote)
-        if len(lote) < page_size:
-            break
-        page += 1
-
-    return registros[:limite]
+    from services.desktop_secure_reads import listar
+    return listar("desktop-users", "listar", limite)
 
 
 def buscar_usuarios(termino="", limite=500):
@@ -226,9 +208,9 @@ def buscar_usuarios(termino="", limite=500):
         return resultado
     except Exception as error:
         logger.exception("Error al buscar usuarios.")
-        raise UsuarioServiceError(
-            "No fue posible consultar los usuarios. Revisa la conexión y la estructura de db_usuarios."
-        ) from error
+        from services.desktop_secure_reads import ConsultaSeguraError
+        mensaje = str(error) if isinstance(error, ConsultaSeguraError) else "No fue posible consultar los usuarios."
+        raise UsuarioServiceError(mensaje) from error
 
 
 def crear_usuario_admin(datos):
@@ -289,36 +271,30 @@ def actualizar_usuario_admin(id_usuario, datos):
             f"Código: {report.incident_id}"
         ), None
 
-# =====================================================
-# FUNCIÓN: obtener_usuario_por_id()
-# =====================================================
+
+
+
 def obtener_usuario_por_id(id_usuario):
+    from app_context import obtener_usuario_actual
+    from services.desktop_secure_reads import consultar, ConsultaSeguraError
+    if not id_usuario:
+        return None
     try:
-        if not id_usuario:
-            return None
-
-        respuesta = execute_select_compatible(
-            supabase,
-            TABLA_USUARIOS,
-            COLUMNAS_USUARIOS,
-            lambda query: query.eq("id_usuario", id_usuario).limit(1),
-        )
-
-        if not respuesta.data:
-            return None
-
-        usuario = descifrar_diccionario(respuesta.data[0], CAMPOS_SENSIBLES_USUARIO)
-        usuario.pop("usu_password", None)
-        return usuario
-
+        if str(id_usuario) == str(obtener_usuario_actual().get("id_usuario")):
+            registro = consultar("desktop-users", "mi_perfil")
+        else:
+            registro = consultar("desktop-users", "detalle", id_usuario=int(id_usuario))
+        if str(registro.get("id_usuario")) != str(id_usuario):
+            raise ConsultaSeguraError("El perfil recibido no corresponde a la consulta.")
+        return descifrar_diccionario(registro, CAMPOS_SENSIBLES_USUARIO)
     except Exception:
-        logger.exception("Error al obtener usuario por ID.")
+        logger.exception("Error al obtener perfil autorizado.")
         return None
 
 
-# =====================================================
-# FUNCIÓN: cambiar_password_usuario_actual()
-# =====================================================
+
+
+
 def cambiar_password_usuario_actual(password_actual, password_nuevo, password_confirmacion):
     try:
         from app_context import obtener_usuario_actual
