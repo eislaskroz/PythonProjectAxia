@@ -8,7 +8,8 @@ from pathlib import Path
 from PIL import Image
 
 from app_context import obtener_usuario_actual
-from security.permissions import puede_ver_usuarios, puede_editar_expedientes_rrhh
+from security.permissions import puede_ver_usuarios, puede_editar_expedientes_rrhh, es_admin
+from services.desktop_users_write import CAMPOS_CUENTA
 from ui.date_picker import abrir_selector_fecha
 from ui.native_table import NativeTreeTable
 from ui.colors import WHITE, TEXT_PRIMARY, TEXT_SECONDARY, SECONDARY, BUTTON_HOVER
@@ -61,6 +62,7 @@ def mostrar_usuarios_admin(parent, app):
         return
 
     solo_rrhh = puede_editar_expedientes_rrhh(usuario_activo)
+    escritura_admin = es_admin(usuario_activo)
 
     def solicitar_clave_rrhh(proposito):
         return simpledialog.askstring(
@@ -68,6 +70,14 @@ def mostrar_usuarios_admin(parent, app):
             f'Confirma tu contraseña para {proposito}:',
             show='*', parent=app,
         )
+
+    def confirmar_escritura_admin(datos):
+        if datos.get("usu_password"):
+            confirmacion = simpledialog.askstring("Confirmar contraseña nueva", "Repite la contraseña nueva de la cuenta:", show="*", parent=app)
+            if confirmacion is None:
+                return None
+            datos["confirmar_password"] = confirmacion
+        return simpledialog.askstring("Autorización administrativa", "Confirma tu propia contraseña de administrador:", show="*", parent=app)
 
     for widget in parent.winfo_children():
         widget.destroy()
@@ -483,8 +493,10 @@ def mostrar_usuarios_admin(parent, app):
 
         estado["modo"] = "lectura"
         if not solo_rrhh:
-            btn_guardar.configure(state="disabled")
-            btn_actualizar.configure(state="disabled")
+            btn_guardar.configure(state="normal" if escritura_admin else "disabled")
+            seleccionado = estado.get("seleccionado") or {}
+            editable = escritura_admin and seleccionado.get("usu_activo") is True and seleccionado.get("usu_fecha_baja") is None and seleccionado.get("usu_tipo") != 1
+            btn_actualizar.configure(state="normal" if editable else "disabled")
         btn_guardar.configure(text='Registrar alta' if solo_rrhh else 'Guardar nuevo')
         btn_actualizar.configure(text="Actualizar seleccionado")
         if solo_rrhh:
@@ -492,15 +504,18 @@ def mostrar_usuarios_admin(parent, app):
 
 
     def desbloquear_formulario(modo):
-        if not solo_rrhh:
+        if not solo_rrhh and not escritura_admin:
             return
         estado["modo"] = modo
+        if escritura_admin:
+            btn_guardar.configure(state="normal")
+            btn_actualizar.configure(state="normal" if modo == "editar" else "disabled")
 
         for campo, entry in estado["entradas"].items():
-            autorizado = not solo_rrhh or (
+            autorizado = ((campo in CAMPOS_CUENTA or campo == "usu_password" or (modo == "nuevo" and campo == "usu_nickname")) if escritura_admin else (
                 (modo == 'editar' and campo in CAMPOS_RRHH)
                 or (modo == 'nuevo' and (campo == 'usu_nickname' or campo in CAMPOS_RRHH))
-            )
+            ))
             entry.configure(state='normal' if autorizado else 'disabled')
 
         if solo_rrhh:
@@ -515,7 +530,7 @@ def mostrar_usuarios_admin(parent, app):
 
     def datos_formulario():
         datos = {
-            campo: variable.get().strip()
+            campo: variable.get() if campo == "usu_password" else variable.get().strip()
             for campo, variable in estado["variables"].items()
         }
         datos["confirmar_password"] = datos.get("usu_password", "")
@@ -629,7 +644,7 @@ def mostrar_usuarios_admin(parent, app):
             )
 
     def guardar_nuevo():
-        if not solo_rrhh:
+        if not solo_rrhh and not escritura_admin:
             return
         if estado.get("modo") != "nuevo":
             limpiar_formulario()
@@ -651,15 +666,20 @@ def mostrar_usuarios_admin(parent, app):
             datos = datos_formulario()
             exito, mensaje, _ = alta_usuario_rrhh(datos, clave, motivo)
         else:
-            exito, mensaje, _ = crear_usuario_admin(datos_formulario())
+            datos = datos_formulario()
+            if not messagebox.askyesno("Confirmar alta", "¿Crear una cuenta con acceso habilitado? Los expedientes laborales se administran desde RRHH."):
+                return
+            clave = confirmar_escritura_admin(datos)
+            if not clave:
+                return
+            exito, mensaje, _ = crear_usuario_admin(datos, clave)
 
         if exito:
             messagebox.showinfo('Usuarios', mensaje)
-            termino = datos_formulario().get('usu_nickname') if solo_rrhh else var_busqueda.get()
+            termino = datos_formulario().get('usu_nickname')
             limpiar_formulario()
             bloquear_formulario()
-            if solo_rrhh:
-                var_busqueda.set(termino)
+            var_busqueda.set(termino)
             cargar_resultados(termino)
         else:
             messagebox.showerror("Usuarios", mensaje)
@@ -693,7 +713,7 @@ def mostrar_usuarios_admin(parent, app):
             messagebox.showerror('Recursos Humanos', mensaje)
 
     def actualizar_seleccionado():
-        if not solo_rrhh:
+        if not solo_rrhh and not escritura_admin:
             return
         seleccionado = estado.get("seleccionado")
 
@@ -704,6 +724,9 @@ def mostrar_usuarios_admin(parent, app):
             )
             return
 
+        if escritura_admin and (seleccionado.get("usu_tipo") == 1 or seleccionado.get("usu_activo") is not True or seleccionado.get("usu_fecha_baja") is not None):
+            messagebox.showwarning("Cuenta protegida", "Esta cuenta no puede modificarse desde esta ventana.")
+            return
         if estado.get("modo") != "editar":
             desbloquear_formulario("editar")
             return
@@ -729,9 +752,17 @@ def mostrar_usuarios_admin(parent, app):
                 seleccionado, clave, motivo,
             )
         else:
-            exito, mensaje, _ = actualizar_usuario_admin(
-                seleccionado.get("id_usuario"), datos_formulario(),
-            )
+            datos = datos_formulario()
+            activar = False
+            if datos.get("usu_password") and seleccionado.get("usu_acceso_habilitado") is False:
+                decision = messagebox.askyesnocancel("Activación de acceso", "¿Habilitar también el acceso pendiente de esta cuenta?")
+                if decision is None:
+                    return
+                activar = decision
+            clave = confirmar_escritura_admin(datos)
+            if not clave:
+                return
+            exito, mensaje, _ = actualizar_usuario_admin(seleccionado.get("id_usuario"), datos, seleccionado, clave, activar)
 
         if exito:
             messagebox.showinfo("Usuarios", mensaje)

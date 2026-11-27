@@ -1,4 +1,4 @@
-# AXIA DESKTOP 2.06.34 — piloto de lectura privada
+# AXIA DESKTOP 2.06.26 — piloto de lectura privada
 
 - Desplegar `supabase/functions/desktop-operational-evidence-access-v3/index.ts` con Legacy JWT OFF. Usa los secretos existentes `AXIA_MOBILE_JWT_SECRET` y `AXIA_DESKTOP_EVIDENCE_GRANTS` (además de la configuración Supabase del servidor).
 - No reactivar ningún piloto de escritura. El endpoint solo permite lectura de BIT-00024 y OS-00005, a un administrador activo con grant corporativo registrado. Requiere la sesión AXIA compartida ya utilizada por DESKTOP.

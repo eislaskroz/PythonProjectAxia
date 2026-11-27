@@ -11,7 +11,6 @@ from services.movimientos_service import registrar_movimiento_seguro
 
 
 from supabase_config import supabase, TABLA_USUARIOS
-from utils import encriptar_password
 from security.permissions import OPERADOR, TIPOS_VALIDOS
 from security.data_encryption import (
     cifrar_diccionario,
@@ -42,117 +41,9 @@ CAMPOS_SENSIBLES_USUARIO = [
 ]
 
 
-def normalizar_datos_usuario(datos):
-    datos_normalizados = dict(datos or {})
-
-    for campo in ("usu_rfc", "usu_curp", "usu_imss", "usu_ine"):
-        datos_normalizados[campo] = str(datos_normalizados.get(campo, "") or "").upper()
-
-    datos_normalizados["usu_correo"] = str(datos_normalizados.get("usu_correo", "") or "").strip().lower()
-
-    return datos_normalizados
-
-
-def validar_datos_usuario(datos):
-    if not datos.get("usu_nickname"):
-        return False, "El usuario es obligatorio."
-
-    if not datos.get("usu_password"):
-        return False, "La contraseña es obligatoria."
-
-    if datos.get("usu_password") != datos.get("confirmar_password"):
-        return False, "Las contraseñas no coinciden."
-
-    from security.passwords import validar_fortaleza_password
-    password_valida, mensaje_password = validar_fortaleza_password(datos.get("usu_password", ""))
-    if not password_valida:
-        return False, mensaje_password
-
-    if not datos.get("usu_nombre"):
-        return False, "El nombre es obligatorio."
-
-    if not datos.get("usu_apellido"):
-        return False, "El apellido es obligatorio."
-
-    correo = str(datos.get("usu_correo", "") or "").strip()
-    if correo and ("@" not in correo or "." not in correo.rsplit("@", 1)[-1]):
-        return False, "El correo electrónico de empresa no tiene un formato válido."
-
-    try:
-        usu_tipo = int(datos.get("usu_tipo", OPERADOR))
-    except (TypeError, ValueError):
-        return False, "El tipo de usuario debe ser un número entre 1 y 10."
-
-    if usu_tipo not in TIPOS_VALIDOS:
-        return False, "El tipo de usuario debe estar entre 1 y 10."
-
-    datos["usu_tipo"] = usu_tipo
-    return True, "Datos válidos"
-
-
-def existe_nickname(nickname):
-    respuesta = (
-        supabase
-        .table(TABLA_USUARIOS)
-        .select("id_usuario")
-        .eq("usu_nickname", nickname)
-        .limit(1)
-        .execute()
-    )
-
-    return bool(respuesta.data)
-
-
-def registrar_usuario(datos):
-    try:
-        datos = normalizar_datos_usuario(datos)
-
-        valido, mensaje = validar_datos_usuario(datos)
-
-        if not valido:
-            return False, mensaje, None
-
-        if existe_nickname(datos["usu_nickname"]):
-            return False, "Ese nickname ya está registrado.", None
-
-        datos_guardar = dict(datos)
-        datos_guardar.pop("confirmar_password", None)
-
-        datos_guardar["usu_password"] = encriptar_password(
-            datos_guardar["usu_password"]
-        )
-
-        datos_guardar["usu_tipo"] = int(datos_guardar.get("usu_tipo", OPERADOR))
-
-        datos_guardar = cifrar_diccionario(datos_guardar, CAMPOS_SENSIBLES_USUARIO)
-
-        respuesta = (
-            supabase
-            .table(TABLA_USUARIOS)
-            .insert(datos_guardar)
-            .execute()
-        )
-
-        if bool(respuesta.data):
-            usuario = descifrar_diccionario(respuesta.data[0], CAMPOS_SENSIBLES_USUARIO)
-            registrar_movimiento_seguro(
-                modulo="USUARIOS",
-                accion="CREAR",
-                descripcion="Alta administrativa de usuario",
-                registro_afectado=usuario.get("id_usuario") or usuario.get("usu_nickname"),
-            )
-            return True, "El usuario fue registrado correctamente.", usuario
-
-        return False, "No fue posible registrar el usuario.", None
-
-    except Exception as error:
-        report = register_error(error, "Registrar usuario")
-        logger.exception("Error al registrar usuario.")
-        return False, (
-            "No fue posible registrar el usuario. "
-            f"Motivo técnico: {report.technical_message} "
-            f"Código: {report.incident_id}"
-        ), None
+def registrar_usuario(datos, clave_admin=None):
+    from services.desktop_users_write import guardar_cuenta
+    return guardar_cuenta(datos, clave_admin)
 
 
 def _coincide_usuario(usuario, termino):
@@ -213,65 +104,15 @@ def buscar_usuarios(termino="", limite=500):
         raise UsuarioServiceError(mensaje) from error
 
 
-def crear_usuario_admin(datos):
-    return registrar_usuario(datos)
+def crear_usuario_admin(datos, clave_admin):
+    return registrar_usuario(datos, clave_admin)
 
 
-def actualizar_usuario_admin(id_usuario, datos):
-    try:
-        if not id_usuario:
-            return False, "Selecciona un usuario para modificar.", None
-
-        datos_guardar = normalizar_datos_usuario(dict(datos))
-        datos_guardar.pop("confirmar_password", None)
-
-        if "usu_tipo" in datos_guardar:
-            try:
-                datos_guardar["usu_tipo"] = int(datos_guardar["usu_tipo"])
-            except (TypeError, ValueError):
-                return False, "El tipo de usuario debe ser un número entre 1 y 10.", None
-            if datos_guardar["usu_tipo"] not in TIPOS_VALIDOS:
-                return False, "El tipo de usuario debe estar entre 1 y 10.", None
-
-        password = datos_guardar.get("usu_password", "")
-        if password:
-            datos_guardar["usu_password"] = encriptar_password(password)
-            datos_guardar["usu_acceso_habilitado"] = True
-        else:
-            datos_guardar.pop("usu_password", None)
-
-        datos_guardar = cifrar_diccionario(datos_guardar, CAMPOS_SENSIBLES_USUARIO)
-
-        respuesta = (
-            supabase
-            .table(TABLA_USUARIOS)
-            .update(datos_guardar)
-            .eq("id_usuario", id_usuario)
-            .execute()
-        )
-
-        if respuesta.data:
-            usuario = descifrar_diccionario(respuesta.data[0], CAMPOS_SENSIBLES_USUARIO)
-            registrar_movimiento_seguro(
-                modulo="USUARIOS",
-                accion="ACTUALIZAR",
-                descripcion=f"Actualización administrativa de usuario ID: {id_usuario}",
-                registro_afectado=id_usuario,
-            )
-            return True, "Usuario actualizado correctamente.", usuario
-
-        return False, "No fue posible actualizar el usuario.", None
-
-    except Exception as error:
-        report = register_error(error, "Actualizar usuario")
-        logger.exception("Error al actualizar usuario.")
-        return False, (
-            "No fue posible actualizar el usuario. "
-            f"Motivo técnico: {report.technical_message} "
-            f"Código: {report.incident_id}"
-        ), None
-
-
+def actualizar_usuario_admin(id_usuario, datos, seleccionado, clave_admin, activar=False):
+    from services.desktop_users_write import guardar_cuenta
+    if not seleccionado or str(id_usuario) != str(seleccionado.get("id_usuario")):
+        return False, "Selecciona nuevamente un usuario.", None
+    return guardar_cuenta(datos, clave_admin, seleccionado, activar)
 
 
 def obtener_usuario_por_id(id_usuario):
@@ -296,100 +137,8 @@ def obtener_usuario_por_id(id_usuario):
 
 
 def cambiar_password_usuario_actual(password_actual, password_nuevo, password_confirmacion):
-    try:
-        from app_context import obtener_usuario_actual
-        from security.passwords import verificar_password, generar_hash_password, validar_fortaleza_password
-
-        usuario_activo = obtener_usuario_actual()
-        id_usuario = usuario_activo.get("id_usuario")
-
-        if not id_usuario:
-            return False, "No se encontró una sesión activa válida."
-
-        password_actual = str(password_actual or "")
-        password_nuevo = str(password_nuevo or "")
-        password_confirmacion = str(password_confirmacion or "")
-
-        if not password_actual:
-            return False, "Captura tu contraseña actual."
-
-        if not password_nuevo:
-            return False, "Captura la nueva contraseña."
-
-        if password_nuevo != password_confirmacion:
-            return False, "La nueva contraseña y la confirmación no coinciden."
-
-        password_valida, mensaje_password = validar_fortaleza_password(password_nuevo)
-        if not password_valida:
-            return False, mensaje_password
-
-        respuesta = (
-            supabase
-            .table(TABLA_USUARIOS)
-            .select("id_usuario, usu_password")
-            .eq("id_usuario", id_usuario)
-            .limit(1)
-            .execute()
-        )
-
-        if not respuesta.data:
-            return False, "No fue posible localizar tu usuario."
-
-        password_anterior = respuesta.data[0].get("usu_password") or ""
-
-        if not verificar_password(password_actual, password_anterior):
-            return False, "La contraseña actual no es correcta."
-
-        nuevo_hash = generar_hash_password(password_nuevo)
-
-        if len(nuevo_hash) < 55:
-            return False, "No fue posible generar un hash seguro para la contraseña."
-
-        if not verificar_password(password_nuevo, nuevo_hash):
-            return False, "No fue posible validar el hash de la nueva contraseña."
-
-        supabase.table(TABLA_USUARIOS).update({"usu_password": nuevo_hash}).eq("id_usuario", id_usuario).execute()
-
-        verificacion = (
-            supabase
-            .table(TABLA_USUARIOS)
-            .select("usu_password")
-            .eq("id_usuario", id_usuario)
-            .limit(1)
-            .execute()
-        )
-
-        password_confirmado = ""
-        if verificacion.data:
-            password_confirmado = verificacion.data[0].get("usu_password") or ""
-
-        if len(str(password_confirmado)) < 55:
-            supabase.table(TABLA_USUARIOS).update({"usu_password": password_anterior}).eq("id_usuario", id_usuario).execute()
-            return False, (
-                "La base de datos no guardó completo el hash de contraseña. "
-                "Ejecuta la migración para convertir usu_password a TEXT."
-            )
-
-        if not verificar_password(password_nuevo, password_confirmado):
-            supabase.table(TABLA_USUARIOS).update({"usu_password": password_anterior}).eq("id_usuario", id_usuario).execute()
-            return False, (
-                "La contraseña nueva no pudo verificarse después de guardarse. "
-                "No se aplicó el cambio. Revisa que la columna usu_password "
-                "permita guardar al menos 80 caracteres."
-            )
-
-        registrar_movimiento_seguro(
-            modulo="MI_USUARIO",
-            accion="CAMBIAR_PASSWORD",
-            descripcion="El usuario cambió su propia contraseña",
-            registro_afectado=id_usuario,
-        )
-
-        return True, "Contraseña actualizada correctamente. Cierra sesión e ingresa con la nueva contraseña."
-
-    except Exception as error:
-        logger.exception("Error al cambiar contraseña del usuario actual.")
-        return False, f"No fue posible cambiar la contraseña.\n\n{error}"
+    from services.desktop_password_change import cambiar_password
+    return cambiar_password(password_actual, password_nuevo, password_confirmacion)
 
 
 def _nombre_mostrable_usuario(usuario):

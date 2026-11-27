@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.desktop-operational-evidence-access-v3]
 verify_jwt = false
+
+[functions.desktop-password-change]
+verify_jwt = false
