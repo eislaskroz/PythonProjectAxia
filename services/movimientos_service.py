@@ -1,147 +1,41 @@
+import socket
+
+from app_context import obtener_usuario_actual
 from core.logger import configurar_logger
+from services.desktop_audit_write import registrar_evento
 
 logger = configurar_logger(__name__)
-
 COLUMNAS_MOVIMIENTOS = "id_usuario,fecha_hora,usuario,modulo,accion,descripcion,equipo,ip_local,registro_afectado,latitud,longitud,ciudad,region,pais"
-
-
-
-
-
-
-import socket
-import json
-from datetime import datetime
-from core.app_paths import user_data_dir
-
-
-
-
-
-
-from supabase_config import (
-    supabase,
-    TABLA_BITACORA_MOVIMIENTOS
-)
-from app_context import obtener_usuario_actual
-
-
 
 
 def obtener_equipo_local():
     try:
         return socket.gethostname()
-
-    except Exception:
-        logger.warning("No fue posible obtener el nombre del equipo.", exc_info=True)
+    except OSError:
         return "DESCONOCIDO"
-
-
-
 
 
 def obtener_ip_local():
     try:
         return socket.gethostbyname(socket.gethostname())
-
-    except Exception:
-        logger.warning("No fue posible obtener la IP local.", exc_info=True)
+    except OSError:
         return "DESCONOCIDA"
 
 
-def _guardar_movimiento_pendiente(datos):
-    try:
-        carpeta = user_data_dir() / "audit_pending"
-        carpeta.mkdir(parents=True, exist_ok=True)
-        ruta = carpeta / "movimientos_pendientes.jsonl"
-        payload = dict(datos)
-        payload["pendiente_desde"] = datetime.now().isoformat()
-        with ruta.open("a", encoding="utf-8") as archivo:
-            archivo.write(json.dumps(payload, ensure_ascii=False, default=str) + "\n")
-    except Exception:
-        logger.exception("No fue posible conservar localmente el movimiento pendiente.")
-
-
-
-
-
-def registrar_movimiento(
-    id_usuario=None,
-    usuario="DESCONOCIDO",
-    modulo="GENERAL",
-    accion="SIN_ACCION",
-    descripcion="Movimiento sin descripción",
-    registro_afectado=None,
-    latitud=None,
-    longitud=None,
-    ciudad=None,
-    region=None,
-    pais=None
-):
-
-    try:
-
-
-
-
-        usuario_activo = obtener_usuario_actual()
-
-        if id_usuario is None:
-            id_usuario = usuario_activo.get("id_usuario")
-
-        if usuario == "DESCONOCIDO":
-            usuario = usuario_activo.get("usuario", "DESCONOCIDO")
-
-        ubicacion = usuario_activo.get("ubicacion") or {}
-        if latitud is None:
-            latitud = ubicacion.get("latitud")
-        if longitud is None:
-            longitud = ubicacion.get("longitud")
-        if ciudad is None:
-            ciudad = ubicacion.get("ciudad")
-        if region is None:
-            region = ubicacion.get("region")
-        if pais is None:
-            pais = ubicacion.get("pais")
-
-
-
-
-
-        datos = {
-            "id_usuario": id_usuario,
-            "usuario": usuario,
-            "modulo": modulo,
-            "accion": accion,
-            "descripcion": descripcion,
-            "registro_afectado": registro_afectado,
-            "ip_local": obtener_ip_local(),
-            "equipo": obtener_equipo_local(),
-            "latitud": latitud,
-            "longitud": longitud,
-            "ciudad": ciudad,
-            "region": region,
-            "pais": pais
-        }
-
-
-
-
-
-        supabase.table(TABLA_BITACORA_MOVIMIENTOS).insert(datos).execute()
-
-        return True
-
-    except Exception as error:
-        logger.exception("Error al registrar movimiento; se conservará en cola local.")
-        try:
-            _guardar_movimiento_pendiente(datos)
-        except UnboundLocalError:
-            logger.warning("No fue posible construir el movimiento para la cola local.", exc_info=True)
+def registrar_movimiento(id_usuario=None, usuario="DESCONOCIDO", modulo="GENERAL", accion="SIN_ACCION", descripcion="Movimiento sin descripción", registro_afectado=None, latitud=None, longitud=None, ciudad=None, region=None, pais=None):
+    actor = obtener_usuario_actual()
+    identidad = actor.get("id_usuario")
+    if identidad is None or (id_usuario is not None and str(id_usuario) != str(identidad)):
         return False
-
-
-
+    ubicacion = actor.get("ubicacion") or {}
+    datos = {"modulo": modulo, "accion": accion, "descripcion": descripcion, "registro_afectado": registro_afectado, "equipo": obtener_equipo_local(), "ip_local": obtener_ip_local()}
+    for campo, valor in (("latitud", latitud), ("longitud", longitud), ("ciudad", ciudad), ("region", region), ("pais", pais)):
+        datos[campo] = ubicacion.get(campo) if valor is None else valor
+    try:
+        return registrar_evento(identidad, datos)
+    except Exception:
+        logger.warning("No se pudo confirmar el movimiento de auditoría.")
+        return False
 
 
 def registrar_movimiento_seguro(

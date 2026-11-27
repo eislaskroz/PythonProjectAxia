@@ -893,11 +893,6 @@ class AxiaApp(ctk.CTk):
             rf_cerrar()
         except Exception:
             pass
-        try:
-            from services.sesion_axia_compartida import cerrar_sesion as borrar_sesion_cerrar
-            borrar_sesion_cerrar()
-        except Exception:
-            pass
         from app_context import establecer_usuario_actual
         from services.movimientos_service import registrar_movimiento_seguro
 
@@ -914,6 +909,11 @@ class AxiaApp(ctk.CTk):
         except Exception:
             logger.exception("No fue posible registrar el cierre de sesión.")
 
+        try:
+            from services.sesion_axia_compartida import cerrar_sesion as borrar_sesion_cerrar
+            borrar_sesion_cerrar()
+        except Exception:
+            pass
         establecer_usuario_actual()
 
         try:
