@@ -417,6 +417,16 @@ def generar_pdf_registro(
         return False
     titulo, folio = _titulo_y_folio(registro, configuracion)
 
+    from services.obras_civiles_universal import generar_pdf_obra_civil_desde_registro
+    if registro.get('obc_folio') or registro.get('_obc_original'):
+        from services.desktop_evidence_access import EvidenciaNoDisponible
+        try:
+            return generar_pdf_obra_civil_desde_registro(registro.get('_obc_original') or registro, ruta_salida=ruta_salida, abrir=abrir)
+        except EvidenciaNoDisponible as error:
+            if abrir:
+                messagebox.showwarning('Evidencias no disponibles', str(error) + '\nNo se generó el PDF definitivo.')
+                return False
+            raise
     if es_levantamiento(registro):
         registro = normalizar_registro_levantamiento(registro)
         if ruta_salida is None:
@@ -567,7 +577,7 @@ def guardar_pdf_registro(registro: dict, configuracion: dict | None = None) -> b
         return False
     from services.desktop_operational_evidence import es_folio_piloto
     from services.desktop_historical_evidence import consulta_historica_activa
-    consulta_operativa = consulta_historica_activa() and folio.startswith(("BIT-", "OS-"))
+    consulta_operativa = consulta_historica_activa() and folio.startswith(("BIT-", "OS-", "LEV-", "OBC-"))
     exacto = None if consulta_operativa or es_folio_piloto(folio) or (es_levantamiento(registro) and contiene_evidencias_field(registro)) else AxiaPdfArtifactStore.export_exact(
         folio, Path(ruta), min_renderer_version=PDF_RENDERER_VERSION
     )

@@ -4,7 +4,19 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="04557334-8dd2-4c5c-9e71-68cbc1b3eae6" name="Changes" comment="Merge remote-tracking branch 'orign/main'" />
+    <list default="true" id="04557334-8dd2-4c5c-9e71-68cbc1b3eae6" name="Changes" comment="Merge remote-tracking branch 'orign/main'">
+      <change afterPath="$PROJECT_DIR$/docs/PILOTO_EVIDENCIAS_OPERATIVAS_20626.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/supabase/functions/desktop-historical-evidence-access/index.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/test_historical_evidence_20628.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/version.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/version.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/installer/AXIA.iss" beforeDir="false" afterPath="$PROJECT_DIR$/installer/AXIA.iss" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/desktop_historical_evidence.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/desktop_historical_evidence.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/levantamiento_seguridad_pdf.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/levantamiento_seguridad_pdf.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/obras_civiles_universal.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/obras_civiles_universal.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/pdf_registro_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/pdf_registro_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/formato_helpers.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/formato_helpers.py" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -632,22 +644,6 @@
       <option name="presentableId" value="Default" />
       <updated>1787595329657</updated>
     </task>
-    <task id="LOCAL-00208" summary="Merge remote-tracking branch 'orign/main'">
-      <option name="closed" value="true" />
-      <created>1795039423618</created>
-      <option name="number" value="00208" />
-      <option name="presentableId" value="LOCAL-00208" />
-      <option name="project" value="LOCAL" />
-      <updated>1795039423618</updated>
-    </task>
-    <task id="LOCAL-00209" summary="Merge remote-tracking branch 'orign/main'">
-      <option name="closed" value="true" />
-      <created>1795040326054</created>
-      <option name="number" value="00209" />
-      <option name="presentableId" value="LOCAL-00209" />
-      <option name="project" value="LOCAL" />
-      <updated>1795040326055</updated>
-    </task>
     <task id="LOCAL-00210" summary="Merge remote-tracking branch 'orign/main'">
       <option name="closed" value="true" />
       <created>1795271704029</created>
@@ -1024,7 +1020,23 @@
       <option name="project" value="LOCAL" />
       <updated>1795790945327</updated>
     </task>
-    <option name="localTasksCounter" value="257" />
+    <task id="LOCAL-00257" summary="Merge remote-tracking branch 'orign/main'">
+      <option name="closed" value="true" />
+      <created>1795791360720</created>
+      <option name="number" value="00257" />
+      <option name="presentableId" value="LOCAL-00257" />
+      <option name="project" value="LOCAL" />
+      <updated>1795791360720</updated>
+    </task>
+    <task id="LOCAL-00258" summary="Merge remote-tracking branch 'orign/main'">
+      <option name="closed" value="true" />
+      <created>1795791409319</created>
+      <option name="number" value="00258" />
+      <option name="presentableId" value="LOCAL-00258" />
+      <option name="project" value="LOCAL" />
+      <updated>1795791409319</updated>
+    </task>
+    <option name="localTasksCounter" value="259" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

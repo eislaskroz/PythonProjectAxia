@@ -5,6 +5,7 @@ import json
 import os
 import re
 from pathlib import PurePosixPath
+from collections.abc import Mapping
 from urllib.parse import unquote, urlsplit
 
 import requests
@@ -13,7 +14,8 @@ from services.desktop_evidence_access import EvidenciaNoDisponible
 from services.desktop_operational_evidence import FotoOperativaPrivada
 
 BUCKET = 'bitacoras-evidencias'
-_PATH = re.compile(r'(bitacoras/BIT|ordenes-servicio/OS)-[0-9]{5,}/[0-9a-f]{32}_[A-Za-z0-9_.-]+\.(?:jpg|jpeg|png|webp)', re.I)
+_PREFIXES = ('bitacoras/', 'ordenes-servicio/', 'levantamientos/', 'levantamientos-archivos/', 'obras-civiles/', 'obras-civiles-archivos/')
+_PATH = re.compile(r'(bitacoras/BIT|ordenes-servicio/OS|levantamientos(?:-archivos)?/LEV|obras-civiles(?:-archivos)?/OBC)-[0-9]{4,}/[0-9a-f]{32}_[A-Za-z0-9_.-]+\.(?:jpg|jpeg|png|webp|pdf|dwg|dxf)', re.I)
 _MAX = 30 * 1024 * 1024
 
 
@@ -22,21 +24,21 @@ def consulta_historica_activa():
 
 
 def _ruta_valida(path, folio):
-    if not isinstance(path, str) or not _PATH.fullmatch(path) or path.split('/')[1] != folio:
+    if not isinstance(path, str) or not _PATH.fullmatch(path) or path.split('/')[1] != folio or (not folio.startswith('OBC-') and len(folio.split('-')[-1]) < 5):
         raise EvidenciaNoDisponible('La ruta histórica no corresponde al documento.')
     return path
 
 
 def ruta_historica(item, folio, base):
     origin = urlsplit(base)
-    if isinstance(item, dict):
+    if isinstance(item, Mapping):
         bucket = str(item.get('bucket') or '').strip()
         path = str(item.get('storage_path') or item.get('storagePath') or '').strip()
         values = [item.get(k) for k in ('url', 'public_url', 'publicUrl', 'ruta', 'path')]
     else:
         bucket, path, values = '', '', [item]
     candidates = []
-    if bucket == BUCKET or path.startswith(('bitacoras/', 'ordenes-servicio/')):
+    if path and (bucket == BUCKET or path.startswith(_PREFIXES)):
         candidates.append(_ruta_valida(path, folio))
     for value in values:
         if not isinstance(value, str):
@@ -44,7 +46,7 @@ def ruta_historica(item, folio, base):
         value = value.strip()
         if value.lower().startswith('url:'):
             value = value[4:].strip()
-        if value.startswith(('bitacoras/', 'ordenes-servicio/')):
+        if value.startswith(_PREFIXES):
             candidates.append(_ruta_valida(value, folio))
             continue
         if not value.lower().startswith(('https://', 'http://')):
@@ -60,13 +62,15 @@ def ruta_historica(item, folio, base):
             raise EvidenciaNoDisponible('Origen de evidencia histórica no autorizado.')
         candidates.append(_ruta_valida(match.group(1), folio))
     if not candidates:
+        if bucket == BUCKET:
+            raise EvidenciaNoDisponible("Referencia histórica sin ruta válida.")
         return None
     if (bucket and bucket != BUCKET) or (path and path != candidates[0]) or any(p != candidates[0] for p in candidates):
         raise EvidenciaNoDisponible('Referencias históricas inconsistentes.')
     return candidates[0]
 
 
-def descargar_foto_historica(path, folio):
+def descargar_archivo_historico(path, folio):
     from app_context import obtener_usuario_actual
     from services.sesion_axia_compartida import obtener_sesion
     from supabase_config import SUPABASE_URL, SUPABASE_KEY
@@ -102,15 +106,34 @@ def descargar_foto_historica(path, folio):
                     raise EvidenciaNoDisponible('La evidencia excede el límite de descarga.')
         if not raw:
             raise EvidenciaNoDisponible('La evidencia está vacía.')
-        with Image.open(io.BytesIO(raw)) as img:
-            if img.format not in {'JPEG', 'PNG', 'WEBP'} or img.width * img.height > 25_000_000:
-                raise EvidenciaNoDisponible('Formato o dimensiones de evidencia inválidos.')
-            img.load()
+        extension = PurePosixPath(path).suffix.lower()
+        if extension == '.pdf':
+            from pypdf import PdfReader
+            if not raw.startswith(b'%PDF-') or not len(PdfReader(io.BytesIO(raw)).pages):
+                raise EvidenciaNoDisponible('PDF adjunto inválido o vacío.')
+        elif extension == '.dwg':
+            if not re.match(rb'AC10[0-9]{2}', raw):
+                raise EvidenciaNoDisponible('Archivo DWG inválido.')
+        elif extension == '.dxf':
+            if not (raw.startswith(b'AutoCAD Binary DXF') or re.match(rb'\s*0\s*SECTION\b', raw, re.I)):
+                raise EvidenciaNoDisponible('Archivo DXF inválido.')
+        else:
+            with Image.open(io.BytesIO(raw)) as img:
+                expected = {'.jpg': 'JPEG', '.jpeg': 'JPEG', '.png': 'PNG', '.webp': 'WEBP'}
+                if img.format != expected.get(extension) or img.width * img.height > 25_000_000:
+                    raise EvidenciaNoDisponible('Formato o dimensiones de evidencia inválidos.')
+                img.load()
         return bytes(raw)
     except EvidenciaNoDisponible:
         raise
     except Exception:
         raise EvidenciaNoDisponible('No fue posible validar la evidencia histórica.') from None
+
+
+def descargar_foto_historica(path, folio):
+    if PurePosixPath(path).suffix.lower() not in {'.jpg', '.jpeg', '.png', '.webp'}:
+        raise EvidenciaNoDisponible('La evidencia no es una fotografía.')
+    return descargar_archivo_historico(path, folio)
 
 
 def preparar_fotos_historicas(datos, folio):
@@ -135,6 +158,40 @@ def preparar_fotos_historicas(datos, folio):
             continue
         if path not in cache:
             cache[path] = descargar_foto_historica(path, folio)
-        name = str(item.get('nombre') or PurePosixPath(path).name) if isinstance(item, dict) else PurePosixPath(path).name
+        name = str(item.get('nombre') or PurePosixPath(path).name) if isinstance(item, Mapping) else PurePosixPath(path).name
         result.append(FotoOperativaPrivada(name, cache[path]))
     return {**datos, 'Evidencia Fotográfica': result}
+
+
+def preparar_evidencias_obra_civil(items, folio, *, archivos=False):
+    from supabase_config import SUPABASE_URL
+
+    if isinstance(items, str):
+        try:
+            items = json.loads(items)
+        except ValueError:
+            items = [items]
+    if isinstance(items, Mapping):
+        items = [items]
+    if not isinstance(items, (list, tuple)):
+        raise EvidenciaNoDisponible('Lista de evidencias de Obra Civil inválida.')
+    resultado = []
+    cache = {}
+    for item in items:
+        if isinstance(item, FotoOperativaPrivada):
+            resultado.append(item)
+            continue
+        path = ruta_historica(item, folio, str(SUPABASE_URL).rstrip('/'))
+        if path is None:
+            if isinstance(item, Mapping) and item.get('storage_path'):
+                raise EvidenciaNoDisponible('Referencia de Obra Civil no autorizada.')
+            resultado.append(item)
+            continue
+        if path not in cache:
+            cache[path] = descargar_archivo_historico(path, folio) if archivos else descargar_foto_historica(path, folio)
+        if archivos:
+            resultado.append(item)
+        else:
+            name = str(item.get('nombre') or PurePosixPath(path).name) if isinstance(item, Mapping) else PurePosixPath(path).name
+            resultado.append(FotoOperativaPrivada(name, cache[path]))
+    return resultado

@@ -16,6 +16,7 @@ from typing import Any, Mapping, Sequence
 from services.levantamiento_compat import normalizar_registro_levantamiento
 from services.levantamiento_autoria import nombre_elaborador
 from services.desktop_evidence_access import descargar_evidencia_field, EvidenciaNoDisponible
+from services.desktop_historical_evidence import consulta_historica_activa, ruta_historica, descargar_archivo_historico
 from services.pdf_canalizacion_agrupada import (
     agrupar_partidas_canalizacion, ENCABEZADOS_CANALIZACION, TITULO_CANALIZACION,
 )
@@ -47,6 +48,18 @@ TEXT = colors.HexColor("#243447")
 WHITE = colors.white
 logger = configurar_logger(__name__)
 _evidence_cache = ContextVar("axia_pdf_evidence_cache", default=None)
+_historical_folio = ContextVar("axia_pdf_historical_folio", default=None)
+
+
+def _historical_path(item, folio):
+    if not folio or not consulta_historica_activa() or _field_path(item):
+        return None
+    from supabase_config import SUPABASE_URL
+    return ruta_historica(item, folio, str(SUPABASE_URL).rstrip("/"))
+
+
+def _evidence_protected(item):
+    return bool(_field_path(item) or _historical_path(item, _historical_folio.get()))
 
 
 def _field_path(item):
@@ -58,7 +71,7 @@ def _field_path(item):
 
 
 def contiene_evidencias_field(registro):
-    return any(_field_path(item) for item in _evidencias_todas(registro) + _archivos_adjuntos_levantamiento(registro))
+    return any(_field_path(item) or _historical_path(item, registro.get("lev_folio")) for item in _evidencias_todas(registro) + _archivos_adjuntos_levantamiento(registro))
 
 
 def _validar_evidencias_field(func):
@@ -68,8 +81,14 @@ def _validar_evidencias_field(func):
             return func(registro, *args, **kwargs)
         cache = {}
         token = _evidence_cache.set(cache)
+        folio_token = _historical_folio.set(registro.get("lev_folio"))
         try:
             for item in _evidencias_todas(registro) + _archivos_adjuntos_levantamiento(registro):
+                historical = _historical_path(item, _historical_folio.get())
+                if historical:
+                    if historical not in cache:
+                        cache[historical] = descargar_archivo_historico(historical, _historical_folio.get())
+                    continue
                 path = _field_path(item)
                 if path and path not in cache:
                     raw = descargar_evidencia_field(path)
@@ -109,6 +128,7 @@ def _validar_evidencias_field(func):
                 temporary.unlink(missing_ok=True)
                 temporary.with_suffix(".attachments.tmp.pdf").unlink(missing_ok=True)
         finally:
+            _historical_folio.reset(folio_token)
             _evidence_cache.reset(token)
     return wrapper
 
@@ -348,9 +368,9 @@ def _evidencias_todas(registro: Mapping[str, Any]) -> list:
 def _mime_item(item: Any) -> str:
     if isinstance(item, Mapping):
         mime = str(item.get("mime") or item.get("mimeType") or "").strip().lower()
-        if mime:
+        name = str(item.get("storage_path") or item.get("nombre") or item.get("path") or "")
+        if mime and mime != "application/octet-stream":
             return mime
-        name = str(item.get("nombre") or item.get("storage_path") or item.get("path") or "")
     else:
         name = str(item or "")
     suffix = Path(name).suffix.lower()
@@ -369,8 +389,13 @@ def _es_anotacion_plano(item: Any) -> bool:
     return _relation_key(item) == "plan_annotation" or "anotaci" in str(item.get("relacion_etiqueta") or "").lower() if isinstance(item, Mapping) else False
 
 
+def _es_cad(item: Any) -> bool:
+    name = str(item.get("storage_path") or item.get("nombre") or item.get("path") or "") if isinstance(item, Mapping) else str(item or "")
+    return Path(name).suffix.lower() in {".dwg", ".dxf"}
+
+
 def _es_plano_adjunto(item: Any) -> bool:
-    return _es_pdf(item) or _relation_key(item) == "attached_plans"
+    return _es_pdf(item) or _es_cad(item) or _relation_key(item) == "attached_plans"
 
 
 def _archivos_adjuntos_levantamiento(registro: Mapping[str, Any]) -> list:
@@ -398,7 +423,8 @@ def _append_archivos_adjuntos(story: list, registro: Mapping[str, Any], width: f
         if isinstance(item, Mapping):
             nombre = str(item.get("nombre") or item.get("storage_path") or "Archivo")
             mime = str(item.get("mime") or "")
-            ubicacion = str(item.get("url") or item.get("storage_path") or "Adjunto en AXIA")
+            historical = _historical_path(item, _historical_folio.get())
+            ubicacion = str(historical or item.get("url") or item.get("storage_path") or "Adjunto en AXIA")
         else:
             ruta = Path(str(item))
             nombre = ruta.name or str(item)
@@ -412,7 +438,7 @@ def _append_archivos_adjuntos(story: list, registro: Mapping[str, Any], width: f
     ))
     story.append(Spacer(1, 4))
     for item in items:
-        if _es_pdf(item):
+        if _es_pdf(item) or _es_cad(item):
             continue
         raw = _cargar_archivo_evidencia(item)
         if not raw:
@@ -429,12 +455,18 @@ def _append_archivos_adjuntos(story: list, registro: Mapping[str, Any], width: f
                 Spacer(1, 7),
             ])
         except Exception:
-            if _field_path(item):
+            if _evidence_protected(item):
                 raise EvidenciaNoDisponible("No fue posible integrar un plano adjunto.") from None
             continue
 
 
 def _cargar_archivo_evidencia(item):
+    historical = _historical_path(item, _historical_folio.get())
+    if historical:
+        cache = _evidence_cache.get()
+        if cache is not None and historical in cache:
+            return cache[historical]
+        return descargar_archivo_historico(historical, _historical_folio.get())
     path = _field_path(item)
     if path:
         cache = _evidence_cache.get()
@@ -453,8 +485,6 @@ def _cargar_archivo_evidencia(item):
                 return r.content
             except Exception:
                 pass
-        # Compatibilidad con evidencias históricas de DESKTOP, que usan otro bucket.
-        # Nunca se intenta descargar el bucket privado de FIELD por esta vía.
         if isinstance(item, Mapping):
             storage_path = str(item.get("storage_path") or "").strip()
             bucket = str(item.get("bucket") or "").strip()
@@ -492,7 +522,7 @@ def _anexar_paginas_pdf(ruta_salida: str | Path, registro: Mapping[str, Any]) ->
                     writer.add_page(page)
                     appended += 1
             except Exception:
-                if _field_path(item):
+                if _evidence_protected(item):
                     raise EvidenciaNoDisponible("No fue posible integrar un PDF adjunto.") from None
                 continue
         if appended:

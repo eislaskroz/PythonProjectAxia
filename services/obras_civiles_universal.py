@@ -132,6 +132,12 @@ def generar_pdf_obra_civil_desde_registro(obra, *, ruta_salida=None, abrir=True)
     plano = _json(obra.get('obc_anotacion_plano_json'))
     if isinstance(plano, dict):
         datos['__anotacion_plano_base64'] = str(plano.get('imagen_base64') or '')
+    from services.desktop_historical_evidence import consulta_historica_activa, preparar_evidencias_obra_civil
+    if consulta_historica_activa():
+        folio = str(obra.get('obc_folio') or '')
+        datos['__evidencias_fotograficas'] = preparar_evidencias_obra_civil(evidencia or [], folio)
+        preparar_evidencias_obra_civil(_json(obra.get('obc_archivos_adjuntos_json'), []) or [], folio, archivos=True)
+        return generar_pdf_preview('Obra Civil', datos, secciones_tabla=secciones, ruta_salida=Path(ruta_salida), abrir=abrir)
     from tempfile import TemporaryDirectory
     from supabase_config import supabase
     from services.bitacora_evidencias_service import BUCKET

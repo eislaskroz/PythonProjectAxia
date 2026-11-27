@@ -444,6 +444,8 @@ def _generar_pdf_orden_servicio_axia(datos, firma_base64=None, ruta_salida=None,
                 import subprocess; subprocess.Popen(["xdg-open", str(ruta)])
             except Exception: logger.debug("No fue posible abrir el PDF automáticamente.", exc_info=True)
         return str(ruta)
+    except EvidenciaNoDisponible:
+        raise
     except Exception as error:
         messagebox.showerror("Preview PDF", f"No se pudo generar el preview.\n\n{error}")
         logger.exception("Error generando Orden de Servicio PDF")
@@ -691,6 +693,8 @@ def _generar_pdf_orden_trabajo_axia(datos, secciones_tabla=None, ruta_salida=Non
             except Exception:
                 logger.debug("No fue posible abrir el PDF automáticamente.", exc_info=True)
         return str(ruta)
+    except EvidenciaNoDisponible:
+        raise
     except Exception as error:
         messagebox.showerror("Preview PDF", f"No se pudo generar el preview.\n\n{error}")
         logger.exception("Error generando Orden de Trabajo PDF maestra")
@@ -973,6 +977,8 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
             except Exception:
                 logger.debug("No fue posible abrir el PDF automáticamente.", exc_info=True)
         return str(ruta)
+    except EvidenciaNoDisponible:
+        raise
     except Exception as error:
         messagebox.showerror("Preview PDF", f"No se pudo generar el preview.\n\n{error}")
         logger.exception("Error generando Bitácora de Avance PDF maestra")
@@ -1011,6 +1017,16 @@ def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, fi
 
     folio = _valor_por_clave(["Folio", "Folio OS", "Folio OT", "Folio BIT", "Folio OBC", "Folio LEV", "Folio de Levantamiento", "Folio Bitácora", "Folio de bitácora"])
     fecha = _valor_por_clave(["Fecha"])
+    from services.desktop_historical_evidence import consulta_historica_activa, preparar_evidencias_obra_civil
+    if str(titulo or '').strip().casefold() == 'obra civil' and consulta_historica_activa():
+        try:
+            datos = dict(datos)
+            datos['__evidencias_fotograficas'] = preparar_evidencias_obra_civil(datos.get('__evidencias_fotograficas') or [], folio)
+        except EvidenciaNoDisponible as error:
+            if abrir:
+                messagebox.showwarning('Evidencias históricas no disponibles', str(error) + '\nNo se generó el PDF.')
+                return False
+            raise
     if ruta_salida:
         ruta = Path(ruta_salida)
         ruta.parent.mkdir(parents=True, exist_ok=True)
@@ -1269,7 +1285,9 @@ def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, fi
                 origen = str(item.get("ruta") or item.get("path") or item.get("url") or "").strip() if isinstance(item, dict) else str(item or "").strip()
                 storage_path = str(item.get("storage_path") or "").strip() if isinstance(item, dict) else ""
                 raw = None
-                if origen and Path(origen).is_file():
+                if isinstance(item, FotoOperativaPrivada):
+                    raw = item.contenido
+                elif origen and Path(origen).is_file():
                     raw = Path(origen).read_bytes()
                 elif origen.lower().startswith(("http://", "https://")):
                     try:
@@ -1307,6 +1325,8 @@ def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, fi
                 ]))
                 tarjetas_fotos.append(tarjeta)
             except Exception:
+                if isinstance(item, FotoOperativaPrivada):
+                    raise EvidenciaNoDisponible("No fue posible integrar una fotografía histórica al PDF.") from None
                 logger.warning("No fue posible insertar una evidencia fotográfica en el PDF.", exc_info=True)
         if tarjetas_fotos:
             contenido.append(Spacer(1, 5))
@@ -1461,6 +1481,8 @@ def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, fi
         if abrir:
             os.startfile(str(ruta)) if os.name == "nt" else os.system(f'xdg-open "{ruta}" >/dev/null 2>&1 &')
         return str(ruta)
+    except EvidenciaNoDisponible:
+        raise
     except Exception as error:
         messagebox.showerror("Preview PDF", f"No se pudo generar el preview.\n\n{error}")
         return False
