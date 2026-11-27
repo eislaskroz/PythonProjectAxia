@@ -28,6 +28,8 @@ TEXT = colors.HexColor("#243447")
 WHITE = colors.white
 
 
+from ui.pdf_progress import con_progreso_pdf, progreso_pdf, dialogo_pdf
+
 def _txt(value: Any, fallback: str = "-") -> str:
     value = str(value or "").strip()
     return value or fallback
@@ -77,7 +79,9 @@ def _titulo_del_levantamiento(cotizacion: dict) -> str:
     return str(cotizacion.get("cot_asunto") or "").strip()
 
 
+@con_progreso_pdf
 def generar_pdf_cotizacion(cotizacion: dict, ruta_salida: str | Path | None = None, abrir: bool = True, campos_visibles=None) -> Path:
+    progreso_pdf("Generando cotización PDF…")
     cotizacion = dict(cotizacion or {})
     titulo_servicio = _titulo_del_levantamiento(cotizacion)
     if titulo_servicio:

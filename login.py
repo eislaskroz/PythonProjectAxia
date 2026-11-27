@@ -52,13 +52,11 @@ def _cargar_servicios_auth():
         from services.auth_service import (
             obtener_contexto_login,
             validar_login,
-            registrar_bitacora_login,
         )
         from services.movimientos_service import registrar_movimiento
         _AUTH_SERVICES = {
             "obtener_contexto_login": obtener_contexto_login,
             "validar_login": validar_login,
-            "registrar_bitacora_login": registrar_bitacora_login,
             "registrar_movimiento": registrar_movimiento,
         }
     return _AUTH_SERVICES
@@ -189,9 +187,9 @@ def abrir_login():
     root = ctk.CTkFrame(app, fg_color=WHITE, corner_radius=0)
     root.pack(fill="both", expand=True)
 
-    # =================================================
-    # CONTENEDOR PRINCIPAL DEL LOGIN
-    # =================================================
+
+
+
     outer_card = ctk.CTkFrame(
         root,
         fg_color="transparent",
@@ -218,9 +216,9 @@ def abrir_login():
         fill="both"
     )
 
-    # =================================================
-    # FRanja decorativa superior (acento azul)
-    # =================================================
+
+
+
     accent_bar = ctk.CTkFrame(
         card,
         height=5,
@@ -277,10 +275,10 @@ def abrir_login():
     )
 
 
-    # =================================================
-    # CAMPO USUARIO (con label + icono y focus ring)
-    # SIN pack_propagate(False) para tamaño dinámico
-    # =================================================
+
+
+
+
     usuario_wrap = ctk.CTkFrame(card, fg_color="transparent")
     usuario_wrap.pack(padx=42, pady=(2, 6), fill="x")
 
@@ -335,9 +333,9 @@ def abrir_login():
     entry_usuario.bind("<FocusIn>", _usuario_focus_in, add="+")
     entry_usuario.bind("<FocusOut>", _usuario_focus_out, add="+")
 
-    # =================================================
-    # CAMPO CONTRASEÑA (con label + icono y focus ring)
-    # =================================================
+
+
+
     password_wrap = ctk.CTkFrame(card, fg_color="transparent")
     password_wrap.pack(padx=42, pady=(2, 4), fill="x")
 
@@ -430,25 +428,10 @@ def abrir_login():
         def tarea_login():
             servicios = _cargar_servicios_auth()
             contexto_login = servicios["obtener_contexto_login"]()
-            direccion_ip = contexto_login["direccion_ip"]
-            nombre_equipo = contexto_login["nombre_equipo"]
             ubicacion = contexto_login["ubicacion"]
-
-            usuario = servicios["validar_login"](nickname, password)
-            if usuario:
-                servicios["registrar_bitacora_login"](
-                    id_usuario=usuario.get("id_usuario"),
-                    nickname=usuario.get("usu_nickname"),
-                    estatus="CORRECTO",
-                    descripcion="Inicio de sesión exitoso",
-                    direccion_ip=direccion_ip,
-                    nombre_equipo=nombre_equipo,
-                    latitud=ubicacion["latitud"],
-                    longitud=ubicacion["longitud"],
-                    ciudad=ubicacion["ciudad"],
-                    region=ubicacion["region"],
-                    pais=ubicacion["pais"],
-                )
+            sesion = servicios["validar_login"](nickname, password, contexto_login)
+            if sesion:
+                usuario, token_borradores, expira_borradores = sesion
                 token_catalogo = None
                 try:
                     if int(usuario.get('usu_tipo') or 0) in (1, 2, 3, 4, 5, 6):
@@ -472,34 +455,10 @@ def abrir_login():
                         "Reportador fotográfico no habilitado en Supabase; no hay sesión nativa.",
                         exc_info=True,
                     )
-                token_borradores, expira_borradores = None, 0
-                try:
-                    from services.sesion_axia_compartida import solicitar_sesion
-                    token_borradores, expira_borradores = solicitar_sesion(
-                        nickname, password, usuario.get("id_usuario")
-                    )
-                except Exception:
-                    from core.logger import configurar_logger
-                    configurar_logger(__name__).warning(
-                        "Sesión para borradores compartidos no disponible; el guardado local seguirá funcionando."
-                    )
                 return {"acceso": True, "usuario": usuario, "ubicacion": ubicacion,
                         "token_catalogo": token_catalogo, "token_reportador": token_reportador,
                         "token_borradores": token_borradores, "expira_borradores": expira_borradores}
 
-            servicios["registrar_bitacora_login"](
-                id_usuario=None,
-                nickname=nickname,
-                estatus="FALLIDO",
-                descripcion="Usuario o contraseña incorrectos",
-                direccion_ip=direccion_ip,
-                nombre_equipo=nombre_equipo,
-                latitud=ubicacion["latitud"],
-                longitud=ubicacion["longitud"],
-                ciudad=ubicacion["ciudad"],
-                region=ubicacion["region"],
-                pais=ubicacion["pais"],
-            )
             return {"acceso": False, "usuario": None, "ubicacion": ubicacion}
 
         def login_correcto(resultado):
@@ -559,8 +518,10 @@ def abrir_login():
         def login_error(_error):
             if not ventana_disponible():
                 return
+            from services.auth_service import ErrorAutenticacion
             messagebox.showerror(
-                "Error de conexión",
+                "No fue posible iniciar sesión",
+                str(_error) if isinstance(_error, ErrorAutenticacion) else
                 "No fue posible validar el acceso. Revisa la conexión e intenta de nuevo.",
             )
 
@@ -573,9 +534,9 @@ def abrir_login():
             after=restaurar_cursor,
         )
 
-    # =================================================
-    # BOTÓN INGRESAR
-    # =================================================
+
+
+
     btn_ingresar = ctk.CTkButton(
         card,
         text="INGRESAR",
@@ -593,9 +554,9 @@ def abrir_login():
         pady=(20, 2)
     )
 
-    # =================================================
-    # SEPARADOR + FOOTER
-    # =================================================
+
+
+
     separator_wrap = ctk.CTkFrame(card, fg_color="transparent")
     separator_wrap.pack(padx=42, pady=(18, 4), fill="x")
     sep_container = ctk.CTkFrame(separator_wrap, fg_color="transparent")

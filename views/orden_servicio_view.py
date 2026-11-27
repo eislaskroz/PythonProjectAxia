@@ -490,6 +490,14 @@ def mostrar_orden_servicio(parent, app, aco=None, registro_edicion=None, al_guar
         generar_pdf_preview("Orden de Servicio", datos_pdf(), secciones_equipos_pdf(), firma_base64=var_firma_cliente.get())
 
     def guardar_orden():
+        from services.desktop_historical_upload import carga_historica_activa
+        from services.evidence_image_format import validar_imagenes
+        if carga_historica_activa():
+            try:
+                validar_imagenes(evidencias_locales)
+            except (OSError, ValueError) as error:
+                messagebox.showwarning("Evidencia no válida", str(error))
+                return
         if en_edicion:
             if not puede_editar_ordenes_operativas(obtener_usuario_actual()):
                 messagebox.showerror("Acceso denegado", "No tienes permiso para editar esta OS.")

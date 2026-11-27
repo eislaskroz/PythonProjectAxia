@@ -428,6 +428,35 @@ def mostrar_admin_operational_editor(parent, app, config):
                               border_width=0, font=BUTTON_FONT, command=final_action, state="disabled")
     btn_action.grid(row=0, column=2, sticky="ew", padx=4, pady=4)
 
+    if config.get("prefijo") == "BIT" and str(obtener_usuario_actual().get("usu_tipo")) == "1":
+        from services.desktop_historical_upload import carga_historica_activa
+        if carga_historica_activa():
+            def recuperar_evidencia():
+                from tkinter import filedialog
+                from services.desktop_evidence_recovery import recuperacion_disponible, recuperar_bitacora
+                record = selected.get("record") or {}
+                if selected.get("editando") or not recuperacion_disponible(record):
+                    messagebox.showwarning("Recuperar evidencias", "Selecciona y carga BIT-00026 sin cambios pendientes.")
+                    return
+                if record.get("bit_fotos") not in ([], "[]"):
+                    messagebox.showwarning("Recuperar evidencias", "La Bitácora ya tiene evidencias o su estado no es verificable.")
+                    return
+                ruta = filedialog.askopenfilename(parent=parent.winfo_toplevel(), title="Seleccionar fotografía de prueba", filetypes=[("Imágenes", "*.png *.jpg *.jpeg *.webp")])
+                if not ruta or not messagebox.askyesno("Recuperar evidencia", "¿Vincular esta fotografía ficticia a BIT-00026 sin modificar su avance?"):
+                    return
+                try:
+                    fotos = recuperar_bitacora(record, [ruta])
+                except Exception as error:
+                    messagebox.showerror("No se confirmó la recuperación", str(error))
+                    return
+                record["bit_fotos"] = fotos
+                status.configure(text="Evidencia recuperada correctamente.", text_color="#15803D")
+                messagebox.showinfo("Evidencia recuperada", "Fotografía vinculada. Genera nuevamente el PDF desde Consulta.")
+                search_records()
+            ctk.CTkButton(actions, text="Recuperar evidencia BIT-00026", font=BUTTON_FONT,
+                          fg_color=SECONDARY, hover_color=BUTTON_HOVER,
+                          command=recuperar_evidencia).grid(row=2, column=0, columnspan=2, sticky="ew", padx=4, pady=4)
+
     if config.get("prefijo") == "OT" and str(obtener_usuario_actual().get("usu_tipo")) == "1":
         def asignar_personal():
             record = selected.get("record")

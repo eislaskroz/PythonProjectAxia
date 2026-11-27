@@ -8,6 +8,8 @@ from pathlib import PurePosixPath
 from collections.abc import Mapping
 from urllib.parse import unquote, urlsplit
 
+from ui.pdf_progress import progreso_pdf
+
 import requests
 from PIL import Image
 from services.desktop_evidence_access import EvidenciaNoDisponible
@@ -24,6 +26,13 @@ def consulta_historica_activa():
 
 
 def _ruta_valida(path, folio):
+    if isinstance(path, str) and isinstance(folio, str) and re.fullmatch(r'OBC-[0-9]{4,}', folio):
+        uuid = r'[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}'
+        patron = rf'obras-civiles(?:-archivos)?/(?:OBC-[0-9]{{4,}}|(?:SOLICITUD|EDICION)-{uuid})/(?:[0-9a-f]{{32}}|{uuid})_[A-Za-z0-9_.-]+\.(?:jpg|jpeg|png|webp|pdf|dwg|dxf)'
+        if re.fullmatch(patron, path, re.I):
+            carpeta = path.split('/')[1]
+            if carpeta.startswith(('SOLICITUD-', 'EDICION-')) or carpeta == folio:
+                return path
     if not isinstance(path, str) or not _PATH.fullmatch(path) or path.split('/')[1] != folio or (not folio.startswith('OBC-') and len(folio.split('-')[-1]) < 5):
         raise EvidenciaNoDisponible('La ruta histórica no corresponde al documento.')
     return path
@@ -86,9 +95,20 @@ def descargar_archivo_historico(path, folio):
         raise EvidenciaNoDisponible('Configuración HTTPS de Supabase inválida.')
     headers = {'Authorization': f'Bearer {token}', 'apikey': str(SUPABASE_KEY), 'X-AXIA-Desktop-Grant': grant, 'Content-Type': 'application/json'}
     try:
-        response = requests.post(base + '/functions/v1/desktop-historical-evidence-access', headers=headers, json={'bucket': BUCKET, 'storagePath': path}, timeout=(6, 20), allow_redirects=False)
+        response = requests.post(base + '/functions/v1/desktop-historical-evidence-access', headers=headers, json={'bucket': BUCKET, 'storagePath': path, **({'folio': folio} if folio.startswith('OBC-') else {})}, timeout=(6, 20), allow_redirects=False)
         if response.status_code != 200:
-            raise EvidenciaNoDisponible(f'Consulta histórica no autorizada o no disponible (HTTP {response.status_code}).')
+            referencia = ''
+            try:
+                request_id = str(response.json().get('requestId') or '')
+                if re.fullmatch(r'[a-f0-9-]{36}', request_id, re.I):
+                    referencia = f'\nSolicitud: {request_id}'
+            except (AttributeError, ValueError, TypeError):
+                pass
+            mensajes = {401: 'Sesión inválida o vencida. Inicia sesión nuevamente.',
+                        403: 'Tu perfil o autorización corporativa no permite consultar esta evidencia.',
+                        404: 'La evidencia no está disponible o no pertenece al documento.'}
+            motivo = mensajes.get(response.status_code, 'No se pudo consultar la evidencia histórica.')
+            raise EvidenciaNoDisponible(f'{motivo} (HTTP {response.status_code}).{referencia}')
         data = response.json()
         signed = data.get('signedUrl')
         if data.get('ok') is not True or data.get('bucket') != BUCKET or data.get('storagePath') != path or data.get('expiresIn') != 120 or not isinstance(signed, str):
@@ -151,15 +171,18 @@ def preparar_fotos_historicas(datos, folio):
         raise EvidenciaNoDisponible('Lista de evidencias inválida.')
     result = []
     cache = {}
-    for item in raw:
+    progreso_pdf("Verificando evidencias fotográficas…", 0, len(raw))
+    for i, item in enumerate(raw, 1):
         path = ruta_historica(item, folio, str(SUPABASE_URL).rstrip('/'))
         if path is None:
             result.append(item)
+            progreso_pdf("Verificando evidencias fotográficas…", i, len(raw))
             continue
         if path not in cache:
             cache[path] = descargar_foto_historica(path, folio)
         name = str(item.get('nombre') or PurePosixPath(path).name) if isinstance(item, Mapping) else PurePosixPath(path).name
         result.append(FotoOperativaPrivada(name, cache[path]))
+        progreso_pdf("Verificando evidencias fotográficas…", i, len(raw))
     return {**datos, 'Evidencia Fotográfica': result}
 
 
@@ -177,15 +200,19 @@ def preparar_evidencias_obra_civil(items, folio, *, archivos=False):
         raise EvidenciaNoDisponible('Lista de evidencias de Obra Civil inválida.')
     resultado = []
     cache = {}
-    for item in items:
+    etapa = "Verificando archivos adjuntos…" if archivos else "Verificando evidencias fotográficas…"
+    progreso_pdf(etapa, 0, len(items))
+    for i, item in enumerate(items, 1):
         if isinstance(item, FotoOperativaPrivada):
             resultado.append(item)
+            progreso_pdf(etapa, i, len(items))
             continue
         path = ruta_historica(item, folio, str(SUPABASE_URL).rstrip('/'))
         if path is None:
             if isinstance(item, Mapping) and item.get('storage_path'):
                 raise EvidenciaNoDisponible('Referencia de Obra Civil no autorizada.')
             resultado.append(item)
+            progreso_pdf(etapa, i, len(items))
             continue
         if path not in cache:
             cache[path] = descargar_archivo_historico(path, folio) if archivos else descargar_foto_historica(path, folio)
@@ -194,4 +221,5 @@ def preparar_evidencias_obra_civil(items, folio, *, archivos=False):
         else:
             name = str(item.get('nombre') or PurePosixPath(path).name) if isinstance(item, Mapping) else PurePosixPath(path).name
             resultado.append(FotoOperativaPrivada(name, cache[path]))
+        progreso_pdf(etapa, i, len(items))
     return resultado

@@ -51,6 +51,8 @@ _evidence_cache = ContextVar("axia_pdf_evidence_cache", default=None)
 _historical_folio = ContextVar("axia_pdf_historical_folio", default=None)
 
 
+from ui.pdf_progress import con_progreso_pdf, progreso_pdf, dialogo_pdf
+
 def _historical_path(item, folio):
     if not folio or not consulta_historica_activa() or _field_path(item):
         return None
@@ -83,11 +85,14 @@ def _validar_evidencias_field(func):
         token = _evidence_cache.set(cache)
         folio_token = _historical_folio.set(registro.get("lev_folio"))
         try:
-            for item in _evidencias_todas(registro) + _archivos_adjuntos_levantamiento(registro):
+            items = _evidencias_todas(registro) + _archivos_adjuntos_levantamiento(registro)
+            progreso_pdf("Verificando evidencias y adjuntos…", 0, len(items))
+            for i, item in enumerate(items, 1):
                 historical = _historical_path(item, _historical_folio.get())
                 if historical:
                     if historical not in cache:
                         cache[historical] = descargar_archivo_historico(historical, _historical_folio.get())
+                    progreso_pdf("Verificando evidencias y adjuntos…", i, len(items))
                     continue
                 path = _field_path(item)
                 if path and path not in cache:
@@ -104,6 +109,8 @@ def _validar_evidencias_field(func):
                     except Exception:
                         raise EvidenciaNoDisponible("Una evidencia registrada está dañada o tiene un formato no válido.") from None
                     cache[path] = raw
+                progreso_pdf("Verificando evidencias y adjuntos…", i, len(items))
+            progreso_pdf("Generando páginas del PDF…")
             if not cache:
                 return func(registro, *args, **kwargs)
             final = Path(kwargs["ruta_salida"])
@@ -731,6 +738,7 @@ def _description_table(text: str, width: float, normal, table_header) -> LongTab
     return table
 
 
+@con_progreso_pdf
 @_validar_evidencias_field
 def generar_pdf_seguridad_instalacion(
     registro: Mapping[str, Any],
@@ -1437,6 +1445,7 @@ def _description_for(registro: Mapping[str, Any], detail: Mapping[str, Any]) -> 
 
 
 
+@con_progreso_pdf
 @_validar_evidencias_field
 def generar_pdf_levantamiento_maestro(
     registro: Mapping[str, Any], *, ruta_salida: str | Path, abrir: bool = False,

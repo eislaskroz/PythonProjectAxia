@@ -134,6 +134,8 @@ PALABRAS_TABLA = (
 )
 
 
+from ui.pdf_progress import con_progreso_pdf, progreso_pdf, dialogo_pdf
+
 def _limpiar_clave(campo: str) -> str:
     clave = PREFIJOS.sub("", str(campo or "").strip())
     return clave.removesuffix("_json")
@@ -406,6 +408,7 @@ def _titulo_y_folio(registro: dict, configuracion: dict | None = None):
     return titulo, folio or "registro_AXIA"
 
 
+@con_progreso_pdf
 def generar_pdf_registro(
     registro: dict,
     configuracion: dict | None = None,
@@ -424,7 +427,7 @@ def generar_pdf_registro(
             return generar_pdf_obra_civil_desde_registro(registro.get('_obc_original') or registro, ruta_salida=ruta_salida, abrir=abrir)
         except EvidenciaNoDisponible as error:
             if abrir:
-                messagebox.showwarning('Evidencias no disponibles', str(error) + '\nNo se generó el PDF definitivo.')
+                dialogo_pdf(messagebox.showwarning, 'Evidencias no disponibles', str(error) + '\nNo se generó el PDF definitivo.')
                 return False
             raise
     if es_levantamiento(registro):
@@ -439,7 +442,7 @@ def generar_pdf_registro(
             )
         except EvidenciaNoDisponible as error:
             if abrir:
-                messagebox.showwarning("Evidencias no disponibles", str(error) + "\nNo se generó el PDF definitivo.")
+                dialogo_pdf(messagebox.showwarning, "Evidencias no disponibles", str(error) + "\nNo se generó el PDF definitivo.")
                 return False
             raise
         if isinstance(resultado, (str, Path)) and Path(resultado).is_file():

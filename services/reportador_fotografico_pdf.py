@@ -28,6 +28,8 @@ PALE = colors.HexColor('#F0F7FA')
 GRAY = colors.HexColor('#526E80')
 
 
+from ui.pdf_progress import con_progreso_pdf, progreso_pdf, dialogo_pdf
+
 def _font_names() -> dict[str, str]:
     from ui.pdf_fonts import FONT_PDF_REGULAR, FONT_PDF_BOLD, FONT_PDF_SEMIBOLD
     return {'regular': FONT_PDF_REGULAR, 'semi': FONT_PDF_SEMIBOLD, 'bold': FONT_PDF_BOLD}
@@ -287,18 +289,32 @@ class _OriginalStylePDF:
         return self.canvas._filename.getvalue()
 
 
+@con_progreso_pdf
 def generar_pdf_bytes(detalle: dict, obtener_imagen=None, logo_path: str | None = None,
                       background_path: str | None = None) -> bytes:
     report, activities, orders, author = _validate_and_plan(detalle)
-    fetch = obtener_imagen or service.leer_imagen
+    origen = obtener_imagen or service.leer_imagen
+    total = sum(int(a["cantidad_fotos"]) for a in activities) + len(orders)
+    completados = 0
+    progreso_pdf("Recuperando fotografías del reporte…", 0, total)
+    def fetch(*args, **kwargs):
+        nonlocal completados
+        raw = origen(*args, **kwargs)
+        completados += 1
+        progreso_pdf("Recuperando fotografías del reporte…", completados, total)
+        if completados == total:
+            progreso_pdf("Componiendo páginas del PDF…")
+        return raw
     output = BytesIO()
     pdf = _OriginalStylePDF(output, report, logo_path=logo_path, background_path=background_path)
     pdf.draw_fields()
     pdf.draw_activities(activities, fetch, int(report['id_reporte']), author)
     pdf.draw_orders(orders, fetch, int(report['id_reporte']))
+    progreso_pdf("Finalizando documento PDF…")
     return pdf.build()
 
 
+@con_progreso_pdf
 def generar_pdf_reporte(id_reporte: int, ruta_pdf: str) -> None:
     detalle = service.obtener_reporte(id_reporte)
     Path(ruta_pdf).write_bytes(generar_pdf_bytes(detalle))

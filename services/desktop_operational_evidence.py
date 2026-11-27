@@ -7,6 +7,8 @@ import re
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
+from ui.pdf_progress import progreso_pdf
+
 import requests
 from PIL import Image
 from services.desktop_evidence_access import EvidenciaNoDisponible
@@ -59,6 +61,7 @@ def descargar_fotos_operativas(folio: str) -> list[FotoOperativaPrivada]:
             raise EvidenciaNoDisponible("El manifiesto de fotografías está incompleto.")
         result = []
         seen = set()
+        progreso_pdf("Descargando evidencias privadas…", 0, len(photos))
         for i, item in enumerate(photos, 1):
             photo = item.get("photoId")
             if not isinstance(photo, str) or not _UUID.fullmatch(photo) or photo in seen:
@@ -91,6 +94,7 @@ def descargar_fotos_operativas(folio: str) -> list[FotoOperativaPrivada]:
                 img.load()
             ext = {"JPEG": "jpg", "PNG": "png", "WEBP": "webp"}[_FORMATOS[mime]]
             result.append(FotoOperativaPrivada(f"Evidencia privada {i}.{ext}", bytes(raw)))
+            progreso_pdf("Descargando evidencias privadas…", i, len(photos))
         return result
     except EvidenciaNoDisponible:
         raise

@@ -33,6 +33,8 @@ SMALL_FONT = ("Poppins", 10)
 SECTION_FONT = ("Poppins", 14, "bold")
 
 
+from ui.pdf_progress import con_progreso_pdf, progreso_pdf, dialogo_pdf
+
 def obtener_textbox(box):
     return box.get("1.0", "end").strip()
 
@@ -220,7 +222,7 @@ def _generar_pdf_orden_servicio_axia(datos, firma_base64=None, ruta_salida=None,
         from reportlab.lib.units import inch
         from html import escape as html_escape
     except Exception as error:
-        messagebox.showerror("Preview PDF", f"No está instalado reportlab.\n\n{error}")
+        dialogo_pdf(messagebox.showerror, "Preview PDF", f"No está instalado reportlab.\n\n{error}")
         return False
 
     datos = dict(datos or {})
@@ -447,7 +449,7 @@ def _generar_pdf_orden_servicio_axia(datos, firma_base64=None, ruta_salida=None,
     except EvidenciaNoDisponible:
         raise
     except Exception as error:
-        messagebox.showerror("Preview PDF", f"No se pudo generar el preview.\n\n{error}")
+        dialogo_pdf(messagebox.showerror, "Preview PDF", f"No se pudo generar el preview.\n\n{error}")
         logger.exception("Error generando Orden de Servicio PDF")
         return False
 
@@ -460,7 +462,7 @@ def _generar_pdf_orden_trabajo_axia(datos, secciones_tabla=None, ruta_salida=Non
         from reportlab.lib.units import inch
         from html import escape as html_escape
     except Exception as error:
-        messagebox.showerror("Preview PDF", f"No está instalado reportlab.\n\n{error}")
+        dialogo_pdf(messagebox.showerror, "Preview PDF", f"No está instalado reportlab.\n\n{error}")
         return False
 
     datos = dict(datos or {})
@@ -696,7 +698,7 @@ def _generar_pdf_orden_trabajo_axia(datos, secciones_tabla=None, ruta_salida=Non
     except EvidenciaNoDisponible:
         raise
     except Exception as error:
-        messagebox.showerror("Preview PDF", f"No se pudo generar el preview.\n\n{error}")
+        dialogo_pdf(messagebox.showerror, "Preview PDF", f"No se pudo generar el preview.\n\n{error}")
         logger.exception("Error generando Orden de Trabajo PDF maestra")
         return False
 
@@ -710,7 +712,7 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
         from reportlab.lib.units import inch
         from html import escape as html_escape
     except Exception as error:
-        messagebox.showerror("Preview PDF", f"No está instalado reportlab.\n\n{error}")
+        dialogo_pdf(messagebox.showerror, "Preview PDF", f"No está instalado reportlab.\n\n{error}")
         return False
 
     datos = dict(datos or {})
@@ -980,11 +982,33 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
     except EvidenciaNoDisponible:
         raise
     except Exception as error:
-        messagebox.showerror("Preview PDF", f"No se pudo generar el preview.\n\n{error}")
+        dialogo_pdf(messagebox.showerror, "Preview PDF", f"No se pudo generar el preview.\n\n{error}")
         logger.exception("Error generando Bitácora de Avance PDF maestra")
         return False
 
+@con_progreso_pdf
 def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, firma_tecnico_base64=None, mostrar_firmas=None, ruta_salida=None, abrir=True):
+    if str(titulo or '').strip().casefold() == 'obra civil' and '__archivos_adjuntos_obc' in datos:
+        from services.obra_civil_pdf_anexos import generar_con_anexos_obra_civil
+        from services.axia_pdf_engine import AxiaPdfEngine
+        datos_base = dict(datos)
+        anexos = datos_base.pop('__archivos_adjuntos_obc')
+        destino = ruta_salida or AxiaPdfEngine._preview_path(titulo)
+        resultado = generar_con_anexos_obra_civil(
+            destino, anexos, str(datos_base.get('Folio OBC') or ''),
+            lambda temporal: _generar_pdf_base(titulo, datos_base, secciones_tabla=secciones_tabla,
+                firma_base64=firma_base64, firma_tecnico_base64=firma_tecnico_base64,
+                mostrar_firmas=mostrar_firmas, ruta_salida=temporal, abrir=False),
+        )
+        if abrir:
+            if os.name == 'nt':
+                os.startfile(resultado)
+            else:
+                import subprocess
+                subprocess.Popen(['xdg-open', resultado], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return resultado
+    progreso_pdf("Generando páginas del PDF…")
+    progreso_pdf("Generando páginas del PDF…")
     if str(titulo or "").strip().casefold() == "orden de servicio":
         resultado = _generar_pdf_orden_servicio_axia(
             datos, firma_base64=firma_base64, ruta_salida=ruta_salida, abrir=abrir
@@ -1006,7 +1030,7 @@ def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, fi
         from reportlab.lib import colors
         from reportlab.lib.units import inch
     except Exception as error:
-        messagebox.showerror("Preview PDF", f"No está instalado reportlab.\n\n{error}")
+        dialogo_pdf(messagebox.showerror, "Preview PDF", f"No está instalado reportlab.\n\n{error}")
         return False
 
     def _valor_por_clave(posibles):
@@ -1024,7 +1048,7 @@ def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, fi
             datos['__evidencias_fotograficas'] = preparar_evidencias_obra_civil(datos.get('__evidencias_fotograficas') or [], folio)
         except EvidenciaNoDisponible as error:
             if abrir:
-                messagebox.showwarning('Evidencias históricas no disponibles', str(error) + '\nNo se generó el PDF.')
+                dialogo_pdf(messagebox.showwarning, 'Evidencias históricas no disponibles', str(error) + '\nNo se generó el PDF.')
                 return False
             raise
     if ruta_salida:
@@ -1484,11 +1508,12 @@ def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, fi
     except EvidenciaNoDisponible:
         raise
     except Exception as error:
-        messagebox.showerror("Preview PDF", f"No se pudo generar el preview.\n\n{error}")
+        dialogo_pdf(messagebox.showerror, "Preview PDF", f"No se pudo generar el preview.\n\n{error}")
         return False
 
 
 
+@con_progreso_pdf
 def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, firma_tecnico_base64=None, mostrar_firmas=None, ruta_salida=None, abrir=True):
     from services.desktop_operational_evidence import es_folio_piloto, descargar_fotos_operativas
     tipo = str(titulo or "").strip().casefold()
@@ -1503,7 +1528,7 @@ def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, 
             datos = preparar_fotos_historicas(dict(datos or {}), folio)
         except EvidenciaNoDisponible as error:
             if abrir:
-                messagebox.showwarning("Evidencias históricas no disponibles", str(error) + "\nNo se generó el PDF.")
+                dialogo_pdf(messagebox.showwarning, "Evidencias históricas no disponibles", str(error) + "\nNo se generó el PDF.")
                 return False
             raise
     if es_folio_piloto(folio):
@@ -1513,10 +1538,11 @@ def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, 
             datos["Evidencia Fotográfica"] = descargar_fotos_operativas(folio)
         except EvidenciaNoDisponible as error:
             if abrir:
-                messagebox.showwarning("Evidencias privadas no disponibles", str(error) + "\nNo se generó el PDF.")
+                dialogo_pdf(messagebox.showwarning, "Evidencias privadas no disponibles", str(error) + "\nNo se generó el PDF.")
                 return False
             raise
         try:
+            progreso_pdf("Generando páginas del PDF…")
             if tipo == "orden de servicio":
                 resultado = _generar_pdf_orden_servicio_axia(datos, firma_base64=firma_base64, ruta_salida=ruta_salida, abrir=abrir)
             else:
@@ -1524,7 +1550,7 @@ def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, 
             return _auditar_pdf(titulo, resultado, ruta_salida, abrir)
         except EvidenciaNoDisponible as error:
             if abrir:
-                messagebox.showwarning("Evidencias privadas no disponibles", str(error) + "\nNo se generó el PDF.")
+                dialogo_pdf(messagebox.showwarning, "Evidencias privadas no disponibles", str(error) + "\nNo se generó el PDF.")
                 return False
             raise
 
@@ -1590,6 +1616,6 @@ def generar_pdf_preview_async(parent, titulo, datos, **kwargs):
     return run_in_background(
         lambda: generar_pdf_preview(titulo, datos, **kwargs),
         widget=parent,
-        on_error=lambda exc: messagebox.showerror("Preview PDF", f"No fue posible generar el PDF.\n\n{exc}"),
+        on_error=lambda exc: dialogo_pdf(messagebox.showerror, "Preview PDF", f"No fue posible generar el PDF.\n\n{exc}"),
         name="AXIA-pdf-preview",
     )

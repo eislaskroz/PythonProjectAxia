@@ -5,17 +5,25 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="04557334-8dd2-4c5c-9e71-68cbc1b3eae6" name="Changes" comment="Merge remote-tracking branch 'orign/main'">
-      <change afterPath="$PROJECT_DIR$/docs/PILOTO_EVIDENCIAS_OPERATIVAS_20626.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/supabase/functions/desktop-historical-evidence-access/index.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/test_historical_evidence_20628.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/version.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/version.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/installer/AXIA.iss" beforeDir="false" afterPath="$PROJECT_DIR$/installer/AXIA.iss" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/bitacora_evidencias_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/bitacora_evidencias_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/cotizacion_pdf.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/cotizacion_pdf.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/services/desktop_historical_evidence.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/desktop_historical_evidence.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/desktop_operational_evidence.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/desktop_operational_evidence.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/services/levantamiento_seguridad_pdf.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/levantamiento_seguridad_pdf.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/services/obras_civiles_universal.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/obras_civiles_universal.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/services/pdf_registro_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/pdf_registro_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/reportador_fotografico_pdf.py" beforeDir="false" afterPath="$PROJECT_DIR$/services/reportador_fotografico_pdf.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/supabase/functions/desktop-historical-evidence-access/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/supabase/functions/desktop-historical-evidence-access/index.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/admin_operational_editor_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/admin_operational_editor_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/bitacora_avance_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/bitacora_avance_view.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/views/formato_helpers.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/formato_helpers.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/levantamiento_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/levantamiento_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/obra_civil_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/obra_civil_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/orden_servicio_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/orden_servicio_view.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/views/reportador_fotografico_view.py" beforeDir="false" afterPath="$PROJECT_DIR$/views/reportador_fotografico_view.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -644,14 +652,6 @@
       <option name="presentableId" value="Default" />
       <updated>1787595329657</updated>
     </task>
-    <task id="LOCAL-00210" summary="Merge remote-tracking branch 'orign/main'">
-      <option name="closed" value="true" />
-      <created>1795271704029</created>
-      <option name="number" value="00210" />
-      <option name="presentableId" value="LOCAL-00210" />
-      <option name="project" value="LOCAL" />
-      <updated>1795271704030</updated>
-    </task>
     <task id="LOCAL-00211" summary="Merge remote-tracking branch 'orign/main'">
       <option name="closed" value="true" />
       <created>1795272025630</created>
@@ -1036,7 +1036,15 @@
       <option name="project" value="LOCAL" />
       <updated>1795791409319</updated>
     </task>
-    <option name="localTasksCounter" value="259" />
+    <task id="LOCAL-00259" summary="Merge remote-tracking branch 'orign/main'">
+      <option name="closed" value="true" />
+      <created>1795791750059</created>
+      <option name="number" value="00259" />
+      <option name="presentableId" value="LOCAL-00259" />
+      <option name="project" value="LOCAL" />
+      <updated>1795791750059</updated>
+    </task>
+    <option name="localTasksCounter" value="260" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

@@ -760,9 +760,14 @@ class ReportadorFotografico:
             from io import BytesIO
             import fitz
             from services.reportador_fotografico_pdf import generar_pdf_bytes
-            detalle = rf.obtener_reporte(id_reporte)
-            root = Path(__file__).resolve().parent.parent
-            pdfbytes = generar_pdf_bytes(detalle, logo_path=str(root/'assets'/'LogoAxia-Full.png'))
+            from ui.pdf_progress import con_progreso_pdf, progreso_pdf
+            @con_progreso_pdf
+            def preparar_reporte():
+                progreso_pdf("Consultando información del reporte…")
+                detalle = rf.obtener_reporte(id_reporte)
+                root = Path(__file__).resolve().parent.parent
+                return detalle, generar_pdf_bytes(detalle, logo_path=str(root/'assets'/'LogoAxia-Full.png'))
+            detalle, pdfbytes = preparar_reporte()
             doc = fitz.open(stream=pdfbytes, filetype='pdf')
             if not doc.page_count:
                 raise rf.ErrorReportador('El PDF se generó sin páginas.')

@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 
 
+from ui.pdf_progress import con_progreso_pdf, progreso_pdf, dialogo_pdf
+
 def _json(valor, default=None):
     if isinstance(valor, (dict, list)):
         return valor
@@ -79,6 +81,7 @@ def cambios_obra_civil_desde_formulario(registro, campos, descripcion, requerimi
     return datos
 
 
+@con_progreso_pdf
 def generar_pdf_obra_civil_desde_registro(obra, *, ruta_salida=None, abrir=True):
     from views.formato_helpers import generar_pdf_preview
     from services.axia_pdf_engine import AxiaPdfEngine
@@ -116,6 +119,7 @@ def generar_pdf_obra_civil_desde_registro(obra, *, ruta_salida=None, abrir=True)
         'Materiales misceláneos': '; '.join(str(p.get('material') or '') for p in materiales if isinstance(p, dict)),
         'Archivos PDF / planos': '; '.join(str(p.get('nombre') or '') for p in (_json(obra.get('obc_archivos_adjuntos_json'), []) or []) if isinstance(p, dict)),
     }
+    datos['__archivos_adjuntos_obc'] = _json(obra.get('obc_archivos_adjuntos_json'), [])
     evidencia = _json(obra.get('obc_evidencias_json'), [])
     if evidencia:
         datos['Evidencias registradas'] = '; '.join(str(e.get('nombre') or e.get('storage_path') or '') for e in evidencia if isinstance(e, dict))
@@ -136,7 +140,6 @@ def generar_pdf_obra_civil_desde_registro(obra, *, ruta_salida=None, abrir=True)
     if consulta_historica_activa():
         folio = str(obra.get('obc_folio') or '')
         datos['__evidencias_fotograficas'] = preparar_evidencias_obra_civil(evidencia or [], folio)
-        preparar_evidencias_obra_civil(_json(obra.get('obc_archivos_adjuntos_json'), []) or [], folio, archivos=True)
         return generar_pdf_preview('Obra Civil', datos, secciones_tabla=secciones, ruta_salida=Path(ruta_salida), abrir=abrir)
     from tempfile import TemporaryDirectory
     from supabase_config import supabase

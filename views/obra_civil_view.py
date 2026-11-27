@@ -47,6 +47,7 @@ from services.equipos_catalogo_service import (
     obtener_sugerencia_caracteristicas
 )
 from services.obras_civiles_service import crear_obra_civil, actualizar_evidencias_obra_civil, actualizar_archivos_obra_civil
+from services import obra_civil_anexos_v2 as anexos_v2
 from services.obra_conceptos_service import obtener_conceptos_obra, obtener_tipos_concepto_obra, filtrar_conceptos_por_tipo
 from services.bitacora_evidencias_service import subir_evidencias_obra_civil, subir_archivos_obra_civil
 from ui.colors import PRIMARY, SECONDARY, WHITE, TEXT_PRIMARY, TEXT_SECONDARY, BUTTON_HOVER
@@ -1331,6 +1332,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                 guardado_servidor["solicitud"] = str(UUID(str(registrado.get("solicitud"))))
             except (TypeError, ValueError, AttributeError):
                 pass
+            guardado_servidor["anexos_v2_hash"] = registrado.get("anexos_v2_hash")
             guardado_servidor["fotos"] = registrado.get("fotos")
             guardado_servidor["archivos"] = registrado.get("archivos")
             if registrado.get("id") and registrado.get("folio"):
@@ -1589,7 +1591,8 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
             "Evidencia fotográfica": "Sí" if var_desea_evidencias.get() == "Sí" else "No",
             "¿Requiere EPP?": var_requiere_epp.get(),
             "Equipo de Protección Personal": "; ".join(f"{x['cantidad']} x {x['epp']}" + (f" ({x['observaciones']})" if x.get('observaciones') else "") for x in obtener_epp_obra()) if var_requiere_epp.get() == "Sí" else "No requerido",
-            "__evidencias_fotograficas": list(evidencias) if var_desea_evidencias.get() == "Sí" else [],
+            "__evidencias_fotograficas": list(evidencias_existentes) + list(evidencias) if var_desea_evidencias.get() == "Sí" else [],
+            "__archivos_adjuntos_obc": list(archivos_adjuntos_existentes) + list(archivos_adjuntos) if var_desea_archivos_adjuntos.get() == "Sí" else [],
             "Conceptos de obra": str(len(obtener_conceptos_obra_seleccionados())),
             "Canalización requerida": var_requiere_canalizacion.get(),
             "Partidas de canalización": str(len(obtener_canalizacion_materiales_obra())),
@@ -1636,12 +1639,15 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
         if not formulario_completo():
             messagebox.showwarning("Preview", "El preview se activa cuando los campos obligatorios estén completos.")
             return
-        generar_pdf_preview("Obra Civil", datos_pdf(), [
-            ("Ejecución", ["Actividad", "Estado"], seccion_ejecucion_pdf()),
-            ("Conceptos de obra", ["Tipo", "Partida", "Unidad", "Cantidad", "Concepto"], seccion_conceptos_obra_pdf()),
-            ("Materiales misceláneos", ["Material", "Cantidad", "Unidad", "Especificación"], seccion_materiales_pdf()),
-            ("Canalización, cableado y materiales", ["Categoría", "Material", "Tipo", "Especificación", "Cantidad", "Unidad"], seccion_canalizacion_pdf()),
-        ])
+        try:
+            generar_pdf_preview("Obra Civil", datos_pdf(), [
+                ("Ejecución", ["Actividad", "Estado"], seccion_ejecucion_pdf()),
+                ("Conceptos de obra", ["Tipo", "Partida", "Unidad", "Cantidad", "Concepto"], seccion_conceptos_obra_pdf()),
+                ("Materiales misceláneos", ["Material", "Cantidad", "Unidad", "Especificación"], seccion_materiales_pdf()),
+                ("Canalización, cableado y materiales", ["Categoría", "Material", "Tipo", "Especificación", "Cantidad", "Unidad"], seccion_canalizacion_pdf()),
+            ])
+        except Exception as error:
+            messagebox.showerror("Preview Obra Civil", str(error))
 
     def _capturar_datos_obra():
         datos = {
@@ -1718,6 +1724,39 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                 "del formulario. Conserva esta ventana abierta y contacta a soporte."
             )
             return
+
+        if guardado_servidor.get("anexos_v2_hash") and not anexos_v2.activo() and not guardado_servidor["id"]:
+            messagebox.showwarning("Solicitud protegida", "Reabre esta captura con el modo de anexos V2 habilitado. No se enviará por la ruta anterior.")
+            return
+        if anexos_v2.activo() and not guardado_servidor["id"]:
+            try:
+                from services.desktop_historical_evidence import consulta_historica_activa
+                if not consulta_historica_activa():
+                    raise RuntimeError("Activa también la consulta histórica segura antes de continuar.")
+                if guardado_servidor.get("fotos") or guardado_servidor.get("archivos"):
+                    raise RuntimeError("Esta captura tiene anexos de un flujo anterior. No se puede migrar automáticamente.")
+                solicitud = guardado_servidor["solicitud"]
+                datos_v2 = anexos_v2.datos_limpios(_capturar_datos_obra())
+                archivos_v2 = anexos_v2.preparar_archivos(solicitud,
+                    list(evidencias) if var_desea_evidencias.get() == "Sí" else [],
+                    list(archivos_adjuntos) if var_desea_archivos_adjuntos.get() == "Sí" else [])
+                firma = anexos_v2.huella(datos_v2, archivos_v2)
+                if guardado_servidor.get("anexos_v2_hash") not in (None, firma):
+                    raise RuntimeError("La captura o sus anexos cambiaron desde el intento anterior. Conserva la solicitud original y contacta a soporte.")
+                valor = f"{usuario_activo.get('id_usuario')}:ALTA:{solicitud}"
+                if not messagebox.askyesno("Autorización de prueba OBC", f"Solo datos ficticios. Configura la autorización de esta solicitud antes de continuar:\n\n{valor}\n\n¿Continuar con el guardado seguro?"):
+                    return
+                guardado_servidor["anexos_v2_hash"] = firma
+                if not proteger_captura():
+                    raise RuntimeError("No se pudo conservar el identificador de la solicitud.")
+                registro, fotos, planos = anexos_v2.sincronizar(solicitud, usuario_activo.get("id_usuario"), "ALTA", datos_v2, archivos_v2)
+                guardado_servidor.update(id=registro["obc_id"], folio=registro["obc_folio"], fotos=fotos, archivos=planos)
+                var_folio.set(registro["obc_folio"])
+                if not proteger_captura():
+                    raise RuntimeError("Documento confirmado; respaldo local pendiente. No crees otra obra.")
+            except Exception as error:
+                messagebox.showwarning("Captura conservada", str(error) + "\nNo uses otra solicitud para reintentar.")
+                return
 
         if not guardado_servidor["id"]:
             from services.obra_civil_gateway import peticion_obra_civil, SesionObraCivilInvalida
@@ -1859,6 +1898,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
             datos_pdf_final = datos_pdf()
             datos_pdf_final["__evidencias_fotograficas"] = evidencias_subidas or list(evidencias)
             datos_pdf_final["Archivos PDF / planos"] = "; ".join(str(x.get("nombre") or "Archivo") for x in archivos_subidos) or datos_pdf_final.get("Archivos PDF / planos", "No")
+            datos_pdf_final["__archivos_adjuntos_obc"] = archivos_subidos or datos_pdf_final["__archivos_adjuntos_obc"]
             ruta_pdf = generar_pdf_archivo("Obra Civil", datos_pdf_final, nombre_archivo=folio, subcarpeta="obras_civiles", secciones_tabla=[
                 ("Ejecución", ["Actividad", "Estado"], seccion_ejecucion_pdf()),
                 ("Conceptos de obra", ["Tipo", "Partida", "Unidad", "Cantidad", "Concepto"], seccion_conceptos_obra_pdf()),
@@ -1957,6 +1997,7 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
         datos_base_editor = _capturar_datos_obra()
         solicitud_edicion = str(uuid4())
         subidas_editor = {'fotos':None, 'archivos':None}
+        huella_edicion = [None]
 
         def _recorrer_controles(widget):
             for hijo in widget.winfo_children():
@@ -2028,6 +2069,25 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
             if any(cambios.get(k,1) <= 0 for k in ('obc_dias_trabajo','obc_personas_considerar')):
                 messagebox.showwarning('Valores inválidos','Los días y personas deben ser mayores que cero.',parent=parent.winfo_toplevel())
                 return
+            usar_v2 = anexos_v2.activo()
+            if usar_v2:
+                operacion_v2 = 'REVISION_ESI' if autorizacion_esi else 'EDICION'
+                try:
+                    from services.desktop_historical_evidence import consulta_historica_activa
+                    if not consulta_historica_activa():
+                        raise RuntimeError('Activa la consulta histórica segura.')
+                    datos_v2 = anexos_v2.datos_limpios(cambios)
+                    archivos_v2 = anexos_v2.preparar_archivos(solicitud_edicion, nuevas_fotos, nuevos_archivos)
+                    firma = anexos_v2.huella(datos_v2, archivos_v2)
+                    if huella_edicion[0] not in (None, firma):
+                        raise RuntimeError('No modifiques la edición ni los anexos después del primer intento.')
+                    valor = f"{usuario_activo.get('id_usuario')}:{operacion_v2}:{solicitud_edicion}"
+                    if not messagebox.askyesno('Autorización de prueba OBC', f'Solo datos ficticios. Autoriza esta solicitud antes de continuar:\n\n{valor}\n\n¿Continuar?', parent=parent.winfo_toplevel()):
+                        return
+                    huella_edicion[0] = firma
+                except Exception as error:
+                    messagebox.showwarning('Edición conservada', str(error), parent=parent.winfo_toplevel())
+                    return
             btn_guardar.configure(state='disabled')
             lbl_faltantes.configure(text='Guardando versión y folio de manera atómica...',text_color=TEXT_SECONDARY)
             def exito(resultado):
@@ -2047,6 +2107,9 @@ def mostrar_obra_civil(parent, app, aco=None, borrador=None, *, obra_edicion=Non
                 lbl_faltantes.configure(text='No se confirmó la actualización. Puedes reintentar.',text_color='#B45309')
                 messagebox.showerror('No fue posible guardar la versión',str(error),parent=parent.winfo_toplevel())
             def guardar_en_servidor():
+                if usar_v2:
+                    resultado, _, _ = anexos_v2.sincronizar(solicitud_edicion, usuario_activo.get('id_usuario'), operacion_v2, datos_v2, archivos_v2, folio=obra_edicion['obc_folio'], autorizacion=str(autorizacion_esi) if autorizacion_esi else None)
+                    return resultado
                 cambios_finales=dict(cambios)
                 if nuevas_fotos:
                     for ruta in nuevas_fotos:

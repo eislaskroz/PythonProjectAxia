@@ -5793,6 +5793,14 @@ def mostrar_levantamiento(parent, app, aco=None, tipo_levantamiento=None, regist
     # =================================================
 
     def guardar_levantamiento():
+        from services.desktop_historical_upload import carga_historica_activa
+        from services.evidence_image_format import validar_imagenes
+        if carga_historica_activa():
+            try:
+                validar_imagenes(evidencias_levantamiento)
+            except (OSError, ValueError) as error:
+                messagebox.showwarning("Evidencia no válida", str(error))
+                return
         if registro_editar and obtener_tipo_usuario(usuario_activo) == 6 and not autorizacion_esi:
             messagebox.showerror("Edición protegida", "La edición ESI exige una autorización vigente verificada por el servidor.")
             return

@@ -4,6 +4,10 @@ import mimetypes
 import re
 from pathlib import Path
 from uuid import uuid4
+from services.desktop_historical_upload import carga_historica_activa, cargar_archivo_historico, MODULES
+
+from ui.pdf_progress import con_progreso_pdf, progreso_pdf
+from services.evidence_image_format import validar_imagenes
 
 from core.logger import configurar_logger
 from supabase_config import supabase
@@ -29,18 +33,25 @@ def _slug(texto: str) -> str:
     return texto.strip("-.") or "archivo"
 
 
+@con_progreso_pdf(titulo="Cargando evidencias", ventana="AXIA · Cargando evidencias")
 def _subir_evidencias(prefijo: str, folio: str, rutas) -> list[dict]:
     folio = _slug(str(folio or "SIN-FOLIO").upper())
     prefijo = _slug(prefijo or "operacion")
     evidencias = []
-    for ruta in rutas or []:
+    rutas = list(rutas or [])
+    progreso_pdf("Cargando evidencias…", 0, len(rutas))
+    for indice, ruta in enumerate(rutas, 1):
         archivo = Path(ruta)
         if not archivo.is_file():
-            continue
+            raise ValueError(f"Archivo no disponible: {archivo.name}")
         ext = archivo.suffix.lower()
         if ext not in _EXT_PERMITIDAS:
             raise ValueError(f"Formato no permitido para evidencia: {archivo.name}")
-        mime = mimetypes.guess_type(archivo.name)[0] or "application/octet-stream"
+        mime = _MIME_ARCHIVOS_TECNICOS[ext]
+        if carga_historica_activa() and prefijo in MODULES:
+            evidencias.append(cargar_archivo_historico(prefijo, folio, archivo, mime))
+            progreso_pdf("Cargando evidencias…", indice, len(rutas))
+            continue
         destino = f"{prefijo}/{folio}/{uuid4().hex}_{_slug(archivo.stem)}{ext}"
         with archivo.open("rb") as fh:
             supabase.storage.from_(BUCKET).upload(
@@ -59,6 +70,7 @@ def _subir_evidencias(prefijo: str, folio: str, rutas) -> list[dict]:
             "url": str(url or ""),
             "mime": mime,
         })
+        progreso_pdf("Cargando evidencias…", indice, len(rutas))
     if evidencias:
         registrar_movimiento_seguro(modulo="EVIDENCIAS", accion="SUBIR_FOTOS", descripcion=f"Se subieron {len(evidencias)} evidencia(s) para {folio}", registro_afectado=folio)
     return evidencias
@@ -92,6 +104,9 @@ def _subir_archivos_tecnicos(prefijo: str, folio: str, rutas) -> list[dict]:
         if ext not in _EXT_ARCHIVOS_TECNICOS:
             raise ValueError(f"Formato no permitido para archivo técnico: {archivo.name}")
         mime = _MIME_ARCHIVOS_TECNICOS.get(ext) or mimetypes.guess_type(archivo.name)[0] or "application/octet-stream"
+        if carga_historica_activa() and prefijo in MODULES:
+            archivos.append({**cargar_archivo_historico(prefijo, folio, archivo, mime), "tipo": "archivo_tecnico"})
+            continue
         destino = f"{prefijo}/{folio}/{uuid4().hex}_{_slug(archivo.stem)}{ext}"
         try:
             with archivo.open("rb") as fh:

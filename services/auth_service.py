@@ -2,21 +2,16 @@ from core.logger import configurar_logger
 
 logger = configurar_logger(__name__)
 
-# =====================================================
-# SERVICIO DE AUTENTICACIÓN - AXIA
-# =====================================================
+
+
+
 import platform
 import os
 import socket
-from datetime import datetime
-import json
-from core.app_paths import user_data_dir
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 import requests
 
-from supabase_config import supabase, TABLA_USUARIOS, TABLA_BITACORA_LOGIN
-from security.passwords import verificar_password, requiere_migracion_a_bcrypt, generar_hash_password
 
 
 def formatear_coordenada_7_decimales(valor):
@@ -27,9 +22,9 @@ def formatear_coordenada_7_decimales(valor):
         return "No disponible"
 
 
-# =====================================================
-# FUNCIÓN: obtener_geolocalizacion()
-# =====================================================
+
+
+
 def obtener_geolocalizacion():
     if os.getenv("AXIA_ENABLE_IP_GEOLOCATION", "1").strip().lower() not in {"1", "true", "yes"}:
         return {"latitud": "No disponible", "longitud": "No disponible", "ciudad": "No disponible", "region": "No disponible", "pais": "No disponible"}
@@ -63,9 +58,9 @@ def obtener_geolocalizacion():
     }
 
 
-# =====================================================
-# FUNCIÓN: obtener_contexto_login()
-# =====================================================
+
+
+
 def obtener_contexto_login():
     nombre_equipo = platform.node()
 
@@ -84,114 +79,64 @@ def obtener_contexto_login():
     }
 
 
-# =====================================================
-# FUNCIÓN: validar_login()
-# =====================================================
-def validar_login(nickname, password):
-    try:
-        nickname = nickname.strip()
-        password = password.strip()
 
-        respuesta = (
-            supabase
-            .table(TABLA_USUARIOS)
-            .select(
-                "id_usuario, usu_nombre, usu_apellido, "
-                "usu_nickname, usu_tipo, usu_password, usu_activo, usu_acceso_habilitado"
-            )
-            .ilike("usu_nickname", nickname)
-            .limit(1)
-            .execute()
+
+
+class ErrorAutenticacion(RuntimeError):
+    pass
+
+
+def validar_login(nickname, password, contexto=None):
+    from core.version import APP_VERSION
+    from supabase_config import SUPABASE_URL, SUPABASE_KEY
+    import time
+
+    if not SUPABASE_URL.startswith("https://"):
+        raise ErrorAutenticacion("La autenticación requiere HTTPS.")
+    contexto = contexto or {}
+    try:
+        respuesta = requests.post(
+            f"{SUPABASE_URL.rstrip('/')}/functions/v1/desktop-auth",
+            json={"nickname": nickname.strip(), "password": password,
+                  "deviceName": contexto.get("nombre_equipo", "AXIA DESKTOP"),
+                  "appVersion": APP_VERSION, "ubicacion": contexto.get("ubicacion", {})},
+            headers={"apikey": SUPABASE_KEY, "content-type": "application/json"},
+            timeout=(6, 20), allow_redirects=False,
         )
-
-        if not respuesta.data:
-            return None
-
-        usuario = respuesta.data[0]
-        if usuario.get('usu_activo') is not True or usuario.get('usu_acceso_habilitado') is not True:
-            return None
-        password_guardado = usuario.get("usu_password", "")
-
-        if not verificar_password(password, password_guardado):
-            return None
-
-        if requiere_migracion_a_bcrypt(password_guardado):
-            (
-                supabase
-                .table(TABLA_USUARIOS)
-                .update({
-                    "usu_password": generar_hash_password(password)
-                })
-                .eq("id_usuario", usuario.get("id_usuario"))
-                .execute()
-            )
-
-        return usuario
-
-    except Exception as error:
-        logger.exception("Error al validar login.")
+    except requests.RequestException:
+        raise ErrorAutenticacion("No fue posible contactar al servidor de autenticación.") from None
+    try:
+        body = respuesta.json()
+    except ValueError:
+        raise ErrorAutenticacion("Respuesta de autenticación no válida.") from None
+    if not isinstance(body, dict):
+        raise ErrorAutenticacion("Respuesta de autenticación no válida.")
+    if respuesta.status_code == 401 and body.get("ok") is False:
         return None
-
-
-def _guardar_login_pendiente(datos):
+    if respuesta.status_code == 429:
+        raise ErrorAutenticacion("Demasiados intentos. Intenta nuevamente en unos minutos.")
+    if respuesta.status_code != 200 or body.get("ok") is not True:
+        raise ErrorAutenticacion("El servidor no pudo confirmar el acceso.")
+    data = body.get("data")
+    if not isinstance(data, dict):
+        raise ErrorAutenticacion("Sesión de AXIA no válida.")
     try:
-        carpeta = user_data_dir() / "audit_pending"
-        carpeta.mkdir(parents=True, exist_ok=True)
-        ruta = carpeta / "login_pendientes.jsonl"
-        payload = dict(datos)
-        payload["pendiente_desde"] = datetime.now().isoformat()
-        with ruta.open("a", encoding="utf-8") as archivo:
-            archivo.write(json.dumps(payload, ensure_ascii=False, default=str) + "\n")
-    except Exception:
-        logger.exception("No fue posible conservar localmente el login pendiente.")
+        uid = data["id_usuario"]
+        rol = data["usu_tipo"]
+        expira = data["expiresAtEpochSeconds"]
+        token = data["accessToken"]
+        if (type(uid) is not int or uid <= 0 or type(rol) is not int or rol not in range(1, 11)
+                or type(expira) is not int or expira <= time.time() + 30
+                or not isinstance(token, str) or token.count(".") != 2
+                or not isinstance(data["usu_nickname"], str)
+                or data["usu_nickname"].casefold() != nickname.strip().casefold()):
+            raise ValueError
+        usuario = {k: data[k] for k in ("id_usuario", "usu_nombre", "usu_apellido", "usu_nickname", "usu_tipo")}
+    except (KeyError, TypeError, ValueError):
+        raise ErrorAutenticacion("Sesión de AXIA no válida.") from None
+    return usuario, token, expira
 
 
-# =====================================================
-# FUNCIÓN: registrar_bitacora_login()
-# =====================================================
-def registrar_bitacora_login(
-    id_usuario,
-    nickname,
-    estatus,
-    descripcion,
-    direccion_ip,
-    nombre_equipo,
-    latitud="",
-    longitud="",
-    ciudad="",
-    region="",
-    pais=""
-):
-
-    try:
-        datos = {
-            "id_usuario": id_usuario,
-            "usu_nickname": nickname,
-            "fecha_hora": datetime.now().isoformat(),
-            "estatus": estatus,
-            "descripcion": descripcion,
-            "direccion_ip": direccion_ip,
-            "nombre_equipo": nombre_equipo,
-            "latitud": formatear_coordenada_7_decimales(latitud),
-            "longitud": formatear_coordenada_7_decimales(longitud),
-            "ciudad": ciudad,
-            "region": region,
-            "pais": pais
-        }
-
-        supabase.table(TABLA_BITACORA_LOGIN).insert(datos).execute()
-
-    except Exception as error:
-        logger.exception("Error al registrar bitácora login; se conservará en cola local.")
-        try:
-            _guardar_login_pendiente(datos)
-        except UnboundLocalError:
-            logger.warning("No fue posible construir el evento de login para la cola local.", exc_info=True)
-
-
-# =====================================================
-# FUNCIÓN: cambiar_password_usuario()
-# =====================================================
 def cambiar_password_usuario(nickname, rfc, nueva_password):
     logger.warning("Intento de recuperación heredada bloqueado para usuario %r", nickname)
     return False, (

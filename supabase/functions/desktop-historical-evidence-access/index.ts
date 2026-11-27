@@ -67,10 +67,15 @@ Deno.serve(async (req: Request) => {
     if (body?.bucket !== BUCKET || typeof path !== "string" || path.length > 512) return fail(400,"Evidencia inválida.");
     const parts = path.split("/");
     if (parts.length !== 3) return fail(400,"Evidencia inválida.");
-    const [module,folio,file] = parts;
+    const [module,folder,file] = parts;
+    const isObc = module === "obras-civiles" || module === "obras-civiles-archivos";
+    const folio = isObc && typeof body?.folio === "string" ? body.folio : folder;
     if (!Object.prototype.hasOwnProperty.call(MODULES,module)) return fail(400,"Evidencia inválida.");
     const config = MODULES[module];
-    if (!new RegExp(`^${config.prefix}-[0-9]{${config.prefix === "OBC" ? 4 : 5},}$`).test(folio) || !/^[0-9a-f]{32}_[A-Za-z0-9_.-]+\.(jpg|jpeg|png|webp|pdf|dwg|dxf)$/i.test(file)) return fail(400,"Evidencia inválida.");
+    const folderIsFolio = new RegExp(`^${config.prefix}-[0-9]{${isObc ? 4 : 5},}$`).test(folder);
+    const folderIsRequest = isObc && /^(SOLICITUD|EDICION)-[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(folder);
+    const fileValid = /^[0-9a-f]{32}_[A-Za-z0-9_.-]+\.(jpg|jpeg|png|webp|pdf|dwg|dxf)$/i.test(file) || (isObc && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}_[A-Za-z0-9_.-]+\.(jpg|jpeg|png|webp|pdf|dwg|dxf)$/i.test(file));
+    if (!new RegExp(`^${config.prefix}-[0-9]{${isObc ? 4 : 5},}$`).test(folio) || (!folderIsFolio && !folderIsRequest) || !fileValid) return fail(400,"Evidencia inválida.");
     const document = await db.from(config.table).select(config.field).eq(config.folio,folio).maybeSingle();
     if (document.error) throw document.error;
     if (!document.data || !referenceMatches((document.data as unknown as Record<string,unknown>)[config.field],path,new URL(url).origin)) return fail(404,"Evidencia no disponible.");

@@ -443,6 +443,14 @@ def mostrar_bitacora_avance(parent, app, aco=None):
 
     def guardar_bitacora():
         nonlocal contexto_ot
+        from services.desktop_historical_upload import carga_historica_activa
+        from services.evidence_image_format import validar_imagenes
+        if carga_historica_activa():
+            try:
+                validar_imagenes(evidencias_locales)
+            except (OSError, ValueError) as error:
+                messagebox.showwarning("Evidencia no válida", str(error))
+                return
         folio = var_folio.get().strip()
         pct = porcentaje_valido(True)
         if pct is None or not formulario_completo():
@@ -494,10 +502,14 @@ def mostrar_bitacora_avance(parent, app, aco=None):
             try:
                 fotos_subidas = subir_evidencias_bitacora(folio, evidencias_locales)
                 if id_bitacora and fotos_subidas:
-                    actualizar_bitacora(id_bitacora, {"bit_fotos": fotos_subidas})
+                    if not actualizar_bitacora(id_bitacora, {"bit_fotos": fotos_subidas}):
+                        raise RuntimeError("No se confirmó la vinculación de las fotografías.")
+                else:
+                    raise RuntimeError("No se confirmó el registro o la carga de fotografías.")
             except Exception as error:
                 logger.exception("La bitácora se guardó, pero falló la carga de fotografías.")
-                aviso_fotos = f"\n\nLa bitácora fue guardada, pero no se pudieron subir todas las fotografías:\n{error}"
+                fotos_subidas = []
+                aviso_fotos = f"\n\nLa bitácora fue guardada, pero no se pudieron confirmar todas las fotografías:\n{error}"
 
         registrar_movimiento(modulo="Bitácoras", accion="CREAR",
                              descripcion=f"El usuario creó la bitácora {folio} ({pct}% avance)", registro_afectado=folio)
