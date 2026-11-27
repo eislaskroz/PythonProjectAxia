@@ -479,7 +479,8 @@ def generar_pdf_registro(
             "Bitácora de Avance", datos_bit, mostrar_firmas=False,
             ruta_salida=Path(ruta_salida), abrir=abrir,
         )
-        if isinstance(resultado, (str, Path)) and Path(resultado).is_file():
+        from services.desktop_operational_evidence import es_folio_piloto
+        if not es_folio_piloto(folio) and isinstance(resultado, (str, Path)) and Path(resultado).is_file():
             AxiaPdfArtifactStore.register(folio, resultado)
         return resultado
 
@@ -494,7 +495,8 @@ def generar_pdf_registro(
             firma_base64=registro.get("os_firma_cliente"), mostrar_firmas=True,
             ruta_salida=Path(ruta_salida), abrir=abrir,
         )
-        if isinstance(resultado, (str, Path)) and Path(resultado).is_file():
+        from services.desktop_operational_evidence import es_folio_piloto
+        if not es_folio_piloto(folio) and isinstance(resultado, (str, Path)) and Path(resultado).is_file():
             AxiaPdfArtifactStore.register(folio, resultado)
         return resultado
 
@@ -563,7 +565,8 @@ def guardar_pdf_registro(registro: dict, configuracion: dict | None = None) -> b
     )
     if not ruta:
         return False
-    exacto = None if es_levantamiento(registro) and contiene_evidencias_field(registro) else AxiaPdfArtifactStore.export_exact(
+    from services.desktop_operational_evidence import es_folio_piloto
+    exacto = None if es_folio_piloto(folio) or (es_levantamiento(registro) and contiene_evidencias_field(registro)) else AxiaPdfArtifactStore.export_exact(
         folio, Path(ruta), min_renderer_version=PDF_RENDERER_VERSION
     )
     if exacto:

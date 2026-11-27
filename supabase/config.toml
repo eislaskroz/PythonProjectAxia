@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.desktop-ot-assignments]
 verify_jwt = false
+
+[functions.desktop-operational-evidence-access-v3]
+verify_jwt = false

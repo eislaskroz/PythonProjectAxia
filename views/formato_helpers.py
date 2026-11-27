@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from ui.pdf_fonts import FONT_PDF_REGULAR, FONT_PDF_BOLD
+from services.desktop_operational_evidence import FotoOperativaPrivada
+from services.desktop_evidence_access import EvidenciaNoDisponible
 
 from core.logger import configurar_logger
 
@@ -346,14 +348,18 @@ def _generar_pdf_orden_servicio_axia(datos, firma_base64=None, ruta_salida=None,
     fotos_preparadas = []
     for item in evidencias_raw or []:
         try:
-            if isinstance(item, dict):
+            if isinstance(item, FotoOperativaPrivada):
+                nombre, origen = item.nombre, ""
+            elif isinstance(item, dict):
                 nombre = str(item.get("nombre") or item.get("storage_path") or "Evidencia")
                 origen = str(item.get("url") or item.get("ruta") or item.get("path") or "").strip()
             else:
                 origen = str(item or "").strip()
                 nombre = Path(origen).name or "Evidencia"
             contenido = None
-            if origen and Path(origen).is_file():
+            if isinstance(item, FotoOperativaPrivada):
+                contenido = item.contenido
+            elif origen and Path(origen).is_file():
                 contenido = Path(origen).read_bytes()
             elif origen.lower().startswith(("http://", "https://")):
                 import requests
@@ -378,6 +384,8 @@ def _generar_pdf_orden_servicio_axia(datos, firma_base64=None, ruta_salida=None,
                 img.save(buff, format="JPEG", quality=85, optimize=True)
             fotos_preparadas.append(FotoPdf(buff.getvalue(), nombre, ancho_px, alto_px))
         except Exception:
+            if isinstance(item, FotoOperativaPrivada):
+                raise EvidenciaNoDisponible("No se pudo incorporar una fotografía privada al PDF.") from None
             logger.warning("No se pudo incorporar evidencia al PDF de Orden de Servicio", exc_info=True)
     if fotos_preparadas:
         fotos_header = Table([[p("EVIDENCIA FOTOGRÁFICA", header)]], colWidths=[ancho_os], hAlign="LEFT")
@@ -838,14 +846,16 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
         nombre = "Evidencia"
         origen = ""
         try:
-            if isinstance(item, dict):
+            if isinstance(item, FotoOperativaPrivada):
+                nombre = item.nombre
+            elif isinstance(item, dict):
                 nombre = str(item.get("nombre") or item.get("name") or item.get("storage_path") or "Evidencia").strip()
                 origen = str(item.get("url") or item.get("public_url") or item.get("ruta") or item.get("path") or "").strip()
             else:
                 origen = str(item or "").strip()
                 if origen:
                     nombre = Path(origen).name or "Evidencia"
-            if not origen and not (isinstance(item, dict) and item.get("storage_path")):
+            if not isinstance(item, FotoOperativaPrivada) and not origen and not (isinstance(item, dict) and item.get("storage_path")):
                 return None, nombre
 
             if origen.lower().startswith("url:"):
@@ -853,7 +863,9 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
 
             contenido = None
             ruta_local = Path(origen)
-            if ruta_local.is_file():
+            if isinstance(item, FotoOperativaPrivada):
+                contenido = item.contenido
+            elif ruta_local.is_file():
                 contenido = ruta_local.read_bytes()
             elif origen.lower().startswith(("http://", "https://")):
                 try:
@@ -897,6 +909,8 @@ def _generar_pdf_bitacora_avance_axia(datos, ruta_salida=None, abrir=True):
                 ancho_px=ancho_px, alto_px=alto_px,
             ), nombre
         except Exception:
+            if isinstance(item, FotoOperativaPrivada):
+                raise EvidenciaNoDisponible("No se pudo incorporar una fotografía privada al PDF.") from None
             logger.warning("No se pudo incorporar una evidencia fotográfica al PDF de Bitácora: %s", nombre, exc_info=True)
             return None, nombre
 
@@ -1454,6 +1468,35 @@ def _generar_pdf_base(titulo, datos, secciones_tabla=None, firma_base64=None, fi
 
 
 def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, firma_tecnico_base64=None, mostrar_firmas=None, ruta_salida=None, abrir=True):
+    from services.desktop_operational_evidence import es_folio_piloto, descargar_fotos_operativas
+    tipo = str(titulo or "").strip().casefold()
+    folio = ""
+    if tipo == "orden de servicio":
+        folio = str((datos or {}).get("Folio OS") or "").strip().upper()
+    elif tipo in ("bitácora de avance", "bitacora de avance"):
+        folio = str((datos or {}).get("Folio Bitácora") or (datos or {}).get("Folio BIT") or "").strip().upper()
+    if es_folio_piloto(folio):
+        try:
+            # Authoritative private manifest, never fall back to legacy URLs for these documents.
+            datos = dict(datos or {})
+            datos["Evidencia Fotográfica"] = descargar_fotos_operativas(folio)
+        except EvidenciaNoDisponible as error:
+            if abrir:
+                messagebox.showwarning("Evidencias privadas no disponibles", str(error) + "\nNo se generó el PDF.")
+                return False
+            raise
+        try:
+            if tipo == "orden de servicio":
+                resultado = _generar_pdf_orden_servicio_axia(datos, firma_base64=firma_base64, ruta_salida=ruta_salida, abrir=abrir)
+            else:
+                resultado = _generar_pdf_bitacora_avance_axia(datos, ruta_salida=ruta_salida, abrir=abrir)
+            return _auditar_pdf(titulo, resultado, ruta_salida, abrir)
+        except EvidenciaNoDisponible as error:
+            if abrir:
+                messagebox.showwarning("Evidencias privadas no disponibles", str(error) + "\nNo se generó el PDF.")
+                return False
+            raise
+
     if str(titulo or "").strip().casefold() == "orden de servicio":
         resultado = _generar_pdf_orden_servicio_axia(
             datos, firma_base64=firma_base64, ruta_salida=ruta_salida, abrir=abrir
