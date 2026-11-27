@@ -1475,6 +1475,15 @@ def generar_pdf_preview(titulo, datos, secciones_tabla=None, firma_base64=None, 
         folio = str((datos or {}).get("Folio OS") or "").strip().upper()
     elif tipo in ("bitácora de avance", "bitacora de avance"):
         folio = str((datos or {}).get("Folio Bitácora") or (datos or {}).get("Folio BIT") or "").strip().upper()
+    from services.desktop_historical_evidence import consulta_historica_activa, preparar_fotos_historicas
+    if folio and not es_folio_piloto(folio) and consulta_historica_activa():
+        try:
+            datos = preparar_fotos_historicas(dict(datos or {}), folio)
+        except EvidenciaNoDisponible as error:
+            if abrir:
+                messagebox.showwarning("Evidencias históricas no disponibles", str(error) + "\nNo se generó el PDF.")
+                return False
+            raise
     if es_folio_piloto(folio):
         try:
             # Authoritative private manifest, never fall back to legacy URLs for these documents.
